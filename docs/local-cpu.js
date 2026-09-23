@@ -86,7 +86,8 @@
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
-        difficulty:this.difficulty
+        difficulty:this.difficulty,
+        tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random()
       };
     }
     start(name='JUGADOR',difficulty='medio',cpuCount=1){
@@ -170,6 +171,7 @@
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;
+        if(p.cpu){p.tactic='scatter';p.tacticUntil=rand(.5,2.2);p.tacticTurn=Math.random()<.5?-1:1;p.tacticSeed=Math.random();}
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
         this.placeAtSpawn(p);p.dead=false;
       }
@@ -233,6 +235,7 @@
     }
     chooseCpuControls(cpu){
       if(cpu.dead)return IDLE_CONTROL;
+
       let rival=null;
       if(this.huntUntil>this.fxClock){
         rival=this.players.find(p=>p.index===this.huntTargetIndex&&!p.dead&&p.camo<=0)||null;
@@ -245,68 +248,141 @@
           if(d<best){best=d;rival=p;}
         }
       }
-      if(!rival)return IDLE_CONTROL;
-      const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
-      const targetRot=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
-      let err=((targetRot-cpu.rot+540)%360)-180;
-      let desiredX=rival.x,desiredY=rival.y,seekPickup=null,defensiveNoAmmo=false,ramming=false;
-      const rivalShielded=rival.shield>0||rival.protection>0,rivalDangerous=rival.shield>0;
-      if(cpu.bullets===0){
-        let bestAmmoScore=Infinity,bestAmmoDistance=Infinity,seekPickupRivalDistance=Infinity;
-        for(const pk of this.pickups){
-          if(!pk.type.startsWith('ammo'))continue;
-          const cpuDistance=Math.sqrt(dist2(cpu,pk)),rivalDistance=Math.sqrt(dist2(rival,pk));
-          const danger=Math.max(0,900-rivalDistance),dangerWeight=cpu.shield>0?.45:1.35;
-          const score=cpuDistance+danger*dangerWeight;
-          if(score<bestAmmoScore){bestAmmoScore=score;bestAmmoDistance=cpuDistance;seekPickupRivalDistance=rivalDistance;seekPickup=pk;}
-        }
-        const ammoDistance=seekPickup?bestAmmoDistance:Infinity;
-        const canRam=cpu.shield>0&&!rivalShielded;
-        const ramRange=cpu.difficulty==='dificil'?650:(cpu.difficulty==='medio'?520:420);
-        const preferRam=canRam&&(!seekPickup||distance<ramRange||(cpu.difficulty==='dificil'&&distance<ammoDistance*.65));
-        if(preferRam){seekPickup=null;ramming=true;desiredX=rival.x;desiredY=rival.y;}
-        else if(seekPickup){
-          defensiveNoAmmo=true;desiredX=seekPickup.x;desiredY=seekPickup.y;
-          const cpuToPickup=Math.sqrt(dist2(cpu,seekPickup));
-          if(cpu.shield<=0&&seekPickupRivalDistance<520&&cpuToPickup>120){
-            const px=seekPickup.x-rival.x,py=seekPickup.y-rival.y,plen=Math.hypot(px,py)||1;
-            const detour=Math.min(280,Math.max(80,520-seekPickupRivalDistance));
-            desiredX+=px/plen*detour;desiredY+=py/plen*detour;
-          }
-          if(distance<800){
-            const inv=1/(distance||1),flee=(800-distance)*(cpu.shield>0?.55:.95);
-            desiredX+=(cpu.x-rival.x)*inv*flee;desiredY+=(cpu.y-rival.y)*inv*flee;
-          }
-        }else{
-          defensiveNoAmmo=true;
-          const inv=1/(distance||1),fleeDistance=950;
-          desiredX=cpu.x+(cpu.x-rival.x)*inv*fleeDistance;desiredY=cpu.y+(cpu.y-rival.y)*inv*fleeDistance;
-        }
-      }else if(rivalDangerous){
-        let bestD2=Infinity;
+
+      // Primera salida menos predecible: cada CPU gira/abre su trayectoria
+      // durante un intervalo distinto antes de comprometerse con una tactica.
+      if(cpu.tactic==='scatter'&&this.fxClock<cpu.tacticUntil){
+        const turn=cpu.tacticTurn*(.32+.46*cpu.tacticSeed);
+        const thrust=this.fxClock>cpu.tacticUntil*.18;
+        return{turn,thrust,fire:false};
+      }
+
+      if(!rival){
+        // Sin objetivo visible (por ejemplo jugador en FANTASMA): deriva y busca recursos.
+        let target=null,best=Infinity;
         for(const pk of this.pickups){
           if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
-          const d2=dist2(cpu,pk);if(d2<bestD2){bestD2=d2;seekPickup=pk;}
+          const d=dist2(cpu,pk);
+          if(d<best){best=d;target=pk;}
         }
-        if(!seekPickup){desiredX=cpu.x-dx;desiredY=cpu.y-dy;}
-      }else if(cpu.difficulty==='dificil'){
-        const excellentShot=Math.abs(err)<5&&distance<850,closeFight=cpu.bullets>0&&distance<500;
-        if(!excellentShot&&!closeFight){
-          let bestScore=10;
-          for(const pk of this.pickups){
-            let value=0;
-            if(pk.type.startsWith('ammo'))value=cpu.bullets<=2?85:25;
-            else if(pk.type==='cadence')value=cpu.cadence>=20?100:35;
-            else if(pk.type==='speed')value=cpu.speed<2?55:10;
-            else if(pk.type==='shield')value=cpu.shield<=0?95:20;
-            const score=value-Math.sqrt(dist2(cpu,pk))*.06;
-            if(score>bestScore){bestScore=score;seekPickup=pk;}
+        if(!target)return{turn:cpu.tacticTurn*.25,thrust:true,fire:false};
+        const dx=target.x-cpu.x,dy=target.y-cpu.y;
+        const desired=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
+        const err=((desired-cpu.rot+540)%360)-180;
+        return{turn:clamp(err/38,-1,1),thrust:Math.abs(err)<70,fire:false};
+      }
+
+      const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
+      const rivalShielded=rival.shield>0||rival.protection>0;
+      const rivalDangerous=rival.shield>0;
+      const huntActive=this.huntUntil>this.fxClock&&rival.index===this.huntTargetIndex;
+
+      // La decision se "consensua" entre municion, peligro, distancia, escudo,
+      // recursos cercanos y una pequena personalidad propia. Se mantiene un
+      // corto tiempo para evitar cambios nerviosos cada frame.
+      if(this.fxClock>=cpu.tacticUntil||cpu.tactic==='scatter'){
+        let attackScore=cpu.bullets>0?48:-35;
+        let evadeScore=cpu.bullets===0?68:8;
+        let resourceScore=0;
+        if(cpu.shield>0)attackScore+=34;
+        if(rivalDangerous){evadeScore+=48;attackScore-=24;}
+        if(distance<420)evadeScore+=cpu.shield>0?-10:22;
+        if(distance>900&&cpu.bullets>0)attackScore+=12;
+        if(huntActive)attackScore+=38;
+        if(cpu.bullets<=1)resourceScore+=58;
+        else if(cpu.bullets<=3)resourceScore+=24;
+        if(cpu.shield<=0)resourceScore+=22;
+
+        let hasUsefulPickup=false;
+        for(const pk of this.pickups){
+          if(pk.type==='shield'||pk.type.startsWith('ammo')){hasUsefulPickup=true;break;}
+        }
+        if(!hasUsefulPickup)resourceScore-=40;
+
+        const personality=(cpu.tacticSeed-.5)*28;
+        attackScore+=personality+rand(-12,12);
+        evadeScore-=personality*.45;evadeScore+=rand(-10,10);
+        resourceScore+=rand(-9,9);
+
+        if(huntActive&&cpu.bullets>0&&cpu.shield>0)attackScore+=24;
+
+        let tactic='attack',score=attackScore;
+        if(evadeScore>score){tactic='evade';score=evadeScore;}
+        if(resourceScore>score){tactic='resource';score=resourceScore;}
+        cpu.tactic=tactic;
+        cpu.tacticUntil=this.fxClock+rand(.85,2.05);
+        cpu.tacticTurn=Math.random()<.5?-1:1;
+      }
+
+      let desiredX=rival.x,desiredY=rival.y,seekPickup=null,ramming=false;
+      let defensive=false;
+
+      const findResource=(preferShield=false)=>{
+        let bestPk=null,bestScore=Infinity;
+        for(const pk of this.pickups){
+          if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
+          let score=Math.sqrt(dist2(cpu,pk));
+          if(preferShield&&pk.type==='shield')score-=260;
+          if(cpu.bullets===0&&pk.type.startsWith('ammo'))score-=320;
+          if(cpu.bullets<=2&&pk.type.startsWith('ammo'))score-=130;
+          const rivalDistance=Math.sqrt(dist2(rival,pk));
+          if(cpu.shield<=0&&rivalDistance<420)score+=(420-rivalDistance)*1.2;
+          if(score<bestScore){bestScore=score;bestPk=pk;}
+        }
+        return bestPk;
+      };
+
+      if(cpu.tactic==='resource'||cpu.bullets===0){
+        seekPickup=findResource(cpu.shield<=0);
+        if(seekPickup){
+          desiredX=seekPickup.x;desiredY=seekPickup.y;defensive=true;
+          // Mientras va a por armas/escudo, abre la trayectoria respecto al rival.
+          if(distance<760){
+            const inv=1/(distance||1),push=(760-distance)*(cpu.shield>0?.35:.82);
+            desiredX+=(cpu.x-rival.x)*inv*push;
+            desiredY+=(cpu.y-rival.y)*inv*push;
           }
+        }else{
+          cpu.tactic='evade';
         }
       }
-      if(seekPickup&&!defensiveNoAmmo){desiredX=seekPickup.x;desiredY=seekPickup.y;}
-      const ddx=desiredX-cpu.x,ddy=desiredY-cpu.y,dRot=(Math.atan2(-ddx,-ddy)*180/Math.PI+360)%360;
-      err=((dRot-cpu.rot+540)%360)-180;
+
+      if(cpu.tactic==='evade'&&!seekPickup){
+        // Huir no significa escapar para siempre: primero intenta rearmarse o
+        // conseguir escudo; si no hay recurso util, crea distancia.
+        seekPickup=findResource(cpu.shield<=0);
+        if(seekPickup){
+          desiredX=seekPickup.x;desiredY=seekPickup.y;defensive=true;
+        }else{
+          const inv=1/(distance||1);
+          const side=cpu.tacticTurn*260;
+          desiredX=cpu.x+(cpu.x-rival.x)*inv*900+(-dy/(distance||1))*side;
+          desiredY=cpu.y+(cpu.y-rival.y)*inv*900+(dx/(distance||1))*side;
+          defensive=true;
+        }
+      }
+
+      if(cpu.tactic==='attack'&&!seekPickup){
+        // Con escudo puede decidir embestir. Sin escudo evita la colision directa.
+        const ramRange=cpu.difficulty==='dificil'?680:(cpu.difficulty==='medio'?560:450);
+        if(cpu.shield>0&&!rivalShielded&&distance<ramRange){
+          const ramChance=cpu.difficulty==='dificil'?.80:(cpu.difficulty==='medio'?.62:.45);
+          ramming=cpu.tacticSeed<ramChance||huntActive;
+        }
+        if(ramming){
+          desiredX=rival.x;desiredY=rival.y;
+        }else if(distance<210&&cpu.shield<=0){
+          const inv=1/(distance||1),side=cpu.tacticTurn*230;
+          desiredX=cpu.x+(cpu.x-rival.x)*inv*360+(-dy/(distance||1))*side;
+          desiredY=cpu.y+(cpu.y-rival.y)*inv*360+(dx/(distance||1))*side;
+          defensive=true;
+        }
+      }
+
+      const ddx=desiredX-cpu.x,ddy=desiredY-cpu.y;
+      const desiredRot=(Math.atan2(-ddx,-ddy)*180/Math.PI+360)%360;
+      let err=((desiredRot-cpu.rot+540)%360)-180;
+
       let avoidX=0,avoidY=0;
       for(const h of this.asteroids){
         const hx=cpu.x-h.x,hy=cpu.y-h.y,d=Math.hypot(hx,hy),safe=(h.r||ASTEROID_RADIUS)+90;
@@ -320,23 +396,29 @@
         const h=this.giant,hx=cpu.x-h.x,hy=cpu.y-h.y,d=Math.hypot(hx,hy),safe=(h.r||GIANT_RADIUS)+90;
         if(d<safe&&d>1){avoidX+=hx/d*(safe-d);avoidY+=hy/d*(safe-d);}
       }
-      if(this.huntUntil>this.fxClock){
-        for(const mate of this.players){
-          if(!mate.cpu||mate.index===cpu.index||mate.dead)continue;
-          const hx=cpu.x-mate.x,hy=cpu.y-mate.y,d=Math.hypot(hx,hy),safe=SHIP_RADIUS*5;
-          if(d<safe&&d>1){
-            const strength=(safe-d)*1.8;
-            avoidX+=hx/d*strength;avoidY+=hy/d*strength;
-            const side=(cpu.index<mate.index?1:-1)*Math.max(0,safe-d)*.55;
-            avoidX+=-hy/d*side;avoidY+=hx/d*side;
-          }
+
+      // Todas las CPU se separan algo entre si; en A POR el efecto es mayor.
+      for(const mate of this.players){
+        if(!mate.cpu||mate.index===cpu.index||mate.dead)continue;
+        const hx=cpu.x-mate.x,hy=cpu.y-mate.y,d=Math.hypot(hx,hy);
+        const safe=SHIP_RADIUS*(huntActive?5.2:3.6);
+        if(d<safe&&d>1){
+          const strength=(safe-d)*(huntActive?1.8:1.15);
+          avoidX+=hx/d*strength;avoidY+=hy/d*strength;
+          const side=(cpu.index<mate.index?1:-1)*Math.max(0,safe-d)*(huntActive?.55:.28);
+          avoidX+=-hy/d*side;avoidY+=hx/d*side;
         }
       }
+
       const avoidMag=Math.hypot(avoidX,avoidY);
-      if(avoidMag>20){const ar=(Math.atan2(-avoidX,-avoidY)*180/Math.PI+360)%360;err=((ar-cpu.rot+540)%360)-180;}
+      if(avoidMag>20){
+        const ar=(Math.atan2(-avoidX,-avoidY)*180/Math.PI+360)%360;
+        err=((ar-cpu.rot+540)%360)-180;
+      }
+
       const turn=clamp(err/38,-1,1);
-      const thrust=!!(Math.abs(err)<60&&(seekPickup||defensiveNoAmmo||ramming||distance>280||avoidMag>20));
-      const fire=!rivalDangerous&&!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<6&&distance<1350;
+      const thrust=!!(Math.abs(err)<68&&(distance>230||seekPickup||defensive||ramming||avoidMag>20));
+      const fire=!rivalDangerous&&!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<7&&distance<1350;
       return{turn,thrust,fire};
     }
     update(dt){
