@@ -1,11 +1,17 @@
 {
-  "name": "galaxy-combat-p2p-signaling",
-  "version": "1.0.0",
+  "name": "galaxy-combat-p2p-backend",
+  "version": "1.1.0",
   "private": true,
+  "description": "Galaxy Combat P2P signaling, accounts and ranking backend",
+  "main": "p2p-server.js",
   "scripts": {
     "start": "node p2p-server.js"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "pg": "8.13.1",
+    "ws": "8.18.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
