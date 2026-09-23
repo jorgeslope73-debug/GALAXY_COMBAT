@@ -522,6 +522,15 @@
     });
     return hostPhysics.start(players||lobbyPlayers);
   }
+  function apiBaseUrl(){
+    const configured=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').trim();
+    if(configured){
+      try{const u=new URL(configured,location.href);u.pathname='';u.search='';u.hash='';return u.toString().replace(/\/$/,'');}
+      catch(_){return '';}
+    }
+    if(location.hostname.endsWith('github.io'))return '';
+    return location.origin;
+  }
   function websocketUrl(){
     const configured=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').trim();
     if(configured){
@@ -775,6 +784,29 @@
     if(localCpu&&typeof localCpu.stop==='function')localCpu.stop();
     localCpu=null;localCpuActive=false;
   }
+  async function loadCpuBrain(){
+    const base=apiBaseUrl();if(!base)return null;
+    const ctl=typeof AbortController==='function'?new AbortController():null;
+    const timer=ctl?setTimeout(()=>ctl.abort(),1400):null;
+    try{
+      const res=await fetch(base+'/api/cpu-brain',{cache:'no-store',signal:ctl?ctl.signal:undefined});
+      if(!res.ok)return null;
+      const data=await res.json();
+      return data&&data.ok&&data.brain?data.brain:null;
+    }catch(_){return null;}
+    finally{if(timer)clearTimeout(timer);}
+  }
+  async function submitCpuLearning(deltas){
+    const base=apiBaseUrl();if(!base||!Array.isArray(deltas)||!deltas.length)return;
+    try{
+      await fetch(base+'/api/cpu-brain/learn',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({deltas:deltas.slice(0,24)}),
+        keepalive:true
+      });
+    }catch(_){}
+  }
   async function startLocalCpu(){
     startMusic();await prepareMobileControls();closeRoomDialogs();
     if(typeof window.GalaxyLocalCpu!=='function'){
@@ -783,8 +815,10 @@
     }
     stopLocalCpu();
     stopResumeWindow();clearResumeSession();playerToken='';
+    const difficulty=document.getElementById('difficulty').value;
+    const brain=difficulty==='dificil'?await loadCpuBrain():null;
     localCpu=new window.GalaxyLocalCpu({onState:m=>handle(m),onEvent:m=>handle(m)});
-    localCpu.start(sinTildes(campoNombre.value),document.getElementById('difficulty').value,document.getElementById('cpuCount').value);
+    localCpu.start(sinTildes(campoNombre.value),difficulty,document.getElementById('cpuCount').value,brain);
     localCpuActive=true;
     handle({t:'created',code:'LOCAL',index:0,cpu:true,playerToken:''});
     handle({t:'start'});
@@ -933,6 +967,7 @@
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';brutalShooter=sinTildes(String(m.shooter||'')).trim();}
     else if(m.t==='hunt'){huntFxStart=performance.now();huntFxUntil=huntFxStart+2200;huntText='A POR '+sinTildes(String(m.name||'JUGADOR')).trim().toUpperCase();}
     else if(m.t==='sound'){playSound(m.kind);}
+    else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
     else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
