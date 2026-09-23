@@ -168,6 +168,7 @@
           const opening=this.chooseBrainAction('open3',['attack','evade','resource','scatter'],i===3?.24:.34);
           cpu.tactic=opening;
           cpu.tacticUntil=rand(i===3?1.8:.9,i===3?3.8:2.6);
+          if(i===3)this.recordLearning(cpu,'open3',opening);
         }else{
           cpu.tactic='scatter';
           cpu.tacticUntil=rand(.5,2.2);
@@ -233,7 +234,16 @@
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;
-        if(p.cpu){p.tactic='scatter';p.tacticUntil=rand(.5,2.2);p.tacticTurn=Math.random()<.5?-1:1;p.tacticSeed=Math.random();}
+        if(p.cpu){
+          p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
+          if(this.difficulty==='dificil'){
+            const opening=this.chooseBrainAction('open3',['attack','evade','resource','scatter'],p.index===3?.24:.34);
+            p.tactic=opening;p.tacticUntil=rand(p.index===3?1.8:.9,p.index===3?3.8:2.6);
+            if(p.index===3)this.recordLearning(p,'open3',opening);
+          }else{
+            p.tactic='scatter';p.tacticUntil=rand(.5,2.2);
+          }
+        }
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
         this.placeAtSpawn(p);p.dead=false;
       }
