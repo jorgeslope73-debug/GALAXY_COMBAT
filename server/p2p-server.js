@@ -186,7 +186,7 @@ function readJsonBody(req,maxBytes=16384){
 }
 function bearerToken(req){const raw=String(req.headers.authorization||'');const m=/^Bearer\s+([a-f0-9]{64})$/i.exec(raw.trim());return m?m[1]:'';}
 
-const CPU_BRAIN_MAX_STRATEGIES=32;
+const CPU_BRAIN_MAX_STRATEGIES=16;
 const CPU_BRAIN_MAX_CANDIDATES=16;
 const CPU_BRAIN_MAX_BYTES=32768;
 const CPU_ACTIONS=new Set(['attack','evade','resource','scatter']);
