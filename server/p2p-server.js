@@ -82,6 +82,15 @@ async function ensureDatabase(){
       );
       CREATE INDEX IF NOT EXISTS galaxy_rank_players_user_idx ON galaxy_ranked_match_players(user_id);
       CREATE INDEX IF NOT EXISTS galaxy_rank_winner_idx ON galaxy_ranked_matches(winner_user_id);
+      CREATE TABLE IF NOT EXISTS galaxy_cpu_brain (
+        id SMALLINT PRIMARY KEY,
+        version INTEGER NOT NULL DEFAULT 1,
+        brain JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      INSERT INTO galaxy_cpu_brain(id,version,brain)
+      VALUES(1,1,'{"version":1,"strategies":[],"candidates":[]}'::jsonb)
+      ON CONFLICT(id) DO NOTHING;
     `);
     dbReady=true;
     console.log('[Galaxy Combat P2P] Base de datos de cuentas preparada.');
@@ -177,6 +186,82 @@ function readJsonBody(req,maxBytes=16384){
 }
 function bearerToken(req){const raw=String(req.headers.authorization||'');const m=/^Bearer\s+([a-f0-9]{64})$/i.exec(raw.trim());return m?m[1]:'';}
 
+const CPU_BRAIN_MAX_STRATEGIES=32;
+const CPU_BRAIN_MAX_CANDIDATES=16;
+const CPU_BRAIN_MAX_BYTES=32768;
+const CPU_ACTIONS=new Set(['attack','evade','resource','scatter']);
+function safeCpuContext(v){
+  const s=String(v||'');
+  return s==='open3'||/^a[012]-s[01]-d[012]-e[01]$/.test(s)?s:'';
+}
+function normalizeCpuBrain(raw){
+  const brain=raw&&typeof raw==='object'?raw:{};
+  const out={version:Math.max(1,Number(brain.version)||1),strategies:[],candidates:[]};
+  for(const src of Array.isArray(brain.strategies)?brain.strategies:[]){
+    const context=safeCpuContext(src&&src.context),action=String(src&&src.action||'');
+    if(!context||!CPU_ACTIONS.has(action))continue;
+    const samples=Math.max(1,Math.min(100000,Math.round(Number(src.samples)||1)));
+    const total=Math.max(-200000,Math.min(200000,Number(src.total)||0));
+    out.strategies.push({context,action,samples,total});
+    if(out.strategies.length>=CPU_BRAIN_MAX_STRATEGIES)break;
+  }
+  for(const src of Array.isArray(brain.candidates)?brain.candidates:[]){
+    const context=safeCpuContext(src&&src.context),action=String(src&&src.action||'');
+    if(!context||!CPU_ACTIONS.has(action))continue;
+    const samples=Math.max(1,Math.min(1000,Math.round(Number(src.samples)||1)));
+    const total=Math.max(-2000,Math.min(2000,Number(src.total)||0));
+    out.candidates.push({context,action,samples,total});
+    if(out.candidates.length>=CPU_BRAIN_MAX_CANDIDATES)break;
+  }
+  return out;
+}
+function cpuEntryScore(e){return e&&e.samples?e.total/e.samples:0;}
+function mergeCpuBrain(rawBrain,deltas){
+  const brain=normalizeCpuBrain(rawBrain);
+  const valid=(Array.isArray(deltas)?deltas:[]).slice(0,24);
+  for(const d of valid){
+    const context=safeCpuContext(d&&d.context),action=String(d&&d.action||'');
+    if(!context||!CPU_ACTIONS.has(action))continue;
+    const reward=Math.max(-2,Math.min(2,Number(d.reward)||0));
+    const uses=Math.max(1,Math.min(4,Math.round(Number(d.uses)||1)));
+    let e=brain.strategies.find(x=>x.context===context&&x.action===action);
+    if(e){
+      e.samples=Math.min(100000,e.samples+uses);e.total=Math.max(-200000,Math.min(200000,e.total+reward*uses));
+      continue;
+    }
+    if(brain.strategies.length<CPU_BRAIN_MAX_STRATEGIES){
+      brain.strategies.push({context,action,samples:uses,total:reward*uses});
+      continue;
+    }
+    let c=brain.candidates.find(x=>x.context===context&&x.action===action);
+    if(!c){
+      if(brain.candidates.length>=CPU_BRAIN_MAX_CANDIDATES){
+        brain.candidates.sort((a,b)=>a.samples-b.samples||cpuEntryScore(a)-cpuEntryScore(b));
+        brain.candidates.shift();
+      }
+      c={context,action,samples:0,total:0};brain.candidates.push(c);
+    }
+    c.samples=Math.min(1000,c.samples+uses);c.total+=reward*uses;
+    if(c.samples>=5){
+      let worstIndex=0,worstScore=Infinity;
+      for(let i=0;i<brain.strategies.length;i++){
+        const x=brain.strategies[i];
+        const score=cpuEntryScore(x)-(Math.min(5,x.samples)<5?.18:0);
+        if(score<worstScore){worstScore=score;worstIndex=i;}
+      }
+      const candidateScore=cpuEntryScore(c);
+      if(candidateScore>worstScore+.15){
+        brain.strategies[worstIndex]={context:c.context,action:c.action,samples:c.samples,total:c.total};
+        brain.candidates=brain.candidates.filter(x=>x!==c);
+      }
+    }
+  }
+  brain.version=Math.max(1,Number(brain.version)||1)+1;
+  while(Buffer.byteLength(JSON.stringify(brain),'utf8')>CPU_BRAIN_MAX_BYTES&&brain.candidates.length)brain.candidates.shift();
+  while(Buffer.byteLength(JSON.stringify(brain),'utf8')>CPU_BRAIN_MAX_BYTES&&brain.strategies.length>8)brain.strategies.shift();
+  return brain;
+}
+
 async function authApi(req,res,url){
   if(!db){sendJson(res,503,{ok:false,code:'DB_NOT_CONFIGURED',message:'Cuentas aun no configuradas en el servidor.'});return true;}
   if(!await ensureDatabase()){sendJson(res,503,{ok:false,code:'DB_UNAVAILABLE',message:'Servicio de cuentas no disponible.'});return true;}
@@ -217,6 +302,33 @@ async function authApi(req,res,url){
     const user=await userFromSessionToken(bearerToken(req));
     if(!user){sendJson(res,401,{ok:false,code:'UNAUTHORIZED'});return true;}
     sendJson(res,200,{ok:true,user:{id:Number(user.id),username:user.username,email:user.email}});return true;
+  }
+  if(url==='/api/cpu-brain'&&req.method==='GET'){
+    const {rows}=await db.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 LIMIT 1');
+    const row=rows[0]||{version:1,brain:{version:1,strategies:[],candidates:[]},updated_at:null};
+    const brain=normalizeCpuBrain(row.brain);
+    sendJson(res,200,{ok:true,version:Number(row.version)||1,brain:{version:brain.version,strategies:brain.strategies}});
+    return true;
+  }
+  if(url==='/api/cpu-brain/learn'&&req.method==='POST'){
+    let body;try{body=await readJsonBody(req,16384);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
+    const deltas=Array.isArray(body&&body.deltas)?body.deltas:[];
+    const client=await db.connect();
+    try{
+      await client.query('BEGIN');
+      const {rows}=await client.query('SELECT version,brain FROM galaxy_cpu_brain WHERE id=1 FOR UPDATE');
+      const current=rows[0]||{version:1,brain:{version:1,strategies:[],candidates:[]}};
+      const brain=mergeCpuBrain(current.brain,deltas);
+      const bytes=Buffer.byteLength(JSON.stringify(brain),'utf8');
+      await client.query('UPDATE galaxy_cpu_brain SET version=$1,brain=$2::jsonb,updated_at=NOW() WHERE id=1',[brain.version,JSON.stringify(brain)]);
+      await client.query('COMMIT');
+      sendJson(res,200,{ok:true,version:brain.version,strategies:brain.strategies.length,bytes});
+    }catch(err){
+      try{await client.query('ROLLBACK');}catch(_){}
+      console.error('[Galaxy Combat P2P] Error actualizando CPU brain:',err&&err.message||err);
+      sendJson(res,500,{ok:false,code:'CPU_BRAIN_ERROR'});
+    }finally{client.release();}
+    return true;
   }
   if(url==='/api/ranking'&&req.method==='GET'){
     const {rows}=await db.query(`
