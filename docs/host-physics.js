@@ -41,6 +41,7 @@
       this.onState=typeof onState==='function'?onState:()=>{};
       this.onEvent=typeof onEvent==='function'?onEvent:()=>{};
       this.code=String(code||'P2P');
+      this.rankReportSent=false;
       this.players=[];
       this.controls=new Map();
       this.started=false;
@@ -95,6 +96,7 @@
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
+      this.rankReportSent=false;
       this.resetAsteroids();
       for(const item of list){
         const index=Number(item.i);
@@ -149,7 +151,7 @@
     }
     restart(){
       if(!this.finished||this.players.length<2)return false;
-      this.started=false;this.finished=false;this.winner=null;this.seq=0;
+      this.started=false;this.finished=false;this.winner=null;this.seq=0;this.rankReportSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
@@ -165,6 +167,22 @@
       }
       this.started=true;this.lastNow=0;this.accumulator=0;this.tickCount=0;
       return true;
+    }
+    reportRankedVictory(winnerIndex){
+      if(this.rankReportSent||this.code==='LOCAL')return;
+      this.rankReportSent=true;
+      try{
+        const auth=window.GalaxyAuth;
+        const token=auth&&typeof auth.getToken==='function'?String(auth.getToken()||''):'';
+        const base=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').replace(/\/$/,'');
+        if(!token||!base)return;
+        fetch(base+'/api/rank-result',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body:JSON.stringify({roomCode:this.code,winnerIndex:Number(winnerIndex)}),
+          cache:'no-store',keepalive:true
+        }).catch(err=>console.warn('[Galaxy Combat] No se pudo registrar el resultado:',err&&err.message||err));
+      }catch(err){console.warn('[Galaxy Combat] Error enviando resultado:',err&&err.message||err);}
     }
     emitShipImpact(player,source=null,destroyed=false){
       if(!player||!Number.isFinite(player.x)||!Number.isFinite(player.y))return;
@@ -196,6 +214,7 @@
         if(attacker.kills>=SCORE_TO_WIN){
           this.finished=true;this.winner=attacker.index;
           this.emit({t:'victory',winner:this.winner});
+          this.reportRankedVictory(this.winner);
         }
       }
     }
