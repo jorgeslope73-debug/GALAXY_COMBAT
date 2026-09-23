@@ -46,6 +46,10 @@
       this.finished=false;
       this.winner=null;
       this.difficulty='medio';
+      this.cpuCount=1;
+      this.huntTargetIndex=0;
+      this.huntUntil=0;
+      this.nextHuntAt=0;
       this.seq=0;
       this.fxClock=0;
       this.fxSeq=0;
@@ -85,24 +89,31 @@
         difficulty:this.difficulty
       };
     }
-    start(name='JUGADOR',difficulty='medio'){
+    start(name='JUGADOR',difficulty='medio',cpuCount=1){
       this.difficulty=String(difficulty||'medio');
+      this.cpuCount=clamp(Math.round(Number(cpuCount)||1),1,3);
+      this.huntTargetIndex=0;
+      this.huntUntil=0;
+      this.nextHuntAt=rand(180,360);
       this.players=[];
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
+      this.huntUntil=0;this.nextHuntAt=rand(180,360);
       this.resetAsteroids();
       const human=this.makePlayer(0,name,false);
       this.placeAtSpawn(human);
       this.players.push(human);
       this.controls.set(0,{turn:0,thrust:false,fire:false});
-      const cpu=this.makePlayer(1,'CPU',true);
-      cpu.difficulty=this.difficulty;
-      this.placeAtSpawn(cpu);
-      this.players.push(cpu);
-      this.controls.set(1,{turn:0,thrust:false,fire:false});
+      for(let i=1;i<=this.cpuCount;i++){
+        const cpu=this.makePlayer(i,'CPU '+i,true);
+        cpu.difficulty=this.difficulty;
+        this.placeAtSpawn(cpu);
+        this.players.push(cpu);
+        this.controls.set(i,{turn:0,thrust:false,fire:false});
+      }
       this.started=true;this.finished=false;this.winner=null;
       this.lastNow=0;this.accumulator=0;this.tickCount=0;
       return true;
@@ -147,7 +158,7 @@
       if(steps===5&&this.accumulator>=STEP_MS)this.accumulator%=STEP_MS;
     }
     restart(){
-      if(!this.finished||this.players.length!==2)return false;
+      if(!this.finished||this.players.length<2)return false;
       this.started=false;this.finished=false;this.winner=null;this.seq=0;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
@@ -221,9 +232,20 @@
       p.bullets=0;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;
     }
     chooseCpuControls(cpu){
+      if(cpu.dead)return IDLE_CONTROL;
       let rival=null;
-      for(const p of this.players){if(!p.cpu&&!p.dead){rival=p;break;}}
-      if(!rival||cpu.dead)return IDLE_CONTROL;
+      if(this.huntUntil>this.fxClock){
+        rival=this.players.find(p=>p.index===this.huntTargetIndex&&!p.dead)||null;
+      }
+      if(!rival){
+        let best=Infinity;
+        for(const p of this.players){
+          if(p.index===cpu.index||p.dead)continue;
+          const d=dist2(cpu,p);
+          if(d<best){best=d;rival=p;}
+        }
+      }
+      if(!rival)return IDLE_CONTROL;
       const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
       const targetRot=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
       let err=((targetRot-cpu.rot+540)%360)-180;
@@ -308,6 +330,13 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
+      if(this.cpuCount>1&&this.huntUntil<=this.fxClock&&this.fxClock>=this.nextHuntAt){
+        const human=this.players.find(p=>!p.cpu)||this.players[0];
+        this.huntTargetIndex=human?human.index:0;
+        this.huntUntil=this.fxClock+20;
+        this.nextHuntAt=this.huntUntil+rand(180,360);
+        if(human)this.emit({t:'hunt',name:human.name,duration:20});
+      }
       let fxWrite=0;
       for(const e of this.fxEvents)if(this.fxClock-e.at<=.8)this.fxEvents[fxWrite++]=e;
       this.fxEvents.length=fxWrite;
