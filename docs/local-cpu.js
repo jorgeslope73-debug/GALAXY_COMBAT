@@ -362,7 +362,7 @@
               const attacker=this.players.find(q=>q.index===b.owner)||null;
               if(p.shield<=0){
                 const brutal=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
-                if(brutal&&attacker.index===0)this.emit({t:'brutal',distance:Math.round(b.travel||0)});
+                if(brutal)this.emit({t:'brutal',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index});
                 this.destroyShip(p,attacker);
               }else this.emitShipImpact(p,b,false);
               remove=true;break;
