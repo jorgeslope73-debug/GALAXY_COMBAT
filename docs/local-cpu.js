@@ -558,7 +558,15 @@
         else if(pickupDistance<80&&pickupClosing>45)thrust=false;
         else if(pickupDistance<135&&Math.abs(err)>28)thrust=false;
       }
-      const fire=!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<7&&distance<1350&&(huntActive||!rivalDangerous);
+
+      // Si el rival entra claramente en la linea de tiro, dispara aunque la CPU
+      // estuviera buscando un pickup o saliendo de una maniobra defensiva.
+      // Conservamos solo las restricciones fisicas reales: tener balas, recarga
+      // terminada, rival visible y estar dentro del alcance.
+      const aimRot=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
+      const aimErr=((aimRot-cpu.rot+540)%360)-180;
+      const inFiringArc=Math.abs(aimErr)<7&&distance<1350;
+      const fire=cpu.bullets>0&&cpu.reload<=0&&inFiringArc&&(huntActive||!rivalDangerous);
       return{turn,thrust,fire};
     }
     update(dt){
