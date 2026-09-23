@@ -235,12 +235,12 @@
       if(cpu.dead)return IDLE_CONTROL;
       let rival=null;
       if(this.huntUntil>this.fxClock){
-        rival=this.players.find(p=>p.index===this.huntTargetIndex&&!p.dead)||null;
+        rival=this.players.find(p=>p.index===this.huntTargetIndex&&!p.dead&&p.camo<=0)||null;
       }
       if(!rival){
         let best=Infinity;
         for(const p of this.players){
-          if(p.index===cpu.index||p.dead)continue;
+          if(p.index===cpu.index||p.dead||p.camo>0)continue;
           const d=dist2(cpu,p);
           if(d<best){best=d;rival=p;}
         }
@@ -319,6 +319,18 @@
       if(this.giant){
         const h=this.giant,hx=cpu.x-h.x,hy=cpu.y-h.y,d=Math.hypot(hx,hy),safe=(h.r||GIANT_RADIUS)+90;
         if(d<safe&&d>1){avoidX+=hx/d*(safe-d);avoidY+=hy/d*(safe-d);}
+      }
+      if(this.huntUntil>this.fxClock){
+        for(const mate of this.players){
+          if(!mate.cpu||mate.index===cpu.index||mate.dead)continue;
+          const hx=cpu.x-mate.x,hy=cpu.y-mate.y,d=Math.hypot(hx,hy),safe=SHIP_RADIUS*5;
+          if(d<safe&&d>1){
+            const strength=(safe-d)*1.8;
+            avoidX+=hx/d*strength;avoidY+=hy/d*strength;
+            const side=(cpu.index<mate.index?1:-1)*Math.max(0,safe-d)*.55;
+            avoidX+=-hy/d*side;avoidY+=hx/d*side;
+          }
+        }
       }
       const avoidMag=Math.hypot(avoidX,avoidY);
       if(avoidMag>20){const ar=(Math.atan2(-avoidX,-avoidY)*180/Math.PI+360)%360;err=((ar-cpu.rot+540)%360)-180;}
