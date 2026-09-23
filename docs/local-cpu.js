@@ -469,6 +469,17 @@
 
       if(!seekPickup&&cpu.tactic!=='resource'&&cpu.bullets>0)cpu.resourceTargetId=null;
 
+      // Con escudo la CPU usa siempre la embestida como opcion ofensiva:
+      // deja de huir o buscar recursos y se dirige al rival visible. Si ambos
+      // tienen escudo, chocaran y rebotaran segun la fisica normal.
+      if(cpu.shield>0){
+        cpu.tactic='attack';
+        cpu.resourceTargetId=null;
+        seekPickup=null;
+        ramming=true;
+        desiredX=rival.x;desiredY=rival.y;
+      }
+
       if(cpu.tactic==='attack'&&!seekPickup){
         // En A POR la embestida esta permitida incluso sin balas y sin escudo.
         // El modo fantasma sigue mandando: si el humano no es visible, no hay
@@ -476,12 +487,6 @@
         if(huntActive){
           ramming=true;
           desiredX=rival.x;desiredY=rival.y;
-        }else{
-          const ramRange=cpu.difficulty==='dificil'?680:(cpu.difficulty==='medio'?560:450);
-          if(cpu.shield>0&&!rivalShielded&&distance<ramRange){
-            const ramChance=cpu.difficulty==='dificil'?.80:(cpu.difficulty==='medio'?.62:.45);
-            ramming=cpu.tacticSeed<ramChance;
-          }
         }
         if(ramming){
           desiredX=rival.x;desiredY=rival.y;
