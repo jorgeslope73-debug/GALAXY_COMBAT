@@ -1,0 +1,17 @@
+{
+  "name": "galaxy-combat-backend",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Backend WebSocket autoritativo de Galaxy Combat Web",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "8.18.3",
+    "pg": "8.13.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

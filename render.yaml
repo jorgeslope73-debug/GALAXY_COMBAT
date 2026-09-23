@@ -1,0 +1,30 @@
+databases:
+  - name: galaxy-combat-db
+    databaseName: galaxy_combat
+    user: galaxy_combat
+
+services:
+  - type: web
+    name: galaxy-combat-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: DATABASE_URL
+        fromDatabase:
+          name: galaxy-combat-db
+          property: connectionString
+
+      # TURN opcional para voz WebRTC. Configuralo en Render; no subas secretos al repositorio.
+      # TURN_URLS admite una o varias URLs separadas por comas, por ejemplo:
+      # turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tcp
+      # - key: TURN_URLS
+      #   sync: false
+      # - key: TURN_USERNAME
+      #   sync: false
+      # - key: TURN_CREDENTIAL
+      #   sync: false

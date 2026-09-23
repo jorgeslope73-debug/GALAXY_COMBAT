@@ -1,0 +1,72 @@
+GALAXY COMBAT WEB - GITHUB PAGES + SERVIDOR DE PARTIDAS
+=======================================================
+
+ESTRUCTURA
+----------
+docs/    -> juego que publica GitHub Pages
+server/  -> servidor Node.js/WebSocket
+
+IMPORTANTE
+----------
+GitHub Pages NO ejecuta server.js. El backend debe estar ejecutándose en otro
+sitio. Puede ser un servicio Node compatible (por ejemplo Render) o tu propio PC.
+
+OPCION RECOMENDADA: BACKEND ONLINE + GITHUB PAGES
+--------------------------------------------------
+1. Sube TODO este proyecto a un repositorio de GitHub.
+
+2. Despliega la carpeta server/ en un proveedor que permita Node.js + WebSocket.
+   Si usas un proveedor compatible con render.yaml, el archivo de la raiz ya
+   describe el servicio.
+
+3. Cuando tengas una URL HTTPS del backend, por ejemplo:
+       https://galaxy-combat-server.example.com
+
+   abre docs/config.js y escribe:
+       window.GALAXY_CONFIG = {
+         serverUrl: 'https://galaxy-combat-server.example.com'
+       };
+
+4. Haz commit/push del cambio.
+
+5. En GitHub:
+   Settings -> Pages -> Source: GitHub Actions
+
+6. El workflow incluido publica automaticamente la carpeta docs/.
+
+7. Los jugadores entran en la URL de GitHub Pages. No necesitan instalar nada,
+   escribir IP ni abrir puertos.
+
+COMPROBAR EL BACKEND
+--------------------
+Abre en navegador:
+    https://TU-SERVIDOR/health
+
+Debe responder algo parecido a:
+    {"ok":true,"service":"Galaxy Combat WebSocket"}
+
+PROBAR EL BACKEND EN TU PC
+--------------------------
+Desde la carpeta server/:
+    npm install
+    npm start
+
+Luego abre:
+    http://localhost:8080/health
+
+Para probar también el frontend local con el mismo servidor, la versión anterior
+GALAXY_COMBAT_WEB_HOST_LOCAL sigue siendo más cómoda. Este paquete está pensado
+principalmente para GitHub Pages.
+
+SEGURIDAD / HTTPS
+-----------------
+Si GitHub Pages usa HTTPS, el backend también debe tener HTTPS/WSS. Un backend
+solo HTTP/WS será bloqueado por el navegador como contenido mixto.
+
+
+SERVIDOR GRATUITO EN REPOSO
+- Si Render ha dormido el servicio, la web muestra "Despertando servidor".
+- El navegador reintenta la conexión automáticamente cada pocos segundos.
+- Los botones de jugar permanecen desactivados hasta que el servidor responde.
+- Cuando aparece "Servidor conectado · listo para jugar", ya se puede crear o unir a una sala.
+- No hace falta recargar la página manualmente.
