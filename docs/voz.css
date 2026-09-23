@@ -3,7 +3,7 @@
   margin:8px auto 0;min-height:38px;
   font-family:'Flashback',Arial,sans-serif;
 }
-#enableVoice{
+#enableVoice,#enableAudio{
   width:auto!important;min-width:0!important;max-width:max-content!important;
   flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
   min-height:28px!important;padding:5px 9px!important;border-radius:4px!important;
@@ -12,7 +12,7 @@
   font-family:'Flashback',Arial,sans-serif!important;font-size:10px!important;letter-spacing:.055em!important;
   cursor:pointer!important;box-shadow:0 0 8px rgba(0,0,0,.32)!important;white-space:nowrap!important;
 }
-#enableVoice:hover:not(.active){
+#enableVoice:hover:not(.active),#enableAudio:hover:not(.active){
   background:#3a3a3f!important;border-color:rgba(190,190,198,.68)!important;
 }
 #enableVoice.active{
@@ -20,6 +20,12 @@
   border-color:#d1a8ff!important;
   color:#f4eaff!important;
   box-shadow:0 0 20px rgba(178,103,255,.42)!important;
+}
+#enableAudio.active{
+  background:rgba(24,105,70,.88)!important;
+  border-color:#8dffb0!important;
+  color:#eafff0!important;
+  box-shadow:0 0 18px rgba(80,255,130,.28)!important;
 }
 .voice-status{font-size:10px;letter-spacing:.055em;color:rgba(232,218,255,.78)}
 .voice-hint,.voice-talker{
@@ -44,7 +50,7 @@
 .voice-ptt:active{transform:translateX(-50%)}
 @media (pointer:fine){.voice-ptt{display:none!important}}
 @media (max-width:760px){
-  .voice-setup{gap:7px;margin-top:4px}#enableVoice{font-size:9px!important;padding:5px 8px!important;min-height:27px!important}.voice-status{font-size:8px}
+  .voice-setup{gap:7px;margin-top:4px}#enableVoice,#enableAudio{font-size:9px!important;padding:5px 8px!important;min-height:27px!important}.voice-status{font-size:8px}
 }
 
 /* En movil, los textos tactiles quedan discretos para no tapar la partida. */
