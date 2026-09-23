@@ -328,7 +328,12 @@
   function toggleGameAudio(){
     gameAudioEnabled=!gameAudioEnabled;
     updateAudioButton();
-    if(gameAudioEnabled)unlockGameAudio();
+    if(gameAudioEnabled){
+      unlockGameAudio();
+      startMusic();
+    }else{
+      stopMusic();
+    }
   }
   function playSound(k){
     if(!gameAudioEnabled)return;
@@ -341,7 +346,7 @@
     }catch(err){console.warn('[Galaxy Combat] No se pudo reproducir efecto:',k,err);}
   }
   function startMusic(){
-    if(!menu||menu.classList.contains('hidden')||!sounds.music||!sounds.music.paused)return;
+    if(!gameAudioEnabled||!menu||menu.classList.contains('hidden')||!sounds.music||!sounds.music.paused)return;
     sounds.music.play().then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
   }
   function stopMusic(){
