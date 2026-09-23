@@ -70,9 +70,59 @@
       this.lastNow=0;
       this.accumulator=0;
       this.tickCount=0;
+      this.brain=null;
+      this.learningByCpu=new Map();
+      this.learningSent=false;
       this.resetAsteroids();
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
+    brainScore(context,action){
+      if(!this.brain||!Array.isArray(this.brain.strategies))return 0;
+      const e=this.brain.strategies.find(x=>x&&x.context===context&&x.action===action);
+      return e&&Number(e.samples)>0?Number(e.total||0)/Number(e.samples):0;
+    }
+    chooseBrainAction(context,actions,explore=.2){
+      const list=Array.isArray(actions)&&actions.length?actions:['attack'];
+      if(!this.brain||Math.random()<explore)return list[randint(0,list.length-1)];
+      let best=list[0],bestScore=-Infinity;
+      for(const action of list){
+        const score=this.brainScore(context,action)+rand(-.16,.16);
+        if(score>bestScore){bestScore=score;best=action;}
+      }
+      return best;
+    }
+    learningContext(cpu,rival,distance){
+      const ammo=cpu.bullets<=0?0:(cpu.bullets<=2?1:2);
+      const shield=cpu.shield>0?1:0;
+      const band=distance<400?0:(distance<850?1:2);
+      const enemy=(rival&&rival.shield>0)?1:0;
+      return 'a'+ammo+'-s'+shield+'-d'+band+'-e'+enemy;
+    }
+    recordLearning(cpu,context,action){
+      if(this.difficulty!=='dificil'||!cpu||!cpu.cpu)return;
+      let map=this.learningByCpu.get(cpu.index);
+      if(!map){map=new Map();this.learningByCpu.set(cpu.index,map);}
+      const key=context+'|'+action;
+      const item=map.get(key)||{context,action,uses:0};
+      item.uses=Math.min(50,item.uses+1);
+      map.set(key,item);
+    }
+    buildLearningDeltas(){
+      if(this.difficulty!=='dificil')return [];
+      const out=[];
+      const human=this.players.find(p=>!p.cpu);
+      for(const cpu of this.players.filter(p=>p.cpu)){
+        const won=this.winner===cpu.index;
+        let reward=(cpu.kills-cpu.deaths)/Math.max(2,SCORE_TO_WIN);
+        if(won)reward+=1.2;
+        if(human&&this.winner===human.index)reward-=.35;
+        reward=clamp(reward,-2,2);
+        const map=this.learningByCpu.get(cpu.index);
+        if(!map)continue;
+        for(const item of map.values())out.push({context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+reward.toFixed(3)});
+      }
+      return out.slice(0,24);
+    }
     resetAsteroids(){
       this.asteroids=ASTEROID_STARTS.map(([x,y,rot,type])=>{
         const d=dirFromRot(rot);
@@ -90,8 +140,11 @@
         tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random()
       };
     }
-    start(name='JUGADOR',difficulty='medio',cpuCount=1){
+    start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null){
       this.difficulty=String(difficulty||'medio');
+      this.brain=this.difficulty==='dificil'&&brain&&typeof brain==='object'?brain:null;
+      this.learningByCpu.clear();
+      this.learningSent=false;
       this.cpuCount=clamp(Math.round(Number(cpuCount)||1),1,3);
       this.huntTargetIndex=0;
       this.huntUntil=0;
@@ -111,6 +164,14 @@
       for(let i=1;i<=this.cpuCount;i++){
         const cpu=this.makePlayer(i,'CPU '+i,true);
         cpu.difficulty=this.difficulty;
+        if(this.difficulty==='dificil'){
+          const opening=this.chooseBrainAction('open3',['attack','evade','resource','scatter'],i===3?.24:.34);
+          cpu.tactic=opening;
+          cpu.tacticUntil=rand(i===3?1.8:.9,i===3?3.8:2.6);
+        }else{
+          cpu.tactic='scatter';
+          cpu.tacticUntil=rand(.5,2.2);
+        }
         this.placeAtSpawn(cpu);
         this.players.push(cpu);
         this.controls.set(i,{turn:0,thrust:false,fire:false});
@@ -161,6 +222,7 @@
     restart(){
       if(!this.finished||this.players.length<2)return false;
       this.started=false;this.finished=false;this.winner=null;this.seq=0;
+      this.learningByCpu.clear();this.learningSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
@@ -207,6 +269,11 @@
         attacker.kills++;
         if(attacker.kills>=SCORE_TO_WIN){
           this.finished=true;this.winner=attacker.index;
+          if(this.difficulty==='dificil'&&!this.learningSent){
+            this.learningSent=true;
+            const deltas=this.buildLearningDeltas();
+            if(deltas.length)this.emit({t:'cpu-learning',deltas});
+          }
           this.emit({t:'victory',winner:this.winner});
         }
       }
@@ -252,6 +319,7 @@
       // Primera salida menos predecible: cada CPU gira/abre su trayectoria
       // durante un intervalo distinto antes de comprometerse con una tactica.
       if(cpu.tactic==='scatter'&&this.fxClock<cpu.tacticUntil){
+        if(this.difficulty==='dificil')this.recordLearning(cpu,'open3','scatter');
         const turn=cpu.tacticTurn*(.32+.46*cpu.tacticSeed);
         const thrust=this.fxClock>cpu.tacticUntil*.18;
         return{turn,thrust,fire:false};
@@ -299,6 +367,13 @@
         }
         if(!hasUsefulPickup)resourceScore-=40;
 
+        const context=this.learningContext(cpu,rival,distance);
+        if(this.difficulty==='dificil'&&this.brain){
+          attackScore+=this.brainScore(context,'attack')*30;
+          evadeScore+=this.brainScore(context,'evade')*30;
+          resourceScore+=this.brainScore(context,'resource')*30;
+        }
+
         const personality=(cpu.tacticSeed-.5)*28;
         attackScore+=personality+rand(-12,12);
         evadeScore-=personality*.45;evadeScore+=rand(-10,10);
@@ -312,6 +387,7 @@
         cpu.tactic=tactic;
         cpu.tacticUntil=this.fxClock+rand(.85,2.05);
         cpu.tacticTurn=Math.random()<.5?-1:1;
+        if(this.difficulty==='dificil')this.recordLearning(cpu,context,tactic);
       }
 
       let desiredX=rival.x,desiredY=rival.y,seekPickup=null,ramming=false;
@@ -343,6 +419,11 @@
             desiredY+=(cpu.y-rival.y)*inv*push;
           }
         }else{
+          // En los primeros segundos una CPU que eligio buscar recursos espera
+          // a que aparezca una mejora en vez de convertir la salida siempre en huida.
+          if(this.difficulty==='dificil'&&this.fxClock<2.8){
+            return{turn:cpu.tacticTurn*.32,thrust:true,fire:false};
+          }
           cpu.tactic='evade';
         }
       }
