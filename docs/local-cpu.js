@@ -357,10 +357,19 @@
       const rivalDangerous=rival.shield>0;
       const huntActive=this.huntUntil>this.fxClock&&rival.index===this.huntTargetIndex;
 
+      // Cuando el humano esta a una baja de ganar, A POR tiene prioridad total:
+      // si esta visible, las CPU pueden actuar como kamikazes aunque no tengan
+      // municion ni escudo. Fuera de ese caso siguen usando la logica normal.
+      if(huntActive){
+        cpu.tactic='attack';
+        cpu.tacticUntil=this.fxClock+.55;
+        cpu.resourceTargetId=null;
+      }
+
       // La decision se "consensua" entre municion, peligro, distancia, escudo,
       // recursos cercanos y una pequena personalidad propia. Se mantiene un
       // corto tiempo para evitar cambios nerviosos cada frame.
-      if(this.fxClock>=cpu.tacticUntil||cpu.tactic==='scatter'){
+      if(!huntActive&&(this.fxClock>=cpu.tacticUntil||cpu.tactic==='scatter')){
         let attackScore=cpu.bullets>0?48:-35;
         let evadeScore=cpu.bullets===0?68:8;
         let resourceScore=0;
@@ -423,7 +432,7 @@
         return bestPk;
       };
 
-      if(cpu.tactic==='resource'||cpu.bullets===0){
+      if(!huntActive&&(cpu.tactic==='resource'||cpu.bullets===0)){
         seekPickup=findResource(cpu.shield<=0);
         if(seekPickup){
           desiredX=seekPickup.x;desiredY=seekPickup.y;defensive=true;
@@ -443,7 +452,7 @@
         }
       }
 
-      if(cpu.tactic==='evade'&&!seekPickup){
+      if(!huntActive&&cpu.tactic==='evade'&&!seekPickup){
         // Huir no significa escapar para siempre: primero intenta rearmarse o
         // conseguir escudo; si no hay recurso util, crea distancia.
         seekPickup=findResource(cpu.shield<=0);
@@ -461,11 +470,18 @@
       if(!seekPickup&&cpu.tactic!=='resource'&&cpu.bullets>0)cpu.resourceTargetId=null;
 
       if(cpu.tactic==='attack'&&!seekPickup){
-        // Con escudo puede decidir embestir. Sin escudo evita la colision directa.
-        const ramRange=cpu.difficulty==='dificil'?680:(cpu.difficulty==='medio'?560:450);
-        if(cpu.shield>0&&!rivalShielded&&distance<ramRange){
-          const ramChance=cpu.difficulty==='dificil'?.80:(cpu.difficulty==='medio'?.62:.45);
-          ramming=cpu.tacticSeed<ramChance||huntActive;
+        // En A POR la embestida esta permitida incluso sin balas y sin escudo.
+        // El modo fantasma sigue mandando: si el humano no es visible, no hay
+        // rival y esta rama no conoce su posicion.
+        if(huntActive){
+          ramming=true;
+          desiredX=rival.x;desiredY=rival.y;
+        }else{
+          const ramRange=cpu.difficulty==='dificil'?680:(cpu.difficulty==='medio'?560:450);
+          if(cpu.shield>0&&!rivalShielded&&distance<ramRange){
+            const ramChance=cpu.difficulty==='dificil'?.80:(cpu.difficulty==='medio'?.62:.45);
+            ramming=cpu.tacticSeed<ramChance;
+          }
         }
         if(ramming){
           desiredX=rival.x;desiredY=rival.y;
@@ -536,13 +552,13 @@
       }
 
       const turn=clamp(err/38,-1,1);
-      let thrust=!!(Math.abs(err)<68&&(distance>230||seekPickup||defensive||ramming||avoidMag>20));
+      let thrust=huntActive?Math.abs(err)<82:!!(Math.abs(err)<68&&(distance>230||seekPickup||defensive||ramming||avoidMag>20));
       if(seekPickup){
         if(pickupBrake)thrust=Math.abs(err)<34;
         else if(pickupDistance<80&&pickupClosing>45)thrust=false;
         else if(pickupDistance<135&&Math.abs(err)>28)thrust=false;
       }
-      const fire=!rivalDangerous&&!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<7&&distance<1350;
+      const fire=!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<7&&distance<1350&&(huntActive||!rivalDangerous);
       return{turn,thrust,fire};
     }
     update(dt){
