@@ -65,6 +65,7 @@
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false;
+  let p2p=null,hostPhysics=null,lobbyPlayers=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   // V16.4.36: sincronizamos estados/controles y reducimos GC en movil para evitar picos de trabajo
   // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
@@ -450,6 +451,38 @@
     return true;
   }
 
+  function ensureP2P(){
+    if(p2p||typeof window.GalaxyP2P!=='function')return p2p;
+    p2p=new window.GalaxyP2P({
+      sendSignal:o=>{if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}return false;},
+      onControl:(i,m)=>{if(hostPhysics)hostPhysics.setControl(i,m.turn,m.thrust,m.fire);},
+      onState:m=>handle(m),
+      onEvent:m=>{
+        if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics&&hostPhysics.restart()){
+          p2p.broadcastEvent({t:'restarted'});
+          handle({t:'restarted'});
+        }else handle(m);
+      },
+      onPeerState:()=>{}
+    });
+    return p2p;
+  }
+  function stopP2P(){
+    if(p2p)p2p.close();
+    p2p=null;
+    if(hostPhysics)hostPhysics.stop();
+    hostPhysics=null;
+    lobbyPlayers=[];
+  }
+  function startHostPhysics(players){
+    if(!isHost||typeof window.GalaxyHostPhysics!=='function')return false;
+    hostPhysics=new window.GalaxyHostPhysics({
+      code:roomCode,
+      onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);},
+      onEvent:m=>{handle(m);if(p2p)p2p.broadcastEvent(m);}
+    });
+    return hostPhysics.start(players||lobbyPlayers);
+  }
   function websocketUrl(){
     const configured=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').trim();
     if(configured){
@@ -556,6 +589,7 @@
       // parseo de un snapshot pendiente. Solo los cambios de fase de partida
       // requieren orden estricto con el ultimo estado recibido.
       let m;try{m=JSON.parse(raw);}catch(_){return;}
+      if(m&&['p2p-offer','p2p-answer','p2p-ice'].includes(m.t)){ensureP2P()?.handleSignal(m);return;}
       if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}
       if(m&&(['victory','restarted','closed','start'].includes(m.t)))flushPendingState(true);
       handle(m);
@@ -569,6 +603,7 @@
   }
   function sendControl(turn,thrust,fire){
     if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire);return true;}
+    if(inGame&&p2p)return p2p.sendControl(turn,thrust,fire);
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     // Los controles caducan enseguida. Si la salida esta congestionada, es
     // mejor omitir uno y mandar el mas reciente 33 ms despues que acumular lag.
@@ -782,7 +817,7 @@
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateWaitingPlayers(m.cpu?2:1);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateWaitingPlayers(m.cpu?2:1);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
       roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;saveResumeSession();stopResumeWindow();
@@ -796,8 +831,8 @@
       if(inGame||roomCode){alert(sinTildes(trServer(m.message||tr('resumeFailed'))));returnToMainMenu(false);}
       else send({t:'public-rooms'});
     }
-    else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);updateWaitingPlayers(m.players);}
-    else if(m.t==='start'){beginGame();playSound('start');}
+    else if(m.t==='lobby'){roomCode=m.code;lobbyPlayers=Array.isArray(m.players)?m.players.slice():[];ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);updateWaitingPlayers(m.players);}
+    else if(m.t==='start'){if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers);beginGame();playSound('start');}
     else if(m.t==='state'){
       const now=performance.now();
       if(impactFX)impactFX.consume(m,myIndex,now);
@@ -956,6 +991,7 @@
     if(wasLocal)stopLocalCpu();
     if(notifyServer&&!wasLocal&&roomCode)send({t:'leave'});
     if(voice)voice.clearSession();
+    stopP2P();
     stopResumeWindow();clearResumeSession();playerToken='';
     inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
@@ -987,7 +1023,8 @@
   if(restartMatchBtn)restartMatchBtn.addEventListener('click',()=>{
     restartMatchBtn.disabled=true;
     restartMatchBtn.textContent=tr('restarting');
-    if(!send({t:'restart'})){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
+    const ok=(p2p&&roomCode!=='LOCAL')?p2p.sendAction('restart'):send({t:'restart'});
+    if(!ok){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);
   window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)returnToMainMenu();}});
@@ -1002,7 +1039,7 @@
   }
   window.addEventListener('blur',clearHeldKeys);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHeldKeys();});
-  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);stopLocalCpu();if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
+  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);stopLocalCpu();stopP2P();if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
 
   function imageReady(im){
     // complete is ALSO true after a failed download. Check decoded dimensions.
@@ -1683,6 +1720,7 @@
     flushPendingState(false,now);
     pumpControls(now);
     if(localCpuActive&&localCpu)localCpu.advance(now);
+    if(hostPhysics&&isHost)hostPhysics.advance(now);
     // En pantallas ProMotion/120 Hz no tiene sentido dibujar el juego a 120: la
     // simulacion va a 60 Hz y la red a 30 Hz. Limitamos solo el pintado a 60 Hz.
     if(lastPaintAt&&now-lastPaintAt<HIGH_REFRESH_SKIP_MS)return;
