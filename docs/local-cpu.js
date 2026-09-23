@@ -137,7 +137,8 @@
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty,
-        tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random()
+        tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random(),
+        resourceTargetId:null
       };
     }
     start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null){
@@ -233,7 +234,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;
         if(p.cpu){
           p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
           if(this.difficulty==='dificil'){
@@ -309,6 +310,7 @@
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
       p.bullets=0;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;
+      if(p.cpu)p.resourceTargetId=null;
     }
     chooseCpuControls(cpu){
       if(cpu.dead)return IDLE_CONTROL;
@@ -404,6 +406,8 @@
       let defensive=false;
 
       const findResource=(preferShield=false)=>{
+        const locked=cpu.resourceTargetId==null?null:this.pickups.find(pk=>pk.id===cpu.resourceTargetId);
+        if(locked&&(locked.type==='shield'||locked.type.startsWith('ammo')))return locked;
         let bestPk=null,bestScore=Infinity;
         for(const pk of this.pickups){
           if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
@@ -415,6 +419,7 @@
           if(cpu.shield<=0&&rivalDistance<420)score+=(420-rivalDistance)*1.2;
           if(score<bestScore){bestScore=score;bestPk=pk;}
         }
+        cpu.resourceTargetId=bestPk?bestPk.id:null;
         return bestPk;
       };
 
@@ -453,6 +458,8 @@
         }
       }
 
+      if(!seekPickup&&cpu.tactic!=='resource'&&cpu.bullets>0)cpu.resourceTargetId=null;
+
       if(cpu.tactic==='attack'&&!seekPickup){
         // Con escudo puede decidir embestir. Sin escudo evita la colision directa.
         const ramRange=cpu.difficulty==='dificil'?680:(cpu.difficulty==='medio'?560:450);
@@ -470,6 +477,27 @@
         }
       }
 
+      let pickupDistance=Infinity,pickupClosing=0,pickupBrake=false;
+      if(seekPickup){
+        const px=seekPickup.x-cpu.x,py=seekPickup.y-cpu.y;
+        pickupDistance=Math.hypot(px,py);
+        if(pickupDistance>1){
+          const nx=px/pickupDistance,ny=py/pickupDistance;
+          pickupClosing=cpu.vx*nx+cpu.vy*ny;
+          // Si llega rapido, apunta un poco contra su propia inercia para no
+          // atravesar el pickup y tener que dar otra vuelta.
+          const brakeZone=105+Math.max(0,pickupClosing)*.42;
+          if(pickupDistance<brakeZone&&pickupClosing>75){
+            desiredX=cpu.x-cpu.vx*.55;
+            desiredY=cpu.y-cpu.vy*.55;
+            pickupBrake=true;
+          }else{
+            // Pequeña anticipacion que estabiliza la entrada al centro del pickup.
+            desiredX=seekPickup.x-cpu.vx*.12;
+            desiredY=seekPickup.y-cpu.vy*.12;
+          }
+        }
+      }
       const ddx=desiredX-cpu.x,ddy=desiredY-cpu.y;
       const desiredRot=(Math.atan2(-ddx,-ddy)*180/Math.PI+360)%360;
       let err=((desiredRot-cpu.rot+540)%360)-180;
@@ -508,7 +536,12 @@
       }
 
       const turn=clamp(err/38,-1,1);
-      const thrust=!!(Math.abs(err)<68&&(distance>230||seekPickup||defensive||ramming||avoidMag>20));
+      let thrust=!!(Math.abs(err)<68&&(distance>230||seekPickup||defensive||ramming||avoidMag>20));
+      if(seekPickup){
+        if(pickupBrake)thrust=Math.abs(err)<34;
+        else if(pickupDistance<80&&pickupClosing>45)thrust=false;
+        else if(pickupDistance<135&&Math.abs(err)>28)thrust=false;
+      }
       const fire=!rivalDangerous&&!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<7&&distance<1350;
       return{turn,thrust,fire};
     }
@@ -615,6 +648,7 @@
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
             else if(pk.type==='shield')p.shield=10;
             else if(pk.type==='camo')p.camo=10;
+            if(p.cpu&&p.resourceTargetId===pk.id)p.resourceTargetId=null;
             this.emit({t:'sound',kind:'pickup'});taken=true;break;
           }
         }
