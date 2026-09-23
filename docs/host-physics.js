@@ -400,7 +400,7 @@
       this.nextPickup-=dt;
       if(this.nextPickup<=0){
         const roll=randint(1,28);let type;
-        if(roll<=7)type='ammo3';else if(roll<=16)type='ammo1';else if(roll<=19)type='cadence';else if(roll<=22)type='speed';else if(roll<=25)type='shield';else type='shield';
+        if(roll<=7)type='ammo3';else if(roll<=16)type='ammo1';else if(roll<=19)type='cadence';else if(roll<=22)type='speed';else if(roll<=25)type='shield';else type='camo';
         this.pickups.push({id:uid(),type,x:rand(100,W-100),y:rand(100,H-100),phase:rand(0,Math.PI*2)});
         if(this.pickups.length>5)this.pickups.shift();
         this.nextPickup=rand(2,5);
@@ -415,6 +415,7 @@
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
             else if(pk.type==='shield')p.shield=10;
+            else if(pk.type==='camo')p.camo=10;
             this.emit({t:'sound',kind:'pickup'});taken=true;break;
           }
         }
