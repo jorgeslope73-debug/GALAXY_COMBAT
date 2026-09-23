@@ -91,6 +91,12 @@ async function ensureDatabase(){
       INSERT INTO galaxy_cpu_brain(id,version,brain)
       VALUES(1,1,'{"version":1,"strategies":[],"candidates":[]}'::jsonb)
       ON CONFLICT(id) DO NOTHING;
+      CREATE TABLE IF NOT EXISTS galaxy_analytics_daily (
+        day DATE PRIMARY KEY,
+        visits INTEGER NOT NULL DEFAULT 0,
+        cpu_matches INTEGER NOT NULL DEFAULT 0,
+        online_matches INTEGER NOT NULL DEFAULT 0
+      );
     `);
     dbReady=true;
     console.log('[Galaxy Combat P2P] Base de datos de cuentas preparada.');
@@ -307,7 +313,15 @@ async function authApi(req,res,url){
     const {rows}=await db.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 LIMIT 1');
     const row=rows[0]||{version:1,brain:{version:1,strategies:[],candidates:[]},updated_at:null};
     const brain=normalizeCpuBrain(row.brain);
-    sendJson(res,200,{ok:true,version:Number(row.version)||1,brain:{version:brain.version,strategies:brain.strategies}});
+    const bytes=Buffer.byteLength(JSON.stringify(brain),'utf8');
+    sendJson(res,200,{
+      ok:true,
+      version:Number(row.version)||1,
+      updatedAt:row.updated_at||null,
+      bytes,
+      maxBytes:CPU_BRAIN_MAX_BYTES,
+      brain:{version:brain.version,strategies:brain.strategies,candidates:brain.candidates}
+    });
     return true;
   }
   if(url==='/api/cpu-brain/learn'&&req.method==='POST'){
@@ -328,6 +342,50 @@ async function authApi(req,res,url){
       console.error('[Galaxy Combat P2P] Error actualizando CPU brain:',err&&err.message||err);
       sendJson(res,500,{ok:false,code:'CPU_BRAIN_ERROR'});
     }finally{client.release();}
+    return true;
+  }
+  if(url==='/api/analytics/event'&&req.method==='POST'){
+    let body;try{body=await readJsonBody(req,4096);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
+    const type=String(body&&body.type||'');
+    if(type!=='visit'&&type!=='cpu_match'){sendJson(res,400,{ok:false,code:'BAD_EVENT'});return true;}
+    const column=type==='visit'?'visits':'cpu_matches';
+    await db.query(
+      `INSERT INTO galaxy_analytics_daily(day,${column}) VALUES(CURRENT_DATE,1)
+       ON CONFLICT(day) DO UPDATE SET ${column}=galaxy_analytics_daily.${column}+1`
+    );
+    sendJson(res,200,{ok:true});return true;
+  }
+  if(url==='/api/analytics'&&req.method==='GET'){
+    const [{rows:totalsRows},{rows:daily},{rows:rankRows}]=await Promise.all([
+      db.query(`SELECT
+        COALESCE(SUM(visits),0)::int AS visits,
+        COALESCE(SUM(cpu_matches),0)::int AS cpu_matches,
+        COALESCE(SUM(online_matches),0)::int AS online_matches
+        FROM galaxy_analytics_daily`),
+      db.query(`SELECT day::text,visits,cpu_matches,online_matches
+        FROM galaxy_analytics_daily
+        WHERE day>=CURRENT_DATE-INTERVAL '29 days'
+        ORDER BY day ASC`),
+      db.query('SELECT COUNT(*)::int AS ranked_completed FROM galaxy_ranked_matches')
+    ]);
+    const t=totalsRows[0]||{visits:0,cpu_matches:0,online_matches:0};
+    const ranked=rankRows[0]||{ranked_completed:0};
+    sendJson(res,200,{
+      ok:true,
+      totals:{
+        visits:Number(t.visits)||0,
+        cpuMatches:Number(t.cpu_matches)||0,
+        onlineMatches:Number(t.online_matches)||0,
+        matches:(Number(t.cpu_matches)||0)+(Number(t.online_matches)||0),
+        rankedCompleted:Number(ranked.ranked_completed)||0
+      },
+      daily:daily.map(r=>({
+        day:r.day,
+        visits:Number(r.visits)||0,
+        cpuMatches:Number(r.cpu_matches)||0,
+        onlineMatches:Number(r.online_matches)||0
+      }))
+    });
     return true;
   }
   if(url==='/api/ranking'&&req.method==='GET'){
@@ -444,6 +502,13 @@ wss.on('connection',ws=>{
 
     if(m.t==='start'&&x.i===0&&r.players.length>1&&!r.started){
       r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');
+      if(db){
+        try{
+          await ensureDatabase();
+          await db.query(`INSERT INTO galaxy_analytics_daily(day,online_matches) VALUES(CURRENT_DATE,1)
+            ON CONFLICT(day) DO UPDATE SET online_matches=galaxy_analytics_daily.online_matches+1`);
+        }catch(err){console.error('[Galaxy Combat P2P] Error contando partida online:',err&&err.message||err);}
+      }
       r.rankEligible=r.players.length>=2&&r.players.every(p=>p.registered&&p.userId);
       broadcast(r,{t:'start',code:r.code,players:roster(r),p2p:true,rankEligible:r.rankEligible});publicUpdate(wss);return;
     }
