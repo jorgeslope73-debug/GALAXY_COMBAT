@@ -536,6 +536,17 @@
     if(location.hostname.endsWith('github.io'))return '';
     return location.origin;
   }
+  function postAnalyticsEvent(type){
+    const base=apiBaseUrl();if(!base)return;
+    try{
+      fetch(base+'/api/analytics/event',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({type}),
+        keepalive:true
+      }).catch(()=>{});
+    }catch(_){}
+  }
   function websocketUrl(){
     const configured=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').trim();
     if(configured){
@@ -821,6 +832,7 @@
     stopLocalCpu();
     stopResumeWindow();clearResumeSession();playerToken='';
     const difficulty=document.getElementById('difficulty').value;
+    postAnalyticsEvent('cpu_match');
     const brain=difficulty==='dificil'?await loadCpuBrain():null;
     localCpu=new window.GalaxyLocalCpu({onState:m=>handle(m),onEvent:m=>handle(m)});
     localCpu.start(sinTildes(campoNombre.value),difficulty,document.getElementById('cpuCount').value,brain);
@@ -1023,6 +1035,7 @@
     victory.classList.add('winner-celebration');
   }
 
+  postAnalyticsEvent('visit');
   menu.addEventListener('pointerdown',()=>{startMusic();if(gameAudioEnabled)unlockGameAudio();},{passive:true});
   menu.addEventListener('keydown',()=>{startMusic();if(gameAudioEnabled)unlockGameAudio();});
   if(audioToggleButton){updateAudioButton();audioToggleButton.addEventListener('click',toggleGameAudio);}
