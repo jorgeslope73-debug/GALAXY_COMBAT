@@ -98,6 +98,7 @@
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const cpuButton=document.getElementById('cpu');
+  const audioToggleButton=document.getElementById('enableAudio');
   const serverButtons=['create','join'].map(id=>document.getElementById(id));
   if(cpuButton)cpuButton.disabled=false;
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
@@ -289,6 +290,7 @@
   // V2: sin slider de volumen. Usamos un nivel fijo para evitar que un valor
   // antiguo guardado en localStorage pueda dejar el juego mudo en el movil.
   const gameVolume=isMobile?0.45:0.75;
+  let gameAudioEnabled=true,audioUnlocked=false;
   const soundPools={};
   for(const [key,def] of Object.entries(soundDefs)){
     const items=[];
@@ -298,10 +300,45 @@
     soundPools[key]={items,next:0};
   }
   sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
+  async function unlockGameAudio(){
+    if(audioUnlocked)return true;
+    const tests=[];
+    for(const pool of Object.values(soundPools)){
+      const a=pool&&pool.items&&pool.items[0];
+      if(!a)continue;
+      const oldVolume=a.volume;
+      try{
+        a.volume=0;a.currentTime=0;
+        const p=a.play();
+        if(p&&typeof p.then==='function'){
+          tests.push(p.then(()=>{try{a.pause();a.currentTime=0;a.volume=oldVolume;}catch(_){}}).catch(()=>{try{a.volume=oldVolume;}catch(_){}}));
+        }else{a.pause();a.currentTime=0;a.volume=oldVolume;}
+      }catch(_){try{a.volume=oldVolume;}catch(__){}}
+    }
+    if(tests.length)await Promise.allSettled(tests);
+    audioUnlocked=true;
+    return true;
+  }
+  function updateAudioButton(){
+    if(!audioToggleButton)return;
+    audioToggleButton.classList.toggle('active',gameAudioEnabled);
+    audioToggleButton.setAttribute('aria-pressed',gameAudioEnabled?'true':'false');
+    audioToggleButton.textContent=gameAudioEnabled?'AUDIO ACTIVO':'AUDIO DESACTIVADO';
+  }
+  function toggleGameAudio(){
+    gameAudioEnabled=!gameAudioEnabled;
+    updateAudioButton();
+    if(gameAudioEnabled)unlockGameAudio();
+  }
   function playSound(k){
+    if(!gameAudioEnabled)return;
     const pool=soundPools[k];if(!pool||!pool.items.length)return;
     const a=pool.items[pool.next++%pool.items.length];
-    try{a.currentTime=0;const promise=a.play();if(promise&&promise.catch)promise.catch(()=>{});}catch(_){}
+    try{
+      a.currentTime=0;
+      const promise=a.play();
+      if(promise&&promise.catch)promise.catch(err=>console.warn('[Galaxy Combat] Efecto de audio bloqueado:',k,err&&err.name?err.name:err));
+    }catch(err){console.warn('[Galaxy Combat] No se pudo reproducir efecto:',k,err);}
   }
   function startMusic(){
     if(!menu||menu.classList.contains('hidden')||!sounds.music||!sounds.music.paused)return;
@@ -946,8 +983,9 @@
     victory.classList.add('winner-celebration');
   }
 
-  menu.addEventListener('pointerdown',startMusic,{passive:true});
-  menu.addEventListener('keydown',startMusic);
+  menu.addEventListener('pointerdown',()=>{startMusic();if(gameAudioEnabled)unlockGameAudio();},{passive:true});
+  menu.addEventListener('keydown',()=>{startMusic();if(gameAudioEnabled)unlockGameAudio();});
+  if(audioToggleButton){updateAudioButton();audioToggleButton.addEventListener('click',toggleGameAudio);}
 
   if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
   if(shareRoomBtn)shareRoomBtn.addEventListener('click',shareCurrentRoom);
