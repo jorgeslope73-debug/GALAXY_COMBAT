@@ -49,7 +49,7 @@
       this.cpuCount=1;
       this.huntTargetIndex=0;
       this.huntUntil=0;
-      this.nextHuntAt=0;
+      this.huntThresholdActive=false;
       this.seq=0;
       this.fxClock=0;
       this.fxSeq=0;
@@ -94,14 +94,14 @@
       this.cpuCount=clamp(Math.round(Number(cpuCount)||1),1,3);
       this.huntTargetIndex=0;
       this.huntUntil=0;
-      this.nextHuntAt=rand(180,360);
+      this.huntThresholdActive=false;
       this.players=[];
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
-      this.huntUntil=0;this.nextHuntAt=rand(180,360);
+      this.huntUntil=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       const human=this.makePlayer(0,name,false);
       this.placeAtSpawn(human);
@@ -342,12 +342,17 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
-      if(this.cpuCount>1&&this.huntUntil<=this.fxClock&&this.fxClock>=this.nextHuntAt){
-        const human=this.players.find(p=>!p.cpu)||this.players[0];
-        this.huntTargetIndex=human?human.index:0;
-        this.huntUntil=this.fxClock+20;
-        this.nextHuntAt=this.huntUntil+rand(180,360);
-        if(human)this.emit({t:'hunt',name:human.name,duration:20});
+      const human=this.players.find(p=>!p.cpu)||this.players[0];
+      const huntScore=SCORE_TO_WIN-1;
+      const shouldHunt=!!(this.cpuCount>1&&human&&!this.finished&&human.kills>=huntScore&&human.kills<SCORE_TO_WIN);
+      if(shouldHunt&&!this.huntThresholdActive){
+        this.huntThresholdActive=true;
+        this.huntTargetIndex=human.index;
+        this.huntUntil=Infinity;
+        this.emit({t:'hunt',name:human.name,duration:0});
+      }else if(!shouldHunt&&this.huntThresholdActive){
+        this.huntThresholdActive=false;
+        this.huntUntil=0;
       }
       let fxWrite=0;
       for(const e of this.fxEvents)if(this.fxClock-e.at<=.8)this.fxEvents[fxWrite++]=e;
