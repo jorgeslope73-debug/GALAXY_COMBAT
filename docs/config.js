@@ -1,3 +1,3 @@
 window.GALAXY_CONFIG = {
-  serverUrl: 'https://galaxy-combat-web.onrender.com'
+  serverUrl: 'https://REEMPLAZAR-POR-TU-SERVICIO-P2P.onrender.com'
 };
