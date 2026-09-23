@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galaxy Combat · CPU Brain</title>
+<style>
+:root{color-scheme:dark;--bg:#070914;--panel:#101526;--panel2:#171d33;--text:#eef5ff;--muted:#92a3bd;--line:#26324d;--good:#65f6a8;--bad:#ff6f8a;--cyan:#5ae1ff;--violet:#bd8cff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#15213c 0,#070914 40%,#04060c 100%);color:var(--text);font-family:Inter,Arial,sans-serif}
+main{max-width:1180px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(24px,4vw,42px)}a,button{color:var(--text)}.back,.refresh{border:1px solid var(--line);background:#151c30;padding:10px 14px;border-radius:10px;text-decoration:none;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}.card{background:rgba(16,21,38,.9);border:1px solid var(--line);border-radius:14px;padding:16px}.value{font-size:28px;font-weight:800}.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.panel{background:rgba(16,21,38,.9);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:14px}h2{margin:0 0 14px;font-size:18px}
+.bars{display:grid;gap:10px}.barrow{display:grid;grid-template-columns:minmax(190px,1fr) minmax(160px,3fr) 70px;gap:12px;align-items:center}.name{font-size:13px;color:#dce8ff;overflow:hidden;text-overflow:ellipsis}.track{height:14px;background:#222a40;border-radius:999px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:inherit}.score{text-align:right;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid #242d44;text-align:left}th{color:var(--muted)}.good{color:var(--good)}.bad{color:var(--bad)}
+.heat{overflow:auto}.heat table td{text-align:center}.cell{border-radius:7px;padding:8px 6px;min-width:86px}.muted{color:var(--muted)}pre{white-space:pre-wrap;word-break:break-word;background:#090d18;border-radius:10px;padding:12px;max-height:320px;overflow:auto}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.barrow{grid-template-columns:1fr}.score{text-align:left}.panel{padding:14px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><div><div class="label">Galaxy Combat</div><h1>Cerebro CPU adaptativa</h1></div><div><button class="refresh" id="refresh">ACTUALIZAR</button> <a class="back" href="./">VOLVER AL JUEGO</a></div></div>
+  <div class="grid">
+    <div class="card"><div class="label">Versión cerebro</div><div class="value" id="version">—</div></div>
+    <div class="card"><div class="label">Estrategias activas</div><div class="value" id="strategies">—</div></div>
+    <div class="card"><div class="label">Candidatas</div><div class="value" id="candidates">—</div></div>
+    <div class="card"><div class="label">Tamaño</div><div class="value" id="bytes">—</div></div>
+  </div>
+  <section class="panel"><h2>Mejores estrategias</h2><div id="bars" class="bars"></div></section>
+  <section class="panel heat"><h2>Mapa de decisiones</h2><div id="heat"></div></section>
+  <section class="panel"><h2>Detalle</h2><div style="overflow:auto"><table><thead><tr><th>Contexto</th><th>Acción</th><th>Muestras</th><th>Total</th><th>Media</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+  <section class="panel"><h2>JSON</h2><pre id="json">Cargando…</pre></section>
+</main>
+<script>
+const API='https://galaxy-combat-web.onrender.com';
+const actions=['attack','evade','resource','scatter'];
+const actionLabel={attack:'ATACAR',evade:'HUIR',resource:'RECURSOS',scatter:'SALIDA'};
+const contextLabel=c=>{
+  if(c==='open3')return 'Apertura CPU 3';
+  const m=/^a([012])-s([01])-d([012])-e([01])$/.exec(c||'');
+  if(!m)return c;
+  const ammo=['sin balas','pocas balas','con balas'][+m[1]];
+  const shield=m[2]==='1'?'con escudo':'sin escudo';
+  const dist=['cerca','media','lejos'][+m[3]];
+  const enemy=m[4]==='1'?'rival con escudo':'rival sin escudo';
+  return ammo+' · '+shield+' · '+dist+' · '+enemy;
+};
+function score(e){return e.samples?e.total/e.samples:0}
+function fmt(n){return Number(n||0).toFixed(2)}
+function cellColor(v,maxAbs){const a=Math.min(.85,Math.abs(v)/(maxAbs||1));return v>=0?'rgba(70,230,140,'+(0.12+a*.55)+')':'rgba(255,90,120,'+(0.12+a*.55)+')'}
+async function load(){
+  const out=document.getElementById('json');out.textContent='Cargando…';
+  try{
+    const r=await fetch(API+'/api/cpu-brain',{cache:'no-store'});const d=await r.json();
+    if(!r.ok||!d.ok)throw new Error('No disponible');
+    const brain=d.brain||{},active=Array.isArray(brain.strategies)?brain.strategies:[],cand=Array.isArray(brain.candidates)?brain.candidates:[];
+    version.textContent=d.version??brain.version??'—';strategies.textContent=active.length;candidates.textContent=cand.length;
+    bytes.textContent=((Number(d.bytes)||0)/1024).toFixed(1)+' KB';
+    const sorted=[...active].sort((a,b)=>score(b)-score(a)).slice(0,12),max=Math.max(.01,...sorted.map(x=>Math.abs(score(x))));
+    bars.innerHTML=sorted.length?sorted.map(e=>'<div class="barrow"><div class="name">'+contextLabel(e.context)+' · '+(actionLabel[e.action]||e.action)+'</div><div class="track"><div class="fill" style="width:'+Math.max(3,Math.abs(score(e))/max*100)+'%"></div></div><div class="score '+(score(e)>=0?'good':'bad')+'">'+fmt(score(e))+'</div></div>').join(''):'<div class="muted">Aún no hay aprendizaje suficiente.</div>';
+    const contexts=[...new Set(active.map(x=>x.context))];const maxAbs=Math.max(.01,...active.map(x=>Math.abs(score(x))));
+    heat.innerHTML=contexts.length?'<table><thead><tr><th>Situación</th>'+actions.map(a=>'<th>'+actionLabel[a]+'</th>').join('')+'</tr></thead><tbody>'+contexts.map(c=>'<tr><th>'+contextLabel(c)+'</th>'+actions.map(a=>{const e=active.find(x=>x.context===c&&x.action===a);if(!e)return '<td><span class="muted">—</span></td>';const v=score(e);return '<td><div class="cell" style="background:'+cellColor(v,maxAbs)+'">'+fmt(v)+'</div></td>'}).join('')+'</tr>').join('')+'</tbody></table>':'<div class="muted">Sin datos todavía.</div>';
+    rows.innerHTML=active.sort((a,b)=>score(b)-score(a)).map(e=>'<tr><td>'+contextLabel(e.context)+'</td><td>'+(actionLabel[e.action]||e.action)+'</td><td>'+e.samples+'</td><td>'+fmt(e.total)+'</td><td class="'+(score(e)>=0?'good':'bad')+'">'+fmt(score(e))+'</td></tr>').join('');
+    out.textContent=JSON.stringify(d,null,2);
+  }catch(e){out.textContent='No se pudo cargar el cerebro. Si Render acaba de desplegar, espera unos segundos y pulsa ACTUALIZAR.'}
+}
+document.getElementById('refresh').addEventListener('click',load);load();
+</script>
+</body>
+</html>
