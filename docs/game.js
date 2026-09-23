@@ -53,6 +53,7 @@
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
   const invisibleHudUntil=[0,0,0,0];
+  let invisibleNoticeIndex=-1,invisibleNoticeUntil=0;
   // Mantiene visualmente el contador anterior hasta que empieza el pop de escala.
   // La puntuacion real del servidor sigue actualizandose al instante.
   let killScoreHeldValue=null,killScorePendingValue=null;
@@ -847,7 +848,7 @@
           const op=state&&Array.isArray(state.players)?state.players.find(p=>Number(p.i)===idx):null;
           const oldCamo=Number(op&&op.camo)||0;
           const newCamo=Number(np&&np.camo)||0;
-          if(newCamo>0&&oldCamo<=0)invisibleHudUntil[idx]=now+2000;
+          if(newCamo>0&&oldCamo<=0){invisibleHudUntil[idx]=now+2000;invisibleNoticeIndex=idx;invisibleNoticeUntil=now+2000;}
         }
       }
       if(oldLocal&&newLocal&&Number(newLocal.k)>Number(oldLocal.k)){
@@ -896,7 +897,7 @@
     else if(m.t==='hunt'){huntFxStart=performance.now();huntFxUntil=huntFxStart+2200;huntText='A POR '+sinTildes(String(m.name||'JUGADOR')).trim().toUpperCase();}
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
-    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
@@ -1468,6 +1469,19 @@
   }
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 
+  function centerNoticeY(kind,now,defaultY){
+    const active=[];
+    if(brutalFxUntil&&now<brutalFxUntil)active.push('brutal');
+    if(huntFxUntil&&now<huntFxUntil&&huntText)active.push('hunt');
+    if(invisibleNoticeUntil&&now<invisibleNoticeUntil&&invisibleNoticeIndex>=0)active.push('ghost');
+    if(active.length<=1)return defaultY;
+    const order=['hunt','brutal','ghost'].filter(k=>active.includes(k));
+    const idx=order.indexOf(kind);
+    if(idx<0)return defaultY;
+    if(order.length===2)return idx===0?H*.34:H*.57;
+    return [H*.28,H*.48,H*.68][idx]||defaultY;
+  }
+
   function drawPenaltyAnnouncement(now){
     if(!penaltyMessageUntil||now>=penaltyMessageUntil)return;
     const remaining=penaltyMessageUntil-now;
@@ -1509,7 +1523,7 @@
     const introEase=1-Math.pow(1-intro,3);
     const wobble=Math.sin(age*.035)*Math.max(0,1-t)*.055;
     const scale=(.28+1.72*introEase)*(1+wobble);
-    const y=H*.43-Math.min(32,age*.025);
+    const y=centerNoticeY('brutal',now,H*.43)-Math.min(32,age*.025);
     ctx.save();
     try{
       ctx.translate(W/2,y);
@@ -1551,7 +1565,7 @@
     const pulse=1+Math.sin(age*.018)*.05;
     ctx.save();
     try{
-      ctx.translate(W/2,H*.37);
+      ctx.translate(W/2,centerNoticeY('hunt',now,H*.37));
       ctx.scale(pulse,pulse);
       ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.globalAlpha=alpha*.9;
@@ -1592,14 +1606,15 @@
     return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
   }
   function drawInvisibleModeNotice(now){
-    if(!state||myIndex===null)return;
-    const until=invisibleHudUntil[Number(myIndex)]||0;
-    if(now>=until)return;
-    const remaining=Math.max(0,until-now);
+    if(!state||!Array.isArray(state.players)||invisibleNoticeIndex<0||now>=invisibleNoticeUntil)return;
+    const p=state.players.find(q=>Number(q.i)===Number(invisibleNoticeIndex));
+    if(!p)return;
+    const remaining=Math.max(0,invisibleNoticeUntil-now);
     const fadeIn=Math.min(1,(2000-remaining)/180);
     const fadeOut=Math.min(1,remaining/380);
-    const alpha=.48*Math.min(fadeIn,fadeOut);
-    const color=playerColors[Number(myIndex)]||'#d8a7ff';
+    const alpha=.58*Math.min(fadeIn,fadeOut);
+    const color=playerColors[Number(p.i)]||'#d8a7ff';
+    const name=hudPlayerName(p).toUpperCase();
     ctx.save();
     try{
       ctx.textAlign='center';
@@ -1609,7 +1624,7 @@
       ctx.globalAlpha=alpha;
       ctx.shadowColor=color;
       ctx.shadowBlur=isMobile?14:10;
-      ctx.fillText('MODO FANTASMA',W/2,275);
+      ctx.fillText(name+' · FANTASMA',W/2,centerNoticeY('ghost',now,275));
     }finally{
       ctx.restore();
     }
