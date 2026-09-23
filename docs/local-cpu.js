@@ -605,7 +605,24 @@
         const vmax=330*p.speed,sp=Math.hypot(p.vx,p.vy);
         if(sp>vmax){p.vx=p.vx/sp*vmax;p.vy=p.vy/sp*vmax;}
         p.x=(p.x+p.vx*dt+W)%W;p.y=(p.y+p.vy*dt+H)%H;
-        if(c.fire&&p.bullets>0&&p.reload<=0){
+
+        // Comprobacion final de disparo DESPUES de aplicar el giro de este frame.
+        // Antes la IA decidia "disparo" con la rotacion anterior y la bala se
+        // generaba con la rotacion ya modificada; en maniobras/evitacion podia
+        // salir desviada. Ahora solo dispara si el morro final apunta de verdad
+        // a un rival visible dentro del alcance.
+        let fireNow=!!c.fire;
+        if(p.cpu&&fireNow){
+          fireNow=false;
+          for(const target of this.players){
+            if(target.index===p.index||target.dead||target.camo>0)continue;
+            const tx=target.x-p.x,ty=target.y-p.y,td=Math.hypot(tx,ty);
+            if(td<=0||td>=1350)continue;
+            const dot=(d.x*tx+d.y*ty)/td;
+            if(dot>=Math.cos(7*Math.PI/180)){fireNow=true;break;}
+          }
+        }
+        if(fireNow&&p.bullets>0&&p.reload<=0){
           this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*this.bulletSpeed(p),vy:d.y*this.bulletSpeed(p),age:0,travel:0});
           p.bullets--;p.reload=Math.max(.5,p.cadence/8);this.emit({t:'sound',kind:'laser'});
         }
