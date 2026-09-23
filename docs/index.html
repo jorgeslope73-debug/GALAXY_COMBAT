@@ -20,7 +20,7 @@
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
 <link rel="stylesheet" href="style.css?v=V16.4.85-lobby-waiting">
 <link rel="stylesheet" href="menu-portada.css?v=V16.4.92-add-home">
-<link rel="stylesheet" href="voz.css?v=V16.4.61-ranking-20260920">
+<link rel="stylesheet" href="voz.css?v=V17.6">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -215,7 +215,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V17.5</div>
+      <div id="buildVersion" aria-label="Version del juego">V17.6</div>
       <div class="menu-left-tools" aria-label="Clasificacion, compartir e instalar">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
         <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
@@ -395,6 +395,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
             </div>
             <div class="menu-control-tools">
               <div class="voice-setup" data-i18n-aria="voiceChatAria" aria-label="Chat de voz">
+                <button id="enableAudio" class="active" type="button" aria-pressed="true">AUDIO ACTIVO</button>
                 <button id="enableVoice" type="button" data-i18n="activateVoice">ACTIVAR VOZ</button>
                 <span id="voiceActivationTip" class="voice-activation-tip hidden">PULSANDO V EN EL JUEGO PODRAS HABLAR</span>
                 <span id="voiceStatus" class="voice-status menu-sr-only" aria-live="polite" data-i18n="voiceDisabled">VOZ DESACTIVADA</span>
@@ -455,7 +456,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 <script src="local-cpu.js?v=V17.4"></script>
 <script src="host-physics.js?v=V17.3"></script>
 <script src="p2p-network.js?v=P2P1"></script>
-<script src="game.js?v=V17.5"></script>
+<script src="game.js?v=V17.6"></script>
 <script src="pwa.js?v=V17"></script>
 </body>
 </html>
