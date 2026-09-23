@@ -6,7 +6,8 @@
 #enableVoice,#enableAudio{
   width:auto!important;min-width:0!important;max-width:max-content!important;
   flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  min-height:28px!important;padding:5px 9px!important;border-radius:4px!important;
+  height:30px!important;min-height:30px!important;padding:0 9px!important;border-radius:4px!important;
+  box-sizing:border-box!important;line-height:1!important;
   border:1px solid rgba(150,150,158,.58)!important;
   background:#303034!important;color:#ededf0!important;
   font-family:'Flashback',Arial,sans-serif!important;font-size:10px!important;letter-spacing:.055em!important;
@@ -50,7 +51,7 @@
 .voice-ptt:active{transform:translateX(-50%)}
 @media (pointer:fine){.voice-ptt{display:none!important}}
 @media (max-width:760px){
-  .voice-setup{gap:7px;margin-top:4px}#enableVoice,#enableAudio{font-size:9px!important;padding:5px 8px!important;min-height:27px!important}.voice-status{font-size:8px}
+  .voice-setup{gap:7px;margin-top:4px}#enableVoice,#enableAudio{font-size:9px!important;height:28px!important;min-height:28px!important;padding:0 8px!important}.voice-status{font-size:8px}
 }
 
 /* En movil, los textos tactiles quedan discretos para no tapar la partida. */
