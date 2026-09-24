@@ -171,3 +171,90 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
       0 0 18px var(--winner-color,#d8a7ff);
   }
 }
+
+
+/* V18.47: controles alternativos en movil: flechas a la izquierda y accion a la derecha. */
+.mobile-turn-pad,.mobile-action-zone{display:none}
+@media (pointer:coarse),(max-width:900px){
+  #mobileControls.button-mode .mobile-turn-pad{
+    position:absolute;
+    left:max(18px,calc(env(safe-area-inset-left) + 12px));
+    bottom:max(28px,calc(env(safe-area-inset-bottom) + 20px));
+    z-index:20;
+    display:flex;
+    gap:12px;
+    pointer-events:auto;
+  }
+  #mobileControls.button-mode .mobile-turn-button{
+    width:76px;
+    min-width:76px;
+    height:76px;
+    min-height:76px;
+    margin:0;
+    padding:0;
+    border:2px solid rgba(255,255,255,.50);
+    border-radius:18px;
+    background:rgba(7,9,18,.36);
+    color:rgba(255,255,255,.82);
+    box-shadow:inset 0 0 18px rgba(255,255,255,.05),0 0 14px rgba(0,0,0,.24);
+    font:900 38px/1 Arial,Helvetica,sans-serif;
+    text-align:center;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #mobileControls.button-mode .mobile-turn-button.active{
+    background:rgba(108,60,158,.58);
+    border-color:rgba(232,203,255,.88);
+    color:#fff;
+    box-shadow:0 0 18px rgba(188,116,255,.32),inset 0 0 18px rgba(255,255,255,.08);
+    transform:scale(.96);
+  }
+  #mobileControls.button-mode .mobile-action-zone{
+    position:absolute;
+    right:max(20px,calc(env(safe-area-inset-right) + 14px));
+    bottom:max(26px,calc(env(safe-area-inset-bottom) + 18px));
+    z-index:18;
+    display:flex;
+    width:174px;
+    height:106px;
+    box-sizing:border-box;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    border:2px solid rgba(90,225,255,.46);
+    border-radius:24px;
+    background:rgba(5,20,29,.32);
+    color:rgba(225,250,255,.82);
+    box-shadow:inset 0 0 24px rgba(90,225,255,.05),0 0 16px rgba(0,0,0,.22);
+    font:800 12px/1 Arial,Helvetica,sans-serif;
+    letter-spacing:.035em;
+    text-align:center;
+    pointer-events:auto;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #mobileControls.button-mode .mobile-action-zone.firing{
+    border-color:rgba(255,92,170,.88);
+    background:rgba(75,18,49,.48);
+    box-shadow:0 0 20px rgba(255,80,165,.28);
+  }
+  #mobileControls.button-mode .mobile-action-zone.thrusting{
+    border-color:rgba(105,235,255,.92);
+    background:rgba(13,71,85,.48);
+    box-shadow:0 0 22px rgba(90,225,255,.30);
+  }
+  #mobileControls.button-mode .mobile-action-zone span{pointer-events:none}
+}
+@media (orientation:landscape) and (max-height:520px){
+  #mobileControls.button-mode .mobile-turn-button{
+    width:68px;min-width:68px;height:68px;min-height:68px;font-size:34px
+  }
+  #mobileControls.button-mode .mobile-action-zone{
+    width:158px;height:92px;font-size:11px
+  }
+}
