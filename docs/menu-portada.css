@@ -252,27 +252,11 @@
   #menu .menu-credit { margin-top: 12px; }
 }
 @media (orientation: landscape) and (max-height: 560px) {
-  /* V18.9: con el selector de numero de CPU ya no cabian dificultad + CPUs +
-     JUGAR en una sola fila. En movil horizontal los dos selectores ocupan la
-     primera fila y JUGAR conserva una segunda fila completa y siempre visible. */
-  #menu .cpu-actions{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-    gap:5px;
-  }
-  #menu .cpu-actions select{
-    width:100%;
-    min-width:0;
-    max-width:none;
-    flex:none;
-  }
-  #menu .cpu-actions #cpu{
-    grid-column:1 / -1;
-    width:100%;
-    min-width:0;
-    display:flex;
-  }
-
+  /* V18.11: en movil recuperamos el aspecto original de la tarjeta CPU.
+     Las opciones viven en una ventana aparte y JUGAR ocupa toda la linea. */
+  html.handheld-device #menu .cpu-actions select{display:none!important}
+  html.handheld-device #menu .cpu-actions{display:flex!important}
+  html.handheld-device #menu .cpu-actions #cpu{width:100%!important;display:flex!important}
   #menu .menu-scene { width: min(100%, clamp(230px, calc((100svh - 285px) * 2.7), 420px)); aspect-ratio: auto; }
   #menu .menu-body { padding-top: 35.2%; padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
   #menu .launch-console { width: min(980px, calc(100vw - var(--menu-edge) * 2)); }
@@ -1428,4 +1412,20 @@ html.handheld-device #menu .install-app-launch:not(.pwa-hidden){
 }
 #menu .install-app-launch.pwa-hidden{
   display:none!important;
+}
+
+/* V18.11: configuracion CPU solo para movil. En PC se mantienen los selectores originales. */
+#menu .cpu-setup-dialog{display:none}
+html.handheld-device #menu .cpu-setup-dialog:not(.hidden){display:flex}
+#menu .cpu-setup-card{width:min(520px,92vw)}
+#menu .cpu-setup-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 12px}
+#menu .cpu-setup-options label{margin:0;text-align:center}
+#menu .cpu-setup-options label>span{display:block;margin-bottom:7px;color:#cdb8db;font:700 11px/1.2 Arial,Helvetica,sans-serif;letter-spacing:.08em}
+#menu .cpu-setup-options select{width:100%!important}
+#menu .cpu-setup-play{width:100%!important;margin-top:4px!important;background:linear-gradient(135deg,#8941a6,#562479)!important}
+@media (orientation:landscape) and (max-height:560px){
+  html.handheld-device #menu .cpu-setup-card{width:min(500px,90vw);padding:14px}
+  html.handheld-device #menu .cpu-setup-options{margin:8px 0;gap:8px}
+  html.handheld-device #menu .cpu-setup-options select{height:42px;min-height:42px}
+  html.handheld-device #menu .cpu-setup-play{height:42px;min-height:42px}
 }
