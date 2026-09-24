@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galaxy Combat · Entrenamiento CPU</title>
+<script src="config.js"></script>
+<script src="local-cpu.js?v=V18.14"></script>
+<style>
+:root{color-scheme:dark;--bg:#060813;--panel:#101526;--line:#283451;--text:#eef6ff;--muted:#92a4bf;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#16243e 0,#070914 42%,#03050a 100%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+main{max-width:1280px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(24px,4vw,40px)}.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:18px 0}
+.card,.panel{background:rgba(16,21,38,.92);border:1px solid var(--line);border-radius:14px;padding:14px}.label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.value{font-size:25px;font-weight:800;margin-top:4px}
+.panel{margin-top:12px}.controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}button,select,a{border:1px solid #4a5d7f;border-radius:9px;background:#151d31;color:#fff;padding:9px 13px;font-weight:700;text-decoration:none}
+button{cursor:pointer}.ok{color:#72f2ad}.bad{color:#ff8295}.canvas-wrap{position:relative;background:#030610;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px 18px;text-align:center}.hidden{display:none!important}
+.log{height:130px;overflow:auto;background:#090d18;border-radius:9px;padding:9px;font:12px/1.45 monospace;color:#b9c8dd}
+@media(max-width:820px){.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div><div class="label">Galaxy Combat · uso privado</div><h1>Entrenamiento autónomo CPU</h1></div>
+    <a href="./">VOLVER AL JUEGO</a>
+  </div>
+
+  <section id="locked" class="panel lock">
+    <h2>Comprobando acceso…</h2>
+    <p id="lockText" class="muted">Esta herramienta necesita tu sesión autorizada.</p>
+  </section>
+
+  <div id="trainer" class="hidden">
+    <div class="cards">
+      <div class="card"><div class="label">Usuario</div><div id="user" class="value">—</div></div>
+      <div class="card"><div class="label">Brain</div><div id="brainVersion" class="value">—</div></div>
+      <div class="card"><div class="label">Entrenadas total</div><div id="totalMatches" class="value">0</div></div>
+      <div class="card"><div class="label">Esta sesión</div><div id="sessionMatches" class="value">0</div></div>
+      <div class="card"><div class="label">Velocidad</div><div id="speedValue" class="value">x15</div></div>
+    </div>
+
+    <section class="panel">
+      <div class="controls">
+        <button id="pause">PAUSAR</button>
+        <select id="speed" aria-label="Velocidad de entrenamiento">
+          <option value="1">x1</option>
+          <option value="5">x5</option>
+          <option value="15" selected>x15</option>
+          <option value="30">x30</option>
+        </select>
+        <span id="status" class="ok">ENTRENANDO · 4 CPU</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="canvas-wrap"><canvas id="arena" width="960" height="540"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <div class="label">Actividad</div>
+      <div id="log" class="log"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const API=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').replace(/\/$/,'');
+const TOKEN_KEY='galaxyCombatAuthTokenV1';
+const COLORS=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
+const token=(()=>{try{return localStorage.getItem(TOKEN_KEY)||''}catch(_){return ''}})();
+const $=id=>document.getElementById(id);
+let sim=null,state=null,running=false,busy=false,pendingDeltas=[],sessionCount=0,speed=15,lastPaint=0;
+const ctx=$('arena').getContext('2d');
+
+function authHeaders(){return token?{Authorization:'Bearer '+token}:{}}
+function log(msg){const el=$('log');const line=document.createElement('div');line.textContent=new Date().toLocaleTimeString()+' · '+msg;el.prepend(line)}
+async function json(path,options={}){
+  const headers=Object.assign({},options.body?{'Content-Type':'application/json'}:{},authHeaders(),options.headers||{});
+  const r=await fetch(API+path,Object.assign({cache:'no-store'},options,{headers}));
+  let d={};try{d=await r.json()}catch(_){}
+  if(!r.ok){const e=new Error(d.message||d.code||('HTTP '+r.status));e.code=d.code;throw e}
+  return d;
+}
+function triangle(x,y,r,color){
+  ctx.save();ctx.translate(x,y);ctx.rotate(-r*Math.PI/180);ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=10;
+  ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(-8,9);ctx.lineTo(0,5);ctx.lineTo(8,9);ctx.closePath();ctx.fill();ctx.restore();
+}
+function draw(){
+  if(!state)return;
+  const sx=960/state.w,sy=540/state.h;
+  ctx.fillStyle='#030610';ctx.fillRect(0,0,960,540);
+  ctx.strokeStyle='rgba(255,255,255,.12)';
+  for(const a of state.asteroids||[]){ctx.beginPath();ctx.arc(a.x*sx,a.y*sy,22,0,Math.PI*2);ctx.stroke()}
+  for(const p of state.pickups||[]){ctx.fillStyle=p.type==='shield'?'#8dffb0':'#c798ff';ctx.fillRect(p.x*sx-3,p.y*sy-3,6,6)}
+  for(const b of state.bullets||[]){ctx.fillStyle='#fff';ctx.fillRect(b.x*sx-1,b.y*sy-1,3,3)}
+  for(const p of state.players||[]){
+    if(p.dead)continue;
+    triangle(p.x*sx,p.y*sy,p.r,COLORS[p.i]||'#fff');
+    ctx.fillStyle=COLORS[p.i]||'#fff';ctx.font='bold 12px Arial';ctx.textAlign='center';ctx.fillText('CPU '+(p.i+1)+' · '+p.k+'/5',p.x*sx,p.y*sy-17);
+  }
+}
+function startSim(brain){
+  sim=new window.GalaxyLocalCpu({
+    onState:s=>state=s,
+    onEvent:e=>{
+      if(e&&e.t==='cpu-learning')pendingDeltas=e.deltas||[];
+      if(e&&e.t==='victory')finishMatch(e.winner);
+    }
+  });
+  sim.startTraining(brain);
+  state=sim.publicState();
+  running=true;
+  log('Comienza entrenamiento con 4 CPU.');
+}
+async function finishMatch(winner){
+  if(busy)return;
+  busy=true;running=false;
+  $('status').textContent='GUARDANDO APRENDIZAJE…';
+  $('status').className='';
+  const winnerPlayer=sim&&sim.players&&sim.players.find(p=>p.index===winner);
+  log('Gana CPU '+(Number(winner)+1)+(winnerPlayer?' con '+winnerPlayer.kills+' bajas':'')+'.');
+  try{
+    const d=await json('/api/cpu-brain/train-learn',{method:'POST',body:JSON.stringify({deltas:pendingDeltas.slice(0,24)})});
+    sessionCount++;
+    $('sessionMatches').textContent=sessionCount;
+    $('totalMatches').textContent=d.trainingMatches||0;
+    $('brainVersion').textContent=d.version||'—';
+    sim.brain=d.brain||sim.brain;
+    pendingDeltas=[];
+    sim.restart();
+    state=sim.publicState();
+    log('Aprendizaje guardado · brain '+(d.version||'—')+'.');
+    running=true;
+    $('status').textContent='ENTRENANDO · 4 CPU';
+    $('status').className='ok';
+  }catch(e){
+    log('ERROR guardando aprendizaje: '+e.message);
+    $('status').textContent='PAUSADO POR ERROR';
+    $('status').className='bad';
+  }finally{busy=false}
+}
+function frame(now){
+  if(running&&!busy&&sim&&!sim.finished){
+    for(let i=0;i<speed&&!sim.finished;i++)sim.update(1/60);
+    if(now-lastPaint>80){state=sim.publicState();draw();lastPaint=now}
+  }else if(now-lastPaint>120){draw();lastPaint=now}
+  requestAnimationFrame(frame);
+}
+$('pause').addEventListener('click',()=>{
+  running=!running;
+  $('pause').textContent=running?'PAUSAR':'CONTINUAR';
+  $('status').textContent=running?'ENTRENANDO · 4 CPU':'PAUSADO';
+  $('status').className=running?'ok':'';
+});
+$('speed').addEventListener('change',()=>{speed=Math.max(1,Number($('speed').value)||1);$('speedValue').textContent='x'+speed;log('Velocidad x'+speed+'.')});
+
+(async()=>{
+  if(!API){$('lockText').textContent='Servidor no configurado.';return}
+  if(!token){$('lockText').textContent='Primero inicia sesión en el juego con tu cuenta autorizada y vuelve a abrir esta dirección.';return}
+  try{
+    const access=await json('/api/cpu-training/access');
+    const brain=await json('/api/cpu-brain');
+    $('user').textContent=access.user&&access.user.username||'ADMIN';
+    $('totalMatches').textContent=access.trainingMatches||0;
+    $('brainVersion').textContent=brain.version||'—';
+    $('locked').classList.add('hidden');$('trainer').classList.remove('hidden');
+    startSim(brain.brain||null);
+    requestAnimationFrame(frame);
+  }catch(e){
+    if(e.code==='TRAINING_ADMIN_NOT_CONFIGURED')$('lockText').textContent='Falta configurar TRAINING_ADMIN_USERNAME en Render con el nombre exacto de tu cuenta.';
+    else if(e.code==='FORBIDDEN')$('lockText').textContent='Esta cuenta no tiene permiso para abrir el entrenamiento.';
+    else if(e.code==='UNAUTHORIZED')$('lockText').textContent='Tu sesión no es válida. Inicia sesión de nuevo en Galaxy Combat.';
+    else $('lockText').textContent='No se pudo validar el acceso: '+e.message;
+  }
+})();
+</script>
+</body>
+</html>
