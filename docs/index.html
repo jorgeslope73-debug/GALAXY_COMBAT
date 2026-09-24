@@ -18,14 +18,14 @@
 })();
 </script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V18.23">
+<link rel="stylesheet" href="style.css?v=V18.24">
 <link rel="stylesheet" href="menu-portada.css?v=V18.16">
 <link rel="stylesheet" href="voz.css?v=V18.8">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
 .lobby-chat{margin:12px auto 8px;width:min(540px,100%);display:flex;flex-direction:column;gap:7px}
-.lobby-room-heading{display:flex;align-items:center;justify-content:center;gap:8px}
+.lobby-room-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left}
 .lobby-room-heading .share-room-btn{width:auto;min-height:28px;margin:0;padding:4px 8px;border-radius:5px;font:800 10px/1 Arial,Helvetica,sans-serif;letter-spacing:.04em}
 .lobby-chat-header{display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:28px}
 .lobby-chat-title{font-family:'Flashback',Arial,sans-serif;font-size:12px;letter-spacing:.08em;color:rgba(235,225,255,.82);text-align:left}
@@ -90,7 +90,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
     overflow:hidden;border-radius:10px;
   }
   html.handheld-device #lobby>h2{
-    margin:0;font-size:17px;line-height:1.05;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;
+    margin:0;font-size:17px;line-height:1.05;letter-spacing:.04em;display:flex;align-items:center;justify-content:space-between;
   }
   html.handheld-device #lobby #players{
     display:grid;
@@ -218,7 +218,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V18.23</div>
+      <div id="buildVersion" aria-label="Version del juego">V18.24</div>
       <div class="menu-left-tools" aria-label="Clasificacion, compartir e instalar">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
         <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
@@ -488,6 +488,6 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 <script src="host-physics.js?v=V18.23"></script>
 <script src="p2p-network.js?v=V18.23"></script>
 <script src="game.js?v=V18.23"></script>
-<script src="pwa.js?v=V18.23"></script>
+<script src="pwa.js?v=V18.24"></script>
 </body>
 </html>
