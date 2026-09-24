@@ -1346,7 +1346,14 @@
   });
   if(lobbyChatInput)lobbyChatInput.addEventListener('keyup',e=>e.stopPropagation());
   if(isMobile){
-    document.getElementById('app').addEventListener('pointerdown',mobilePointerDown,{passive:false});
+    const appEl=document.getElementById('app');
+    // V18.49: Safari/iOS puede mostrar lupa/callout con una pulsacion larga.
+    // Lo bloqueamos solo mientras se juega para no afectar inputs ni chat del menu.
+    const blockIosLongPress=e=>{if(inGame){e.preventDefault();}};
+    appEl.addEventListener('contextmenu',blockIosLongPress,{passive:false});
+    appEl.addEventListener('selectstart',blockIosLongPress,{passive:false});
+    appEl.addEventListener('dragstart',blockIosLongPress,{passive:false});
+    appEl.addEventListener('pointerdown',mobilePointerDown,{passive:false});
     document.getElementById('app').addEventListener('pointerup',mobilePointerEnd,{passive:false});
     document.getElementById('app').addEventListener('pointercancel',mobilePointerEnd,{passive:false});
     document.getElementById('app').addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
