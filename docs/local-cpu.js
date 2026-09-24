@@ -17,6 +17,36 @@
   const randint=(a,b)=>Math.floor(rand(a,b+1));
   const dist2=(a,b)=>{const dx=a.x-b.x,dy=a.y-b.y;return dx*dx+dy*dy;};
   const circles=(a,ar,b,br)=>{const rr=ar+br;return dist2(a,b)<=rr*rr;};
+  // Colision continua barata: trabaja con distancias al cuadrado, evita sqrt y
+  // descarta primero por la caja del segmento. Solo añade una division cuando
+  // el movimiento realmente puede cruzar el radio de colision.
+  const prevX=o=>Number.isFinite(o&&o.px)?o.px:o.x;
+  const prevY=o=>Number.isFinite(o&&o.py)?o.py:o.y;
+  const wrapDelta=(d,size)=>d>size*.5?d-size:(d<-size*.5?d+size:d);
+  const sweptCircles=(a,ar,b,br,wrap=false)=>{
+    const rr=ar+br,rr2=rr*rr;
+    const ax1=a.x,ay1=a.y,bx1=b.x,by1=b.y;
+    const ax0=prevX(a),ay0=prevY(a),bx0=prevX(b),by0=prevY(b);
+    let r0x,r0y,r1x,r1y;
+    if(wrap){
+      r0x=wrapDelta(bx0-ax0,W);r0y=wrapDelta(by0-ay0,H);
+      const raw1x=wrapDelta(bx1-ax1,W),raw1y=wrapDelta(by1-ay1,H);
+      r1x=r0x+wrapDelta(raw1x-r0x,W);r1y=r0y+wrapDelta(raw1y-r0y,H);
+    }else{
+      // Si alguno acaba de atravesar un borde con wrap, no trazamos una linea
+      // gigante por toda la arena: en ese unico tick usamos el solape final.
+      if(Math.abs(ax1-ax0)>W*.5||Math.abs(ay1-ay0)>H*.5||Math.abs(bx1-bx0)>W*.5||Math.abs(by1-by0)>H*.5)return circles(a,ar,b,br);
+      r0x=bx0-ax0;r0y=by0-ay0;r1x=bx1-ax1;r1y=by1-ay1;
+    }
+    if(r1x*r1x+r1y*r1y<=rr2||r0x*r0x+r0y*r0y<=rr2)return true;
+    if((r0x>rr&&r1x>rr)||(r0x<-rr&&r1x<-rr)||(r0y>rr&&r1y>rr)||(r0y<-rr&&r1y<-rr))return false;
+    const vx=r1x-r0x,vy=r1y-r0y,vv=vx*vx+vy*vy;
+    if(vv<=1e-9)return false;
+    const t=-(r0x*vx+r0y*vy)/vv;
+    if(t<=0||t>=1)return false;
+    const cx=r0x+vx*t,cy=r0y+vy*t;
+    return cx*cx+cy*cy<=rr2;
+  };
   const dirFromRot=rot=>{const r=rot*Math.PI/180;return{x:-Math.sin(r),y:-Math.cos(r)};};
   const normalize=(x,y)=>{const l=Math.hypot(x,y)||1;return{x:x/l,y:y/l};};
   const safeName=(v,fallback='JUGADOR')=>{
@@ -420,7 +450,7 @@
         if(score>bestScore){best=candidate;bestScore=score;}
         if(clearance>=0&&!tooSimilar){best=candidate;break;}
       }
-      p.x=best.x;p.y=best.y;p.rot=area.rot;p.vx=0;p.vy=0;p.lastSpawn={x:p.x,y:p.y};
+      p.x=best.x;p.y=best.y;p.px=p.x;p.py=p.y;p.rot=area.rot;p.vx=0;p.vy=0;p.lastSpawn={x:p.x,y:p.y};
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
@@ -714,6 +744,7 @@
         p.protection=p.protection-dt>1e-9?p.protection-dt:0;
         p.shield=Math.max(0,p.shield-dt);p.camo=Math.max(0,p.camo-dt);p.reload=Math.max(0,p.reload-dt);
         if(p.dead){p.respawn-=dt;if(p.respawn<=0)this.respawnPlayer(p);continue;}
+        p.px=p.x;p.py=p.y;
         const stored=this.controls.get(p.index)||IDLE_CONTROL;
         const c=p.cpu?this.chooseCpuControls(p):((Date.now()-(p.lastControlAt||0)<=300)?stored:IDLE_CONTROL);
         p.rot=(p.rot+c.turn*240*dt+360)%360;
@@ -750,7 +781,7 @@
     bulletSpeed(p){return p.cadence>=30?500:p.cadence>=20?750:p.cadence>=10?900:1000;}
     updateAsteroids(){
       for(const a of this.asteroids){
-        a.x+=a.vx*DT;a.y+=a.vy*DT;
+        a.px=a.x;a.py=a.y;a.x+=a.vx*DT;a.y+=a.vy*DT;
         if(a.x<-190&&a.vx<0)a.vx*=-1;else if(a.x>W+190&&a.vx>0)a.vx*=-1;
         if(a.y<-190&&a.vy<0)a.vy*=-1;else if(a.y>H+190&&a.vy>0)a.vy*=-1;
       }
@@ -768,13 +799,13 @@
       }
     }
     updateBullets(dt){
-      for(const b of this.bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;}
+      for(const b of this.bullets){b.px=b.x;b.py=b.y;b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;}
       for(let i=this.bullets.length-1;i>=0;i--){
         const b=this.bullets[i];let remove=b.age>3||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
         if(!remove){
           for(const p of this.players){
             if(p.index===b.owner||p.dead||p.protection>0)continue;
-            if(circles(b,BULLET_RADIUS,p,SHIP_RADIUS)){
+            if(sweptCircles(b,BULLET_RADIUS,p,SHIP_RADIUS,false)){
               const attacker=this.players.find(q=>q.index===b.owner)||null;
               if(p.shield<=0){
                 const brutal=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
@@ -785,10 +816,10 @@
             }
           }
         }
-        if(!remove)for(const a of this.asteroids)if(circles(b,BULLET_RADIUS,a,a.r)){remove=true;break;}
-        if(!remove&&this.giant&&circles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS)){remove=true;this.emit({t:'sound',kind:'impact'});}
-        if(!remove)for(let m=this.meteors.length-1;m>=0;m--)if(circles(b,BULLET_RADIUS,this.meteors[m],SMALL_METEOR_RADIUS)){this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;}
-        if(!remove)for(let p=this.pickups.length-1;p>=0;p--)if(circles(b,BULLET_RADIUS,this.pickups[p],PICKUP_RADIUS)){this.pickups.splice(p,1);remove=true;break;}
+        if(!remove)for(const a of this.asteroids)if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){remove=true;break;}
+        if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){remove=true;this.emit({t:'sound',kind:'impact'});}
+        if(!remove)for(let m=this.meteors.length-1;m>=0;m--)if(sweptCircles(b,BULLET_RADIUS,this.meteors[m],SMALL_METEOR_RADIUS,false)){this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;}
+        if(!remove)for(let p=this.pickups.length-1;p>=0;p--)if(sweptCircles(b,BULLET_RADIUS,this.pickups[p],PICKUP_RADIUS,false)){this.pickups.splice(p,1);remove=true;break;}
         if(remove)this.bullets.splice(i,1);
       }
     }
@@ -806,7 +837,7 @@
         const pk=this.pickups[i];let taken=false;
         for(const p of this.players){
           if(p.dead)continue;
-          if(circles(pk,PICKUP_RADIUS,p,SHIP_RADIUS)){
+          if(sweptCircles(pk,PICKUP_RADIUS,p,SHIP_RADIUS,false)){
             if(pk.type==='ammo3')p.bullets+=3;else if(pk.type==='ammo1')p.bullets+=1;
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
@@ -837,7 +868,7 @@
     }
     updateMeteors(dt){
       for(let i=this.meteors.length-1;i>=0;i--){
-        const m=this.meteors[i];m.x+=m.vx*dt;m.y+=m.vy*dt;m.angle=(m.angle+120*dt)%360;
+        const m=this.meteors[i];m.px=m.x;m.py=m.y;m.x+=m.vx*dt;m.y+=m.vy*dt;m.angle=(m.angle+120*dt)%360;
         for(const a of this.asteroids)if(circles(m,SMALL_METEOR_RADIUS,a,a.r)){const n=normalize(m.x-a.x,m.y-a.y),dot=m.vx*n.x+m.vy*n.y;if(dot<0){m.vx-=2*dot*n.x;m.vy-=2*dot*n.y;}m.x+=n.x*4;m.y+=n.y*4;}
         if(this.giant&&circles(m,SMALL_METEOR_RADIUS,this.giant,GIANT_RADIUS)){
           const g=this.giant,n=normalize(m.x-g.x,m.y-g.y),rvx=m.vx-g.vx,rvy=m.vy-g.vy,dot=rvx*n.x+rvy*n.y;
@@ -848,7 +879,7 @@
         for(let k=this.pickups.length-1;k>=0;k--)if(circles(m,SMALL_METEOR_RADIUS,this.pickups[k],PICKUP_RADIUS))this.pickups.splice(k,1);
         let removed=false;
         for(const p of this.players){
-          if(!p.dead&&circles(m,SMALL_METEOR_RADIUS,p,SHIP_RADIUS)){
+          if(!p.dead&&sweptCircles(m,SMALL_METEOR_RADIUS,p,SHIP_RADIUS,false)){
             if(p.cpu&&p.meteorDecision){
               const penalty=p.meteorDecision.meteorId===m.id?(p.shield>0?-.45:-1.6):(p.shield>0?-.25:-1.0);
               this.settleMeteorDecision(p,penalty);
@@ -875,9 +906,9 @@
         }
         return;
       }
-      const g=this.giant;g.x+=g.vx*dt;g.y+=g.vy*dt;
+      const g=this.giant;g.px=g.x;g.py=g.y;g.x+=g.vx*dt;g.y+=g.vy*dt;
       if(g.x>-GIANT_RADIUS&&g.x<W+GIANT_RADIUS&&g.y>-GIANT_RADIUS&&g.y<H+GIANT_RADIUS)g.entered=true;
-      for(const p of this.players)if(!p.dead&&circles(g,GIANT_RADIUS,p,SHIP_RADIUS)){if(p.shield>0||p.protection>0){this.emitShipImpact(p,g,false);const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}
+      for(const p of this.players)if(!p.dead&&sweptCircles(g,GIANT_RADIUS,p,SHIP_RADIUS,false)){if(p.shield>0||p.protection>0){this.emitShipImpact(p,g,false);const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}
       for(const a of this.asteroids)if(circles(g,GIANT_RADIUS,a,a.r)){const n=normalize(a.x-g.x,a.y-g.y);a.vx+=n.x*25;a.vy+=n.y*25;a.x+=n.x*5;a.y+=n.y*5;}
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
       if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){this.giant=null;this.nextGiant=rand(130,190);}
@@ -885,16 +916,16 @@
     shipCollisions(){
       for(const p of this.players){
         if(p.dead)continue;
-        for(const a of this.asteroids)if(circles(p,SHIP_RADIUS,a,a.r)){if(p.shield>0){this.emitShipImpact(p,a,false);const n=normalize(p.x-a.x,p.y-a.y),dot=p.vx*n.x+p.vy*n.y;if(dot<0){p.vx-=1.85*dot*n.x;p.vy-=1.85*dot*n.y;}p.x+=n.x*5;p.y+=n.y*5;}else this.destroyShip(p,null);}
+        for(const a of this.asteroids)if(sweptCircles(p,SHIP_RADIUS,a,a.r,false)){if(p.shield>0){this.emitShipImpact(p,a,false);const n=normalize(p.x-a.x,p.y-a.y),dot=p.vx*n.x+p.vy*n.y;if(dot<0){p.vx-=1.85*dot*n.x;p.vy-=1.85*dot*n.y;}p.x+=n.x*5;p.y+=n.y*5;}else this.destroyShip(p,null);}
       }
       for(let i=0;i<this.players.length;i++)for(let j=i+1;j<this.players.length;j++){
-        const a=this.players[i],b=this.players[j];if(a.dead||b.dead||!circles(a,SHIP_RADIUS,b,SHIP_RADIUS))continue;
+        const a=this.players[i],b=this.players[j];if(a.dead||b.dead||!sweptCircles(a,SHIP_RADIUS,b,SHIP_RADIUS,true))continue;
         if(a.shield>0||a.protection>0)this.emitShipImpact(a,b,false);
         if(b.shield>0||b.protection>0)this.emitShipImpact(b,a,false);
         if(a.shield>0&&b.shield<=0)this.destroyShip(b,a);
         else if(b.shield>0&&a.shield<=0)this.destroyShip(a,b);
         else if(a.shield<=0&&b.shield<=0){this.destroyShip(a,null);this.destroyShip(b,null);}
-        else{const n=normalize(a.x-b.x,a.y-b.y);a.vx=n.x*120;a.vy=n.y*120;b.vx=-n.x*120;b.vy=-n.y*120;}
+        else{const n=normalize(wrapDelta(a.x-b.x,W),wrapDelta(a.y-b.y,H));a.vx=n.x*120;a.vy=n.y*120;b.vx=-n.x*120;b.vy=-n.y*120;}
       }
     }
     publicState(){
