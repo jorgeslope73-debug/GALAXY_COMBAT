@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Galaxy Combat · Entrenamiento CPU</title>
 <script src="config.js"></script>
-<script src="local-cpu.js?v=V18.15"></script>
+<script src="local-cpu.js?v=V18.18"></script>
 <style>
 :root{color-scheme:dark;--bg:#060813;--panel:#101526;--line:#283451;--text:#eef6ff;--muted:#92a4bf;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#16243e 0,#070914 42%,#03050a 100%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
@@ -55,7 +55,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
           <option value="15" selected>x15</option>
           <option value="30">x30</option>
         </select>
-        <span id="status" class="ok">ENTRENANDO · 4 CPU</span>
+        <span id="status" class="ok">ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA</span>
       </div>
     </section>
 
@@ -144,7 +144,7 @@ async function finishMatch(winner){
       log('Partida terminada SIN deltas válidos: el brain no cambió.');
     }
     running=true;
-    $('status').textContent=d.learned?'ENTRENANDO · 4 CPU':'ENTRENANDO · ÚLTIMA SIN APRENDIZAJE';
+    $('status').textContent=d.learned?'ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA':'ENTRENANDO · ÚLTIMA SIN APRENDIZAJE';
     $('status').className=d.learned?'ok':'bad';
   }catch(e){
     log('ERROR guardando aprendizaje: '+e.message);
@@ -162,7 +162,7 @@ function frame(now){
 $('pause').addEventListener('click',()=>{
   running=!running;
   $('pause').textContent=running?'PAUSAR':'CONTINUAR';
-  $('status').textContent=running?'ENTRENANDO · 4 CPU':'PAUSADO';
+  $('status').textContent=running?'ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA':'PAUSADO';
   $('status').className=running?'ok':'';
 });
 $('speed').addEventListener('change',()=>{speed=Math.max(1,Number($('speed').value)||1);$('speedValue').textContent='x'+speed;log('Velocidad x'+speed+'.')});
