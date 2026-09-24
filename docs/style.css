@@ -182,14 +182,14 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     bottom:max(22px,calc(env(safe-area-inset-bottom) + 14px));
     z-index:20;
     display:flex;
-    gap:8px;
+    gap:24px;
     pointer-events:auto;
   }
   #mobileControls.button-mode .mobile-turn-button{
-    width:56px;
-    min-width:56px;
-    height:56px;
-    min-height:56px;
+    width:68px;
+    min-width:68px;
+    height:68px;
+    min-height:68px;
     margin:0;
     padding:0;
     border:1px solid rgba(255,255,255,.18);
@@ -198,7 +198,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     color:rgba(255,255,255,.48);
     box-shadow:none;
     opacity:.72;
-    font:900 32px/1 Arial,Helvetica,sans-serif;
+    font:900 38px/1 Arial,Helvetica,sans-serif;
     text-align:center;
     touch-action:none;
     user-select:none;
@@ -230,7 +230,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     border:0;
     border-radius:0;
     background:transparent;
-    color:rgba(235,248,255,.88);
+    color:rgba(235,248,255,.62);
     box-shadow:none;
     font:900 15px/1 Arial,Helvetica,sans-serif;
     letter-spacing:.055em;
@@ -243,6 +243,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   }
   #mobileControls.button-mode .mobile-action-zone span{
     display:none;
+    opacity:.72;
     pointer-events:none;
     text-shadow:0 1px 3px rgba(0,0,0,.92),0 0 7px rgba(255,255,255,.12);
   }
@@ -255,7 +256,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     bottom:max(16px,calc(env(safe-area-inset-bottom) + 10px));
   }
   #mobileControls.button-mode .mobile-turn-button{
-    width:50px;min-width:50px;height:50px;min-height:50px;font-size:29px
+    width:62px;min-width:62px;height:62px;min-height:62px;font-size:35px
   }
   #mobileControls.button-mode .mobile-action-zone{
     padding-bottom:max(24px,calc(env(safe-area-inset-bottom) + 18px));
@@ -277,4 +278,11 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     -webkit-user-drag:none!important;
     touch-action:none!important;
   }
+}
+
+
+/* V18.50: flechas mas grandes/separadas y textos de accion mas discretos. */
+@media (pointer:coarse),(max-width:900px){
+  #mobileControls.button-mode .mobile-turn-pad{gap:24px}
+  #mobileControls.button-mode .mobile-action-zone span{opacity:.68}
 }
