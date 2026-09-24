@@ -878,7 +878,7 @@
         for(const p of this.players){
           if(p.dead)continue;
           if(sweptCircles(pk,PICKUP_RADIUS,p,SHIP_RADIUS,false)){
-            if(pk.type==='ammo3')p.bullets+=3;else if(pk.type==='ammo1')p.bullets+=1;
+            if(pk.type==='ammo3')p.bullets+=6;else if(pk.type==='ammo1')p.bullets+=1;
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
             else if(pk.type==='shield')p.shield=10;
