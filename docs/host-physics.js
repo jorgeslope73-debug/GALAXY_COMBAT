@@ -457,8 +457,8 @@
       if(shouldHunt&&!this.huntThresholdActive){
         this.huntThresholdActive=true;this.huntTargetIndex=huntedHuman.index;this.huntUntil=Infinity;
         const cpuIndices=[];
-        for(const cpu of cpuPlayers){cpu.bullets+=5;cpuIndices.push(cpu.index);}
-        this.emit({t:'hunt',name:huntedHuman.name,duration:0,cpuAmmo:true,cpuIndices});
+        for(const cpu of cpuPlayers){cpu.bullets+=3;cpuIndices.push(cpu.index);}
+        this.emit({t:'hunt',name:huntedHuman.name,duration:0,cpuAmmo:true,cpuAmmoBonus:3,cpuIndices});
       }else if(!shouldHunt&&this.huntThresholdActive){
         this.huntThresholdActive=false;this.huntTargetIndex=-1;this.huntUntil=0;
       }
