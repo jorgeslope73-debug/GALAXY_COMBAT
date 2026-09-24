@@ -20,6 +20,7 @@
   let shareToastTimer=null;
   const serverWait=document.getElementById('serverWait'),serverWaitText=document.getElementById('serverWaitText');
   const roomTypeDialog=document.getElementById('roomTypeDialog'),publicRoomsDialog=document.getElementById('publicRoomsDialog'),publicRoomsList=document.getElementById('publicRoomsList'),joinCodeDialog=document.getElementById('joinCodeDialog');
+  const cpuSetupDialog=document.getElementById('cpuSetupDialog'),mobileDifficulty=document.getElementById('mobileDifficulty'),mobileCpuCount=document.getElementById('mobileCpuCount'),cpuSetupPlay=document.getElementById('cpuSetupPlay'),cpuSetupClose=document.getElementById('cpuSetupClose');
   const W=1920,H=1080;
   const playerColors=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
   const playerRgb=[[90,225,255],[255,80,165],[90,255,120],[255,220,70]];
@@ -757,7 +758,25 @@
   function closeRoomDialogs(){
     if(roomTypeDialog)roomTypeDialog.classList.add('hidden');
     if(publicRoomsDialog)publicRoomsDialog.classList.add('hidden');
+    if(cpuSetupDialog)cpuSetupDialog.classList.add('hidden');
     if(menu)menu.classList.remove('submenu-open');
+  }
+  function showCpuSetupDialog(){
+    if(!cpuSetupDialog)return;
+    const difficulty=document.getElementById('difficulty');
+    const cpuCount=document.getElementById('cpuCount');
+    if(mobileDifficulty&&difficulty)mobileDifficulty.value=difficulty.value;
+    if(mobileCpuCount&&cpuCount)mobileCpuCount.value=cpuCount.value;
+    if(menu)menu.classList.add('submenu-open');
+    cpuSetupDialog.classList.remove('hidden');
+  }
+  function confirmCpuSetup(){
+    const difficulty=document.getElementById('difficulty');
+    const cpuCount=document.getElementById('cpuCount');
+    if(difficulty&&mobileDifficulty)difficulty.value=mobileDifficulty.value;
+    if(cpuCount&&mobileCpuCount)cpuCount.value=mobileCpuCount.value;
+    closeRoomDialogs();
+    startLocalCpu();
   }
   function renderPublicRooms(){
     if(!publicRoomsList)return;
@@ -1043,16 +1062,19 @@
   if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
   if(shareRoomBtn)shareRoomBtn.addEventListener('click',shareCurrentRoom);
   document.getElementById('create').addEventListener('click',()=>{startMusic();showRoomTypeDialog();});
-  document.getElementById('cpu').addEventListener('click',startLocalCpu);
+  document.getElementById('cpu').addEventListener('click',()=>{if(isMobile){startMusic();showCpuSetupDialog();}else startLocalCpu();});
   document.getElementById('join').addEventListener('click',()=>{startMusic();showPublicRoomsDialog();});
   document.getElementById('createPublic').addEventListener('click',()=>createOnlineRoom(true));
   document.getElementById('createPrivate').addEventListener('click',()=>createOnlineRoom(false));
   document.getElementById('closeRoomType').addEventListener('click',closeRoomDialogs);
   document.getElementById('closePublicRooms').addEventListener('click',closeRoomDialogs);
+  if(cpuSetupPlay)cpuSetupPlay.addEventListener('click',confirmCpuSetup);
+  if(cpuSetupClose)cpuSetupClose.addEventListener('click',closeRoomDialogs);
   document.getElementById('joinByCodeDialog').addEventListener('click',()=>joinRoomByCode(joinCodeDialog&&joinCodeDialog.value));
   if(joinCodeDialog)joinCodeDialog.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();joinRoomByCode(joinCodeDialog.value);}});
   if(roomTypeDialog)roomTypeDialog.addEventListener('pointerdown',e=>{if(e.target===roomTypeDialog)closeRoomDialogs();});
   if(publicRoomsDialog)publicRoomsDialog.addEventListener('pointerdown',e=>{if(e.target===publicRoomsDialog)closeRoomDialogs();});
+  if(cpuSetupDialog)cpuSetupDialog.addEventListener('pointerdown',e=>{if(e.target===cpuSetupDialog)closeRoomDialogs();});
   if(lobbyChatSend)lobbyChatSend.addEventListener('click',sendLobbyChat);
   if(lobbyChatInput)lobbyChatInput.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendLobbyChat();}
