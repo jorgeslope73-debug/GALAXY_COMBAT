@@ -492,10 +492,12 @@
     // Compensa el salto de -180/180 en sensores que lo necesiten.
     if(delta>180)delta-=360;
     if(delta<-180)delta+=360;
-    const dead=3.0;
+    // V18.45: control giroscopico mas sensible en movil.
+    // Zona muerta pequena para evitar temblores y giro maximo con menos inclinacion.
+    const dead=2.0;
     if(Math.abs(delta)<=dead){motionTurn=0;return;}
     const signed=delta>0?delta-dead:delta+dead;
-    motionTurn=-clamp(signed/22,-1,1);
+    motionTurn=-clamp(signed/14,-1,1);
   }
   async function enableMobileMotion(){
     if(!isMobile)return true;
