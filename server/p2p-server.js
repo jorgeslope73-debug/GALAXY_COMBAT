@@ -12,6 +12,7 @@ const MAX_PLAYERS=4;
 const SESSION_DAYS=30;
 const PASSWORD_MIN_LENGTH=8;
 const DATABASE_URL=String(process.env.DATABASE_URL||'').trim();
+const TRAINING_ADMIN_USERNAME=String(process.env.TRAINING_ADMIN_USERNAME||'').trim();
 
 let dbReady=false;
 let dbInitPromise=null;
@@ -97,6 +98,14 @@ async function ensureDatabase(){
         cpu_matches INTEGER NOT NULL DEFAULT 0,
         online_matches INTEGER NOT NULL DEFAULT 0
       );
+      CREATE TABLE IF NOT EXISTS galaxy_cpu_training_stats (
+        id SMALLINT PRIMARY KEY,
+        matches BIGINT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      INSERT INTO galaxy_cpu_training_stats(id,matches)
+      VALUES(1,0)
+      ON CONFLICT(id) DO NOTHING;
     `);
     dbReady=true;
     console.log('[Galaxy Combat P2P] Base de datos de cuentas preparada.');
@@ -191,6 +200,22 @@ function readJsonBody(req,maxBytes=16384){
   });
 }
 function bearerToken(req){const raw=String(req.headers.authorization||'');const m=/^Bearer\s+([a-f0-9]{64})$/i.exec(raw.trim());return m?m[1]:'';}
+async function requireTrainingAdmin(req,res){
+  if(!TRAINING_ADMIN_USERNAME){
+    sendJson(res,503,{ok:false,code:'TRAINING_ADMIN_NOT_CONFIGURED',message:'Entrenamiento privado no configurado.'});
+    return null;
+  }
+  const user=await userFromSessionToken(bearerToken(req));
+  if(!user){
+    sendJson(res,401,{ok:false,code:'UNAUTHORIZED'});
+    return null;
+  }
+  if(usernameKey(user.username)!==usernameKey(TRAINING_ADMIN_USERNAME)){
+    sendJson(res,403,{ok:false,code:'FORBIDDEN'});
+    return null;
+  }
+  return user;
+}
 
 const CPU_BRAIN_MAX_STRATEGIES=16;
 const CPU_BRAIN_MAX_CANDIDATES=16;
@@ -308,6 +333,42 @@ async function authApi(req,res,url){
     const user=await userFromSessionToken(bearerToken(req));
     if(!user){sendJson(res,401,{ok:false,code:'UNAUTHORIZED'});return true;}
     sendJson(res,200,{ok:true,user:{id:Number(user.id),username:user.username,email:user.email}});return true;
+  }
+  if(url==='/api/cpu-training/access'&&req.method==='GET'){
+    const user=await requireTrainingAdmin(req,res);if(!user)return true;
+    const {rows}=await db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1');
+    const row=rows[0]||{matches:0,updated_at:null};
+    sendJson(res,200,{ok:true,user:{username:user.username},trainingMatches:Number(row.matches)||0,updatedAt:row.updated_at||null});
+    return true;
+  }
+  if(url==='/api/cpu-brain/train-learn'&&req.method==='POST'){
+    const user=await requireTrainingAdmin(req,res);if(!user)return true;
+    let body;try{body=await readJsonBody(req,16384);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
+    const deltas=Array.isArray(body&&body.deltas)?body.deltas:[];
+    const client=await db.connect();
+    try{
+      await client.query('BEGIN');
+      const {rows}=await client.query('SELECT version,brain FROM galaxy_cpu_brain WHERE id=1 FOR UPDATE');
+      const current=rows[0]||{version:1,brain:{version:1,strategies:[],candidates:[]}};
+      const brain=mergeCpuBrain(current.brain,deltas);
+      const bytes=Buffer.byteLength(JSON.stringify(brain),'utf8');
+      await client.query('UPDATE galaxy_cpu_brain SET version=$1,brain=$2::jsonb,updated_at=NOW() WHERE id=1',[brain.version,JSON.stringify(brain)]);
+      const stat=await client.query(`UPDATE galaxy_cpu_training_stats
+        SET matches=matches+1,updated_at=NOW() WHERE id=1 RETURNING matches`);
+      await client.query('COMMIT');
+      sendJson(res,200,{
+        ok:true,
+        version:brain.version,
+        bytes,
+        trainingMatches:Number(stat.rows[0]&&stat.rows[0].matches)||0,
+        brain:{version:brain.version,strategies:brain.strategies,candidates:brain.candidates}
+      });
+    }catch(err){
+      try{await client.query('ROLLBACK');}catch(_){}
+      console.error('[Galaxy Combat P2P] Error entrenamiento CPU:',err&&err.message||err);
+      sendJson(res,500,{ok:false,code:'CPU_TRAINING_ERROR'});
+    }finally{client.release();}
+    return true;
   }
   if(url==='/api/cpu-brain'&&req.method==='GET'){
     const {rows}=await db.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 LIMIT 1');
