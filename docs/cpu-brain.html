@@ -9,10 +9,10 @@
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#15213c 0,#070914 40%,#04060c 100%);color:var(--text);font-family:Inter,Arial,sans-serif}
 main{max-width:1180px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
 h1{margin:0;font-size:clamp(24px,4vw,42px)}a,button{color:var(--text)}.back,.refresh{border:1px solid var(--line);background:#151c30;padding:10px 14px;border-radius:10px;text-decoration:none;cursor:pointer}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}.card{background:rgba(16,21,38,.9);border:1px solid var(--line);border-radius:14px;padding:16px}.value{font-size:28px;font-weight:800}.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin:20px 0}.card{background:rgba(16,21,38,.9);border:1px solid var(--line);border-radius:14px;padding:16px}.value{font-size:28px;font-weight:800}.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
 .panel{background:rgba(16,21,38,.9);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:14px}h2{margin:0 0 14px;font-size:18px}
 .bars{display:grid;gap:10px}.barrow{display:grid;grid-template-columns:minmax(190px,1fr) minmax(160px,3fr) 70px;gap:12px;align-items:center}.name{font-size:13px;color:#dce8ff;overflow:hidden;text-overflow:ellipsis}.track{height:14px;background:#222a40;border-radius:999px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:inherit}.score{text-align:right;font-variant-numeric:tabular-nums}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid #242d44;text-align:left}th{color:var(--muted)}.good{color:var(--good)}.bad{color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid #242d44;text-align:left}th{color:var(--muted)}.good{color:var(--good)}.bad{color:var(--bad)}tr.changed td{animation:brainFlash 1.4s ease}@keyframes brainFlash{0%{background:rgba(90,225,255,.28)}100%{background:transparent}}
 .heat{overflow:auto}.heat table td{text-align:center}.cell{border-radius:7px;padding:8px 6px;min-width:86px}.muted{color:var(--muted)}pre{white-space:pre-wrap;word-break:break-word;background:#090d18;border-radius:10px;padding:12px;max-height:320px;overflow:auto}
 @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.barrow{grid-template-columns:1fr}.score{text-align:left}.panel{padding:14px}}
 </style>
@@ -25,8 +25,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;bord
     <div class="card"><div class="label">Estrategias activas</div><div class="value" id="strategies">—</div></div>
     <div class="card"><div class="label">Candidatas</div><div class="value" id="candidates">—</div></div>
     <div class="card"><div class="label">Tamaño</div><div class="value" id="bytes">—</div></div>
+    <div class="card"><div class="label">Entrenamientos automáticos</div><div class="value" id="trainingMatches">—</div></div>
+    <div class="card"><div class="label">Último cambio Brain</div><div class="value" id="updatedAt" style="font-size:16px">—</div></div>
   </div>
-  <section class="panel"><h2>Mejores estrategias</h2><div id="bars" class="bars"></div></section>
+  <section class="panel"><h2>Mejores estrategias</h2><div class="muted" id="autoStatus" style="margin:-6px 0 12px">Actualización automática cada 5 segundos.</div><div id="bars" class="bars"></div></section>
   <section class="panel heat"><h2>Mapa de decisiones</h2><div id="heat"></div></section>
   <section class="panel"><h2>Detalle</h2><div style="overflow:auto"><table><thead><tr><th>Contexto</th><th>Acción</th><th>Muestras</th><th>Total</th><th>Media</th></tr></thead><tbody id="rows"></tbody></table></div></section>
   <section class="panel"><h2>JSON</h2><pre id="json">Cargando…</pre></section>
@@ -47,24 +49,39 @@ const contextLabel=c=>{
 };
 function score(e){return e.samples?e.total/e.samples:0}
 function fmt(n){return Number(n||0).toFixed(2)}
+function fmtDate(v){if(!v)return '—';const d=new Date(v);return isNaN(d)?'—':d.toLocaleString()}
 function cellColor(v,maxAbs){const a=Math.min(.85,Math.abs(v)/(maxAbs||1));return v>=0?'rgba(70,230,140,'+(0.12+a*.55)+')':'rgba(255,90,120,'+(0.12+a*.55)+')'}
+let previousEntries=new Map(),loading=false;
 async function load(){
-  const out=document.getElementById('json');out.textContent='Cargando…';
+  if(loading)return;loading=true;
+  const out=document.getElementById('json');
   try{
     const r=await fetch(API+'/api/cpu-brain',{cache:'no-store'});const d=await r.json();
     if(!r.ok||!d.ok)throw new Error('No disponible');
     const brain=d.brain||{},active=Array.isArray(brain.strategies)?brain.strategies:[],cand=Array.isArray(brain.candidates)?brain.candidates:[];
     version.textContent=d.version??brain.version??'—';strategies.textContent=active.length;candidates.textContent=cand.length;
     bytes.textContent=((Number(d.bytes)||0)/1024).toFixed(1)+' KB';
+    trainingMatches.textContent=Number(d.training&&d.training.matches)||0;
+    updatedAt.textContent=fmtDate(d.updatedAt);
+    autoStatus.textContent='Actualizado '+new Date().toLocaleTimeString()+' · refresco automático cada 5 s';
     const sorted=[...active].sort((a,b)=>score(b)-score(a)).slice(0,12),max=Math.max(.01,...sorted.map(x=>Math.abs(score(x))));
     bars.innerHTML=sorted.length?sorted.map(e=>'<div class="barrow"><div class="name">'+contextLabel(e.context)+' · '+(actionLabel[e.action]||e.action)+'</div><div class="track"><div class="fill" style="width:'+Math.max(3,Math.abs(score(e))/max*100)+'%"></div></div><div class="score '+(score(e)>=0?'good':'bad')+'">'+fmt(score(e))+'</div></div>').join(''):'<div class="muted">Aún no hay aprendizaje suficiente.</div>';
     const contexts=[...new Set(active.map(x=>x.context))];const maxAbs=Math.max(.01,...active.map(x=>Math.abs(score(x))));
     heat.innerHTML=contexts.length?'<table><thead><tr><th>Situación</th>'+actions.map(a=>'<th>'+actionLabel[a]+'</th>').join('')+'</tr></thead><tbody>'+contexts.map(c=>'<tr><th>'+contextLabel(c)+'</th>'+actions.map(a=>{const e=active.find(x=>x.context===c&&x.action===a);if(!e)return '<td><span class="muted">—</span></td>';const v=score(e);return '<td><div class="cell" style="background:'+cellColor(v,maxAbs)+'">'+fmt(v)+'</div></td>'}).join('')+'</tr>').join('')+'</tbody></table>':'<div class="muted">Sin datos todavía.</div>';
-    rows.innerHTML=active.sort((a,b)=>score(b)-score(a)).map(e=>'<tr><td>'+contextLabel(e.context)+'</td><td>'+(actionLabel[e.action]||e.action)+'</td><td>'+e.samples+'</td><td>'+fmt(e.total)+'</td><td class="'+(score(e)>=0?'good':'bad')+'">'+fmt(score(e))+'</td></tr>').join('');
+    const nextEntries=new Map(active.map(e=>[e.context+'|'+e.action,{samples:Number(e.samples)||0,total:Number(e.total)||0}]));
+    rows.innerHTML=active.sort((a,b)=>score(b)-score(a)).map(e=>{
+      const key=e.context+'|'+e.action,prev=previousEntries.get(key);
+      const changed=!!prev&&(prev.samples!==Number(e.samples)||Math.abs(prev.total-Number(e.total))>.000001);
+      return '<tr class="'+(changed?'changed':'')+'"><td>'+contextLabel(e.context)+'</td><td>'+(actionLabel[e.action]||e.action)+'</td><td>'+e.samples+'</td><td>'+fmt(e.total)+'</td><td class="'+(score(e)>=0?'good':'bad')+'">'+fmt(score(e))+'</td></tr>';
+    }).join('');
+    previousEntries=nextEntries;
     out.textContent=JSON.stringify(d,null,2);
-  }catch(e){out.textContent='No se pudo cargar el cerebro. Si Render acaba de desplegar, espera unos segundos y pulsa ACTUALIZAR.'}
+  }catch(e){
+    out.textContent='No se pudo cargar el cerebro. Si Render acaba de desplegar, espera unos segundos y pulsa ACTUALIZAR.';
+    autoStatus.textContent='Error al actualizar · reintentando cada 5 s';
+  }finally{loading=false}
 }
-document.getElementById('refresh').addEventListener('click',load);load();
+document.getElementById('refresh').addEventListener('click',load);load();setInterval(load,5000);
 </script>
 </body>
 </html>
