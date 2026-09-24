@@ -52,36 +52,41 @@
   // Si la inercia actual ya atraviesa un pickup, la CPU deja de acelerar y
   // entra recta por deslizamiento. Solo se cancela si hay un obstaculo peligroso
   // dentro de ese corredor antes de llegar al objeto.
-  const canCoastIntoPickup=(cpu,pk,asteroids,meteors,giant,players)=>{
-    if(!cpu||!pk)return false;
-    const vx=Number(cpu.vx)||0,vy=Number(cpu.vy)||0,speed2=vx*vx+vy*vy;
-    if(speed2<35*35)return false;
-    const speed=Math.sqrt(speed2),ux=vx/speed,uy=vy/speed;
-    const px=pk.x-cpu.x,py=pk.y-cpu.y;
-    const along=px*ux+py*uy;
-    if(along<=0)return false;
-    const capture=SHIP_RADIUS+PICKUP_RADIUS-4;
-    const lateral2=Math.max(0,px*px+py*py-along*along);
-    if(lateral2>capture*capture)return false;
-    const coastReach=Math.min(430,speed*DT/(1-DRAG_PER_TICK)*.94+capture);
-    if(along>coastReach)return false;
-    const pathEnd=Math.min(coastReach,along+capture);
+  const pickupRunThroughPlan=(cpu,pk,asteroids,meteors,giant,players)=>{
+    if(!cpu||!pk)return null;
+    const dx=pk.x-cpu.x,dy=pk.y-cpu.y,d2=dx*dx+dy*dy;
+    if(d2<1)return{clear:true,aligned:true,x:pk.x,y:pk.y};
+    const distance=Math.sqrt(d2),ux=dx/distance,uy=dy/distance;
+    const vx=Number(cpu.vx)||0,vy=Number(cpu.vy)||0,speed2=vx*vx+vy*vy,speed=Math.sqrt(speed2);
+    // El punto de mira queda detras del pickup para obligar a atravesarlo.
+    // A mayor velocidad, mayor margen de salida para que no empiece a girar antes de recogerlo.
+    const overshoot=95+Math.min(95,speed*.24);
+    const tx=pk.x+ux*overshoot,ty=pk.y+uy*overshoot;
+    const sx=tx-cpu.x,sy=ty-cpu.y,seg2=sx*sx+sy*sy||1;
     const hazard=(h,r)=>{
       if(!h)return false;
-      const hx=h.x-cpu.x,hy=h.y-cpu.y,ha=hx*ux+hy*uy;
-      if(ha<=0||ha>=pathEnd)return false;
-      const rr=SHIP_RADIUS+r+10;
-      const side2=Math.max(0,hx*hx+hy*hy-ha*ha);
-      return side2<=rr*rr;
+      const hx=h.x-cpu.x,hy=h.y-cpu.y;
+      const t=(hx*sx+hy*sy)/seg2;
+      if(t<=0||t>=1)return false;
+      const cx=hx-sx*t,cy=hy-sy*t;
+      const rr=SHIP_RADIUS+r+12;
+      return cx*cx+cy*cy<=rr*rr;
     };
-    for(const a of asteroids)if(hazard(a,a.r||ASTEROID_RADIUS))return false;
-    for(const m of meteors)if(hazard(m,m.r||SMALL_METEOR_RADIUS))return false;
-    if(giant&&hazard(giant,giant.r||GIANT_RADIUS))return false;
+    for(const a of asteroids)if(hazard(a,a.r||ASTEROID_RADIUS))return{clear:false,aligned:false,x:pk.x,y:pk.y};
+    for(const m of meteors)if(hazard(m,m.r||SMALL_METEOR_RADIUS))return{clear:false,aligned:false,x:pk.x,y:pk.y};
+    if(giant&&hazard(giant,giant.r||GIANT_RADIUS))return{clear:false,aligned:false,x:pk.x,y:pk.y};
     for(const p of players){
       if(!p||p===cpu||p.dead)continue;
-      if(hazard(p,SHIP_RADIUS))return false;
+      if(hazard(p,SHIP_RADIUS))return{clear:false,aligned:false,x:pk.x,y:pk.y};
     }
-    return true;
+    let aligned=false;
+    if(speed2>30*30){
+      const vux=vx/speed,vuy=vy/speed,along=dx*vux+dy*vuy;
+      const capture=SHIP_RADIUS+PICKUP_RADIUS-5;
+      const lateral2=Math.max(0,d2-along*along);
+      aligned=along>0&&lateral2<=capture*capture;
+    }
+    return{clear:true,aligned,x:tx,y:ty};
   };
   const safeName=(v,fallback='JUGADOR')=>{
     const s=String(v||'').replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,16);
@@ -529,12 +534,11 @@
         }
         if(!target)return{turn:cpu.tacticTurn*.25,thrust:true,fire:false};
         const dx=target.x-cpu.x,dy=target.y-cpu.y;
-        if(canCoastIntoPickup(cpu,target,this.asteroids,this.meteors,this.giant,this.players)){
-          return{turn:0,thrust:false,fire:false};
-        }
-        const desired=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
+        const run=pickupRunThroughPlan(cpu,target,this.asteroids,this.meteors,this.giant,this.players);
+        const tx=run&&run.clear?run.x:target.x,ty=run&&run.clear?run.y:target.y;
+        const desired=(Math.atan2(-(tx-cpu.x),-(ty-cpu.y))*180/Math.PI+360)%360;
         const err=((desired-cpu.rot+540)%360)-180;
-        return{turn:clamp(err/38,-1,1),thrust:Math.abs(err)<70,fire:false};
+        return{turn:run&&run.clear&&run.aligned?0:clamp(err/38,-1,1),thrust:run&&run.clear?true:Math.abs(err)<70,fire:false};
       }
 
       const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
@@ -683,17 +687,13 @@
         }
       }
 
-      let pickupDistance=Infinity,pickupClosing=0,pickupCoast=false;
+      let pickupDistance=Infinity,pickupRun=null;
       if(seekPickup){
         const px=seekPickup.x-cpu.x,py=seekPickup.y-cpu.y;
         pickupDistance=Math.hypot(px,py);
-        if(pickupDistance>1){
-          const nx=px/pickupDistance,ny=py/pickupDistance;
-          pickupClosing=cpu.vx*nx+cpu.vy*ny;
-          pickupCoast=canCoastIntoPickup(cpu,seekPickup,this.asteroids,this.meteors,this.giant,this.players);
-          // Si la trayectoria ya cruza el pickup, no corrige ni frena girando:
-          // conserva el morro y deja que la inercia haga la recogida.
-          if(pickupCoast){desiredX=seekPickup.x;desiredY=seekPickup.y;}
+        pickupRun=pickupRunThroughPlan(cpu,seekPickup,this.asteroids,this.meteors,this.giant,this.players);
+        if(pickupRun&&pickupRun.clear){
+          desiredX=pickupRun.x;desiredY=pickupRun.y;
         }
       }
       const ddx=desiredX-cpu.x,ddy=desiredY-cpu.y;
@@ -728,19 +728,16 @@
       }
 
       const avoidMag=Math.hypot(avoidX,avoidY);
-      if(!pickupCoast&&avoidMag>20){
+      const pickupRunClear=!!(pickupRun&&pickupRun.clear);
+      if(!pickupRunClear&&avoidMag>20){
         const ar=(Math.atan2(-avoidX,-avoidY)*180/Math.PI+360)%360;
         err=((ar-cpu.rot+540)%360)-180;
       }
 
-      const turn=pickupCoast?0:clamp(err/38,-1,1);
-      let thrust=pickupCoast?false:(huntActive?Math.abs(err)<82:!!(Math.abs(err)<68&&(distance>230||seekPickup||defensive||ramming||avoidMag>20)));
-      if(seekPickup&&!pickupCoast){
-        // Si aun no va a caer encima, puede corregir el rumbo, pero nunca
-        // gira contra su propia inercia solo para frenar.
-        if(pickupDistance<82&&pickupClosing>40)thrust=false;
-        else if(pickupDistance<135&&Math.abs(err)>28)thrust=false;
-      }
+      // En un corredor limpio acelera HASTA atravesar la mejora.
+      // La colision continua del pickup garantiza la recogida incluso a alta velocidad.
+      const turn=pickupRunClear&&pickupRun.aligned?0:clamp(err/38,-1,1);
+      const thrust=pickupRunClear?true:(huntActive?Math.abs(err)<82:!!(Math.abs(err)<68&&(distance>230||seekPickup||defensive||ramming||avoidMag>20)));
 
       // Si el rival entra claramente en la linea de tiro, dispara aunque la CPU
       // estuviera buscando un pickup o saliendo de una maniobra defensiva.
