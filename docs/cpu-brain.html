@@ -31,6 +31,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;bord
     <div class="card"><div class="label">Último cambio Brain</div><div class="value" id="updatedAt" style="font-size:16px">—</div></div>
   </div>
   <section class="panel"><h2>Aprendizaje en tiempo real</h2><div class="muted" id="learningStatus" style="margin:-6px 0 12px">Esperando el siguiente cambio del Brain…</div><div id="learningLive" class="learning-live"><div class="muted">Todavía no hay cambios desde que abriste esta página.</div></div></section>
+  <section class="panel"><h2>Esquiva de meteoritos</h2><div class="muted" id="meteorStatus" style="margin:-6px 0 12px">Comprobando aprendizaje de meteoritos…</div><div style="overflow:auto"><table><thead><tr><th>Situación</th><th>Maniobra</th><th>Estado</th><th>Muestras</th><th>Total</th><th>Media</th></tr></thead><tbody id="meteorRows"></tbody></table></div></section>
   <section class="panel"><h2>Mejores estrategias</h2><div class="muted" id="autoStatus" style="margin:-6px 0 12px">Actualización automática cada 5 segundos.</div><div id="bars" class="bars"></div></section>
   <section class="panel heat"><h2>Mapa de decisiones</h2><div id="heat"></div></section>
   <section class="panel"><h2>Detalle</h2><div style="overflow:auto"><table><thead><tr><th>Contexto</th><th>Acción</th><th>Muestras</th><th>Total</th><th>Media</th></tr></thead><tbody id="rows"></tbody></table></div></section>
@@ -75,6 +76,20 @@ async function load(){
     const allEntries=active.concat(cand);
     const totalSampleCount=allEntries.reduce((sum,e)=>sum+(Number(e.samples)||0),0);
     totalSamples.textContent=totalSampleCount;
+    const meteorEntries=allEntries.filter(e=>/^meteor-/.test(String(e.context||''))||String(e.action||'').startsWith('meteor_'));
+    if(meteorEntries.length){
+      const activeKeys=new Set(active.map(e=>e.context+'|'+e.action));
+      const meteorSamples=meteorEntries.reduce((sum,e)=>sum+(Number(e.samples)||0),0);
+      meteorStatus.textContent=meteorEntries.length+' estrategias de esquiva · '+meteorSamples+' muestras acumuladas';
+      meteorRows.innerHTML=meteorEntries.sort((a,b)=>score(b)-score(a)).map(e=>{
+        const key=e.context+'|'+e.action;
+        const state=activeKeys.has(key)?'ACTIVA':'CANDIDATA';
+        return '<tr><td>'+contextLabel(e.context)+'</td><td>'+(actionLabel[e.action]||e.action)+'</td><td class="'+(state==='ACTIVA'?'good':'muted')+'">'+state+'</td><td>'+e.samples+'</td><td>'+fmt(e.total)+'</td><td class="'+(score(e)>=0?'good':'bad')+'">'+fmt(score(e))+'</td></tr>';
+      }).join('');
+    }else{
+      meteorStatus.textContent='Aún no hay aprendizaje de meteoritos guardado en el Brain.';
+      meteorRows.innerHTML='<tr><td colspan="6" class="muted">Cuando el entrenamiento encuentre meteoritos peligrosos y guarde esas decisiones, aparecerán aquí automáticamente.</td></tr>';
+    }
     updatedAt.textContent=fmtDate(d.updatedAt);
     autoStatus.textContent='Actualizado '+new Date().toLocaleTimeString()+' · refresco automático cada 5 s';
     const sorted=[...active].sort((a,b)=>score(b)-score(a)).slice(0,12),max=Math.max(.01,...sorted.map(x=>Math.abs(score(x))));
@@ -100,7 +115,7 @@ async function load(){
     if(hasSnapshot&&changes.length){
       learningStatus.textContent='Cambios detectados a las '+new Date().toLocaleTimeString()+' · '+changes.length+' estrategias modificadas';
       learningLive.innerHTML=changes.sort((a,b)=>Math.abs(b.ds)-Math.abs(a.ds)).slice(0,12).map(c=>{
-        const label=contextLabel(c.cur.context)+' · '+(actionLabel[c.cur.action]||c.cur.action);
+        const label=(String(c.cur.context||'').startsWith('meteor-')?'METEORITOS · ':'')+contextLabel(c.cur.context)+' · '+(actionLabel[c.cur.action]||c.cur.action);
         const ds=(c.ds>=0?'+':'')+c.ds;
         const dt=(c.dt>=0?'+':'')+fmt(c.dt);
         return '<div class="learning-item"><div class="what"><strong>'+label+'</strong><span>Media actual '+fmt(c.cur.score)+'</span></div><div class="delta '+(c.ds>=0?'plus':'minus')+'">'+ds+' muestras</div><div class="delta '+(c.dt>=0?'plus':'minus')+'">'+dt+' total</div><div>'+fmt(c.cur.score)+'</div></div>';
