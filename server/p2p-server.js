@@ -219,13 +219,13 @@ async function requireTrainingAdmin(req,res){
   return true;
 }
 
-const CPU_BRAIN_MAX_STRATEGIES=16;
-const CPU_BRAIN_MAX_CANDIDATES=16;
+const CPU_BRAIN_MAX_STRATEGIES=40;
+const CPU_BRAIN_MAX_CANDIDATES=32;
 const CPU_BRAIN_MAX_BYTES=32768;
-const CPU_ACTIONS=new Set(['attack','evade','resource','scatter']);
+const CPU_ACTIONS=new Set(['attack','evade','resource','scatter','meteor_left','meteor_right','meteor_brake']);
 function safeCpuContext(v){
   const s=String(v||'');
-  return s==='open3'||/^a[012]-s[01]-d[012]-e[01]$/.test(s)?s:'';
+  return s==='open3'||/^a[012]-s[01]-d[012]-e[01]$/.test(s)||/^meteor-s[01]-v[01]-d[01]$/.test(s)?s:'';
 }
 function normalizeCpuBrain(raw){
   const brain=raw&&typeof raw==='object'?raw:{};
