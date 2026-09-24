@@ -170,8 +170,9 @@ function roster(r){
 function canStartRoom(r){return !!(r&&!r.started&&r.players.length&&r.players.every(p=>!!p.ws)&&roster(r).length>1);}
 function broadcast(r,o){for(const p of r.players)send(p.ws,o);}
 function publicRooms(){
-  return [...rooms.values()].filter(r=>r.public&&!r.started&&r.players[0]&&r.players[0].ws)
-    .map(r=>({code:r.code,host:r.players[0]?.n||'JUGADOR',lang:r.lang,players:r.players.length,maxPlayers:MAX_PLAYERS}));
+  return [...rooms.values()]
+    .filter(r=>r.public&&r.players[0]&&r.players[0].ws&&(!r.started||(r.cpuFill&&r.players.length<MAX_PLAYERS)))
+    .map(r=>({code:r.code,host:r.players[0]?.n||'JUGADOR',lang:r.lang,players:r.players.length,maxPlayers:MAX_PLAYERS,started:!!r.started,cpuFill:!!r.cpuFill}));
 }
 function publicUpdate(wss){const raw=JSON.stringify({t:'public-rooms',rooms:publicRooms()});for(const ws of wss.clients)if(ws.readyState===1)ws.send(raw);}
 function remove(ws,wss){
@@ -198,7 +199,17 @@ function expireDisconnectedPlayers(wss){
     if(!expired.length)continue;
     if(r.started){
       const hostLost=expired.some(p=>p.i===0);
-      broadcast(r,{t:'closed',reason:hostLost?'El anfitrion perdio la conexion.':'Un jugador perdio la conexion.'});
+      if(hostLost){
+        broadcast(r,{t:'closed',reason:'El anfitrion perdio la conexion.'});
+        rooms.delete(r.code);publicUpdate(wss);continue;
+      }
+      if(r.cpuFill){
+        for(const p of expired)r.players=r.players.filter(q=>q!==p);
+        const players=roster(r);
+        broadcast(r,{t:'lobby',code:r.code,players,cpuFill:true,canStart:false,started:true});
+        publicUpdate(wss);continue;
+      }
+      broadcast(r,{t:'closed',reason:'Un jugador perdio la conexion.'});
       rooms.delete(r.code);publicUpdate(wss);continue;
     }
     let hostLost=false;
@@ -614,14 +625,17 @@ wss.on('connection',ws=>{
 
     if(m.t==='join'){
       const r=rooms.get(String(m.code||'').trim().toUpperCase());
-      if(!r||r.started||r.players.length>=MAX_PLAYERS){send(ws,{t:'error',message:'Sala no disponible.'});return;}
+      const liveJoin=!!(r&&r.started&&r.cpuFill&&r.players.length<MAX_PLAYERS&&r.players[0]&&r.players[0].ws);
+      if(!r||r.players.length>=MAX_PLAYERS||(r.started&&!liveJoin)){send(ws,{t:'error',message:'Sala no disponible.'});return;}
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
       const used=new Set(r.players.map(p=>p.i));let i=0;while(used.has(i))i++;
       const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);info.set(ws,{code:r.code,i});
-      send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
-      {const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r)});}publicUpdate(wss);return;
+      const players=roster(r);
+      send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin});
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started});
+      publicUpdate(wss);return;
     }
 
     if(m.t==='resume'){
