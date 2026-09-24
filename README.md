@@ -14,6 +14,14 @@
 - Si se reconecta un jugador no anfitrion, el host rehace ese enlace WebRTC. Si se recarga por completo el navegador del anfitrion durante una partida, la fisica local no puede reconstruirse exactamente y la sesion se cierra de forma limpia.
 - La municion inicial real y documentada es de 5 balas.
 
+## V18.30 - jugadores en partidas con CPU de relleno
+
+- Las partidas publicas ya empezadas siguen apareciendo como disponibles mientras tengan CPU de relleno y quede una plaza humana libre.
+- Un jugador puede entrar en caliente y sustituye la CPU de esa plaza sin reiniciar la partida.
+- El nuevo jugador empieza con 0 bajas, 5 balas y mejoras a cero; el resto de la partida conserva su estado.
+- Si un jugador no anfitrion pierde la conexion y no vuelve en 30 segundos, en una partida con CPU de relleno su plaza vuelve a ser CPU y la partida continua.
+- Las partidas que hayan usado CPU de relleno siguen sin contar para el ranking.
+
 # Galaxy Combat Web
 
 Repositorio preparado para separar el juego web del servidor de partidas.
