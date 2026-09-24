@@ -134,3 +134,21 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   text-shadow:0 0 8px rgba(255,40,55,.38);
 }
 #lobby .waiting-players.hidden{display:none!important}
+
+
+/* V18.22: el anfitrion puede completar las plazas libres con CPU dificiles. */
+#lobby .fill-cpu-btn{
+  border-color:rgba(255,204,90,.72);
+  background:linear-gradient(135deg,rgba(126,79,10,.96),rgba(72,40,5,.96));
+  color:#fff0b3;
+}
+#lobby .fill-cpu-btn:hover,#lobby .fill-cpu-btn:focus-visible{
+  border-color:#ffe49a;
+  box-shadow:0 0 18px rgba(255,195,72,.28);
+}
+#lobby .fill-cpu-btn.cpu-fill-active{
+  border-color:#72f2ad;
+  background:linear-gradient(135deg,#17693b,#0b4326);
+  color:#effff6;
+  box-shadow:0 0 16px rgba(82,232,147,.22);
+}
