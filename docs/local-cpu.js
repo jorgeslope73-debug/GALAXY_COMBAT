@@ -73,6 +73,7 @@
       this.brain=null;
       this.trainingMode=false;
       this.learningByCpu=new Map();
+      this.meteorLearningByCpu=new Map();
       this.learningSent=false;
       this.resetAsteroids();
     }
@@ -99,6 +100,27 @@
       const enemy=(rival&&rival.shield>0)?1:0;
       return 'a'+ammo+'-s'+shield+'-d'+band+'-e'+enemy;
     }
+    meteorThreatInfo(cpu,m){
+      if(!cpu||!m)return null;
+      const dx=m.x-cpu.x,dy=m.y-cpu.y,dist=Math.hypot(dx,dy);
+      if(!Number.isFinite(dist)||dist>430)return null;
+      const rvx=(m.vx||0)-(cpu.vx||0),rvy=(m.vy||0)-(cpu.vy||0);
+      const vv=rvx*rvx+rvy*rvy,dot=dx*rvx+dy*rvy;
+      const closing=dist>1?-dot/dist:0;
+      const ttc=vv>1?clamp(-dot/vv,0,2.4):0;
+      const cx=dx+rvx*ttc,cy=dy+rvy*ttc,closest=Math.hypot(cx,cy);
+      const threatening=dist<115||((closing>18||dist<180)&&ttc<=2.2&&closest<105);
+      if(!threatening)return null;
+      const forward=dirFromRot(cpu.rot);
+      const side=(forward.x*dy-forward.y*dx)>=0?0:1;
+      return{meteor:m,dist,closing,ttc,closest,side};
+    }
+    meteorLearningContext(cpu,threat){
+      const side=threat&&threat.side?1:0;
+      const velocity=threat&&threat.closing>130?1:0;
+      const distance=threat&&threat.dist<190?0:1;
+      return 'meteor-s'+side+'-v'+velocity+'-d'+distance;
+    }
     recordLearning(cpu,context,action){
       if(this.difficulty!=='dificil'||!cpu||!cpu.cpu)return;
       let map=this.learningByCpu.get(cpu.index);
@@ -108,9 +130,62 @@
       item.uses=Math.min(50,item.uses+1);
       map.set(key,item);
     }
+    recordMeteorLearning(cpu,context,action,reward){
+      if(this.difficulty!=='dificil'||!cpu||!cpu.cpu||!context||!action)return;
+      let map=this.meteorLearningByCpu.get(cpu.index);
+      if(!map){map=new Map();this.meteorLearningByCpu.set(cpu.index,map);}
+      const key=context+'|'+action;
+      const item=map.get(key)||{context,action,uses:0,total:0};
+      item.uses=Math.min(50,item.uses+1);
+      item.total=clamp(item.total+clamp(Number(reward)||0,-2,2),-100,100);
+      map.set(key,item);
+    }
+    settleMeteorDecision(cpu,reward){
+      const d=cpu&&cpu.meteorDecision;
+      if(!d)return;
+      this.recordMeteorLearning(cpu,d.context,d.action,reward);
+      cpu.meteorDecision=null;
+    }
+    chooseMeteorControls(cpu){
+      if(!cpu||cpu.dead)return null;
+      if(cpu.meteorDecision){
+        const tracked=this.meteors.find(m=>m.id===cpu.meteorDecision.meteorId)||null;
+        const trackedThreat=tracked?this.meteorThreatInfo(cpu,tracked):null;
+        if(!tracked||(!trackedThreat&&this.fxClock-cpu.meteorDecision.started>.35)){
+          this.settleMeteorDecision(cpu,.55);
+        }
+      }
+      let threat=null,best=Infinity;
+      for(const m of this.meteors){
+        const info=this.meteorThreatInfo(cpu,m);
+        if(!info)continue;
+        const risk=info.ttc*90+info.closest*.7+info.dist*.08;
+        if(risk<best){best=risk;threat=info;}
+      }
+      if(!threat)return null;
+
+      if(!cpu.meteorDecision||cpu.meteorDecision.meteorId!==threat.meteor.id){
+        if(cpu.meteorDecision)this.settleMeteorDecision(cpu,.25);
+        const context=this.meteorLearningContext(cpu,threat);
+        const actions=['meteor_left','meteor_right','meteor_brake'];
+        let action=threat.side===0?'meteor_right':'meteor_left';
+        if(threat.dist<135&&threat.closing>170)action='meteor_brake';
+        if(this.difficulty==='dificil'){
+          const hasLearned=!!(this.brain&&Array.isArray(this.brain.strategies)&&this.brain.strategies.some(e=>e&&e.context===context&&actions.includes(e.action)));
+          if(hasLearned)action=this.chooseBrainAction(context,actions,this.trainingMode?.30:.14);
+          else if(Math.random()<(this.trainingMode?.34:.16))action=actions[randint(0,actions.length-1)];
+        }
+        cpu.meteorDecision={meteorId:threat.meteor.id,context,action,started:this.fxClock};
+      }
+
+      const action=cpu.meteorDecision.action;
+      const awayTurn=threat.side===0?-1:1;
+      if(action==='meteor_brake')return{turn:awayTurn,thrust:false,fire:false};
+      return{turn:action==='meteor_left'?1:-1,thrust:true,fire:false};
+    }
     buildLearningDeltas(){
       if(this.difficulty!=='dificil')return [];
-      const out=[];
+      const general=[],meteor=[];
       const human=this.players.find(p=>!p.cpu);
       for(const cpu of this.players.filter(p=>p.cpu)){
         const won=this.winner===cpu.index;
@@ -119,10 +194,14 @@
         if(human&&this.winner===human.index)reward-=.35;
         reward=clamp(reward,-2,2);
         const map=this.learningByCpu.get(cpu.index);
-        if(!map)continue;
-        for(const item of map.values())out.push({context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+reward.toFixed(3)});
+        if(map)for(const item of map.values())general.push({context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+reward.toFixed(3)});
+        const meteorMap=this.meteorLearningByCpu.get(cpu.index);
+        if(meteorMap)for(const item of meteorMap.values()){
+          const avg=item.uses?item.total/item.uses:0;
+          meteor.push({context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+clamp(avg,-2,2).toFixed(3)});
+        }
       }
-      return out.slice(0,24);
+      return meteor.slice(0,10).concat(general.slice(0,14)).slice(0,24);
     }
     resetAsteroids(){
       this.asteroids=ASTEROID_STARTS.map(([x,y,rot,type])=>{
@@ -139,7 +218,7 @@
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty,
         tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random(),
-        resourceTargetId:null
+        resourceTargetId:null,meteorDecision:null
       };
     }
     start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null){
@@ -147,6 +226,7 @@
       this.difficulty=String(difficulty||'medio');
       this.brain=this.difficulty==='dificil'&&brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
+      this.meteorLearningByCpu.clear();
       this.learningSent=false;
       this.cpuCount=clamp(Math.round(Number(cpuCount)||1),1,3);
       this.huntTargetIndex=0;
@@ -189,6 +269,7 @@
       this.difficulty='dificil';
       this.brain=brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
+      this.meteorLearningByCpu.clear();
       this.learningSent=false;
       this.cpuCount=4;
       this.huntTargetIndex=0;
@@ -258,7 +339,7 @@
     restart(){
       if(!this.finished||this.players.length<2)return false;
       this.started=false;this.finished=false;this.winner=null;this.seq=0;
-      this.learningByCpu.clear();this.learningSent=false;
+      this.learningByCpu.clear();this.meteorLearningByCpu.clear();this.learningSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
@@ -268,7 +349,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;
         if(p.cpu){
           p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
           if(this.difficulty==='dificil'){
@@ -344,10 +425,13 @@
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
       p.bullets=0;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;
-      if(p.cpu)p.resourceTargetId=null;
+      if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;}
     }
     chooseCpuControls(cpu){
       if(cpu.dead)return IDLE_CONTROL;
+
+      const meteorControl=this.chooseMeteorControls(cpu);
+      if(meteorControl)return meteorControl;
 
       let rival=null;
       if(this.huntUntil>this.fxClock){
@@ -765,6 +849,10 @@
         let removed=false;
         for(const p of this.players){
           if(!p.dead&&circles(m,SMALL_METEOR_RADIUS,p,SHIP_RADIUS)){
+            if(p.cpu&&p.meteorDecision){
+              const penalty=p.meteorDecision.meteorId===m.id?(p.shield>0?-.45:-1.6):(p.shield>0?-.25:-1.0);
+              this.settleMeteorDecision(p,penalty);
+            }
             if(p.shield>0){this.emitShipImpact(p,m,false);const n=normalize(m.x-p.x,m.y-p.y),dot=m.vx*n.x+m.vy*n.y;m.vx-=2*dot*n.x;m.vy-=2*dot*n.y;}
             else{this.destroyShip(p,null);this.meteors.splice(i,1);removed=true;}
             break;
