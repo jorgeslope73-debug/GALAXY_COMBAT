@@ -939,7 +939,7 @@
       hostRow.append(flag,host);
       const code=document.createElement('span');code.className='public-room-code';code.textContent=tr('roomPrefix')+' '+String(room.code||'');
       info.append(hostRow,code);
-      const count=document.createElement('span');count.className='public-room-count';count.textContent=`${Number(room.players)||0}/${Number(room.maxPlayers)||4}`;
+      const count=document.createElement('span');count.className='public-room-count';count.textContent=`${Number(room.players)||0}/${Number(room.maxPlayers)||4}${room.started?' · '+tr('inProgress'):''}`;
       const joinBtn=document.createElement('button');joinBtn.type='button';joinBtn.className='public-room-join';joinBtn.textContent=tr('join');
       joinBtn.addEventListener('click',()=>joinRoomByCode(room.code));
       row.append(info,count,joinBtn);publicRoomsList.appendChild(row);
@@ -1079,7 +1079,14 @@
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';cpuFillEnabled=false;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(m.cpu?2:1);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';
+      if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
+      cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
+      saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players||(m.cpu?2:1));
+      if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(Array.isArray(m.players))syncVoicePlayers(m.players,true);}
+      roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');
+      if(m.started){lobby.classList.add('hidden');beginGame();}
+      else if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
       roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;
@@ -1100,7 +1107,14 @@
       if(inGame||roomCode){alert(sinTildes(trServer(m.message||tr('resumeFailed'))));returnToMainMenu(false);}
       else send({t:'public-rooms'});
     }
-    else if(m.t==='lobby'){roomCode=m.code;lobbyPlayers=Array.isArray(m.players)?m.players.slice():[];cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);}
+    else if(m.t==='lobby'){
+      roomCode=m.code;lobbyPlayers=Array.isArray(m.players)?m.players.slice():[];cpuFillEnabled=!!m.cpuFill;
+      ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
+      if(isHost&&inGame&&hostPhysics&&typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
+      syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;
+      playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
+      updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
+    }
     else if(m.t==='start'){if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers);beginGame();playSound('start');}
     else if(m.t==='state'){
       const now=performance.now();
