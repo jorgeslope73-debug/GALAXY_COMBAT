@@ -201,6 +201,8 @@
   let mobileControlMode='motion';
   try{if(localStorage.getItem(MOBILE_CONTROL_KEY)==='buttons')mobileControlMode='buttons';}catch(_){}
   let mobileButtonTurn=0;
+  let mobileKeyboardActive=false;
+  const MOBILE_KEYBOARD_CODES=new Set(['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp','Space','ControlLeft','ControlRight']);
   const mobileLeftPointers=new Set(),mobileRightPointers=new Set();
   // Los antiguos elementos izquierdo/derecho se mantienen solo como capa visual.
   // El control real usa toda la pantalla: toque corto = disparo, mantener = acelerar.
@@ -613,6 +615,11 @@
   function mobilePointerDown(e){
     if(!isMobile||!inGame)return;
     if(e.pointerType&&e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+    if(mobileKeyboardActive){
+      mobileKeyboardActive=false;
+      keys.clear();
+      lastControlTurn=0;
+    }
     const target=e.target;
     if(target&&target.closest&&target.closest('button,input,select,textarea,a,[contenteditable="true"]'))return;
     if(mobileControlMode==='buttons'&&!(target&&target.closest&&target.closest('#mobileActionZone')))return;
@@ -900,12 +907,16 @@
     const left=keys.has('KeyA')||keys.has('ArrowLeft');
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
-    const rawTurn=isMobile?(mobileControlMode==='buttons'?mobileButtonTurn:(motionEnabled?motionTurn:0)):keyboardTurn;
+    const rawTurn=isMobile
+      ?(mobileKeyboardActive?keyboardTurn:(mobileControlMode==='buttons'?mobileButtonTurn:(motionEnabled?motionTurn:0)))
+      :keyboardTurn;
     // El sensor tiene un poco de ruido incluso con el telefono quieto. Redondear
     // a pasos de 1/64 evita JSON/WebSocket innecesarios sin alterar el tacto.
     const turn=Math.round(rawTurn*64)/64;
-    const thrust=(isMobile?mobileThrust:false)||keys.has('KeyW')||keys.has('ArrowUp');
-    const fire=(isMobile?mobileFire:false)||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
+    const touchThrust=isMobile&&!mobileKeyboardActive?mobileThrust:false;
+    const touchFire=isMobile&&!mobileKeyboardActive?mobileFire:false;
+    const thrust=touchThrust||keys.has('KeyW')||keys.has('ArrowUp');
+    const fire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
     if(Math.abs(rawTurn-lastControlTurn)>0.001){
       lastControlTurnChangedAt=now;
       lastControlTurn=rawTurn;
@@ -1379,7 +1390,7 @@
     if(voice)voice.clearSession();
     stopP2P();
     stopResumeWindow();clearResumeSession();playerToken='';
-    inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
+    inGame=false;mobileKeyboardActive=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
     roomCode='';myIndex=null;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
@@ -1413,7 +1424,21 @@
     if(!ok){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);
-  window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)returnToMainMenu();}});
+  window.addEventListener('keydown',e=>{
+    keys.add(e.code);
+    if(isMobile&&inGame&&MOBILE_KEYBOARD_CODES.has(e.code)){
+      if(!mobileKeyboardActive){
+        mobileKeyboardActive=true;
+        resetMobileTouchControls();
+        motionTurn=0;
+      }
+    }
+    if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();
+    if(e.code==='Escape'){
+      if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden')))closeRoomDialogs();
+      else if(inGame)returnToMainMenu();
+    }
+  });
   window.addEventListener('keyup',e=>keys.delete(e.code));
   // Si el navegador pierde el foco, puede no llegar el keyup de una tecla que
   // estaba pulsada. Limpiamos el estado para evitar giro/aceleracion/disparo
