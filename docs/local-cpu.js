@@ -71,6 +71,7 @@
       this.accumulator=0;
       this.tickCount=0;
       this.brain=null;
+      this.trainingMode=false;
       this.learningByCpu=new Map();
       this.learningSent=false;
       this.resetAsteroids();
@@ -142,6 +143,7 @@
       };
     }
     start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null){
+      this.trainingMode=false;
       this.difficulty=String(difficulty||'medio');
       this.brain=this.difficulty==='dificil'&&brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
@@ -174,6 +176,38 @@
           cpu.tactic='scatter';
           cpu.tacticUntil=rand(.5,2.2);
         }
+        this.placeAtSpawn(cpu);
+        this.players.push(cpu);
+        this.controls.set(i,{turn:0,thrust:false,fire:false});
+      }
+      this.started=true;this.finished=false;this.winner=null;
+      this.lastNow=0;this.accumulator=0;this.tickCount=0;
+      return true;
+    }
+    startTraining(brain=null){
+      this.trainingMode=true;
+      this.difficulty='dificil';
+      this.brain=brain&&typeof brain==='object'?brain:null;
+      this.learningByCpu.clear();
+      this.learningSent=false;
+      this.cpuCount=4;
+      this.huntTargetIndex=0;
+      this.huntUntil=0;
+      this.huntThresholdActive=false;
+      this.players=[];
+      this.controls.clear();
+      this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
+      this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
+      this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      this.noDeathTime=0;this.nextGiant=rand(50,80);
+      this.resetAsteroids();
+      for(let i=0;i<4;i++){
+        const cpu=this.makePlayer(i,'CPU '+(i+1),true);
+        cpu.difficulty='dificil';
+        const opening=this.chooseBrainAction('open3',['attack','evade','resource','scatter'],i===3?.24:.38);
+        cpu.tactic=opening;
+        cpu.tacticUntil=rand(i===3?1.8:.9,i===3?3.8:2.6);
+        if(i===3)this.recordLearning(cpu,'open3',opening);
         this.placeAtSpawn(cpu);
         this.players.push(cpu);
         this.controls.set(i,{turn:0,thrust:false,fire:false});
@@ -331,7 +365,7 @@
       // Primera salida menos predecible: cada CPU gira/abre su trayectoria
       // durante un intervalo distinto antes de comprometerse con una tactica.
       if(cpu.tactic==='scatter'&&this.fxClock<cpu.tacticUntil){
-        if(this.difficulty==='dificil')this.recordLearning(cpu,'open3','scatter');
+        if(this.difficulty==='dificil'&&cpu.index===3)this.recordLearning(cpu,'open3','scatter');
         const turn=cpu.tacticTurn*(.32+.46*cpu.tacticSeed);
         const thrust=this.fxClock>cpu.tacticUntil*.18;
         return{turn,thrust,fire:false};
@@ -577,9 +611,9 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
-      const human=this.players.find(p=>!p.cpu)||this.players[0];
+      const human=this.trainingMode?null:(this.players.find(p=>!p.cpu)||this.players[0]);
       const huntScore=SCORE_TO_WIN-1;
-      const shouldHunt=!!(this.cpuCount>1&&human&&!this.finished&&human.kills>=huntScore&&human.kills<SCORE_TO_WIN);
+      const shouldHunt=!!(!this.trainingMode&&this.cpuCount>1&&human&&!this.finished&&human.kills>=huntScore&&human.kills<SCORE_TO_WIN);
       if(shouldHunt&&!this.huntThresholdActive){
         this.huntThresholdActive=true;
         this.huntTargetIndex=human.index;
