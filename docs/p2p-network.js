@@ -13,9 +13,23 @@
     setIceServers(servers){if(Array.isArray(servers)&&servers.length)this.iceServers=servers;}
     configure({myIndex,isHost,players}={}){
       this.myIndex=Number(myIndex);this.isHost=!!isHost;this.players=Array.isArray(players)?players.slice():[];
+      this.prunePeers();
       if(this.isHost)this.ensureHostPeers();
     }
-    updatePlayers(players){this.players=Array.isArray(players)?players.slice():[];if(this.isHost)this.ensureHostPeers();}
+    updatePlayers(players){
+      this.players=Array.isArray(players)?players.slice():[];
+      this.prunePeers();
+      if(this.isHost)this.ensureHostPeers();
+    }
+    prunePeers(){
+      const allowed=new Set();
+      for(const p of this.players){
+        if(!p||p.cpu)continue;
+        const i=Number(p.i);
+        if(Number.isInteger(i)&&i!==this.myIndex)allowed.add(i);
+      }
+      for(const i of [...this.peers.keys()])if(!allowed.has(i))this.closePeer(i);
+    }
     async ensureHostPeers(){
       for(const p of this.players){
         if(p&&p.cpu)continue;
