@@ -252,6 +252,18 @@
   #menu .menu-credit { margin-top: 12px; }
 }
 @media (orientation: landscape) and (max-height: 560px) {
+  /* V18.16: recupera el fondo decorativo del menu movil y lo hace ocupar
+     toda la pantalla horizontal, independientemente del ancho reducido de
+     .menu-scene usado para encajar la interfaz. */
+  html.handheld-device #menu.menu-cover{
+    background-color:#05010b;
+    background-image:url('assets/sprites/INTRO_MOBILE.png?v=V18.16');
+    background-repeat:no-repeat;
+    background-position:center center;
+    background-size:cover;
+  }
+  html.handheld-device #menu .menu-art{visibility:hidden}
+
   /* V18.11: en movil recuperamos el aspecto original de la tarjeta CPU.
      Las opciones viven en una ventana aparte y JUGAR ocupa toda la linea. */
   html.handheld-device #menu .cpu-actions select{display:none!important}
