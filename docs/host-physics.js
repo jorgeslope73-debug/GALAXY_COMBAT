@@ -343,7 +343,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=0;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;
+      p.bullets=3;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;
     }
     chooseCpuControls(cpu){
       let rival=null,best=Infinity;
