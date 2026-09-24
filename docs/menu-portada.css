@@ -1442,58 +1442,49 @@ html.handheld-device #menu .cpu-setup-dialog:not(.hidden){display:flex}
   html.handheld-device #menu .cpu-setup-play{height:42px;min-height:42px}
 }
 
-
-/* V18.43: llamada de registro animada bajo el botón REGISTRO. */
-#menu .register-promo-wrap{
-  position:relative;
-  display:flex;
-  align-items:center;
-  height:29px;
-}
-#menu .register-score-promo{
-  position:absolute;
-  z-index:3;
-  top:36px;
-  left:50%;
-  transform:translateX(-50%) scale(1);
-  width:max-content!important;
-  min-width:0!important;
-  height:auto!important;
-  min-height:0!important;
+/* V18.44: REGÍSTRATE Y PUNTÚA como único acceso de registro. */
+#menu .register-score-main{
+  width:auto!important;
+  min-width:142px!important;
+  height:29px!important;
+  min-height:29px!important;
   margin:0!important;
-  padding:6px 11px!important;
-  border:1px solid rgba(255,226,78,.78)!important;
+  padding:4px 12px!important;
+  border:1px solid rgba(255,226,78,.82)!important;
   border-radius:999px!important;
   background:linear-gradient(180deg,rgba(255,232,92,.98),rgba(255,184,43,.96))!important;
   color:#1b1022!important;
-  box-shadow:0 0 14px rgba(255,214,63,.28),0 4px 14px rgba(0,0,0,.32)!important;
+  box-shadow:0 0 14px rgba(255,214,63,.30),0 3px 14px rgba(0,0,0,.30)!important;
   font:900 10px/1 Arial,Helvetica,sans-serif!important;
   letter-spacing:.055em!important;
   white-space:nowrap;
-  cursor:pointer;
-  animation:registerScorePulse 2.35s ease-in-out infinite;
+  animation:registerScoreMainPulse 2.35s ease-in-out infinite;
   transform-origin:center;
 }
-#menu .register-score-promo:hover,#menu .register-score-promo:focus-visible{
-  border-color:#fff1a1!important;
+#menu .register-score-main:hover,#menu .register-score-main:focus-visible{
+  border-color:#fff3a8!important;
   background:linear-gradient(180deg,#fff58f,#ffc23f)!important;
-  box-shadow:0 0 20px rgba(255,226,78,.46),0 5px 16px rgba(0,0,0,.36)!important;
+  box-shadow:0 0 21px rgba(255,226,78,.48),0 4px 16px rgba(0,0,0,.34)!important;
   outline:none;
 }
-#menu .register-score-promo.hidden{display:none!important}
-@keyframes registerScorePulse{
-  0%,100%{transform:translateX(-50%) scale(1)}
-  50%{transform:translateX(-50%) scale(1.055)}
+@keyframes registerScoreMainPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.055)}
+}
+#menu .manual-left-launch{
+  min-width:82px!important;
 }
 @media (max-width:900px),(max-height:620px){
-  #menu .register-promo-wrap{height:27px}
-  #menu .register-score-promo{
-    top:32px;
-    padding:5px 9px!important;
+  #menu .register-score-main{
+    min-width:118px!important;
+    height:27px!important;
+    min-height:27px!important;
+    padding:3px 8px!important;
     font-size:8.5px!important;
     animation-duration:2.5s;
   }
+  #menu .manual-left-launch{min-width:72px!important}
 }
 @media (prefers-reduced-motion:reduce){
-  #menu .register-score-promo{animation:none}
+  #menu .register-score-main{animation:none}
 }
