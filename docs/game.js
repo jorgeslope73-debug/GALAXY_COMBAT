@@ -64,7 +64,7 @@
   let crashScoreHeldValue=null,crashScorePendingValue=null;
   let penaltyMessageUntil=0;
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='',brutalShooter='';
-  let huntFxStart=0,huntFxUntil=0,huntText='';
+  let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuIndices=[];
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false;
@@ -1175,11 +1175,16 @@
       if(!inGame&&m.started&&!m.finished)beginGame();
     }
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';brutalShooter=sinTildes(String(m.shooter||'')).trim();}
-    else if(m.t==='hunt'){huntFxStart=performance.now();huntFxUntil=huntFxStart+2200;huntText='A POR '+sinTildes(String(m.name||'JUGADOR')).trim().toUpperCase();}
+    else if(m.t==='hunt'){
+      huntFxStart=performance.now();huntFxUntil=huntFxStart+2200;
+      huntText='A POR '+sinTildes(String(m.name||'JUGADOR')).trim().toUpperCase();
+      huntCpuAmmo=!!m.cpuAmmo;
+      huntCpuIndices=Array.isArray(m.cpuIndices)?m.cpuIndices.map(Number).filter(Number.isFinite):[];
+    }
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
-    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
@@ -1626,7 +1631,21 @@
       const localCrashScoreFx=p.i===myIndex&&now>=crashScoreFxStart&&now<crashScoreFxUntil;
       const crashFxElapsed=localCrashScoreFx?Math.max(0,now-crashScoreFxStart):0;
       const panel=images[p.i===0?'pantA':p.i===1?'pantB':p.i===2?'pantC':'pantD'];
-      if(localKillFlash){
+      const cpuAmmoFlash=huntCpuAmmo&&now<huntFxUntil&&huntCpuIndices.includes(Number(p.i));
+      if(cpuAmmoFlash){
+        const age=Math.max(0,now-huntFxStart);
+        const envelope=clamp(1-age/2200,0,1);
+        const pulse=.55+.45*(.5+.5*Math.sin(age*.024));
+        ctx.save();
+        ctx.shadowColor='rgba(255,230,70,.98)';
+        ctx.shadowBlur=(20+34*pulse)*hudScale;
+        ctx.globalAlpha=1;
+        drawImageSafely(panel,px,py,panelW,panelH);
+        ctx.globalCompositeOperation='screen';
+        ctx.globalAlpha=(.18+.30*pulse)*envelope;
+        drawImageSafely(panel,px,py,panelW,panelH);
+        ctx.restore();
+      }else if(localKillFlash){
         const flash=1-flashElapsed/450;
         ctx.save();
         ctx.shadowColor=color;
@@ -1871,6 +1890,14 @@
       ctx.shadowColor='rgba(255,45,45,.95)';ctx.shadowBlur=28;
       ctx.fillStyle='#ff4b4b';
       ctx.strokeText(huntText,0,0);ctx.fillText(huntText,0,0);
+      if(huntCpuAmmo){
+        ctx.font=isMobile?'900 30px Arial Black,Arial,sans-serif':'900 25px Arial Black,Arial,sans-serif';
+        ctx.lineWidth=6;
+        ctx.shadowBlur=18;
+        ctx.fillStyle='#ffe64a';
+        ctx.strokeText('BALAS PARA CPU',0,isMobile?58:50);
+        ctx.fillText('BALAS PARA CPU',0,isMobile?58:50);
+      }
     }finally{ctx.restore();}
   }
 
