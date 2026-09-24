@@ -9,6 +9,7 @@ const {WebSocketServer}=require('ws');
 const scrypt=promisify(scryptCallback);
 const PORT=Number(process.env.PORT||8080);
 const MAX_PLAYERS=4;
+const RECONNECT_GRACE_MS=30000;
 const SESSION_DAYS=30;
 const PASSWORD_MIN_LENGTH=8;
 const DATABASE_URL=String(process.env.DATABASE_URL||'').trim();
@@ -153,6 +154,7 @@ async function resolvePlayerIdentity(msg){
 function roomCode(){
   for(;;){const c=randomBytes(3).toString('hex').slice(0,4).toUpperCase();if(!rooms.has(c))return c;}
 }
+function newPlayerToken(){return randomBytes(24).toString('hex');}
 function send(ws,o){if(ws&&ws.readyState===1)try{ws.send(JSON.stringify(o));}catch(_){}}
 function roster(r){
   const out=r.players.map(p=>({i:p.i,n:p.n,cpu:false,registered:!!p.registered}));
@@ -165,17 +167,46 @@ function roster(r){
   out.sort((a,b)=>a.i-b.i);
   return out;
 }
+function canStartRoom(r){return !!(r&&!r.started&&r.players.length&&r.players.every(p=>!!p.ws)&&roster(r).length>1);}
 function broadcast(r,o){for(const p of r.players)send(p.ws,o);}
-function publicRooms(){return [...rooms.values()].filter(r=>r.public&&!r.started).map(r=>({code:r.code,host:r.players[0]?.n||'JUGADOR',lang:r.lang,players:r.players.length,maxPlayers:MAX_PLAYERS}));}
+function publicRooms(){
+  return [...rooms.values()].filter(r=>r.public&&!r.started&&r.players[0]&&r.players[0].ws)
+    .map(r=>({code:r.code,host:r.players[0]?.n||'JUGADOR',lang:r.lang,players:r.players.length,maxPlayers:MAX_PLAYERS}));
+}
 function publicUpdate(wss){const raw=JSON.stringify({t:'public-rooms',rooms:publicRooms()});for(const ws of wss.clients)if(ws.readyState===1)ws.send(raw);}
 function remove(ws,wss){
   const x=info.get(ws);if(!x)return;info.delete(ws);
   const r=rooms.get(x.code);if(!r)return;
-  const p=r.players.find(p=>p.i===x.i);if(!p)return;
+  const p=r.players.find(p=>p.i===x.i&&p.ws===ws);if(!p)return;
   const host=p.i===0;r.players=r.players.filter(q=>q!==p);
   if(host){broadcast(r,{t:'closed',reason:'El anfitrion cerro la sala.'});rooms.delete(r.code);}
-  else{const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:players.length>1});}
+  else{const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r)});}
   publicUpdate(wss);
+}
+function disconnect(ws,wss){
+  const x=info.get(ws);if(!x)return;info.delete(ws);
+  const r=rooms.get(x.code);if(!r)return;
+  const p=r.players.find(p=>p.i===x.i&&p.ws===ws);if(!p)return;
+  p.ws=null;p.disconnectedAt=Date.now();p.voiceReady=false;
+  if(!r.started){const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:false});}
+  publicUpdate(wss);
+}
+function expireDisconnectedPlayers(wss){
+  const now=Date.now();
+  for(const r of [...rooms.values()]){
+    const expired=r.players.filter(p=>!p.ws&&p.disconnectedAt&&now-p.disconnectedAt>=RECONNECT_GRACE_MS);
+    if(!expired.length)continue;
+    if(r.started){
+      const hostLost=expired.some(p=>p.i===0);
+      broadcast(r,{t:'closed',reason:hostLost?'El anfitrion perdio la conexion.':'Un jugador perdio la conexion.'});
+      rooms.delete(r.code);publicUpdate(wss);continue;
+    }
+    let hostLost=false;
+    for(const p of expired){if(p.i===0)hostLost=true;r.players=r.players.filter(q=>q!==p);}
+    if(hostLost||!r.players.length){broadcast(r,{t:'closed',reason:'El anfitrion perdio la conexion.'});rooms.delete(r.code);}
+    else{const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r)});}
+    publicUpdate(wss);
+  }
 }
 
 async function recordRankedMatch(room,winner){
@@ -574,10 +605,10 @@ wss.on('connection',ws=>{
     if(m.t==='create'){
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null};
-      const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered};
+      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,createdAt:Date.now()};
+      const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
-      send(ws,{t:'created',code:r.code,index:0,public:r.public,playerToken:'',registered:p.registered,p2p:true});
+      send(ws,{t:'created',code:r.code,index:0,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
       broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false});publicUpdate(wss);return;
     }
 
@@ -587,10 +618,25 @@ wss.on('connection',ws=>{
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
       const used=new Set(r.players.map(p=>p.i));let i=0;while(used.has(i))i++;
-      const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered};
+      const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);info.set(ws,{code:r.code,i});
-      send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:'',registered:p.registered,p2p:true});
-      {const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:players.length>1});}publicUpdate(wss);return;
+      send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
+      {const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r)});}publicUpdate(wss);return;
+    }
+
+    if(m.t==='resume'){
+      const code=String(m.code||'').trim().toUpperCase(),token=String(m.token||'').trim();
+      const room=rooms.get(code),p=room&&room.players.find(q=>q.playerToken===token);
+      if(!room||!p||!/^[a-f0-9]{48}$/i.test(token)){send(ws,{t:'resume-failed',message:'La partida ya no se puede recuperar.'});return;}
+      if(p.disconnectedAt&&Date.now()-p.disconnectedAt>=RECONNECT_GRACE_MS){send(ws,{t:'resume-failed',message:'Ha pasado el tiempo de reconexion.'});return;}
+      const oldWs=p.ws;
+      if(oldWs&&oldWs!==ws){info.delete(oldWs);try{oldWs.close(4001,'Sesion recuperada desde otra conexion');}catch(_){}}
+      p.ws=ws;p.disconnectedAt=0;p.voiceReady=false;info.set(ws,{code:room.code,i:p.i});
+      const players=roster(room);
+      send(ws,{t:'resumed',code:room.code,index:p.i,host:p.i===0,started:!!room.started,finished:false,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true});
+      broadcast(room,{t:'lobby',code:room.code,players,cpuFill:!!room.cpuFill,canStart:canStartRoom(room)});
+      if(room.started&&p.i!==0){const host=room.players.find(q=>q.i===0);if(host&&host.ws)send(host.ws,{t:'p2p-reconnect',from:p.i});}
+      publicUpdate(wss);return;
     }
 
     const x=info.get(ws),r=x&&rooms.get(x.code);if(!r)return;
@@ -598,12 +644,12 @@ wss.on('connection',ws=>{
     if(m.t==='cpu-fill'&&x.i===0&&!r.started){
       r.cpuFill=!!m.on;
       const players=roster(r);
-      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:r.cpuFill,canStart:players.length>1});
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:r.cpuFill,canStart:canStartRoom(r)});
       publicUpdate(wss);return;
     }
 
     const startPlayers=roster(r);
-    if(m.t==='start'&&x.i===0&&startPlayers.length>1&&!r.started){
+    if(m.t==='start'&&x.i===0&&canStartRoom(r)){
       r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');
       if(db){
         try{
@@ -635,8 +681,11 @@ wss.on('connection',ws=>{
     if(m.t==='leave'){remove(ws,wss);return;}
   });
 
-  ws.on('close',()=>remove(ws,wss));
+  ws.on('close',()=>disconnect(ws,wss));
 });
+
+setInterval(()=>expireDisconnectedPlayers(wss),1000);
+setInterval(()=>{const now=Date.now();let changed=false;for(const [code,r] of rooms){if(now-(r.createdAt||now)>12*60*60*1000){rooms.delete(code);changed=true;}}if(changed)publicUpdate(wss);},30000);
 
 server.listen(PORT,'0.0.0.0',async()=>{
   console.log('Galaxy Combat P2P signaling on '+PORT);
