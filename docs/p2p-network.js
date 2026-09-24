@@ -20,14 +20,29 @@
       for(const p of this.players){
         if(p&&p.cpu)continue;
         const i=Number(p&&p.i);
-        if(Number.isInteger(i)&&i!==this.myIndex&&!this.peers.has(i))await this.createPeer(i,true);
+        if(!Number.isInteger(i)||i===this.myIndex)continue;
+        const rec=this.peers.get(i);
+        if(rec&&rec.pc&&rec.pc.connectionState!=='closed'&&rec.pc.connectionState!=='failed')continue;
+        if(rec)this.closePeer(i);
+        await this.createPeer(i,true);
       }
+    }
+    closePeer(peerIndex){
+      const rec=this.peers.get(peerIndex);if(!rec)return;
+      this.peers.delete(peerIndex);
+      try{rec.dc&&rec.dc.close();}catch(_){}
+      try{rec.pc&&rec.pc.close();}catch(_){}
     }
     makePc(peerIndex){
       const pc=new RTCPeerConnection({iceServers:this.iceServers});
       const rec={pc,dc:null,open:false};this.peers.set(peerIndex,rec);
       pc.onicecandidate=e=>{if(e.candidate)this.sendSignal({t:'p2p-ice',to:peerIndex,data:e.candidate});};
-      pc.onconnectionstatechange=()=>{const ok=pc.connectionState==='connected';rec.open=ok&&!!(rec.dc&&rec.dc.readyState==='open');this.onPeerState(peerIndex,pc.connectionState);};
+      pc.onconnectionstatechange=()=>{
+        const state=pc.connectionState,ok=state==='connected';
+        rec.open=ok&&!!(rec.dc&&rec.dc.readyState==='open');
+        this.onPeerState(peerIndex,state);
+        if(this.isHost&&state==='failed'){this.closePeer(peerIndex);this.ensureHostPeers();}
+      };
       pc.ondatachannel=e=>this.bindChannel(peerIndex,e.channel);
       return rec;
     }
@@ -57,6 +72,12 @@
     }
     async handleSignal(m){
       const from=Number(m&&m.from);if(!Number.isInteger(from)||from===this.myIndex)return false;
+      if(m.t==='p2p-reconnect'){
+        if(!this.isHost)return true;
+        this.closePeer(from);
+        await this.createPeer(from,true);
+        return true;
+      }
       let rec=this.peers.get(from);if(!rec)rec=await this.createPeer(from,false);
       try{
         if(m.t==='p2p-offer'){
