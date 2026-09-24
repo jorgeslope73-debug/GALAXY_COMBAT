@@ -255,7 +255,7 @@
 
   const assetList={
     bg:isMobile?'assets/sprites/fondo_1280.png':'assets/sprites/fondo.png', giant:'assets/sprites/asteroidegrande_270.png',
-    pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',
+    pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
@@ -1559,7 +1559,7 @@
       const scoreFxElapsed=localKillScoreFx?Math.max(0,now-killScoreFxStart):0;
       const localCrashScoreFx=p.i===myIndex&&now>=crashScoreFxStart&&now<crashScoreFxUntil;
       const crashFxElapsed=localCrashScoreFx?Math.max(0,now-crashScoreFxStart):0;
-      const panel=images[left?'pantA':'pantB'];
+      const panel=images[p.i===0?'pantA':p.i===1?'pantB':p.i===2?'pantC':'pantD'];
       if(localKillFlash){
         const flash=1-flashElapsed/450;
         ctx.save();
