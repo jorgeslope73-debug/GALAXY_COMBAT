@@ -12,7 +12,7 @@
   // pacing irregular/tearing en Canvas cuando la nave se mueve deprisa.
   const ctx=canvas.getContext('2d',{alpha:false})||canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
-  const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),waitingPlayersEl=document.getElementById('waitingPlayers'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
+  const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),fillCpuBtn=document.getElementById('fillCpu'),waitingPlayersEl=document.getElementById('waitingPlayers'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
   const shareGameBtn=document.getElementById('shareGame'),shareRoomBtn=document.getElementById('shareRoom'),shareToast=document.getElementById('shareToast');
   const sharedRoomCode=String(new URLSearchParams(location.search).get('room')||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
@@ -68,7 +68,7 @@
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false;
-  let p2p=null,hostPhysics=null,lobbyPlayers=[];
+  let p2p=null,hostPhysics=null,lobbyPlayers=[],cpuFillEnabled=false;
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   // V16.4.36: sincronizamos estados/controles y reducimos GC en movil para evitar picos de trabajo
   // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
@@ -987,9 +987,17 @@
     startBtn.disabled=isHost?!canStart:true;
     startBtn.classList.toggle('ready-to-start',!!(isHost&&canStart));
   }
+  function updateCpuFillButton(on=cpuFillEnabled){
+    cpuFillEnabled=!!on;
+    if(!fillCpuBtn)return;
+    fillCpuBtn.classList.toggle('hidden',!isHost);
+    fillCpuBtn.classList.toggle('cpu-fill-active',!!(isHost&&cpuFillEnabled));
+    fillCpuBtn.setAttribute('aria-pressed',cpuFillEnabled?'true':'false');
+    fillCpuBtn.textContent=cpuFillEnabled?tr('removeCpuFill'):tr('fillCpuHard');
+  }
   function updateWaitingPlayers(players){
     if(!waitingPlayersEl)return;
-    const count=Array.isArray(players)?players.filter(p=>p&&!p.cpu).length:Number(players)||0;
+    const count=Array.isArray(players)?players.length:Number(players)||0;
     waitingPlayersEl.classList.toggle('hidden',count>1);
   }
   function clearLobbyChat(){
@@ -1035,7 +1043,7 @@
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateWaitingPlayers(m.cpu?2:1);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';cpuFillEnabled=false;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(m.cpu?2:1);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
       roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;saveResumeSession();stopResumeWindow();
@@ -1049,7 +1057,7 @@
       if(inGame||roomCode){alert(sinTildes(trServer(m.message||tr('resumeFailed'))));returnToMainMenu(false);}
       else send({t:'public-rooms'});
     }
-    else if(m.t==='lobby'){roomCode=m.code;lobbyPlayers=Array.isArray(m.players)?m.players.slice():[];ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);updateWaitingPlayers(m.players);}
+    else if(m.t==='lobby'){roomCode=m.code;lobbyPlayers=Array.isArray(m.players)?m.players.slice():[];cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU · '+tr('hard'):''}</div>`).join('');updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);}
     else if(m.t==='start'){if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers);beginGame();playSound('start');}
     else if(m.t==='state'){
       const now=performance.now();
@@ -1193,6 +1201,7 @@
   if(roomTypeDialog)roomTypeDialog.addEventListener('pointerdown',e=>{if(e.target===roomTypeDialog)closeRoomDialogs();});
   if(publicRoomsDialog)publicRoomsDialog.addEventListener('pointerdown',e=>{if(e.target===publicRoomsDialog)closeRoomDialogs();});
   if(cpuSetupDialog)cpuSetupDialog.addEventListener('pointerdown',e=>{if(e.target===cpuSetupDialog)closeRoomDialogs();});
+  if(fillCpuBtn)fillCpuBtn.addEventListener('click',()=>{if(isHost&&!inGame)send({t:'cpu-fill',on:!cpuFillEnabled});});
   if(lobbyChatSend)lobbyChatSend.addEventListener('click',sendLobbyChat);
   if(lobbyChatInput)lobbyChatInput.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendLobbyChat();}
@@ -1229,10 +1238,10 @@
     stopResumeWindow();clearResumeSession();playerToken='';
     inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
-    roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
+    roomCode='';myIndex=null;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
     mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();
-    roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);updateWaitingPlayers(1);
+    roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(1);
     menu.classList.remove('hidden');startMusic();scheduleCanvasResolution();
   }
   document.getElementById('leaveRoom').addEventListener('click',returnToMainMenu);
@@ -2115,6 +2124,7 @@
   window.addEventListener('galaxy-languagechange',()=>{
     renderPublicRooms();
     updateLobbyStartButton(startBtn&&!startBtn.disabled);
+    updateCpuFillButton(cpuFillEnabled);
     if(menu&&!menu.classList.contains('hidden')){
       if(ws&&ws.readyState===WebSocket.OPEN)statusEl.textContent=tr('serverReady');
       else wakeStatus();
