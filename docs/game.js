@@ -195,9 +195,8 @@
   const motionStatus=document.getElementById('motionStatus');
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
   const mobileExit=document.getElementById('mobileExit');
-  // En movil las zonas tactiles siguen por encima del canvas para recibir los toques,
-  // pero sus textos HTML se ocultan: los dibujamos dentro del canvas justo encima
-  // del fondo para que naves, meteoritos, balas y mejoras pasen visualmente por encima.
+  // Los antiguos elementos izquierdo/derecho se mantienen solo como capa visual.
+  // El control real usa toda la pantalla: toque corto = disparo, mantener = acelerar.
   if(isMobile){
     const fireLabel=fireZone&&fireZone.querySelector('span');
     const thrustLabel=thrustZone&&thrustZone.querySelector('span');
@@ -207,7 +206,10 @@
   let motionEnabled=false,motionTurn=0,motionNeutral=null,motionLastRaw=0,motionHasSample=false;
   let lastMotionSampleAt=0;
   let mobileFire=false,mobileThrust=false;
-  const touchSides=new Map();
+  const MOBILE_HOLD_MS=190;
+  const MOBILE_FIRE_PULSE_MS=120;
+  let mobileFireTimer=null;
+  const touchGestures=new Map();
 
   // Solo quitamos el acento de las vocales; se conserva la letra enie.
   // NFC admite nombres escritos o pegados con acentos combinados.
@@ -522,24 +524,57 @@
     motionTurn=0;
   }
   function refreshTouchControls(){
-    mobileFire=false;mobileThrust=false;
-    for(const side of touchSides.values()){
-      if(side==='fire')mobileFire=true;
-      if(side==='thrust')mobileThrust=true;
+    mobileThrust=false;
+    for(const gesture of touchGestures.values()){
+      if(gesture&&gesture.accelerating){mobileThrust=true;break;}
     }
     if(fireZone)fireZone.classList.toggle('active',mobileFire);
     if(thrustZone)thrustZone.classList.toggle('active',mobileThrust);
   }
+  function triggerMobileFire(){
+    mobileFire=true;
+    clearTimeout(mobileFireTimer);
+    mobileFireTimer=setTimeout(()=>{
+      mobileFireTimer=null;
+      mobileFire=false;
+      refreshTouchControls();
+    },MOBILE_FIRE_PULSE_MS);
+    refreshTouchControls();
+  }
+  function resetMobileTouchControls(){
+    for(const gesture of touchGestures.values()){
+      if(gesture&&gesture.holdTimer)clearTimeout(gesture.holdTimer);
+    }
+    touchGestures.clear();
+    clearTimeout(mobileFireTimer);mobileFireTimer=null;
+    mobileFire=false;mobileThrust=false;
+    refreshTouchControls();
+  }
   function mobilePointerDown(e){
     if(!isMobile||!inGame)return;
-    // Los controles ocupan las mitades izquierda/derecha de la pantalla.
-    const side=e.clientX<window.innerWidth/2?'fire':'thrust';
-    touchSides.set(e.pointerId,side);refreshTouchControls();
+    if(e.pointerType&&e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+    const target=e.target;
+    if(target&&target.closest&&target.closest('button,input,select,textarea,a,[contenteditable="true"]'))return;
+    const gesture={startedAt:performance.now(),accelerating:false,holdTimer:null};
+    gesture.holdTimer=setTimeout(()=>{
+      const current=touchGestures.get(e.pointerId);
+      if(!inGame||current!==gesture)return;
+      current.accelerating=true;
+      refreshTouchControls();
+    },MOBILE_HOLD_MS);
+    touchGestures.set(e.pointerId,gesture);
     try{e.target.setPointerCapture&&e.target.setPointerCapture(e.pointerId);}catch(_){}
     e.preventDefault();
   }
   function mobilePointerEnd(e){
-    if(touchSides.delete(e.pointerId))refreshTouchControls();
+    const gesture=touchGestures.get(e.pointerId);
+    if(gesture){
+      clearTimeout(gesture.holdTimer);
+      touchGestures.delete(e.pointerId);
+      const elapsed=performance.now()-gesture.startedAt;
+      if(e.type==='pointerup'&&!gesture.accelerating&&elapsed<MOBILE_HOLD_MS)triggerMobileFire();
+      refreshTouchControls();
+    }
     if(inGame)e.preventDefault();
   }
 
@@ -1160,7 +1195,7 @@
     inGame=false;leaderAnnouncement=null;
     topbar.classList.add('hidden');mobileControls.classList.add('hidden');
     if(mobileExit)mobileExit.classList.add('hidden');
-    touchSides.clear();refreshTouchControls();
+    resetMobileTouchControls();
     const p=state&&state.players.find(x=>x.i===i);
     const victoryText=document.getElementById('victoryText');
     victoryText.textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});
@@ -1217,7 +1252,7 @@
     document.getElementById('app').addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
     window.addEventListener('orientationchange',()=>{
       motionNeutral=null;motionTurn=0;
-      touchSides.clear();refreshTouchControls();
+      resetMobileTouchControls();
       keys.clear();
     });
     if(screen.orientation)screen.orientation.addEventListener?.('change',()=>{motionNeutral=null;motionTurn=0;});
@@ -1241,7 +1276,7 @@
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
     roomCode='';myIndex=null;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
-    mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();
+    mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');resetMobileTouchControls();
     roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(1);
     menu.classList.remove('hidden');startMusic();scheduleCanvasResolution();
   }
@@ -1918,19 +1953,16 @@
     if(!isMobile||!inGame)return;
     ctx.save();
     try{
-      // El alpha va directamente en el color para que la transparencia sea
-      // inequívoca en Safari/iOS. Sin sombra, que hacía parecer el texto más opaco.
-      ctx.font='800 36px Arial,Helvetica,sans-serif';
+      ctx.font='800 34px Arial,Helvetica,sans-serif';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.globalAlpha=1;
       ctx.shadowColor='transparent';
       ctx.shadowBlur=0;
       ctx.fillStyle='rgba(255,255,255,0.20)';
-      // Al pulsar una zona no reducimos el alpha: simplemente no dibujamos
-      // ese texto, así desaparece completamente.
-      if(!mobileFire)ctx.fillText(tr('fireControl'),W*.24,H-72);
-      if(!mobileThrust)ctx.fillText(tr('thrustControl'),W*.76,H-72);
+      if(mobileThrust)ctx.fillText(tr('thrustControl'),W/2,H-72);
+      else if(mobileFire)ctx.fillText(tr('fireControl'),W/2,H-72);
+      else ctx.fillText(tr('mobileTouchGuide'),W/2,H-72);
     }finally{
       ctx.restore();
     }
