@@ -99,10 +99,11 @@
       this.rankReportSent=false;
       this.resetAsteroids();
       for(const item of list){
-        const index=Number(item.i);
-        const human=this.makePlayer(index,item.n||('JUGADOR '+(index+1)),false);
-        this.placeAtSpawn(human);
-        this.players.push(human);
+        const index=Number(item.i),isCpu=!!item.cpu;
+        const player=this.makePlayer(index,item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu);
+        if(isCpu)player.difficulty='dificil';
+        this.placeAtSpawn(player);
+        this.players.push(player);
         this.controls.set(index,{turn:0,thrust:false,fire:false});
       }
       this.players.sort((a,b)=>a.index-b.index);
@@ -169,7 +170,7 @@
       return true;
     }
     reportRankedVictory(winnerIndex){
-      if(this.rankReportSent||this.code==='LOCAL')return;
+      if(this.rankReportSent||this.code==='LOCAL'||this.players.some(p=>p.cpu))return;
       this.rankReportSent=true;
       try{
         const auth=window.GalaxyAuth;
@@ -241,9 +242,14 @@
       p.bullets=0;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;
     }
     chooseCpuControls(cpu){
-      let rival=null;
-      for(const p of this.players){if(!p.cpu&&!p.dead){rival=p;break;}}
-      if(!rival||cpu.dead)return IDLE_CONTROL;
+      let rival=null,best=Infinity;
+      if(cpu.dead)return IDLE_CONTROL;
+      for(const p of this.players){
+        if(p.index===cpu.index||p.dead||p.camo>0)continue;
+        const d=dist2(cpu,p);
+        if(d<best){best=d;rival=p;}
+      }
+      if(!rival)return IDLE_CONTROL;
       const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
       const targetRot=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
       let err=((targetRot-cpu.rot+540)%360)-180;
