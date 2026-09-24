@@ -142,8 +142,6 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   html.handheld-device #lobby>.help{display:none!important}
 }
 
-/* El credito del autor solo se muestra en el menu principal. */
-#menu.submenu-open .menu-credit{display:none!important}
 </style>
 
 <style id="build-version-style">
@@ -218,7 +216,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V18.27</div>
+      <div id="buildVersion" aria-label="Version del juego">V18.28</div>
       <div class="menu-left-tools" aria-label="Clasificacion, compartir e instalar">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
         <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
@@ -434,7 +432,6 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
             <p class="help mobile-guide mobile-guide-main" data-i18n="mobileGuide">Inclina para girar &middot; toque rapido: disparo &middot; manten pulsado: acelerar.</p>
             <p id="motionStatus" class="motion-status mobile-motion-status" aria-live="polite"></p>
           </div>
-          <footer class="menu-credit">BY <strong>JORGE LOPEZ DIAZ</strong></footer>
         </div>
       </div>
     </section>
@@ -488,6 +485,6 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 <script src="host-physics.js?v=V18.23"></script>
 <script src="p2p-network.js?v=V18.23"></script>
 <script src="game.js?v=V18.27"></script>
-<script src="pwa.js?v=V18.27"></script>
+<script src="pwa.js?v=V18.28"></script>
 </body>
 </html>
