@@ -119,6 +119,35 @@
       p.lastControlAt=Date.now();
       return true;
     }
+    syncRoster(playerList=[]){
+      const list=(Array.isArray(playerList)?playerList:[]).filter(x=>x&&Number.isInteger(Number(x.i))).slice(0,4);
+      let changed=false;
+      for(const item of list){
+        const index=Number(item.i),isCpu=!!item.cpu;
+        let p=this.players.find(x=>x.index===index);
+        if(!p){
+          p=this.makePlayer(index,item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu);
+          if(isCpu)p.difficulty='dificil';
+          this.placeAtSpawn(p);this.players.push(p);this.controls.set(index,{turn:0,thrust:false,fire:false});changed=true;continue;
+        }
+        const wasCpu=!!p.cpu;
+        const nextName=safeName(item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu?'CPU':'JUGADOR '+(index+1));
+        if(wasCpu!==isCpu||p.name!==nextName){
+          p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;
+          p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false});
+          if(wasCpu&&!isCpu){
+            this.bullets=this.bullets.filter(b=>b.owner!==index);
+            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;
+            p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.dead=false;p.respawn=0;
+            p.vx=0;p.vy=0;p.lastSpawn=null;this.placeAtSpawn(p);
+          }
+          changed=true;
+        }
+      }
+      this.players.sort((a,b)=>a.index-b.index);
+      if(changed)this.onState(this.publicState());
+      return changed;
+    }
     handleMessage(msg){
       if(!msg||typeof msg!=='object')return true;
       if(msg.t==='ctrl'){this.setControl(msg.i,msg.turn,msg.thrust,msg.fire);return true;}
