@@ -138,6 +138,14 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 
 /* V18.22: el anfitrion puede completar las plazas libres con CPU dificiles. */
 #lobby .fill-cpu-btn{
+  width:auto;
+  min-height:28px;
+  margin:0;
+  padding:4px 8px;
+  border-radius:5px;
+  font:800 10px/1 Arial,Helvetica,sans-serif;
+  letter-spacing:.025em;
+  white-space:nowrap;
   border-color:rgba(255,204,90,.72);
   background:linear-gradient(135deg,rgba(126,79,10,.96),rgba(72,40,5,.96));
   color:#fff0b3;

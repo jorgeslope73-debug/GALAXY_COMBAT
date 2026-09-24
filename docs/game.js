@@ -989,6 +989,7 @@
   }
   function updateCpuFillButton(on=cpuFillEnabled){
     cpuFillEnabled=!!on;
+    if(shareRoomBtn)shareRoomBtn.classList.toggle('hidden',!isHost);
     if(!fillCpuBtn)return;
     fillCpuBtn.classList.toggle('hidden',!isHost);
     fillCpuBtn.classList.toggle('cpu-fill-active',!!(isHost&&cpuFillEnabled));
@@ -1046,7 +1047,7 @@
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';cpuFillEnabled=false;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(m.cpu?2:1);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
-      roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;saveResumeSession();stopResumeWindow();
+      roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
       if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);
       if(m.started){lobby.classList.add('hidden');if(!inGame)beginGame();}
