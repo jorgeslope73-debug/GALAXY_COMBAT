@@ -262,3 +262,19 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     font-size:13px;
   }
 }
+
+
+/* V18.49: evitar lupa/callout de pulsacion larga en iPhone durante la partida. */
+@media (pointer:coarse),(max-width:900px){
+  #game,
+  #mobileControls,
+  #mobileControls *,
+  #voicePtt,
+  #mobileExit{
+    -webkit-touch-callout:none!important;
+    -webkit-user-select:none!important;
+    user-select:none!important;
+    -webkit-user-drag:none!important;
+    touch-action:none!important;
+  }
+}
