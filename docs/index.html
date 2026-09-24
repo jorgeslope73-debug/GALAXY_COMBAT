@@ -18,7 +18,7 @@
 })();
 </script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V16.4.85-lobby-waiting">
+<link rel="stylesheet" href="style.css?v=V18.22">
 <link rel="stylesheet" href="menu-portada.css?v=V18.16">
 <link rel="stylesheet" href="voz.css?v=V18.8">
 <style>
@@ -215,7 +215,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V18.21</div>
+      <div id="buildVersion" aria-label="Version del juego">V18.22</div>
       <div class="menu-left-tools" aria-label="Clasificacion, compartir e instalar">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
         <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
@@ -449,6 +449,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
         </div>
       </div>
       <div class="lobby-actions">
+        <button id="fillCpu" class="fill-cpu-btn hidden" type="button" aria-pressed="false" data-i18n="fillCpuHard">RELLENAR CON CPU · DIFÍCIL</button>
         <button id="start" class="hidden" disabled data-i18n="start">EMPEZAR</button>
         <button id="shareRoom" class="share-room-btn" type="button">COMPARTIR PARTIDA</button>
         <button id="leaveRoom" type="button" data-i18n="leaveRoom">SALIR DE SALA</button>
@@ -473,16 +474,16 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <button id="mobileExit" class="mobile-exit hidden" type="button" data-i18n-aria="exitAria" aria-label="Salir de la partida y volver al inicio"><span data-i18n="exit">SALIR</span></button>
 </div>
 <script src="config.js"></script>
-<script src="i18n.js?v=V16.4.98-install-required"></script>
+<script src="i18n.js?v=V18.22"></script>
 <script src="manual.js?v=V16.4.61-ranking-20260920"></script>
 <script src="impactos.js?v=V16.4.61-ranking-20260920"></script>
 <script src="voz.js?v=V16.4.84-voice-tip"></script>
 <script src="auth.js?v=V16.4.61-ranking-20260920"></script>
 <script src="ranking.js?v=V16.4.61-ranking-20260920"></script>
 <script src="local-cpu.js?v=V18.18"></script>
-<script src="host-physics.js?v=V17.3"></script>
-<script src="p2p-network.js?v=P2P1"></script>
-<script src="game.js?v=V18.21"></script>
+<script src="host-physics.js?v=V18.22"></script>
+<script src="p2p-network.js?v=V18.22"></script>
+<script src="game.js?v=V18.22"></script>
 <script src="pwa.js?v=V17"></script>
 </body>
 </html>
