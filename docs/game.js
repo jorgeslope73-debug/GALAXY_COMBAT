@@ -64,7 +64,7 @@
   let crashScoreHeldValue=null,crashScorePendingValue=null;
   let penaltyMessageUntil=0;
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='',brutalShooter='';
-  let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuIndices=[];
+  let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[];
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false;
@@ -1179,12 +1179,13 @@
       huntFxStart=performance.now();huntFxUntil=huntFxStart+2200;
       huntText='A POR '+sinTildes(String(m.name||'JUGADOR')).trim().toUpperCase();
       huntCpuAmmo=!!m.cpuAmmo;
+      huntCpuBonus=Math.max(0,Number(m.cpuAmmoBonus)||0);
       huntCpuIndices=Array.isArray(m.cpuIndices)?m.cpuIndices.map(Number).filter(Number.isFinite):[];
     }
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
-    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
@@ -1663,6 +1664,26 @@
       const nameX=rightHud?px+panelW-4*hudScale:px+4*hudScale;
       ctx.font=HUD_NAME_FONT;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
       const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=HUD_VALUE_FONT;ctx.fillText(hudAmmoText(p),tx,py+15*hudScale);ctx.fillText(hudSpeedText(p),tx,py+80*hudScale);
+      if(cpuAmmoFlash&&huntCpuBonus>0){
+        const age=Math.max(0,now-huntFxStart);
+        const t=clamp(age/2200,0,1);
+        const pop=Math.sin(Math.min(1,t*2.2)*Math.PI);
+        ctx.save();
+        ctx.translate(tx+(isMobile?54:42)*hudScale,py+15*hudScale);
+        ctx.scale(1+.55*pop,1+.55*pop);
+        ctx.textAlign='left';
+        ctx.textBaseline='alphabetic';
+        ctx.font=isMobile?`900 ${24*HUD_SCALE}px Arial Black,Arial,sans-serif`:`900 ${19*HUD_SCALE}px Arial Black,Arial,sans-serif`;
+        ctx.fillStyle='#ffe64a';
+        ctx.strokeStyle='rgba(0,0,0,.9)';
+        ctx.lineWidth=4*HUD_SCALE;
+        ctx.shadowColor='rgba(255,230,70,.95)';
+        ctx.shadowBlur=18*HUD_SCALE*(1-t);
+        const bonusText='+'+huntCpuBonus;
+        ctx.strokeText(bonusText,0,0);
+        ctx.fillText(bonusText,0,0);
+        ctx.restore();
+      }
       let displayedKills=Number(p.k)||0;
       if(p.i===myIndex&&killScorePendingValue!==null){
         if(now<killScoreFxStart){
