@@ -18,6 +18,7 @@
     updatePlayers(players){this.players=Array.isArray(players)?players.slice():[];if(this.isHost)this.ensureHostPeers();}
     async ensureHostPeers(){
       for(const p of this.players){
+        if(p&&p.cpu)continue;
         const i=Number(p&&p.i);
         if(Number.isInteger(i)&&i!==this.myIndex&&!this.peers.has(i))await this.createPeer(i,true);
       }
