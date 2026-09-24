@@ -798,7 +798,7 @@
       // parseo de un snapshot pendiente. Solo los cambios de fase de partida
       // requieren orden estricto con el ultimo estado recibido.
       let m;try{m=JSON.parse(raw);}catch(_){return;}
-      if(m&&['p2p-offer','p2p-answer','p2p-ice'].includes(m.t)){ensureP2P()?.handleSignal(m);return;}
+      if(m&&['p2p-offer','p2p-answer','p2p-ice','p2p-reconnect'].includes(m.t)){ensureP2P()?.handleSignal(m);return;}
       if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}
       if(m&&(['victory','restarted','closed','start'].includes(m.t)))flushPendingState(true);
       handle(m);
@@ -1082,9 +1082,16 @@
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';cpuFillEnabled=false;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(m.cpu?2:1);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
-      roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
+      roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;
+      if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
+      updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
       if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);
+      if(m.started&&isHost&&!hostPhysics&&!inGame){
+        clearResumeSession();playerToken='';
+        alert(sinTildes(tr('resumeFailed')));
+        send({t:'leave'});returnToMainMenu(false);return;
+      }
       if(m.started){lobby.classList.add('hidden');if(!inGame)beginGame();}
       else if(!m.cpu){lobby.classList.remove('hidden');}
     }
