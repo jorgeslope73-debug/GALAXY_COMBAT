@@ -160,3 +160,14 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   color:#effff6;
   box-shadow:0 0 16px rgba(82,232,147,.22);
 }
+
+
+/* V18.46: menos glow en el texto de ganador en movil para mejorar legibilidad. */
+@media (pointer:coarse),(max-width:900px){
+  #victory.winner-celebration #victoryText{
+    text-shadow:
+      0 0 3px rgba(255,255,255,.62),
+      0 0 9px var(--winner-color,#d8a7ff),
+      0 0 18px var(--winner-color,#d8a7ff);
+  }
+}
