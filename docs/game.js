@@ -1176,7 +1176,8 @@
     }
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';brutalShooter=sinTildes(String(m.shooter||'')).trim();}
     else if(m.t==='hunt'){
-      huntFxStart=performance.now();huntFxUntil=huntFxStart+2200;
+      huntFxStart=performance.now();
+      huntFxUntil=huntFxStart+Math.max(2200,Number(m.graceMs)||0);
       huntText='A POR '+sinTildes(String(m.name||'JUGADOR')).trim().toUpperCase();
       huntCpuAmmo=!!m.cpuAmmo;
       huntCpuBonus=Math.max(0,Number(m.cpuAmmoBonus)||0);
