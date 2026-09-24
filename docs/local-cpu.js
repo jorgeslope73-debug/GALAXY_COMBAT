@@ -118,6 +118,7 @@
       this.cpuCount=1;
       this.huntTargetIndex=0;
       this.huntUntil=0;
+      this.huntStartsAt=0;
       this.huntThresholdActive=false;
       this.seq=0;
       this.fxClock=0;
@@ -300,6 +301,7 @@
       this.cpuCount=clamp(Math.round(Number(cpuCount)||1),1,3);
       this.huntTargetIndex=0;
       this.huntUntil=0;
+      this.huntStartsAt=0;
       this.huntThresholdActive=false;
       this.players=[];
       this.controls.clear();
@@ -307,7 +309,7 @@
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
-      this.huntUntil=0;this.huntThresholdActive=false;
+      this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       const human=this.makePlayer(0,name,false);
       this.placeAtSpawn(human);
@@ -343,6 +345,7 @@
       this.cpuCount=4;
       this.huntTargetIndex=0;
       this.huntUntil=0;
+      this.huntStartsAt=0;
       this.huntThresholdActive=false;
       this.players=[];
       this.controls.clear();
@@ -413,6 +416,7 @@
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
+      this.huntTargetIndex=0;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
@@ -503,13 +507,15 @@
       if(meteorControl)return meteorControl;
 
       let rival=null;
-      if(this.huntUntil>this.fxClock){
+      const huntGrace=this.huntThresholdActive&&this.fxClock<this.huntStartsAt;
+      if(this.huntUntil>this.fxClock&&this.fxClock>=this.huntStartsAt){
         rival=this.players.find(p=>p.index===this.huntTargetIndex&&!p.dead&&p.camo<=0)||null;
       }
       if(!rival){
         let best=Infinity;
         for(const p of this.players){
           if(p.index===cpu.index||p.dead||p.camo>0)continue;
+          if(huntGrace&&p.index===this.huntTargetIndex)continue;
           const d=dist2(cpu,p);
           if(d<best){best=d;rival=p;}
         }
@@ -544,7 +550,7 @@
       const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
       const rivalShielded=rival.shield>0||rival.protection>0;
       const rivalDangerous=rival.shield>0;
-      const huntActive=this.huntUntil>this.fxClock&&rival.index===this.huntTargetIndex;
+      const huntActive=this.huntUntil>this.fxClock&&this.fxClock>=this.huntStartsAt&&rival.index===this.huntTargetIndex;
 
       // Cuando el humano esta a una baja de ganar, A POR tiene prioridad total:
       // si esta visible, las CPU pueden actuar como kamikazes aunque no tengan
@@ -759,12 +765,14 @@
       if(shouldHunt&&!this.huntThresholdActive){
         this.huntThresholdActive=true;
         this.huntTargetIndex=human.index;
+        this.huntStartsAt=this.fxClock+3;
         this.huntUntil=Infinity;
         const cpuIndices=[];
         for(const cpu of cpuPlayers){cpu.bullets+=3;cpuIndices.push(cpu.index);}
-        this.emit({t:'hunt',name:human.name,duration:0,cpuAmmo:true,cpuAmmoBonus:3,cpuIndices});
+        this.emit({t:'hunt',name:human.name,duration:0,graceMs:3000,cpuAmmo:true,cpuAmmoBonus:3,cpuIndices});
       }else if(!shouldHunt&&this.huntThresholdActive){
         this.huntThresholdActive=false;
+        this.huntStartsAt=0;
         this.huntUntil=0;
       }
       let fxWrite=0;
@@ -796,6 +804,7 @@
           fireNow=false;
           for(const target of this.players){
             if(target.index===p.index||target.dead||target.camo>0)continue;
+            if(this.huntThresholdActive&&this.fxClock<this.huntStartsAt&&target.index===this.huntTargetIndex)continue;
             const tx=target.x-p.x,ty=target.y-p.y,td=Math.hypot(tx,ty);
             if(td<=0||td>=1350)continue;
             const dot=(d.x*tx+d.y*ty)/td;
