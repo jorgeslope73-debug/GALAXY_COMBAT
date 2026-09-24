@@ -1594,10 +1594,13 @@
     // Python: armado = balas > 0 y recarga terminada. El servidor confirma
     // ese estado; no cambiamos el movimiento ni el efecto de propulsion web.
     const variants=SHIP_IMAGE_KEYS[p.i]||SHIP_IMAGE_KEYS[0];
-    const moving=(p.vx*p.vx+p.vy*p.vy)>1600;
+    // La propulsion visual depende del acelerador, no de la velocidad.
+    // Para la nave local usamos el control de este mismo frame para que el PNG
+    // cambie al instante al pulsar/soltar, incluso mientras sigue por inercia.
+    const thrusting=Number(p.i)===Number(myIndex)?!!lastControlThrust:p.thrust===true;
     const armed=p.armed===true;
-    const selected=images[moving?(armed?variants.af:variants.a):(armed?variants.f:variants.base)];
-    const normal=images[moving?variants.a:variants.base]||images[variants.base];
+    const selected=images[thrusting?(armed?variants.af:variants.a):(armed?variants.f:variants.base)];
+    const normal=images[thrusting?variants.a:variants.base]||images[variants.base];
     // Si el PNG aun no esta disponible, dibujar la nave normal sin bloquear.
     const im=imageReady(selected)?selected:normal;
     // Los PNG originales de las naves apuntan hacia ARRIBA.
