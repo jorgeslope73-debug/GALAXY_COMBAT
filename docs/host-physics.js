@@ -119,6 +119,7 @@
       this.difficulty='medio';
       this.huntTargetIndex=-1;
       this.huntUntil=0;
+      this.huntStartsAt=0;
       this.huntThresholdActive=false;
       this.seq=0;
       this.fxClock=0;
@@ -169,7 +170,7 @@
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.rankReportSent=false;
-      this.huntTargetIndex=-1;this.huntUntil=0;this.huntThresholdActive=false;
+      this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       for(const item of list){
         const index=Number(item.i),isCpu=!!item.cpu;
@@ -259,7 +260,7 @@
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
-      this.huntTargetIndex=-1;this.huntUntil=0;this.huntThresholdActive=false;
+      this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
@@ -347,19 +348,21 @@
     chooseCpuControls(cpu){
       let rival=null,best=Infinity;
       if(cpu.dead)return IDLE_CONTROL;
-      if(this.huntThresholdActive){
+      const huntGrace=this.huntThresholdActive&&this.fxClock<this.huntStartsAt;
+      if(this.huntThresholdActive&&this.fxClock>=this.huntStartsAt){
         const target=this.players.find(p=>p.index===this.huntTargetIndex&&!p.cpu&&!p.dead&&p.camo<=0);
         if(target)rival=target;
       }
       if(!rival){
         for(const p of this.players){
           if(p.index===cpu.index||p.dead||p.camo>0)continue;
+          if(huntGrace&&p.index===this.huntTargetIndex)continue;
           const d=dist2(cpu,p);
           if(d<best){best=d;rival=p;}
         }
       }
       if(!rival)return IDLE_CONTROL;
-      const huntActive=this.huntThresholdActive&&rival.index===this.huntTargetIndex;
+      const huntActive=this.huntThresholdActive&&this.fxClock>=this.huntStartsAt&&rival.index===this.huntTargetIndex;
       const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
       const targetRot=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
       let err=((targetRot-cpu.rot+540)%360)-180;
@@ -455,12 +458,12 @@
       }
       const shouldHunt=!!(huntedHuman&&cpuPlayers.length);
       if(shouldHunt&&!this.huntThresholdActive){
-        this.huntThresholdActive=true;this.huntTargetIndex=huntedHuman.index;this.huntUntil=Infinity;
+        this.huntThresholdActive=true;this.huntTargetIndex=huntedHuman.index;this.huntStartsAt=this.fxClock+3;this.huntUntil=Infinity;
         const cpuIndices=[];
         for(const cpu of cpuPlayers){cpu.bullets+=3;cpuIndices.push(cpu.index);}
-        this.emit({t:'hunt',name:huntedHuman.name,duration:0,cpuAmmo:true,cpuAmmoBonus:3,cpuIndices});
+        this.emit({t:'hunt',name:huntedHuman.name,duration:0,graceMs:3000,cpuAmmo:true,cpuAmmoBonus:3,cpuIndices});
       }else if(!shouldHunt&&this.huntThresholdActive){
-        this.huntThresholdActive=false;this.huntTargetIndex=-1;this.huntUntil=0;
+        this.huntThresholdActive=false;this.huntTargetIndex=-1;this.huntStartsAt=0;this.huntUntil=0;
       }
       let fxWrite=0;
       for(const e of this.fxEvents)if(this.fxClock-e.at<=.8)this.fxEvents[fxWrite++]=e;
