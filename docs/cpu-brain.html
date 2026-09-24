@@ -13,7 +13,7 @@ h1{margin:0;font-size:clamp(24px,4vw,42px)}a,button{color:var(--text)}.back,.ref
 .panel{background:rgba(16,21,38,.9);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:14px}h2{margin:0 0 14px;font-size:18px}
 .bars{display:grid;gap:10px}.barrow{display:grid;grid-template-columns:minmax(190px,1fr) minmax(160px,3fr) 70px;gap:12px;align-items:center}.name{font-size:13px;color:#dce8ff;overflow:hidden;text-overflow:ellipsis}.track{height:14px;background:#222a40;border-radius:999px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:inherit}.score{text-align:right;font-variant-numeric:tabular-nums}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid #242d44;text-align:left}th{color:var(--muted)}.good{color:var(--good)}.bad{color:var(--bad)}tr.changed td{animation:brainFlash 1.4s ease}@keyframes brainFlash{0%{background:rgba(90,225,255,.28)}100%{background:transparent}}
-.heat{overflow:auto}.heat table td{text-align:center}.cell{border-radius:7px;padding:8px 6px;min-width:86px}.muted{color:var(--muted)}pre{white-space:pre-wrap;word-break:break-word;background:#090d18;border-radius:10px;padding:12px;max-height:320px;overflow:auto}
+.heat{overflow:auto}.heat table td{text-align:center}.cell{border-radius:7px;padding:8px 6px;min-width:86px}.muted{color:var(--muted)}.learning-live{display:grid;gap:8px}.learning-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid #25314a;border-radius:9px;background:#0b1020}.learning-item .what{min-width:0}.learning-item .what strong{display:block;font-size:13px}.learning-item .what span{display:block;margin-top:3px;color:var(--muted);font-size:11px}.delta{font-variant-numeric:tabular-nums;font-weight:800}.delta.plus{color:var(--good)}.delta.minus{color:var(--bad)}pre{white-space:pre-wrap;word-break:break-word;background:#090d18;border-radius:10px;padding:12px;max-height:320px;overflow:auto}
 @media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.barrow{grid-template-columns:1fr}.score{text-align:left}.panel{padding:14px}}
 </style>
 </head>
@@ -26,8 +26,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;bord
     <div class="card"><div class="label">Candidatas</div><div class="value" id="candidates">—</div></div>
     <div class="card"><div class="label">Tamaño</div><div class="value" id="bytes">—</div></div>
     <div class="card"><div class="label">Entrenamientos automáticos</div><div class="value" id="trainingMatches">—</div></div>
+    <div class="card"><div class="label">Muestras totales</div><div class="value" id="totalSamples">—</div></div>
+    <div class="card"><div class="label">Muestras último ciclo</div><div class="value" id="lastSampleGain">0</div></div>
     <div class="card"><div class="label">Último cambio Brain</div><div class="value" id="updatedAt" style="font-size:16px">—</div></div>
   </div>
+  <section class="panel"><h2>Aprendizaje en tiempo real</h2><div class="muted" id="learningStatus" style="margin:-6px 0 12px">Esperando el siguiente cambio del Brain…</div><div id="learningLive" class="learning-live"><div class="muted">Todavía no hay cambios desde que abriste esta página.</div></div></section>
   <section class="panel"><h2>Mejores estrategias</h2><div class="muted" id="autoStatus" style="margin:-6px 0 12px">Actualización automática cada 5 segundos.</div><div id="bars" class="bars"></div></section>
   <section class="panel heat"><h2>Mapa de decisiones</h2><div id="heat"></div></section>
   <section class="panel"><h2>Detalle</h2><div style="overflow:auto"><table><thead><tr><th>Contexto</th><th>Acción</th><th>Muestras</th><th>Total</th><th>Media</th></tr></thead><tbody id="rows"></tbody></table></div></section>
@@ -58,7 +61,7 @@ function score(e){return e.samples?e.total/e.samples:0}
 function fmt(n){return Number(n||0).toFixed(2)}
 function fmtDate(v){if(!v)return '—';const d=new Date(v);return isNaN(d)?'—':d.toLocaleString()}
 function cellColor(v,maxAbs){const a=Math.min(.85,Math.abs(v)/(maxAbs||1));return v>=0?'rgba(70,230,140,'+(0.12+a*.55)+')':'rgba(255,90,120,'+(0.12+a*.55)+')'}
-let previousEntries=new Map(),loading=false;
+let previousEntries=new Map(),loading=false,hasSnapshot=false;
 async function load(){
   if(loading)return;loading=true;
   const out=document.getElementById('json');
@@ -69,19 +72,53 @@ async function load(){
     version.textContent=d.version??brain.version??'—';strategies.textContent=active.length;candidates.textContent=cand.length;
     bytes.textContent=((Number(d.bytes)||0)/1024).toFixed(1)+' KB';
     trainingMatches.textContent=Number(d.training&&d.training.matches)||0;
+    const allEntries=active.concat(cand);
+    const totalSampleCount=allEntries.reduce((sum,e)=>sum+(Number(e.samples)||0),0);
+    totalSamples.textContent=totalSampleCount;
     updatedAt.textContent=fmtDate(d.updatedAt);
     autoStatus.textContent='Actualizado '+new Date().toLocaleTimeString()+' · refresco automático cada 5 s';
     const sorted=[...active].sort((a,b)=>score(b)-score(a)).slice(0,12),max=Math.max(.01,...sorted.map(x=>Math.abs(score(x))));
     bars.innerHTML=sorted.length?sorted.map(e=>'<div class="barrow"><div class="name">'+contextLabel(e.context)+' · '+(actionLabel[e.action]||e.action)+'</div><div class="track"><div class="fill" style="width:'+Math.max(3,Math.abs(score(e))/max*100)+'%"></div></div><div class="score '+(score(e)>=0?'good':'bad')+'">'+fmt(score(e))+'</div></div>').join(''):'<div class="muted">Aún no hay aprendizaje suficiente.</div>';
     const contexts=[...new Set(active.map(x=>x.context))];const maxAbs=Math.max(.01,...active.map(x=>Math.abs(score(x))));
     heat.innerHTML=contexts.length?'<table><thead><tr><th>Situación</th>'+actions.map(a=>'<th>'+actionLabel[a]+'</th>').join('')+'</tr></thead><tbody>'+contexts.map(c=>'<tr><th>'+contextLabel(c)+'</th>'+actions.map(a=>{const e=active.find(x=>x.context===c&&x.action===a);if(!e)return '<td><span class="muted">—</span></td>';const v=score(e);return '<td><div class="cell" style="background:'+cellColor(v,maxAbs)+'">'+fmt(v)+'</div></td>'}).join('')+'</tr>').join('')+'</tbody></table>':'<div class="muted">Sin datos todavía.</div>';
-    const nextEntries=new Map(active.map(e=>[e.context+'|'+e.action,{samples:Number(e.samples)||0,total:Number(e.total)||0}]));
+    const nextEntries=new Map(allEntries.map(e=>[e.context+'|'+e.action,{context:e.context,action:e.action,samples:Number(e.samples)||0,total:Number(e.total)||0,score:score(e)}]));
+    const changes=[];
+    let sampleGain=0;
+    if(hasSnapshot){
+      for(const [key,cur] of nextEntries){
+        const prev=previousEntries.get(key);
+        const ds=prev?cur.samples-prev.samples:cur.samples;
+        const dt=prev?cur.total-prev.total:cur.total;
+        if(ds!==0||Math.abs(dt)>.000001){
+          sampleGain+=Math.max(0,ds);
+          changes.push({key,cur,ds,dt});
+        }
+      }
+    }
+    lastSampleGain.textContent=hasSnapshot?(sampleGain>0?'+'+sampleGain:String(sampleGain)):'0';
+    lastSampleGain.className='value '+(sampleGain>0?'good':'');
+    if(hasSnapshot&&changes.length){
+      learningStatus.textContent='Cambios detectados a las '+new Date().toLocaleTimeString()+' · '+changes.length+' estrategias modificadas';
+      learningLive.innerHTML=changes.sort((a,b)=>Math.abs(b.ds)-Math.abs(a.ds)).slice(0,12).map(c=>{
+        const label=contextLabel(c.cur.context)+' · '+(actionLabel[c.cur.action]||c.cur.action);
+        const ds=(c.ds>=0?'+':'')+c.ds;
+        const dt=(c.dt>=0?'+':'')+fmt(c.dt);
+        return '<div class="learning-item"><div class="what"><strong>'+label+'</strong><span>Media actual '+fmt(c.cur.score)+'</span></div><div class="delta '+(c.ds>=0?'plus':'minus')+'">'+ds+' muestras</div><div class="delta '+(c.dt>=0?'plus':'minus')+'">'+dt+' total</div><div>'+fmt(c.cur.score)+'</div></div>';
+      }).join('');
+    }else if(hasSnapshot){
+      learningStatus.textContent='Sin cambios en el último refresco · '+new Date().toLocaleTimeString();
+      learningLive.innerHTML='<div class="muted">El Brain no ha recibido nuevas muestras en los últimos 5 segundos.</div>';
+    }else{
+      learningStatus.textContent='Referencia inicial cargada · observando cambios cada 5 segundos';
+    }
+
     rows.innerHTML=active.sort((a,b)=>score(b)-score(a)).map(e=>{
       const key=e.context+'|'+e.action,prev=previousEntries.get(key);
-      const changed=!!prev&&(prev.samples!==Number(e.samples)||Math.abs(prev.total-Number(e.total))>.000001);
+      const changed=hasSnapshot&&(!prev||prev.samples!==Number(e.samples)||Math.abs(prev.total-Number(e.total))>.000001);
       return '<tr class="'+(changed?'changed':'')+'"><td>'+contextLabel(e.context)+'</td><td>'+(actionLabel[e.action]||e.action)+'</td><td>'+e.samples+'</td><td>'+fmt(e.total)+'</td><td class="'+(score(e)>=0?'good':'bad')+'">'+fmt(score(e))+'</td></tr>';
     }).join('');
     previousEntries=nextEntries;
+    hasSnapshot=true;
     out.textContent=JSON.stringify(d,null,2);
   }catch(e){
     out.textContent='No se pudo cargar el cerebro. Si Render acaba de desplegar, espera unos segundos y pulsa ACTUALIZAR.';
