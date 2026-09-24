@@ -154,7 +154,17 @@ function roomCode(){
   for(;;){const c=randomBytes(3).toString('hex').slice(0,4).toUpperCase();if(!rooms.has(c))return c;}
 }
 function send(ws,o){if(ws&&ws.readyState===1)try{ws.send(JSON.stringify(o));}catch(_){}}
-function roster(r){return r.players.map(p=>({i:p.i,n:p.n,cpu:false,registered:!!p.registered}));}
+function roster(r){
+  const out=r.players.map(p=>({i:p.i,n:p.n,cpu:false,registered:!!p.registered}));
+  if(r.cpuFill){
+    const used=new Set(out.map(p=>p.i));
+    for(let i=0;i<MAX_PLAYERS;i++){
+      if(!used.has(i))out.push({i,n:'CPU '+(i+1),cpu:true,registered:false,difficulty:'dificil'});
+    }
+  }
+  out.sort((a,b)=>a.i-b.i);
+  return out;
+}
 function broadcast(r,o){for(const p of r.players)send(p.ws,o);}
 function publicRooms(){return [...rooms.values()].filter(r=>r.public&&!r.started).map(r=>({code:r.code,host:r.players[0]?.n||'JUGADOR',lang:r.lang,players:r.players.length,maxPlayers:MAX_PLAYERS}));}
 function publicUpdate(wss){const raw=JSON.stringify({t:'public-rooms',rooms:publicRooms()});for(const ws of wss.clients)if(ws.readyState===1)ws.send(raw);}
@@ -164,7 +174,7 @@ function remove(ws,wss){
   const p=r.players.find(p=>p.i===x.i);if(!p)return;
   const host=p.i===0;r.players=r.players.filter(q=>q!==p);
   if(host){broadcast(r,{t:'closed',reason:'El anfitrion cerro la sala.'});rooms.delete(r.code);}
-  else broadcast(r,{t:'lobby',code:r.code,players:roster(r),canStart:r.players.length>1});
+  else{const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:players.length>1});}
   publicUpdate(wss);
 }
 
@@ -517,6 +527,7 @@ async function authApi(req,res,url){
     if(!room||!room.started){sendJson(res,404,{ok:false,code:'ROOM_NOT_FOUND'});return true;}
     const host=room.players.find(p=>p.i===0);
     if(!host||Number(host.userId)!==Number(user.id)){sendJson(res,403,{ok:false,code:'HOST_REQUIRED'});return true;}
+    if(room.cpuFill){sendJson(res,200,{ok:true,ranked:false,reason:'CPU_PLAYERS'});return true;}
     const winner=room.players.find(p=>p.i===winnerIndex);
     if(!winner){sendJson(res,400,{ok:false,code:'BAD_WINNER'});return true;}
     room.rankEligible=room.players.length>=2&&room.players.every(p=>p.registered&&p.userId);
@@ -563,11 +574,11 @@ wss.on('connection',ws=>{
     if(m.t==='create'){
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],rankEligible:false,rankRecorded:false,rankMatchId:null};
+      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null};
       const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,public:r.public,playerToken:'',registered:p.registered,p2p:true});
-      broadcast(r,{t:'lobby',code:r.code,players:roster(r),canStart:false});publicUpdate(wss);return;
+      broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false});publicUpdate(wss);return;
     }
 
     if(m.t==='join'){
@@ -579,12 +590,20 @@ wss.on('connection',ws=>{
       const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered};
       r.players.push(p);info.set(ws,{code:r.code,i});
       send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:'',registered:p.registered,p2p:true});
-      broadcast(r,{t:'lobby',code:r.code,players:roster(r),canStart:r.players.length>1});publicUpdate(wss);return;
+      {const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:players.length>1});}publicUpdate(wss);return;
     }
 
     const x=info.get(ws),r=x&&rooms.get(x.code);if(!r)return;
 
-    if(m.t==='start'&&x.i===0&&r.players.length>1&&!r.started){
+    if(m.t==='cpu-fill'&&x.i===0&&!r.started){
+      r.cpuFill=!!m.on;
+      const players=roster(r);
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:r.cpuFill,canStart:players.length>1});
+      publicUpdate(wss);return;
+    }
+
+    const startPlayers=roster(r);
+    if(m.t==='start'&&x.i===0&&startPlayers.length>1&&!r.started){
       r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');
       if(db){
         try{
@@ -593,8 +612,8 @@ wss.on('connection',ws=>{
             ON CONFLICT(day) DO UPDATE SET online_matches=galaxy_analytics_daily.online_matches+1`);
         }catch(err){console.error('[Galaxy Combat P2P] Error contando partida online:',err&&err.message||err);}
       }
-      r.rankEligible=r.players.length>=2&&r.players.every(p=>p.registered&&p.userId);
-      broadcast(r,{t:'start',code:r.code,players:roster(r),p2p:true,rankEligible:r.rankEligible});publicUpdate(wss);return;
+      r.rankEligible=!r.cpuFill&&r.players.length>=2&&r.players.every(p=>p.registered&&p.userId);
+      broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible});publicUpdate(wss);return;
     }
 
     if(['p2p-offer','p2p-answer','p2p-ice'].includes(m.t)){
