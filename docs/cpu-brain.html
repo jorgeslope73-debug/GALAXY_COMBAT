@@ -35,10 +35,17 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;bord
 </main>
 <script>
 const API='https://galaxy-combat-web.onrender.com';
-const actions=['attack','evade','resource','scatter'];
-const actionLabel={attack:'ATACAR',evade:'HUIR',resource:'RECURSOS',scatter:'SALIDA'};
+const actions=['attack','evade','resource','scatter','meteor_left','meteor_right','meteor_brake'];
+const actionLabel={attack:'ATACAR',evade:'HUIR',resource:'RECURSOS',scatter:'SALIDA',meteor_left:'METEORO IZQ.',meteor_right:'METEORO DER.',meteor_brake:'FRENAR METEORO'};
 const contextLabel=c=>{
   if(c==='open3')return 'Apertura CPU 3';
+  const mm=/^meteor-s([01])-v([01])-d([01])$/.exec(c||'');
+  if(mm){
+    const side=mm[1]==='0'?'meteorito a la izquierda':'meteorito a la derecha';
+    const speed=mm[2]==='1'?'cierre rápido':'cierre lento';
+    const dist=mm[3]==='0'?'cerca':'lejos';
+    return 'ESQUIVA · '+side+' · '+speed+' · '+dist;
+  }
   const m=/^a([012])-s([01])-d([012])-e([01])$/.exec(c||'');
   if(!m)return c;
   const ammo=['sin balas','pocas balas','con balas'][+m[1]];
