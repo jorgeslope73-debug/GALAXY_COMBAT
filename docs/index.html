@@ -19,7 +19,7 @@
 </script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
 <link rel="stylesheet" href="style.css?v=V16.4.85-lobby-waiting">
-<link rel="stylesheet" href="menu-portada.css?v=V18.9">
+<link rel="stylesheet" href="menu-portada.css?v=V18.11">
 <link rel="stylesheet" href="voz.css?v=V18.8">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
@@ -215,7 +215,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V18.10</div>
+      <div id="buildVersion" aria-label="Version del juego">V18.11</div>
       <div class="menu-left-tools" aria-label="Clasificacion, compartir e instalar">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
         <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
@@ -362,6 +362,32 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
                 </div>
               </div>
             </div>
+            <div id="cpuSetupDialog" class="room-dialog cpu-setup-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="cpuSetupTitle">
+              <div class="room-dialog-card cpu-setup-card">
+                <h3 id="cpuSetupTitle">CONTRA LA MAQUINA</h3>
+                <p class="room-dialog-copy">ELIGE DIFICULTAD Y NUMERO DE RIVALES</p>
+                <div class="cpu-setup-options">
+                  <label>
+                    <span>DIFICULTAD</span>
+                    <select id="mobileDifficulty" aria-label="Dificultad CPU">
+                      <option value="facil">FACIL</option>
+                      <option value="medio">MEDIO</option>
+                      <option value="dificil">DIFICIL</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>RIVALES</span>
+                    <select id="mobileCpuCount" aria-label="Numero de rivales CPU">
+                      <option value="1">1 CPU</option>
+                      <option value="2">2 CPU</option>
+                      <option value="3">3 CPU</option>
+                    </select>
+                  </label>
+                </div>
+                <button id="cpuSetupPlay" class="cpu-setup-play" type="button">JUGAR</button>
+                <button id="cpuSetupClose" class="room-dialog-close" type="button">CANCELAR</button>
+              </div>
+            </div>
             <div id="roomTypeDialog" class="room-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="roomTypeTitle">
               <div class="room-dialog-card">
                 <h3 id="roomTypeTitle" data-i18n="roomTypeTitle">TIPO DE PARTIDA</h3>
@@ -456,7 +482,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 <script src="local-cpu.js?v=V18.6"></script>
 <script src="host-physics.js?v=V17.3"></script>
 <script src="p2p-network.js?v=P2P1"></script>
-<script src="game.js?v=V18.7"></script>
+<script src="game.js?v=V18.11"></script>
 <script src="pwa.js?v=V17"></script>
 </body>
 </html>
