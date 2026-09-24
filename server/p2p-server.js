@@ -12,7 +12,7 @@ const MAX_PLAYERS=4;
 const SESSION_DAYS=30;
 const PASSWORD_MIN_LENGTH=8;
 const DATABASE_URL=String(process.env.DATABASE_URL||'').trim();
-const TRAINING_ADMIN_USERNAME=String(process.env.TRAINING_ADMIN_USERNAME||'').trim();
+const TRAINING_ADMIN_KEY=String(process.env.TRAINING_ADMIN_KEY||'').trim();
 
 let dbReady=false;
 let dbInitPromise=null;
@@ -200,21 +200,23 @@ function readJsonBody(req,maxBytes=16384){
   });
 }
 function bearerToken(req){const raw=String(req.headers.authorization||'');const m=/^Bearer\s+([a-f0-9]{64})$/i.exec(raw.trim());return m?m[1]:'';}
+function trainingKey(req){return String(req.headers['x-training-key']||'').trim().slice(0,256);}
+function safeSecretEqual(a,b){
+  const ah=createHash('sha256').update(String(a||'')).digest();
+  const bh=createHash('sha256').update(String(b||'')).digest();
+  return timingSafeEqual(ah,bh);
+}
 async function requireTrainingAdmin(req,res){
-  if(!TRAINING_ADMIN_USERNAME){
+  if(!TRAINING_ADMIN_KEY){
     sendJson(res,503,{ok:false,code:'TRAINING_ADMIN_NOT_CONFIGURED',message:'Entrenamiento privado no configurado.'});
-    return null;
+    return false;
   }
-  const user=await userFromSessionToken(bearerToken(req));
-  if(!user){
-    sendJson(res,401,{ok:false,code:'UNAUTHORIZED'});
-    return null;
+  const supplied=trainingKey(req);
+  if(!supplied||!safeSecretEqual(supplied,TRAINING_ADMIN_KEY)){
+    sendJson(res,403,{ok:false,code:'FORBIDDEN',message:'Clave de entrenamiento incorrecta.'});
+    return false;
   }
-  if(usernameKey(user.username)!==usernameKey(TRAINING_ADMIN_USERNAME)){
-    sendJson(res,403,{ok:false,code:'FORBIDDEN'});
-    return null;
-  }
-  return user;
+  return true;
 }
 
 const CPU_BRAIN_MAX_STRATEGIES=16;
@@ -335,14 +337,14 @@ async function authApi(req,res,url){
     sendJson(res,200,{ok:true,user:{id:Number(user.id),username:user.username,email:user.email}});return true;
   }
   if(url==='/api/cpu-training/access'&&req.method==='GET'){
-    const user=await requireTrainingAdmin(req,res);if(!user)return true;
+    const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
     const {rows}=await db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1');
     const row=rows[0]||{matches:0,updated_at:null};
-    sendJson(res,200,{ok:true,user:{username:user.username},trainingMatches:Number(row.matches)||0,updatedAt:row.updated_at||null});
+    sendJson(res,200,{ok:true,trainingMatches:Number(row.matches)||0,updatedAt:row.updated_at||null});
     return true;
   }
   if(url==='/api/cpu-brain/train-learn'&&req.method==='POST'){
-    const user=await requireTrainingAdmin(req,res);if(!user)return true;
+    const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
     let body;try{body=await readJsonBody(req,16384);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
     const deltas=Array.isArray(body&&body.deltas)?body.deltas:[];
     const client=await db.connect();
@@ -515,7 +517,7 @@ function rtcIceServers(){
 
 const server=http.createServer(async(req,res)=>{
   res.setHeader('Access-Control-Allow-Origin','*');
-  res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, X-Training-Key');
   res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
   res.setHeader('Cache-Control','no-store');
   if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
