@@ -303,22 +303,39 @@
   sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
   async function unlockGameAudio(){
     if(audioUnlocked)return true;
+
+    // iPhone/iPad: desbloqueamos TODOS los elementos de los pools dentro del
+    // gesto del usuario. Antes solo se desbloqueaba el primero de cada sonido;
+    // al rotar el pool, Safari podia bloquear los siguientes y dejar los
+    // efectos mudos.
     const tests=[];
+    let successCount=0;
     for(const pool of Object.values(soundPools)){
-      const a=pool&&pool.items&&pool.items[0];
-      if(!a)continue;
-      const oldVolume=a.volume;
-      try{
-        a.volume=0;a.currentTime=0;
-        const p=a.play();
-        if(p&&typeof p.then==='function'){
-          tests.push(p.then(()=>{try{a.pause();a.currentTime=0;a.volume=oldVolume;}catch(_){}}).catch(()=>{try{a.volume=oldVolume;}catch(_){}}));
-        }else{a.pause();a.currentTime=0;a.volume=oldVolume;}
-      }catch(_){try{a.volume=oldVolume;}catch(__){}}
+      for(const a of (pool&&pool.items)||[]){
+        if(!a)continue;
+        const oldVolume=a.volume;
+        try{
+          a.volume=0;a.currentTime=0;
+          const p=a.play();
+          if(p&&typeof p.then==='function'){
+            tests.push(p.then(()=>{
+              successCount++;
+              try{a.pause();a.currentTime=0;a.volume=oldVolume;}catch(_){}
+            }).catch(()=>{
+              try{a.pause();a.currentTime=0;a.volume=oldVolume;}catch(_){}
+            }));
+          }else{
+            successCount++;
+            a.pause();a.currentTime=0;a.volume=oldVolume;
+          }
+        }catch(_){
+          try{a.volume=oldVolume;}catch(__){}
+        }
+      }
     }
     if(tests.length)await Promise.allSettled(tests);
-    audioUnlocked=true;
-    return true;
+    audioUnlocked=successCount>0;
+    return audioUnlocked;
   }
   function updateAudioButton(){
     if(!audioToggleButton)return;
@@ -330,8 +347,9 @@
     gameAudioEnabled=!gameAudioEnabled;
     updateAudioButton();
     if(gameAudioEnabled){
-      unlockGameAudio();
+      // Este click es tambien un gesto valido para iOS.
       startMusic();
+      unlockGameAudio();
     }else{
       stopMusic();
     }
@@ -1055,8 +1073,17 @@
   }
 
   postAnalyticsEvent('visit');
-  menu.addEventListener('pointerdown',()=>{startMusic();if(gameAudioEnabled)unlockGameAudio();},{passive:true});
-  menu.addEventListener('keydown',()=>{startMusic();if(gameAudioEnabled)unlockGameAudio();});
+  function unlockAudioFromUserGesture(){
+    if(!gameAudioEnabled)return;
+    // La musica se arranca directamente en el gesto; esto es importante en
+    // Safari/iOS, donde un play() posterior a un await puede quedar bloqueado.
+    startMusic();
+    unlockGameAudio();
+  }
+  menu.addEventListener('pointerdown',unlockAudioFromUserGesture,{passive:true});
+  menu.addEventListener('touchstart',unlockAudioFromUserGesture,{passive:true});
+  menu.addEventListener('click',unlockAudioFromUserGesture);
+  menu.addEventListener('keydown',unlockAudioFromUserGesture);
   if(audioToggleButton){updateAudioButton();audioToggleButton.addEventListener('click',toggleGameAudio);}
 
   if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
