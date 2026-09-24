@@ -252,6 +252,27 @@
   #menu .menu-credit { margin-top: 12px; }
 }
 @media (orientation: landscape) and (max-height: 560px) {
+  /* V18.9: con el selector de numero de CPU ya no cabian dificultad + CPUs +
+     JUGAR en una sola fila. En movil horizontal los dos selectores ocupan la
+     primera fila y JUGAR conserva una segunda fila completa y siempre visible. */
+  #menu .cpu-actions{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:5px;
+  }
+  #menu .cpu-actions select{
+    width:100%;
+    min-width:0;
+    max-width:none;
+    flex:none;
+  }
+  #menu .cpu-actions #cpu{
+    grid-column:1 / -1;
+    width:100%;
+    min-width:0;
+    display:flex;
+  }
+
   #menu .menu-scene { width: min(100%, clamp(230px, calc((100svh - 285px) * 2.7), 420px)); aspect-ratio: auto; }
   #menu .menu-body { padding-top: 35.2%; padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
   #menu .launch-console { width: min(980px, calc(100vw - var(--menu-edge) * 2)); }
