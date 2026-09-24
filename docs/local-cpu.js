@@ -725,14 +725,17 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
-      const human=this.trainingMode?null:(this.players.find(p=>!p.cpu)||this.players[0]);
+      const human=this.trainingMode?null:(this.players.find(p=>!p.cpu)||null);
+      const cpuPlayers=this.trainingMode?[]:this.players.filter(p=>p.cpu);
       const huntScore=SCORE_TO_WIN-1;
-      const shouldHunt=!!(!this.trainingMode&&this.cpuCount>1&&human&&!this.finished&&human.kills>=huntScore&&human.kills<SCORE_TO_WIN);
+      const shouldHunt=!!(!this.trainingMode&&cpuPlayers.length&&human&&!this.finished&&human.kills>=huntScore&&human.kills<SCORE_TO_WIN);
       if(shouldHunt&&!this.huntThresholdActive){
         this.huntThresholdActive=true;
         this.huntTargetIndex=human.index;
         this.huntUntil=Infinity;
-        this.emit({t:'hunt',name:human.name,duration:0});
+        const cpuIndices=[];
+        for(const cpu of cpuPlayers){cpu.bullets+=5;cpuIndices.push(cpu.index);}
+        this.emit({t:'hunt',name:human.name,duration:0,cpuAmmo:true,cpuIndices});
       }else if(!shouldHunt&&this.huntThresholdActive){
         this.huntThresholdActive=false;
         this.huntUntil=0;
