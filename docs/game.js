@@ -201,6 +201,10 @@
   let mobileControlMode='motion';
   try{if(localStorage.getItem(MOBILE_CONTROL_KEY)==='buttons')mobileControlMode='buttons';}catch(_){}
   let mobileButtonTurn=0;
+  let mobileLeftHeldSince=0,mobileRightHeldSince=0;
+  const MOBILE_TURN_START=0.42;
+  const MOBILE_TURN_MAX=1.0;
+  const MOBILE_TURN_RAMP_MS=320;
   let mobileKeyboardActive=false;
   const MOBILE_KEYBOARD_CODES=new Set(['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp','Space','ControlLeft','ControlRight']);
   const mobileLeftPointers=new Set(),mobileRightPointers=new Set();
@@ -499,7 +503,7 @@
     if(!isMobile)return;
     mobileControlMode=mode==='buttons'?'buttons':'motion';
     try{localStorage.setItem(MOBILE_CONTROL_KEY,mobileControlMode);}catch(_){}
-    mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
+    mobileButtonTurn=0;mobileLeftHeldSince=0;mobileRightHeldSince=0;mobileLeftPointers.clear();mobileRightPointers.clear();
     if(mobileTurnLeft)mobileTurnLeft.classList.remove('active');
     if(mobileTurnRight)mobileTurnRight.classList.remove('active');
     resetMobileTouchControls();
@@ -507,8 +511,17 @@
     if(mobileControlMode==='motion'&&requestMotion&&!motionEnabled)await enableMobileMotion();
     if(mobileControlMode==='motion')calibrateMobileMotion();
   }
+  function mobileButtonTurnAt(now){
+    const leftOn=mobileLeftPointers.size>0,rightOn=mobileRightPointers.size>0;
+    if(leftOn===rightOn)return 0;
+    const since=leftOn?mobileLeftHeldSince:mobileRightHeldSince;
+    const elapsed=since?Math.max(0,now-since):0;
+    const t=clamp(elapsed/MOBILE_TURN_RAMP_MS,0,1);
+    const strength=MOBILE_TURN_START+(MOBILE_TURN_MAX-MOBILE_TURN_START)*t;
+    return leftOn?strength:-strength;
+  }
   function updateMobileButtonTurn(){
-    mobileButtonTurn=(mobileLeftPointers.size?1:0)-(mobileRightPointers.size?1:0);
+    mobileButtonTurn=mobileButtonTurnAt(performance.now());
     if(mobileTurnLeft)mobileTurnLeft.classList.toggle('active',mobileLeftPointers.size>0);
     if(mobileTurnRight)mobileTurnRight.classList.toggle('active',mobileRightPointers.size>0);
   }
@@ -522,17 +535,37 @@
         lastControlTurn=0;
         setMobileKeyboardActive(false);
       }
-      pointers.add(e.pointerId);updateMobileButtonTurn();
+      const wasEmpty=pointers.size===0;
+      pointers.add(e.pointerId);
+      if(wasEmpty){
+        if(pointers===mobileLeftPointers)mobileLeftHeldSince=performance.now();
+        else if(pointers===mobileRightPointers)mobileRightHeldSince=performance.now();
+      }
+      updateMobileButtonTurn();
       try{button.setPointerCapture&&button.setPointerCapture(e.pointerId);}catch(_){}
       e.preventDefault();e.stopPropagation();
     },{passive:false});
     const release=e=>{
-      if(pointers.delete(e.pointerId))updateMobileButtonTurn();
+      if(pointers.delete(e.pointerId)){
+        if(pointers.size===0){
+          if(pointers===mobileLeftPointers)mobileLeftHeldSince=0;
+          else if(pointers===mobileRightPointers)mobileRightHeldSince=0;
+        }
+        updateMobileButtonTurn();
+      }
       e.preventDefault();e.stopPropagation();
     };
     button.addEventListener('pointerup',release,{passive:false});
     button.addEventListener('pointercancel',release,{passive:false});
-    button.addEventListener('lostpointercapture',e=>{if(pointers.delete(e.pointerId))updateMobileButtonTurn();});
+    button.addEventListener('lostpointercapture',e=>{
+      if(pointers.delete(e.pointerId)){
+        if(pointers.size===0){
+          if(pointers===mobileLeftPointers)mobileLeftHeldSince=0;
+          else if(pointers===mobileRightPointers)mobileRightHeldSince=0;
+        }
+        updateMobileButtonTurn();
+      }
+    });
   }
   updateMobileControlUi();
 
@@ -621,7 +654,7 @@
     touchGestures.clear();
     clearTimeout(mobileFireTimer);mobileFireTimer=null;
     mobileFire=false;mobileThrust=false;
-    mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
+    mobileButtonTurn=0;mobileLeftHeldSince=0;mobileRightHeldSince=0;mobileLeftPointers.clear();mobileRightPointers.clear();
     if(mobileTurnLeft)mobileTurnLeft.classList.remove('active');
     if(mobileTurnRight)mobileTurnRight.classList.remove('active');
     refreshTouchControls();
@@ -922,7 +955,7 @@
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
     const rawTurn=isMobile
-      ?(mobileKeyboardActive?keyboardTurn:(mobileControlMode==='buttons'?mobileButtonTurn:(motionEnabled?motionTurn:0)))
+      ?(mobileKeyboardActive?keyboardTurn:(mobileControlMode==='buttons'?mobileButtonTurnAt(now):(motionEnabled?motionTurn:0)))
       :keyboardTurn;
     // El sensor tiene un poco de ruido incluso con el telefono quieto. Redondear
     // a pasos de 1/64 evita JSON/WebSocket innecesarios sin alterar el tacto.
