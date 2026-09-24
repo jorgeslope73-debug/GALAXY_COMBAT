@@ -286,3 +286,13 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   #mobileControls.button-mode .mobile-turn-pad{gap:24px}
   #mobileControls.button-mode .mobile-action-zone span{opacity:.68}
 }
+
+
+/* V18.52: al detectar teclado fisico en iPad, ocultar los controles tactiles de pilotaje. */
+@media (pointer:coarse),(max-width:900px){
+  #mobileControls.keyboard-mode .mobile-turn-pad,
+  #mobileControls.keyboard-mode .mobile-action-zone{
+    display:none!important;
+    pointer-events:none!important;
+  }
+}
