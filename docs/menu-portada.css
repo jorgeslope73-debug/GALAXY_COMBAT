@@ -1488,3 +1488,59 @@ html.handheld-device #menu .cpu-setup-dialog:not(.hidden){display:flex}
 @media (prefers-reduced-motion:reduce){
   #menu .register-score-main{animation:none}
 }
+
+
+/* V18.47: selector ROTACIÓN / BOTONES solo en dispositivos moviles. */
+#menu .mobile-control-choice{display:none}
+@media (pointer:coarse),(max-width:900px){
+  #menu .menu-control-tools{
+    flex-wrap:wrap;
+    width:min(100%,430px)!important;
+  }
+  #menu .mobile-control-choice{
+    order:1;
+    display:flex;
+    flex:1 1 220px;
+    min-width:0;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+  }
+  #menu .mobile-control-choice-label{
+    color:#d8c7e3;
+    font:800 9px/1 Arial,Helvetica,sans-serif;
+    letter-spacing:.04em;
+    white-space:nowrap;
+  }
+  #menu .mobile-control-choice-buttons{
+    display:flex;
+    gap:4px;
+    padding:3px;
+    border:1px solid rgba(187,135,227,.28);
+    border-radius:999px;
+    background:rgba(5,3,12,.48);
+  }
+  #menu .mobile-control-choice button{
+    width:auto!important;
+    min-width:78px!important;
+    height:32px!important;
+    min-height:32px!important;
+    margin:0!important;
+    padding:4px 10px!important;
+    border:1px solid transparent!important;
+    border-radius:999px!important;
+    background:transparent!important;
+    color:#cdbbd8!important;
+    box-shadow:none!important;
+    font:800 10px/1 Arial,Helvetica,sans-serif!important;
+    letter-spacing:.025em!important;
+    white-space:nowrap!important;
+  }
+  #menu .mobile-control-choice button.active{
+    border-color:rgba(215,181,243,.56)!important;
+    background:rgba(102,51,139,.76)!important;
+    color:#fff!important;
+    box-shadow:0 0 12px rgba(175,93,229,.20)!important;
+  }
+  #menu .menu-control-tools .voice-setup{order:2!important}
+}
