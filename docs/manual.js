@@ -56,6 +56,7 @@
           'Si te registras, tu nombre queda reservado solo para ti y tus partidas válidas cuentan para el ranking.',
           'Para jugar online, escribe tu nombre y espera a que aparezca SERVIDOR CONECTADO. Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.',
           'Para entrar en una partida, pulsa UNIRSE. Elige una sala pública o escribe el código de una sala privada.',
+          'Si una partida ya está en marcha con CPUs de relleno y queda alguna plaza CPU, también puedes entrar: sustituyes una CPU sin reiniciar la partida y comienzas con 0 bajas, 5 balas y mejoras a cero.',
           'En la sala podrás ver a los jugadores, usar el chat y activar la voz. El anfitrión pulsa EMPEZAR cuando todos estén listos.',
           'La voz funciona directamente dentro de la partida. Actívala desde el menú y mantén pulsado el control para hablar.',
           'Si pierdes la conexión durante unos segundos, el juego intenta devolverte a la misma partida automáticamente.'
@@ -105,6 +106,7 @@
         {id:'online',title:'10. Online, rooms, chat and voice',body:[
           'To create an online game, first enter your name and wait until the server status says it is ready. Then press CREATE GAME. Choose PUBLIC so the room appears in the public list, or PRIVATE so it can only be opened with its 4-character code.',
           'To join a game, press JOIN. You will see available public rooms with the flag of the language in which each room was created. Press JOIN on the room you want, or enter a 4-character code below for a private room.',
+          'A match already in progress can remain joinable when it uses CPU fill. If a CPU slot is free, you replace that CPU without restarting the match and enter with 0 kills, 5 bullets and no upgrades.',
           'After joining a room you enter the lobby. There you can see connected players, use text chat and enable voice. The host presses START when enough players are ready.',
           'Voice uses WebRTC. STUN handles many direct connections and TURN can provide a fallback route when configured. With up to four players, voice uses a P2P mesh.',
           'If the WebSocket drops during a match, the server keeps your slot for about 30 seconds and automatically tries to restore the same ship, score, ammo and upgrades.'
@@ -142,6 +144,7 @@
         {id:'online',title:'10. Online, stanze, chat e voce',body:[
           'Per creare una partita online, inserisci prima il tuo nome e aspetta che lo stato del server indichi che è pronto. Poi premi CREA PARTITA. Scegli PUBBLICA per farla comparire nell elenco oppure PRIVATA per permettere l accesso solo tramite il codice di 4 caratteri.',
           'Per entrare in una partita, premi ENTRA. Vedrai le stanze pubbliche disponibili con la bandiera della lingua in cui sono state create. Premi ENTRA sulla stanza desiderata oppure inserisci in basso il codice di 4 caratteri di una stanza privata.',
+          'Una partita già iniziata può restare accessibile se usa CPU di riempimento. Se c è un posto CPU libero, sostituisci quella CPU senza riavviare la partita ed entri con 0 eliminazioni, 5 proiettili e nessun potenziamento.',
           'Dopo l ingresso passerai alla lobby. Qui vedrai i giocatori connessi, potrai usare la chat e attivare la voce. L host preme INIZIA quando ci sono abbastanza giocatori.',
           'La voce usa WebRTC: STUN gestisce molte connessioni dirette e TURN può fornire una via di riserva quando configurato. Con massimo quattro giocatori si usa una mesh P2P.',
           'Se il WebSocket cade durante la partita, il server conserva il posto per circa 30 secondi e tenta di recuperare automaticamente la stessa nave, punteggio, munizioni e potenziamenti.'
@@ -179,6 +182,7 @@
         {id:'online',title:'10. En ligne, salles, chat et voix',body:[
           'Pour créer une partie en ligne, saisis d abord ton nom et attends que le serveur indique qu il est prêt. Appuie ensuite sur CRÉER UNE PARTIE. Choisis PUBLIQUE pour apparaître dans la liste ou PRIVÉE pour autoriser uniquement l accès par code à 4 caractères.',
           'Pour rejoindre une partie, appuie sur REJOINDRE. Tu verras les salles publiques disponibles avec le drapeau de la langue dans laquelle elles ont été créées. Appuie sur REJOINDRE pour la salle souhaitée ou saisis un code à 4 caractères pour une salle privée.',
+          'Une partie déjà commencée peut rester accessible si elle utilise des CPU de remplissage. S il reste une place CPU, tu la remplaces sans redémarrer la partie et tu arrives avec 0 élimination, 5 balles et aucune amélioration.',
           'Une fois dans la salle, tu arrives dans le lobby. Tu y vois les joueurs connectés, peux utiliser le chat texte et activer la voix. L hôte appuie sur DÉMARRER quand il y a assez de joueurs.',
           'La voix utilise WebRTC. STUN permet de nombreuses connexions directes et TURN peut servir de route de secours. Jusqu à quatre joueurs utilisent un maillage P2P.',
           'Si le WebSocket tombe pendant une partie, le serveur conserve ta place environ 30 secondes et tente de récupérer automatiquement le même vaisseau, score, munitions et améliorations.'
@@ -216,6 +220,7 @@
         {id:'online',title:'10. Online, Räume, Chat und Sprache',body:[
           'Um ein Online-Spiel zu erstellen, gib zuerst deinen Namen ein und warte, bis der Server als bereit angezeigt wird. Drücke dann SPIEL ERSTELLEN. Wähle ÖFFENTLICH, damit der Raum in der Liste erscheint, oder PRIVAT, damit er nur mit dem 4-stelligen Code geöffnet werden kann.',
           'Um einem Spiel beizutreten, drücke BEITRETEN. Du siehst verfügbare öffentliche Räume mit der Flagge der Sprache, in der sie erstellt wurden. Drücke BEITRETEN beim gewünschten Raum oder gib unten den 4-stelligen Code eines privaten Raums ein.',
+          'Ein bereits laufendes Spiel kann weiterhin beitretbar sein, wenn CPU-Auffüllung aktiv ist. Ist ein CPU-Platz frei, ersetzt du diese CPU ohne Neustart und steigst mit 0 Abschüssen, 5 Schüssen und ohne Verbesserungen ein.',
           'Nach dem Beitritt gelangst du in die Lobby. Dort siehst du verbundene Spieler, kannst den Textchat nutzen und Sprache aktivieren. Der Host drückt STARTEN, sobald genug Spieler bereit sind.',
           'Sprache nutzt WebRTC. STUN ermöglicht viele Direktverbindungen und TURN kann als Ausweichroute dienen. Bis zu vier Spieler nutzen ein P2P-Mesh.',
           'Fällt der WebSocket während einer Partie aus, hält der Server deinen Platz etwa 30 Sekunden frei und versucht automatisch dasselbe Schiff, Punktestand, Munition und Verbesserungen wiederherzustellen.'
