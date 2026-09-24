@@ -110,6 +110,7 @@
       this.onState=typeof onState==='function'?onState:()=>{};
       this.onEvent=typeof onEvent==='function'?onEvent:()=>{};
       this.code=String(code||'P2P');
+      this.rankRound=Math.max(1,Number(rankRound)||1);
       this.rankReportSent=false;
       this.players=[];
       this.controls=new Map();
@@ -271,10 +272,11 @@
         this.placeAtSpawn(p);p.dead=false;
       }
       this.started=true;this.lastNow=0;this.accumulator=0;this.tickCount=0;
+      this.rankRound=Math.max(1,Number(this.rankRound)||1)+1;
       return true;
     }
     reportRankedVictory(winnerIndex){
-      if(this.rankReportSent||this.code==='LOCAL'||this.players.some(p=>p.cpu))return;
+      if(this.rankReportSent||this.code==='LOCAL')return;
       this.rankReportSent=true;
       try{
         const auth=window.GalaxyAuth;
@@ -284,7 +286,7 @@
         fetch(base+'/api/rank-result',{
           method:'POST',
           headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-          body:JSON.stringify({roomCode:this.code,winnerIndex:Number(winnerIndex)}),
+          body:JSON.stringify({roomCode:this.code,winnerIndex:Number(winnerIndex),rankRound:this.rankRound}),
           cache:'no-store',keepalive:true
         }).catch(err=>console.warn('[Galaxy Combat] No se pudo registrar el resultado:',err&&err.message||err));
       }catch(err){console.warn('[Galaxy Combat] Error enviando resultado:',err&&err.message||err);}
