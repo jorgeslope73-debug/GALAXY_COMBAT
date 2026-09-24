@@ -249,12 +249,24 @@ function normalizeCpuBrain(raw){
   return out;
 }
 function cpuEntryScore(e){return e&&e.samples?e.total/e.samples:0;}
+function summarizeCpuDeltas(deltas){
+  let appliedDeltas=0,sampleUses=0;
+  for(const d of (Array.isArray(deltas)?deltas:[]).slice(0,24)){
+    const context=safeCpuContext(d&&d.context),action=String(d&&d.action||'');
+    if(!context||!CPU_ACTIONS.has(action))continue;
+    const uses=Math.max(1,Math.min(4,Math.round(Number(d.uses)||1)));
+    appliedDeltas++;sampleUses+=uses;
+  }
+  return{appliedDeltas,sampleUses};
+}
 function mergeCpuBrain(rawBrain,deltas){
   const brain=normalizeCpuBrain(rawBrain);
   const valid=(Array.isArray(deltas)?deltas:[]).slice(0,24);
+  let applied=0;
   for(const d of valid){
     const context=safeCpuContext(d&&d.context),action=String(d&&d.action||'');
     if(!context||!CPU_ACTIONS.has(action))continue;
+    applied++;
     const reward=Math.max(-2,Math.min(2,Number(d.reward)||0));
     const uses=Math.max(1,Math.min(4,Math.round(Number(d.uses)||1)));
     let e=brain.strategies.find(x=>x.context===context&&x.action===action);
@@ -289,7 +301,7 @@ function mergeCpuBrain(rawBrain,deltas){
       }
     }
   }
-  brain.version=Math.max(1,Number(brain.version)||1)+1;
+  if(applied>0)brain.version=Math.max(1,Number(brain.version)||1)+1;
   while(Buffer.byteLength(JSON.stringify(brain),'utf8')>CPU_BRAIN_MAX_BYTES&&brain.candidates.length)brain.candidates.shift();
   while(Buffer.byteLength(JSON.stringify(brain),'utf8')>CPU_BRAIN_MAX_BYTES&&brain.strategies.length>8)brain.strategies.shift();
   return brain;
@@ -347,6 +359,7 @@ async function authApi(req,res,url){
     const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
     let body;try{body=await readJsonBody(req,16384);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
     const deltas=Array.isArray(body&&body.deltas)?body.deltas:[];
+    const learning=summarizeCpuDeltas(deltas);
     const client=await db.connect();
     try{
       await client.query('BEGIN');
@@ -360,6 +373,9 @@ async function authApi(req,res,url){
       await client.query('COMMIT');
       sendJson(res,200,{
         ok:true,
+        learned:learning.appliedDeltas>0,
+        appliedDeltas:learning.appliedDeltas,
+        sampleUses:learning.sampleUses,
         version:brain.version,
         bytes,
         trainingMatches:Number(stat.rows[0]&&stat.rows[0].matches)||0,
@@ -373,8 +389,12 @@ async function authApi(req,res,url){
     return true;
   }
   if(url==='/api/cpu-brain'&&req.method==='GET'){
-    const {rows}=await db.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 LIMIT 1');
+    const [{rows},{rows:trainingRows}]=await Promise.all([
+      db.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 LIMIT 1'),
+      db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1')
+    ]);
     const row=rows[0]||{version:1,brain:{version:1,strategies:[],candidates:[]},updated_at:null};
+    const training=trainingRows[0]||{matches:0,updated_at:null};
     const brain=normalizeCpuBrain(row.brain);
     const bytes=Buffer.byteLength(JSON.stringify(brain),'utf8');
     sendJson(res,200,{
@@ -383,6 +403,7 @@ async function authApi(req,res,url){
       updatedAt:row.updated_at||null,
       bytes,
       maxBytes:CPU_BRAIN_MAX_BYTES,
+      training:{matches:Number(training.matches)||0,updatedAt:training.updated_at||null},
       brain:{version:brain.version,strategies:brain.strategies,candidates:brain.candidates}
     });
     return true;
