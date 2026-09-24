@@ -10,7 +10,7 @@
 :root{color-scheme:dark;--bg:#060813;--panel:#101526;--line:#283451;--text:#eef6ff;--muted:#92a4bf;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#16243e 0,#070914 42%,#03050a 100%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
 main{max-width:1280px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
-h1{margin:0;font-size:clamp(24px,4vw,40px)}.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:18px 0}
+h1{margin:0;font-size:clamp(24px,4vw,40px)}.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:18px 0}
 .card,.panel{background:rgba(16,21,38,.92);border:1px solid var(--line);border-radius:14px;padding:14px}.label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.value{font-size:25px;font-weight:800;margin-top:4px}
 .panel{margin-top:12px}.controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}button,select,a{border:1px solid #4a5d7f;border-radius:9px;background:#151d31;color:#fff;padding:9px 13px;font-weight:700;text-decoration:none}
 button{cursor:pointer}.ok{color:#72f2ad}.bad{color:#ff8295}.access-row{display:flex;gap:8px;justify-content:center;max-width:520px;margin:18px auto 0}.access-row input{flex:1;min-width:0;border:1px solid #4a5d7f;border-radius:9px;background:#0b1120;color:#fff;padding:10px 12px;font:600 16px Arial}.canvas-wrap{position:relative;background:#030610;border:1px solid var(--line);border-radius:12px;overflow:hidden}
@@ -41,6 +41,8 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
       <div class="card"><div class="label">Brain</div><div id="brainVersion" class="value">—</div></div>
       <div class="card"><div class="label">Entrenadas total</div><div id="totalMatches" class="value">0</div></div>
       <div class="card"><div class="label">Esta sesión</div><div id="sessionMatches" class="value">0</div></div>
+      <div class="card"><div class="label">Deltas última</div><div id="lastDeltas" class="value">0</div></div>
+      <div class="card"><div class="label">Muestras añadidas</div><div id="lastSamples" class="value">0</div></div>
       <div class="card"><div class="label">Velocidad</div><div id="speedValue" class="value">x15</div></div>
     </div>
 
@@ -130,14 +132,20 @@ async function finishMatch(winner){
     $('sessionMatches').textContent=sessionCount;
     $('totalMatches').textContent=d.trainingMatches||0;
     $('brainVersion').textContent=d.version||'—';
+    $('lastDeltas').textContent=Number(d.appliedDeltas)||0;
+    $('lastSamples').textContent='+'+(Number(d.sampleUses)||0);
     sim.brain=d.brain||sim.brain;
     pendingDeltas=[];
     sim.restart();
     state=sim.publicState();
-    log('Aprendizaje guardado · brain '+(d.version||'—')+'.');
+    if(d.learned){
+      log('Aprendizaje guardado · brain '+(d.version||'—')+' · '+(Number(d.appliedDeltas)||0)+' deltas · +'+(Number(d.sampleUses)||0)+' muestras.');
+    }else{
+      log('Partida terminada SIN deltas válidos: el brain no cambió.');
+    }
     running=true;
-    $('status').textContent='ENTRENANDO · 4 CPU';
-    $('status').className='ok';
+    $('status').textContent=d.learned?'ENTRENANDO · 4 CPU':'ENTRENANDO · ÚLTIMA SIN APRENDIZAJE';
+    $('status').className=d.learned?'ok':'bad';
   }catch(e){
     log('ERROR guardando aprendizaje: '+e.message);
     $('status').textContent='PAUSADO POR ERROR';
