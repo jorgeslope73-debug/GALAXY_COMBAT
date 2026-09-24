@@ -6,6 +6,14 @@
 - Si detecta una regresion real de `seq`, limpia automaticamente IDs antiguos para aceptar inmediatamente los nuevos efectos.
 - No cambia fisicas, dano, red ni duracion de las explosiones.
 
+## Estado actual - V18.29
+
+- El frontend publicado vive en `docs/`.
+- Render ejecuta `server/p2p-server.js` mediante `server/package.json`. `server/server.js` queda como referencia de la arquitectura anterior y no es el proceso desplegado.
+- Las salas P2P reservan durante 30 segundos la plaza de un jugador que pierde el WebSocket. El cliente recibe un `playerToken` privado y puede reengancharse a la misma sala.
+- Si se reconecta un jugador no anfitrion, el host rehace ese enlace WebRTC. Si se recarga por completo el navegador del anfitrion durante una partida, la fisica local no puede reconstruirse exactamente y la sesion se cierra de forma limpia.
+- La municion inicial real y documentada es de 5 balas.
+
 # Galaxy Combat Web
 
 Repositorio preparado para separar el juego web del servidor de partidas.
