@@ -3,7 +3,7 @@
   margin:8px auto 0;min-height:38px;
   font-family:'Flashback',Arial,sans-serif;
 }
-#enableVoice,#enableAudio{
+#enableVoice,#enableAudio,#lobbyEnableVoice,#lobbyEnableAudio{
   width:auto!important;min-width:0!important;max-width:max-content!important;
   flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
   height:30px!important;min-height:30px!important;padding:0 9px!important;border-radius:4px!important;
@@ -13,16 +13,16 @@
   font-family:'Flashback',Arial,sans-serif!important;font-size:10px!important;letter-spacing:.055em!important;
   cursor:pointer!important;box-shadow:0 0 8px rgba(0,0,0,.32)!important;white-space:nowrap!important;
 }
-#enableVoice:hover:not(.active),#enableAudio:hover:not(.active){
+#enableVoice:hover:not(.active),#enableAudio:hover:not(.active),#lobbyEnableVoice:hover:not(.active),#lobbyEnableAudio:hover:not(.active){
   background:#3a3a3f!important;border-color:rgba(190,190,198,.68)!important;
 }
-#enableVoice.active{
+#enableVoice.active,#lobbyEnableVoice.active{
   background:rgba(99,34,154,.88)!important;
   border-color:#d1a8ff!important;
   color:#f4eaff!important;
   box-shadow:0 0 20px rgba(178,103,255,.42)!important;
 }
-#enableAudio.active{
+#enableAudio.active,#lobbyEnableAudio.active{
   background:rgba(24,105,70,.88)!important;
   border-color:#8dffb0!important;
   color:#eafff0!important;
@@ -51,8 +51,19 @@
 .voice-ptt:active{transform:translateX(-50%)}
 @media (pointer:fine){.voice-ptt{display:none!important}}
 @media (max-width:760px){
-  .voice-setup{gap:7px;margin-top:4px}#enableVoice,#enableAudio{font-size:9px!important;height:28px!important;min-height:28px!important;padding:0 8px!important}.voice-status{font-size:8px}
+  .voice-setup{gap:7px;margin-top:4px}#enableVoice,#enableAudio,#lobbyEnableVoice,#lobbyEnableAudio{font-size:9px!important;height:28px!important;min-height:28px!important;padding:0 8px!important}.voice-status{font-size:8px}
 }
+
+.shared-lobby-media-controls{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  min-width:0;margin:0;
+}
+.shared-lobby-media-controls.hidden{display:none!important}
+#lobby .shared-lobby-media-controls button{
+  width:auto!important;min-width:0!important;max-width:max-content!important;
+  flex:0 0 auto!important;margin:0!important;
+}
+
 
 /* En movil, los textos tactiles quedan discretos para no tapar la partida. */
 @media (pointer:coarse){

@@ -23,9 +23,10 @@
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),fillCpuBtn=document.getElementById('fillCpu'),waitingPlayersEl=document.getElementById('waitingPlayers'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
+  const sharedLobbyMediaControls=document.getElementById('sharedLobbyMediaControls');
   const shareGameBtn=document.getElementById('shareGame'),shareRoomBtn=document.getElementById('shareRoom'),shareToast=document.getElementById('shareToast');
   const sharedRoomCode=String(new URLSearchParams(location.search).get('room')||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
-  let sharedRoomJoinStarted=false;
+  let sharedRoomJoinStarted=false,joinedViaSharedRoom=false;
   let shareToastTimer=null;
   const serverWait=document.getElementById('serverWait'),serverWaitText=document.getElementById('serverWaitText');
   const roomTypeDialog=document.getElementById('roomTypeDialog'),publicRoomsDialog=document.getElementById('publicRoomsDialog'),publicRoomsList=document.getElementById('publicRoomsList'),joinCodeDialog=document.getElementById('joinCodeDialog');
@@ -136,6 +137,8 @@
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const cpuButton=document.getElementById('cpu');
   const audioToggleButton=document.getElementById('enableAudio');
+  const lobbyAudioToggleButton=document.getElementById('lobbyEnableAudio');
+  const audioToggleButtons=[audioToggleButton,lobbyAudioToggleButton].filter(Boolean);
   const serverButtons=['create','join'].map(id=>document.getElementById(id));
   if(cpuButton)cpuButton.disabled=false;
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
@@ -570,10 +573,16 @@
     return audioUnlocked;
   }
   function updateAudioButton(){
-    if(!audioToggleButton)return;
-    audioToggleButton.classList.toggle('active',gameAudioEnabled);
-    audioToggleButton.setAttribute('aria-pressed',gameAudioEnabled?'true':'false');
-    audioToggleButton.textContent=gameAudioEnabled?'AUDIO ACTIVO':'AUDIO DESACTIVADO';
+    for(const button of audioToggleButtons){
+      button.classList.toggle('active',gameAudioEnabled);
+      button.setAttribute('aria-pressed',gameAudioEnabled?'true':'false');
+      button.textContent=gameAudioEnabled?'AUDIO ACTIVO':'AUDIO DESACTIVADO';
+    }
+  }
+  function setSharedLobbyMediaControls(show){
+    if(sharedLobbyMediaControls)sharedLobbyMediaControls.classList.toggle('hidden',!show);
+    updateAudioButton();
+    if(voice&&typeof voice.refreshUI==='function')voice.refreshUI();
   }
   function toggleGameAudio(){
     gameAudioEnabled=!gameAudioEnabled;
@@ -1336,16 +1345,19 @@
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';
+      joinedViaSharedRoom=!!(m.t==='joined'&&sharedRoomJoinStarted&&sharedRoomCode&&String(m.code||'')===sharedRoomCode);
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
       cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
       saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players||(m.cpu?2:1));
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(Array.isArray(m.players))syncVoicePlayers(m.players,true);}
       roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');
+      setSharedLobbyMediaControls(joinedViaSharedRoom&&!m.cpu&&!m.started);
       if(m.started){lobby.classList.add('hidden');beginGame();}
       else if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
       roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;
+      joinedViaSharedRoom=!!(sharedRoomCode&&roomCode===sharedRoomCode);
       if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
       updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
@@ -1355,6 +1367,7 @@
         alert(sinTildes(tr('resumeFailed')));
         send({t:'leave'});returnToMainMenu(false);return;
       }
+      setSharedLobbyMediaControls(joinedViaSharedRoom&&!m.cpu&&!m.started);
       if(m.started){lobby.classList.add('hidden');if(!inGame)beginGame();}
       else if(!m.cpu){lobby.classList.remove('hidden');}
     }
@@ -1446,11 +1459,11 @@
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
     else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
-    else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
+    else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;joinedViaSharedRoom=false;setSharedLobbyMediaControls(false);statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();if(isMobile&&mobileControlMode==='motion'&&!mobileKeyboardActive)calibrateMobileMotion();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function beginGame(){setSharedLobbyMediaControls(false);stopMusic();if(isMobile&&mobileControlMode==='motion'&&!mobileKeyboardActive)calibrateMobileMotion();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
   function queueVictory(i){
     pendingVictoryIndex=Number(i);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;
@@ -1506,7 +1519,8 @@
   menu.addEventListener('touchstart',unlockAudioFromUserGesture,{passive:true});
   menu.addEventListener('click',unlockAudioFromUserGesture);
   menu.addEventListener('keydown',unlockAudioFromUserGesture);
-  if(audioToggleButton){updateAudioButton();audioToggleButton.addEventListener('click',toggleGameAudio);}
+  updateAudioButton();
+  for(const button of audioToggleButtons)button.addEventListener('click',toggleGameAudio);
 
   if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
   if(shareRoomBtn)shareRoomBtn.addEventListener('click',shareCurrentRoom);
@@ -1556,6 +1570,7 @@
   });
   function returnToMainMenu(notifyServer=true){
     if(!sharedRoomCode)sharedRoomJoinStarted=false;
+    joinedViaSharedRoom=false;setSharedLobbyMediaControls(false);
     invisibleHudUntil.fill(0);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
     victory.classList.remove('winner-celebration');
