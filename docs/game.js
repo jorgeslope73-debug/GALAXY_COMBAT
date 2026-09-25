@@ -109,7 +109,11 @@
           const hz=1000/(displaySampleTotal/displaySampleCount);
           if(Number.isFinite(hz)&&hz>=40&&hz<=360){
             measuredRefreshHz=hz;
-            const next=hz>=118?Math.max(2,Math.round(hz/75)):1;
+            // Divisor entero para un ritmo perfectamente regular. 120 -> 60,
+            // 144 -> 72, 165 -> 55, 180 -> 60, 240 -> 60. Evitamos el caso
+            // anterior de 165 Hz -> 82,5 FPS, que cargaba el Canvas sin aportar
+            // fluidez real a una simulacion de 60 Hz.
+            const next=hz>=118?Math.max(2,Math.ceil(hz/72)):1;
             renderDivisor=Math.max(1,next);
           }
           displaySampleTotal=0;displaySampleCount=0;
@@ -331,6 +335,33 @@
     images[k]=im;
   }
 
+  let rendererWarmed=false;
+  function warmRendererCaches(){
+    if(rendererWarmed)return;
+    rendererWarmed=true;
+    // Fuerza durante el menu las primeras subidas de texturas y rutas costosas
+    // de Canvas (fuente, shadow blur y modos screen/lighter). Asi no aparecen
+    // como compilacion/transferencia puntual durante los primeros disparos.
+    try{
+      const c=document.createElement('canvas');c.width=256;c.height=256;
+      const g=c.getContext('2d',{alpha:true});
+      if(!g)return;
+      let x=0,y=0;
+      for(const im of Object.values(images)){
+        if(!imageReady(im))continue;
+        try{g.drawImage(im,x,y,32,32);}catch(_){}
+        x+=34;if(x>220){x=0;y+=34;if(y>200)y=0;}
+      }
+      g.font='20px Flashback,Arial';
+      g.fillStyle='#fff';g.fillText('GALAXY 0123456789',4,238);
+      g.shadowColor='rgba(90,225,255,.95)';g.shadowBlur=48;
+      g.fillText('READY',120,238);
+      g.shadowBlur=0;
+      g.globalCompositeOperation='screen';g.fillRect(0,0,8,8);
+      g.globalCompositeOperation='lighter';g.fillRect(10,0,8,8);
+      g.globalCompositeOperation='source-over';
+    }catch(_){}
+  }
   let gameAssetsReady=false,gameAssetsPromise=null,gameAssetsIdleHandle=0;
   function prepareGameAssets(){
     if(gameAssetsReady)return Promise.resolve(true);
@@ -345,6 +376,7 @@
       // Construye la cache grande del fondo mientras aun estamos en menu/lobby,
       // no durante los primeros frames de la partida.
       updateCanvasResolution();
+      warmRendererCaches();
       gameAssetsReady=true;
       return true;
     });
