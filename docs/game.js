@@ -287,10 +287,19 @@
   for(const [k,url] of Object.entries(assetList)){
     const im=new Image();
     im.decoding='async';
+    // El fondo, HUD y naves son lo primero que necesita la partida. Los assets
+    // raros pueden esperar sin competir con la entrada al juego.
+    if('fetchPriority' in im)im.fetchPriority=(k==='bg'||k.startsWith('ship')||k.startsWith('pant'))?'high':'low';
     im.onerror=()=>reportImageFailure(im);
     im.onload=()=>{
-      if(typeof im.decode==='function')im.decode().catch(()=>{});
-      if(k==='bg'){backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;rebuildBackgroundCache();}
+      const decoded=typeof im.decode==='function'?im.decode().catch(()=>{}):Promise.resolve();
+      if(k==='bg')decoded.then(()=>{
+        backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
+        // El canvas ya se dimensiona al cargar la pagina. Tras decodificar el
+        // fondo reconstruimos la cache en el siguiente frame, evitando que
+        // drawImage fuerce una decodificacion sincrona en mitad del arranque.
+        scheduleCanvasResolution();
+      });
     };
     im.src=url;
     images[k]=im;
@@ -302,28 +311,29 @@
     pickup:{url:'assets/sonido/carga3.wav?v='+AUDIO_ASSET_VERSION,size:3,volume:.75},
     start:{url:'assets/sonido/inicio.wav?v='+AUDIO_ASSET_VERSION,size:1,volume:.75}
   };
-  // V2: sin slider de volumen. Usamos un nivel fijo para evitar que un valor
-  // antiguo guardado en localStorage pueda dejar el juego mudo en el movil.
+  // En movil usamos Web Audio. Detectarlo ANTES de crear pools evita mantener
+  // a la vez decenas de <audio> precargando los mismos ficheros.
+  const AudioContextCtor=window.AudioContext||window.webkitAudioContext;
+  const useWebAudio=!!(isMobile&&AudioContextCtor);
   const gameVolume=isMobile?0.45:0.75;
   let gameAudioEnabled=true,audioUnlocked=false;
   const soundPools={};
-  for(const [key,def] of Object.entries(soundDefs)){
-    const items=[];
-    for(let i=0;i<def.size;i++){
-      const a=new Audio(def.url);a.preload='auto';a.volume=def.volume*gameVolume;items.push(a);
+  if(!useWebAudio){
+    for(const [key,def] of Object.entries(soundDefs)){
+      const items=[];
+      for(let i=0;i<def.size;i++){
+        const a=new Audio(def.url);a.preload='auto';a.volume=def.volume*gameVolume;items.push(a);
+      }
+      soundPools[key]={items,next:0};
     }
-    soundPools[key]={items,next:0};
+    sounds.music=new Audio('assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION);
+    sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
+  }else{
+    sounds.music=null;
   }
-  sounds.music=new Audio('assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION);sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
 
-  // En iPhone/iPad usamos Web Audio para musica y efectos. Safari/iOS puede
-  // silenciar o interrumpir elementos <audio> aunque el usuario haya tocado
-  // la pantalla, especialmente en modo PWA. Un AudioContext reanudado desde
-  // el gesto del usuario es mucho mas fiable para un juego.
-  const AudioContextCtor=window.AudioContext||window.webkitAudioContext;
-  const useWebAudio=!!(isMobile&&AudioContextCtor);
   let audioCtx=null,masterGain=null,fxGain=null,musicGain=null;
-  let webAudioLoadPromise=null,webMusicSource=null;
+  let webAudioLoadPromise=null,webMusicLoadPromise=null,webMusicSource=null,webMusicIdleHandle=0;
   const webAudioBuffers={};
 
   function ensureAudioContext(){
@@ -351,10 +361,11 @@
     if(!ctx)return false;
     if(webAudioLoadPromise)return webAudioLoadPromise;
     webAudioLoadPromise=(async()=>{
-      const entries=[...Object.entries(soundDefs).map(([key,def])=>[key,def.url]),['music','assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION]];
-      for(const [key,url] of entries){
+      // Solo efectos de juego (~0,5 MB). La musica (~2,9 MB) se decodifica
+      // aparte cuando el navegador esta ocioso en el menu.
+      for(const [key,def] of Object.entries(soundDefs)){
         if(webAudioBuffers[key])continue;
-        const res=await fetch(url,{cache:'reload'});
+        const res=await fetch(def.url,{cache:'force-cache'});
         if(!res.ok)throw new Error('audio '+key+' '+res.status);
         const data=await res.arrayBuffer();
         webAudioBuffers[key]=await ctx.decodeAudioData(data.slice(0));
@@ -366,6 +377,37 @@
       return false;
     });
     return webAudioLoadPromise;
+  }
+
+  async function loadWebMusic(){
+    const ctx=ensureAudioContext();
+    if(!ctx)return false;
+    if(webAudioBuffers.music)return true;
+    if(webMusicLoadPromise)return webMusicLoadPromise;
+    webMusicLoadPromise=(async()=>{
+      const url='assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION;
+      const res=await fetch(url,{cache:'force-cache'});
+      if(!res.ok)throw new Error('audio music '+res.status);
+      const data=await res.arrayBuffer();
+      webAudioBuffers.music=await ctx.decodeAudioData(data.slice(0));
+      return true;
+    })().catch(err=>{
+      console.warn('[Galaxy Combat] Musica Web Audio no disponible:',err);
+      webMusicLoadPromise=null;
+      return false;
+    });
+    return webMusicLoadPromise;
+  }
+
+  function warmWebMusicWhenIdle(){
+    if(!useWebAudio||webAudioBuffers.music||webMusicLoadPromise||webMusicIdleHandle||!menu||menu.classList.contains('hidden'))return;
+    const run=()=>{
+      webMusicIdleHandle=0;
+      if(!menu||menu.classList.contains('hidden')||!gameAudioEnabled)return;
+      loadWebMusic().then(ok=>{if(ok&&menu&&!menu.classList.contains('hidden')&&gameAudioEnabled)playWebMusic();});
+    };
+    if(typeof requestIdleCallback==='function')webMusicIdleHandle=requestIdleCallback(run,{timeout:1200});
+    else webMusicIdleHandle=setTimeout(run,650);
   }
 
   function playWebEffect(key){
@@ -406,7 +448,7 @@
       ensureAudioContext();
       const ok=await loadWebAudio();
       audioUnlocked=!!ok;
-      if(ok&&menu&&!menu.classList.contains('hidden')&&gameAudioEnabled)playWebMusic();
+      if(ok)warmWebMusicWhenIdle();
       return audioUnlocked;
     }
     if(audioUnlocked)return true;
@@ -466,13 +508,23 @@
     if(useWebAudio){
       ensureAudioContext();
       if(playWebMusic())return;
-      loadWebAudio().then(ok=>{if(ok)playWebMusic();});
+      // No decodificar 2,9 MB de musica justo en el gesto que puede arrancar
+      // una partida. Primero quedan listos los efectos y la musica se calienta
+      // en tiempo ocioso mientras el usuario sigue en el menu.
+      loadWebAudio().then(ok=>{if(ok)warmWebMusicWhenIdle();});
       return;
     }
     if(!sounds.music||!sounds.music.paused)return;
     sounds.music.play().then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
   }
   function stopMusic(){
+    if(webMusicIdleHandle){
+      try{
+        if(typeof cancelIdleCallback==='function')cancelIdleCallback(webMusicIdleHandle);
+        else clearTimeout(webMusicIdleHandle);
+      }catch(_){}
+      webMusicIdleHandle=0;
+    }
     stopWebMusic();
     if(sounds.music)try{sounds.music.pause();sounds.music.currentTime=0;}catch(_){}
     musicStarted=false;
