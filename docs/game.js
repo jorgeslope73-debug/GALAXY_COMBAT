@@ -50,6 +50,7 @@
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
+  const localizedTargets=[false,false,false,false];
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
@@ -1698,7 +1699,7 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
-    const localized=!!(state&&((Array.isArray(state.players)&&state.players.some(q=>q&&!q.dead&&q.mira===true&&Number(q.mt)===Number(p.i)))||(Array.isArray(state.bullets)&&state.bullets.some(b=>b&&b.g===true&&Number(b.gt)===Number(p.i)))));
+    const localized=!!localizedTargets[Number(p.i)];
     let alpha=1;
     if(p.camo>0&&!local){
       const revealAlpha=ghostRevealAlpha(p,now);
@@ -2281,6 +2282,19 @@
     const nowSec=now/1000;
     const blend=interpolationAlpha(now);
     const prev=previousState||state;
+    localizedTargets.fill(false);
+    for(const p of state.players||[]){
+      if(p&&p.mira===true){
+        const target=Number(p.mt);
+        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
+      }
+    }
+    for(const b of state.bullets||[]){
+      if(b&&b.g===true){
+        const target=Number(b.gt);
+        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
+      }
+    }
 
     // Capa de controles visuales movil: despues del fondo y antes de cualquier
     // objeto de juego, asi todos los elementos de la partida pasan por encima.

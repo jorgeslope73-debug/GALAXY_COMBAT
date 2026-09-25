@@ -8,6 +8,7 @@
       this.onEvent=onEvent||(()=>{});
       this.onPeerState=onPeerState||(()=>{});
       this.myIndex=null;this.isHost=false;this.players=[];this.peers=new Map();
+      this.pendingStateRaw=null;this.stateRaf=0;
       this.iceServers=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
     }
     setIceServers(servers){if(Array.isArray(servers)&&servers.length)this.iceServers=servers;}
@@ -60,6 +61,22 @@
       pc.ondatachannel=e=>this.bindChannel(peerIndex,e.channel);
       return rec;
     }
+    flushPendingState(){
+      const raw=this.pendingStateRaw;
+      if(!raw)return false;
+      this.pendingStateRaw=null;
+      let m;try{m=JSON.parse(raw);}catch(_){return false;}
+      if(!this.isHost&&m&&m.t==='state'){this.onState(m.state);return true;}
+      return false;
+    }
+    queueState(raw){
+      this.pendingStateRaw=raw;
+      if(this.stateRaf)return;
+      this.stateRaf=requestAnimationFrame(()=>{
+        this.stateRaf=0;
+        this.flushPendingState();
+      });
+    }
     bindChannel(peerIndex,dc){
       const rec=this.peers.get(peerIndex)||this.makePc(peerIndex);rec.dc=dc;
       dc.binaryType='arraybuffer';
@@ -67,7 +84,14 @@
       dc.onclose=()=>{rec.open=false;this.onPeerState(peerIndex,'closed');};
       dc.onerror=()=>{};
       dc.onmessage=e=>{
-        let m;try{m=JSON.parse(e.data);}catch(_){return;}
+        const raw=typeof e.data==='string'?e.data:String(e.data);
+        // El estado es continuo: conservar solo el ultimo paquete recibido
+        // hasta el siguiente frame evita parseos en mitad del pintado.
+        if(!this.isHost&&raw.startsWith('{"t":"state"')){this.queueState(raw);return;}
+        // Los eventos son infrecuentes. Antes de procesarlos aplicamos el
+        // ultimo estado pendiente para no desordenar visualmente la secuencia.
+        if(this.pendingStateRaw)this.flushPendingState();
+        let m;try{m=JSON.parse(raw);}catch(_){return;}
         if(this.isHost&&m.t==='ctrl')this.onControl(peerIndex,m);
         else if(!this.isHost&&m.t==='state')this.onState(m.state);
         else if(!this.isHost&&m.t==='event')this.onEvent(m.event);
@@ -133,6 +157,8 @@
       try{rec.dc.send(JSON.stringify({t:'action',action}));return true;}catch(_){return false;}
     }
     close(){
+      if(this.stateRaf){cancelAnimationFrame(this.stateRaf);this.stateRaf=0;}
+      this.pendingStateRaw=null;
       for(const rec of this.peers.values()){
         try{rec.dc&&rec.dc.close();}catch(_){}
         try{rec.pc.close();}catch(_){}
