@@ -38,8 +38,6 @@
       this.remoteTalking=new Set();
 
       this.enableButton=document.getElementById('enableVoice');
-      this.lobbyEnableButton=document.getElementById('lobbyEnableVoice');
-      this.enableButtons=[this.enableButton,this.lobbyEnableButton].filter(Boolean);
       this.statusEl=document.getElementById('voiceStatus');
       this.activationTipEl=document.getElementById('voiceActivationTip');
       this.activationTipTimer=null;
@@ -53,8 +51,8 @@
     }
 
     bindUI(){
-      for(const button of this.enableButtons){
-        button.addEventListener('click',async e=>{
+      if(this.enableButton){
+        this.enableButton.addEventListener('click',async e=>{
           e.preventDefault();e.stopPropagation();
           if(this.enabled)this.disable();
           else await this.enable();
@@ -374,10 +372,9 @@
 
     refreshUI(){
       const inRoom=this.localIndex!==null;
-      for(const button of this.enableButtons){
-        button.textContent=this.enabled?tr('voiceActive'):tr('activateVoice');
-        button.classList.toggle('active',this.enabled);
-        button.setAttribute('aria-pressed',this.enabled?'true':'false');
+      if(this.enableButton){
+        this.enableButton.textContent=this.enabled?tr('voiceActive'):tr('activateVoice');
+        this.enableButton.classList.toggle('active',this.enabled);
       }
       if(this.statusEl&&!this.enabling){
         this.statusEl.textContent=this.enabled?tr('voiceEnabled'):tr('voiceDisabled');
