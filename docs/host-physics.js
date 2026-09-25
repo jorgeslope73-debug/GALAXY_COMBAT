@@ -641,7 +641,15 @@
         for(const p of this.players){
           if(p.dead)continue;
           if(sweptCircles(pk,PICKUP_RADIUS,p,SHIP_RADIUS,false)){
-            if(pk.type==='ammo3'){p.bullets+=6;p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));}else if(pk.type==='ammo1'){p.bullets+=1;p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));}
+            if(pk.type==='ammo3'){
+              const hadBullets=p.bullets>0;
+              p.bullets+=6;
+              if(!hadBullets)p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));
+            }else if(pk.type==='ammo1'){
+              const hadBullets=p.bullets>0;
+              p.bullets+=1;
+              if(!hadBullets)p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));
+            }
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
             else if(pk.type==='mira'){
               p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
