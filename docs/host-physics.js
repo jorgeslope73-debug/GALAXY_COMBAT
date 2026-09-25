@@ -247,16 +247,21 @@
       let elapsed=now-this.lastNow;this.lastNow=now;
       if(!Number.isFinite(elapsed)||elapsed<0)elapsed=STEP_MS;
       this.accumulator+=Math.min(100,elapsed);
-      let steps=0;
+      let steps=0,publishState=false;
       while(this.accumulator>=STEP_MS&&steps<5){
         this.update(DT);
         this.accumulator-=STEP_MS;
         this.tickCount++;
-        if((this.tickCount&1)===0||this.finished)this.onState(this.publicState());
+        if((this.tickCount&1)===0||this.finished)publishState=true;
         steps++;
         if(this.finished)break;
       }
       if(steps===5&&this.accumulator>=STEP_MS)this.accumulator%=STEP_MS;
+      // Si el navegador llega tarde podemos recuperar varios ticks de fisica
+      // en esta llamada. Construir un snapshot por cada tick recuperado creaba
+      // arrays/objetos temporales justo cuando el frame ya iba retrasado.
+      // Publicamos solo el estado final mas reciente.
+      if(publishState)this.onState(this.publicState());
     }
     restart(){
       if(!this.finished||this.players.length<2)return false;

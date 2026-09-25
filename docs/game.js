@@ -109,11 +109,11 @@
           const hz=1000/(displaySampleTotal/displaySampleCount);
           if(Number.isFinite(hz)&&hz>=40&&hz<=360){
             measuredRefreshHz=hz;
-            // Divisor entero para un ritmo perfectamente regular. 120 -> 60,
-            // 144 -> 72, 165 -> 55, 180 -> 60, 240 -> 60. Evitamos el caso
-            // anterior de 165 Hz -> 82,5 FPS, que cargaba el Canvas sin aportar
-            // fluidez real a una simulacion de 60 Hz.
-            const next=hz>=118?Math.max(2,Math.ceil(hz/72)):1;
+            // Divisor entero para conservar un frame pacing regular SIN caer
+            // por debajo de ~60 FPS. Ejemplos: 120 -> 60, 144 -> 72,
+            // 165 -> 82,5, 180 -> 60, 200 -> 66,7 y 240 -> 60.
+            // En monitores por debajo de 120 Hz pintamos cada RAF.
+            const next=hz>=118?Math.max(2,Math.floor(hz/60)):1;
             renderDivisor=Math.max(1,next);
           }
           displaySampleTotal=0;displaySampleCount=0;
