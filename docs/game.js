@@ -268,7 +268,7 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':'assets/sprites/fondo.png', giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
-    mira1:'assets/sprites/mira1.png',localiza:'assets/sprites/localiza.png',
+    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',localiza:'assets/sprites/localiza.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
   for(let i=1;i<=4;i++){
@@ -1738,7 +1738,7 @@
     // Canvas gira en el sentido visual contrario a esa convencion, por eso
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
-    if(p.mira===true&&imageReady(images.mira1))drawImageCentered(images.mira1,x,y,64,-r,Math.min(1,alpha*.95));
+    if(p.mira===true&&imageReady(images.navemira))drawImageCentered(images.navemira,x,y,64,-r,Math.min(1,alpha*.95));
     if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,Math.min(1,alpha*.95));
   }
   function drawHud(now){
