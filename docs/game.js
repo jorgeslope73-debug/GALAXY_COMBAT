@@ -268,6 +268,7 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':'assets/sprites/fondo.png', giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
+    mira1:'assets/sprites/mira1.png',localiza:'assets/sprites/localiza.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
   for(let i=1;i<=4;i++){
@@ -1506,7 +1507,7 @@
       ctx.restore();
     }
   }
-  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed'};
+  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1'};
   function pickupExpiryAlpha(pk,nowSec){
     const raw=pk&&pk.expiresIn;
     // null significa que esta mejora NO esta pendiente de desaparecer.
@@ -1697,10 +1698,14 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
+    const localized=!!(state&&Array.isArray(state.players)&&state.players.some(q=>q&&!q.dead&&q.mira===true&&Number(q.mt)===Number(p.i)));
     let alpha=1;
     if(p.camo>0&&!local){
       const revealAlpha=ghostRevealAlpha(p,now);
-      if(revealAlpha<=0)return;
+      if(revealAlpha<=0){
+        if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,.92);
+        return;
+      }
       // Revelacion encadenada: aparece y desaparece suavemente.
       alpha=.78*revealAlpha;
     }
@@ -1733,6 +1738,8 @@
     // Canvas gira en el sentido visual contrario a esa convencion, por eso
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
+    if(p.mira===true&&imageReady(images.mira1))drawImageCentered(images.mira1,x,y,64,-r,Math.min(1,alpha*.95));
+    if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,Math.min(1,alpha*.95));
   }
   function drawHud(now){
     if(!state)return;
@@ -2313,7 +2320,7 @@
     for(const b of state.bullets){
       const x=b.x+b.vx*age,y=b.y+b.vy*age;
       const sp=Math.hypot(b.vx,b.vy)||1;
-      ctx.strokeStyle='#50ff78';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*12,y-b.vy/sp*12);ctx.lineTo(x,y);ctx.stroke();
+      ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
     }
     for(const p of state.players){
       const old=previousLookup.players.get(p.i);
