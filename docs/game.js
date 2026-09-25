@@ -79,6 +79,10 @@
   let publicRooms=[];
   let localCpu=null,localCpuActive=false;
   let p2p=null,hostPhysics=null,lobbyPlayers=[],cpuFillEnabled=false;
+  let netStartAt=0,lastP2PStateAt=0,lastFallbackRequestAt=0,lastFallbackStateSentAt=0;
+  let fallbackActive=false,p2pStableCount=0;
+  const fallbackPeers=new Set(),fallbackReconnectAt=new Map();
+  const FALLBACK_AFTER_MS=500,FALLBACK_RETRY_MS=3000,FALLBACK_STATE_MS=50,P2P_STABLE_STATES=12;
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   // V16.4.36: sincronizamos estados/controles y reducimos GC en movil para evitar picos de trabajo
   // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
@@ -887,7 +891,21 @@
     p2p=new window.GalaxyP2P({
       sendSignal:o=>{if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}return false;},
       onControl:(i,m)=>{if(hostPhysics)hostPhysics.setControl(i,m.turn,m.thrust,m.fire);},
-      onState:m=>handle(m),
+      onState:m=>{
+        const now=performance.now();
+        const gap=lastP2PStateAt?now-lastP2PStateAt:Infinity;
+        lastP2PStateAt=now;
+        if(fallbackActive){
+          if(gap<=180)p2pStableCount++;else p2pStableCount=1;
+          if(p2pStableCount>=P2P_STABLE_STATES){
+            fallbackActive=false;p2pStableCount=0;
+            if(ws&&ws.readyState===WebSocket.OPEN){try{ws.send(JSON.stringify({t:'fallback-clear'}));}catch(_){}}
+            handle(m);
+          }
+          return;
+        }
+        handle(m);
+      },
       onEvent:m=>{
         if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics){
           send({t:'rank-restart'});
@@ -904,16 +922,42 @@
   function stopP2P(){
     if(p2p)p2p.close();
     p2p=null;
+    netStartAt=0;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
+    fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
     if(hostPhysics)hostPhysics.stop();
     hostPhysics=null;
     lobbyPlayers=[];
+  }
+  function clientNeedsFallback(now=performance.now()){
+    if(isHost||!inGame)return false;
+    if(netStartAt&&now-netStartAt<FALLBACK_AFTER_MS)return false;
+    return !lastP2PStateAt||now-lastP2PStateAt>FALLBACK_AFTER_MS;
+  }
+  function requestFallback(now=performance.now()){
+    if(isHost||!ws||ws.readyState!==WebSocket.OPEN)return false;
+    fallbackActive=true;
+    if(now-lastFallbackRequestAt<FALLBACK_RETRY_MS)return true;
+    lastFallbackRequestAt=now;p2pStableCount=0;
+    try{ws.send(JSON.stringify({t:'fallback-request'}));return true;}catch(_){return false;}
+  }
+  function sendHostFallbackState(m){
+    if(!fallbackPeers.size||!ws||ws.readyState!==WebSocket.OPEN)return false;
+    if(Number(ws.bufferedAmount||0)>128*1024)return false;
+    const now=performance.now();
+    if(now-lastFallbackStateSentAt<FALLBACK_STATE_MS)return false;
+    lastFallbackStateSentAt=now;
+    try{ws.send(JSON.stringify({t:'fallback-state',to:[...fallbackPeers],state:m}));return true;}catch(_){return false;}
+  }
+  function sendHostFallbackEvent(m){
+    if(!fallbackPeers.size||!ws||ws.readyState!==WebSocket.OPEN)return false;
+    try{ws.send(JSON.stringify({t:'fallback-event',to:[...fallbackPeers],event:m}));return true;}catch(_){return false;}
   }
   function startHostPhysics(players,rankRound=1){
     if(!isHost||typeof window.GalaxyHostPhysics!=='function')return false;
     hostPhysics=new window.GalaxyHostPhysics({
       code:roomCode,rankRound,rankHostToken:playerToken,
-      onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);},
-      onEvent:m=>{handle(m);if(p2p)p2p.broadcastEvent(m);}
+      onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);sendHostFallbackState(m);},
+      onEvent:m=>{handle(m);if(p2p)p2p.broadcastEvent(m);sendHostFallbackEvent(m);}
     });
     return hostPhysics.start(players||lobbyPlayers);
   }
@@ -1044,6 +1088,41 @@
       // requieren orden estricto con el ultimo estado recibido.
       let m;try{m=JSON.parse(raw);}catch(_){return;}
       if(m&&['p2p-offer','p2p-answer','p2p-ice','p2p-reconnect'].includes(m.t)){ensureP2P()?.handleSignal(m);return;}
+      if(m&&m.t==='fallback-request'){
+        if(isHost&&Number.isInteger(Number(m.from))){
+          const i=Number(m.from);fallbackPeers.add(i);
+          const now=performance.now(),last=fallbackReconnectAt.get(i)||0;
+          if(now-last>=FALLBACK_RETRY_MS){fallbackReconnectAt.set(i,now);ensureP2P()?.reconnectPeer(i);}
+        }
+        return;
+      }
+      if(m&&m.t==='fallback-clear'){
+        if(isHost&&Number.isInteger(Number(m.from))){const i=Number(m.from);fallbackPeers.delete(i);fallbackReconnectAt.delete(i);}
+        return;
+      }
+      if(m&&m.t==='fallback-state'){
+        if(!isHost&&m.state){fallbackActive=true;handle(m.state);}
+        return;
+      }
+      if(m&&m.t==='fallback-event'){
+        if(!isHost&&m.event){fallbackActive=true;handle(m.event);}
+        return;
+      }
+      if(m&&m.t==='fallback-ctrl'){
+        if(isHost&&hostPhysics)hostPhysics.setControl(Number(m.from),Number(m.turn)||0,!!m.thrust,!!m.fire);
+        return;
+      }
+      if(m&&m.t==='fallback-action'){
+        if(isHost&&m.action==='restart'&&hostPhysics){
+          send({t:'rank-restart'});
+          if(hostPhysics.restart()){
+            if(p2p)p2p.broadcastEvent({t:'restarted'});
+            sendHostFallbackEvent({t:'restarted'});
+            handle({t:'restarted'});
+          }
+        }
+        return;
+      }
       if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}
       if(m&&(['victory','restarted','closed','start'].includes(m.t)))flushPendingState(true);
       handle(m);
@@ -1057,7 +1136,17 @@
   }
   function sendControl(turn,thrust,fire){
     if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire);return true;}
-    if(inGame&&p2p)return p2p.sendControl(turn,thrust,fire);
+    if(inGame&&p2p){
+      const now=performance.now();
+      if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
+        requestFallback(now);
+        if(ws&&ws.readyState===WebSocket.OPEN){
+          try{ws.send(JSON.stringify({t:'fallback-ctrl',turn,thrust:!!thrust,fire:!!fire}));return true;}catch(_){return false;}
+        }
+        return false;
+      }
+      return p2p.sendControl(turn,thrust,fire);
+    }
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     // Los controles caducan enseguida. Si la salida esta congestionada, es
     // mejor omitir uno y mandar el mas reciente 33 ms despues que acumular lag.
@@ -1369,7 +1458,7 @@
       playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
     }
-    else if(m.t==='start'){if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers,m.rankRound);beginGame();playSound('start');}
+    else if(m.t==='start'){netStartAt=performance.now();lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers,m.rankRound);beginGame();playSound('start');}
     else if(m.t==='state'){
       const now=performance.now();
       if(impactFX)impactFX.consume(m,myIndex,now);
@@ -1593,7 +1682,12 @@
   if(restartMatchBtn)restartMatchBtn.addEventListener('click',()=>{
     restartMatchBtn.disabled=true;
     restartMatchBtn.textContent=tr('restarting');
-    const ok=(p2p&&roomCode!=='LOCAL')?p2p.sendAction('restart'):send({t:'restart'});
+    let ok=false;
+    if(roomCode==='LOCAL')ok=send({t:'restart'});
+    else if(p2p&&!fallbackActive)ok=p2p.sendAction('restart');
+    if(!ok&&roomCode!=='LOCAL'&&ws&&ws.readyState===WebSocket.OPEN){
+      try{ws.send(JSON.stringify({t:'fallback-action',action:'restart'}));ok=true;}catch(_){}
+    }
     if(!ok){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);

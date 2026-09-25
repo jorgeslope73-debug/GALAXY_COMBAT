@@ -760,6 +760,35 @@ wss.on('connection',ws=>{
     if(['p2p-offer','p2p-answer','p2p-ice'].includes(m.t)){
       const to=Number(m.to),target=r.players.find(p=>p.i===to);if(target)send(target.ws,{t:m.t,from:x.i,data:m.data});return;
     }
+    if(m.t==='fallback-request'||m.t==='fallback-clear'){
+      const host=r.players.find(p=>p.i===0);
+      if(x.i!==0&&host&&host.ws)send(host.ws,{t:m.t,from:x.i});
+      return;
+    }
+    if(m.t==='fallback-ctrl'){
+      const host=r.players.find(p=>p.i===0);
+      if(x.i!==0&&host&&host.ws)send(host.ws,{t:'fallback-ctrl',from:x.i,turn:Number(m.turn)||0,thrust:!!m.thrust,fire:!!m.fire});
+      return;
+    }
+    if(m.t==='fallback-state'){
+      if(x.i===0&&m.state){
+        const to=new Set(Array.isArray(m.to)?m.to.map(Number).filter(Number.isInteger):[]);
+        for(const p of r.players)if(p.i!==0&&p.ws&&(!to.size||to.has(p.i)))send(p.ws,{t:'fallback-state',state:m.state});
+      }
+      return;
+    }
+    if(m.t==='fallback-event'){
+      if(x.i===0&&m.event){
+        const to=new Set(Array.isArray(m.to)?m.to.map(Number).filter(Number.isInteger):[]);
+        for(const p of r.players)if(p.i!==0&&p.ws&&(!to.size||to.has(p.i)))send(p.ws,{t:'fallback-event',event:m.event});
+      }
+      return;
+    }
+    if(m.t==='fallback-action'){
+      const host=r.players.find(p=>p.i===0);
+      if(x.i!==0&&host&&host.ws)send(host.ws,{t:'fallback-action',from:x.i,action:String(m.action||'')});
+      return;
+    }
     if(m.t==='chat'&&!r.started){
       const text=String(m.text||'').trim().slice(0,120);if(text)broadcast(r,{t:'chat',i:x.i,n:r.players.find(p=>p.i===x.i)?.n||'JUGADOR',text});return;
     }

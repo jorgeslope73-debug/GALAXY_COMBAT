@@ -51,7 +51,7 @@
     }
     makePc(peerIndex){
       const pc=new RTCPeerConnection({iceServers:this.iceServers});
-      const rec={pc,dc:null,open:false};this.peers.set(peerIndex,rec);
+      const rec={pc,dc:null,open:false,pendingIce:[]};this.peers.set(peerIndex,rec);
       pc.onicecandidate=e=>{if(e.candidate)this.sendSignal({t:'p2p-ice',to:peerIndex,data:e.candidate});};
       pc.onconnectionstatechange=()=>{
         const state=pc.connectionState,ok=state==='connected';
@@ -109,25 +109,44 @@
       }
       return rec;
     }
+    async flushPendingIce(rec){
+      if(!rec||!rec.pc||!rec.pc.remoteDescription||!rec.pc.remoteDescription.type)return;
+      const pending=Array.isArray(rec.pendingIce)?rec.pendingIce.splice(0):[];
+      for(const candidate of pending){
+        try{await rec.pc.addIceCandidate(candidate);}
+        catch(err){console.warn('[Galaxy P2P] ICE pendiente',err);}
+      }
+    }
+    async reconnectPeer(peerIndex){
+      const i=Number(peerIndex);
+      if(!this.isHost||!Number.isInteger(i)||i===this.myIndex)return false;
+      this.closePeer(i);
+      try{await this.createPeer(i,true);return true;}catch(err){console.warn('[Galaxy P2P] reconnect',err);return false;}
+    }
     async handleSignal(m){
       const from=Number(m&&m.from);if(!Number.isInteger(from)||from===this.myIndex)return false;
-      if(m.t==='p2p-reconnect'){
-        if(!this.isHost)return true;
-        this.closePeer(from);
-        await this.createPeer(from,true);
-        return true;
-      }
+      if(m.t==='p2p-reconnect')return this.reconnectPeer(from);
       let rec=this.peers.get(from);if(!rec)rec=await this.createPeer(from,false);
       try{
         if(m.t==='p2p-offer'){
           await rec.pc.setRemoteDescription(m.data);
+          await this.flushPendingIce(rec);
           const ans=await rec.pc.createAnswer();
           await rec.pc.setLocalDescription(ans);
           this.sendSignal({t:'p2p-answer',to:from,data:rec.pc.localDescription});
           return true;
         }
-        if(m.t==='p2p-answer'){await rec.pc.setRemoteDescription(m.data);return true;}
-        if(m.t==='p2p-ice'){if(m.data)await rec.pc.addIceCandidate(m.data);return true;}
+        if(m.t==='p2p-answer'){
+          await rec.pc.setRemoteDescription(m.data);
+          await this.flushPendingIce(rec);
+          return true;
+        }
+        if(m.t==='p2p-ice'){
+          if(!m.data)return true;
+          if(rec.pc.remoteDescription&&rec.pc.remoteDescription.type)await rec.pc.addIceCandidate(m.data);
+          else rec.pendingIce.push(m.data);
+          return true;
+        }
       }catch(err){console.warn('[Galaxy P2P] signaling',err);}
       return false;
     }
