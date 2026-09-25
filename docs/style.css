@@ -162,7 +162,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 }
 
 
-/* V18.44: selector de control movil y modo de botones en pantalla. */
+/* V18.43: selector de control movil y modo de botones en pantalla. */
 .mobile-control-choice{display:none}
 @media (pointer:coarse),(max-width:900px){
   #menu .mobile-control-choice{
@@ -245,7 +245,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     z-index:18;
     display:flex;
     width:50%;
-    height:100%;
+    height:54%;
     align-items:flex-end;
     justify-content:center;
     gap:10px;

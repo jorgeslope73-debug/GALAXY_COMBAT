@@ -1,7 +1,7 @@
 'use strict';
 (() => {
-  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  const isMobile=document.documentElement.classList.contains('handheld-device')||matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
   const perfDebug=new URLSearchParams(location.search).get('debug')==='1';
   const i18n=window.GalaxyI18n||null;
   const tr=(key,vars)=>i18n?i18n.t(key,vars):key;
@@ -50,7 +50,6 @@
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
-  const localizedTargets=[false,false,false,false];
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
@@ -94,30 +93,9 @@
     localVisual.ready=false;localVisual.index=-1;localVisual.lastAt=0;localVisual.lastError=0;
   }
   const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,localErrMax:0,report:{fps:0,long:0,max:0,frame:0,parse:0,localErr:0}}:null;
-  // Cadencia de pintado adaptativa. El antiguo umbral fijo de 10,5 ms podia
-  // convertir un monitor de 100/110 Hz en ~50/55 FPS. Medimos el RAF real y
-  // usamos un divisor entero estable: 60/75/100 Hz pintan cada RAF; 120/144/
-  // 165 Hz cada 2; frecuencias aun mayores usan el divisor mas cercano a 75 FPS.
-  let displaySampleLast=0,displaySampleTotal=0,displaySampleCount=0;
-  let renderDivisor=1,renderCadenceTick=0,measuredRefreshHz=60;
-  function sampleDisplayRefresh(now){
-    if(displaySampleLast){
-      const dt=now-displaySampleLast;
-      if(dt>=4&&dt<=25){
-        displaySampleTotal+=dt;displaySampleCount++;
-        if(displaySampleCount>=30){
-          const hz=1000/(displaySampleTotal/displaySampleCount);
-          if(Number.isFinite(hz)&&hz>=40&&hz<=360){
-            measuredRefreshHz=hz;
-            const next=hz>=118?Math.max(2,Math.round(hz/75)):1;
-            renderDivisor=Math.max(1,next);
-          }
-          displaySampleTotal=0;displaySampleCount=0;
-        }
-      }
-    }
-    displaySampleLast=now;
-  }
+  // Solo saltamos callbacks propios de 120 Hz (~8,3 ms). No usamos un umbral
+  // de 16,7 ms para no convertir una pequena variacion de un panel de 60 Hz en 30 Hz.
+  const HIGH_REFRESH_SKIP_MS=10.5;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const cpuButton=document.getElementById('cpu');
@@ -290,7 +268,6 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':'assets/sprites/fondo.png', giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
-    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',localiza:'assets/sprites/localiza.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
   for(let i=1;i<=4;i++){
@@ -305,58 +282,17 @@
     warnedImages.add(im);
     console.warn('[Galaxy Combat] Image unavailable; continuing without blocking the game.',im.currentSrc||im.src,error||'');
   }
-  const imageDecodePromises={};
   for(const [k,url] of Object.entries(assetList)){
     const im=new Image();
     im.decoding='async';
-    // Estos sprites aparecen desde el primer frame. Antes los asteroides tenian
-    // prioridad baja y podian terminar de descargarse/decodificarse ya jugando.
-    const critical=k==='bg'||k==='giant'||k.startsWith('ship')||k.startsWith('pant')||
-      k.startsWith('asteroid')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed';
-    if('fetchPriority' in im)im.fetchPriority=critical?'high':'auto';
-    imageDecodePromises[k]=new Promise(resolve=>{
-      im.onerror=()=>{reportImageFailure(im);resolve(false);};
-      im.onload=()=>{
-        const decoded=typeof im.decode==='function'?im.decode():Promise.resolve();
-        Promise.resolve(decoded).then(()=>{
-          if(k==='bg'){
-            backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
-            scheduleCanvasResolution();
-          }
-          resolve(true);
-        }).catch(()=>resolve(false));
-      };
-    });
+    im.onerror=()=>reportImageFailure(im);
+    im.onload=()=>{
+      if(typeof im.decode==='function')im.decode().catch(()=>{});
+      if(k==='bg'){backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;rebuildBackgroundCache();}
+    };
     im.src=url;
     images[k]=im;
   }
-
-  let gameAssetsReady=false,gameAssetsPromise=null,gameAssetsIdleHandle=0;
-  function prepareGameAssets(){
-    if(gameAssetsReady)return Promise.resolve(true);
-    if(gameAssetsPromise)return gameAssetsPromise;
-    const fontPromise=(document.fonts&&typeof document.fonts.load==='function')
-      ?Promise.allSettled([
-        document.fonts.load('20px Flashback'),
-        document.fonts.load('64px Flashback')
-      ])
-      :Promise.resolve();
-    gameAssetsPromise=Promise.allSettled([...Object.values(imageDecodePromises),fontPromise]).then(()=>{
-      // Construye la cache grande del fondo mientras aun estamos en menu/lobby,
-      // no durante los primeros frames de la partida.
-      updateCanvasResolution();
-      gameAssetsReady=true;
-      return true;
-    });
-    return gameAssetsPromise;
-  }
-  function warmGameAssetsWhenIdle(){
-    if(gameAssetsReady||gameAssetsPromise||gameAssetsIdleHandle)return;
-    const run=()=>{gameAssetsIdleHandle=0;prepareGameAssets();};
-    if(typeof requestIdleCallback==='function')gameAssetsIdleHandle=requestIdleCallback(run,{timeout:900});
-    else gameAssetsIdleHandle=setTimeout(run,350);
-  }
-  warmGameAssetsWhenIdle();
   const AUDIO_ASSET_VERSION='V18.13';
   const soundDefs={
     laser:{url:'assets/sonido/laser_1.mp3?v='+AUDIO_ASSET_VERSION,size:8,volume:.55},
@@ -364,30 +300,28 @@
     pickup:{url:'assets/sonido/carga3.wav?v='+AUDIO_ASSET_VERSION,size:3,volume:.75},
     start:{url:'assets/sonido/inicio.wav?v='+AUDIO_ASSET_VERSION,size:1,volume:.75}
   };
-  // Web Audio tambien en PC: cada efecto se descarga/decodifica una sola vez.
-  // Los antiguos pools de varios <audio> podian provocar microtirones en los
-  // primeros disparos/impactos al activar decodificadores distintos.
-  const AudioContextCtor=window.AudioContext||window.webkitAudioContext;
-  const useWebAudio=!!AudioContextCtor;
+  // V2: sin slider de volumen. Usamos un nivel fijo para evitar que un valor
+  // antiguo guardado en localStorage pueda dejar el juego mudo en el movil.
   const gameVolume=isMobile?0.45:0.75;
   let gameAudioEnabled=true,audioUnlocked=false;
   const soundPools={};
-  if(!useWebAudio){
-    for(const [key,def] of Object.entries(soundDefs)){
-      const items=[];
-      for(let i=0;i<def.size;i++){
-        const a=new Audio(def.url);a.preload='auto';a.volume=def.volume*gameVolume;items.push(a);
-      }
-      soundPools[key]={items,next:0};
+  for(const [key,def] of Object.entries(soundDefs)){
+    const items=[];
+    for(let i=0;i<def.size;i++){
+      const a=new Audio(def.url);a.preload='auto';a.volume=def.volume*gameVolume;items.push(a);
     }
-    sounds.music=new Audio('assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION);
-    sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
-  }else{
-    sounds.music=null;
+    soundPools[key]={items,next:0};
   }
+  sounds.music=new Audio('assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION);sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
 
+  // En iPhone/iPad usamos Web Audio para musica y efectos. Safari/iOS puede
+  // silenciar o interrumpir elementos <audio> aunque el usuario haya tocado
+  // la pantalla, especialmente en modo PWA. Un AudioContext reanudado desde
+  // el gesto del usuario es mucho mas fiable para un juego.
+  const AudioContextCtor=window.AudioContext||window.webkitAudioContext;
+  const useWebAudio=!!(isMobile&&AudioContextCtor);
   let audioCtx=null,masterGain=null,fxGain=null,musicGain=null;
-  let webAudioLoadPromise=null,webMusicLoadPromise=null,webMusicSource=null,webMusicIdleHandle=0;
+  let webAudioLoadPromise=null,webMusicSource=null;
   const webAudioBuffers={};
 
   function ensureAudioContext(){
@@ -415,11 +349,10 @@
     if(!ctx)return false;
     if(webAudioLoadPromise)return webAudioLoadPromise;
     webAudioLoadPromise=(async()=>{
-      // Solo efectos de juego (~0,5 MB). La musica (~2,9 MB) se decodifica
-      // aparte cuando el navegador esta ocioso en el menu.
-      for(const [key,def] of Object.entries(soundDefs)){
+      const entries=[...Object.entries(soundDefs).map(([key,def])=>[key,def.url]),['music','assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION]];
+      for(const [key,url] of entries){
         if(webAudioBuffers[key])continue;
-        const res=await fetch(def.url,{cache:'force-cache'});
+        const res=await fetch(url,{cache:'reload'});
         if(!res.ok)throw new Error('audio '+key+' '+res.status);
         const data=await res.arrayBuffer();
         webAudioBuffers[key]=await ctx.decodeAudioData(data.slice(0));
@@ -431,37 +364,6 @@
       return false;
     });
     return webAudioLoadPromise;
-  }
-
-  async function loadWebMusic(){
-    const ctx=ensureAudioContext();
-    if(!ctx)return false;
-    if(webAudioBuffers.music)return true;
-    if(webMusicLoadPromise)return webMusicLoadPromise;
-    webMusicLoadPromise=(async()=>{
-      const url='assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION;
-      const res=await fetch(url,{cache:'force-cache'});
-      if(!res.ok)throw new Error('audio music '+res.status);
-      const data=await res.arrayBuffer();
-      webAudioBuffers.music=await ctx.decodeAudioData(data.slice(0));
-      return true;
-    })().catch(err=>{
-      console.warn('[Galaxy Combat] Musica Web Audio no disponible:',err);
-      webMusicLoadPromise=null;
-      return false;
-    });
-    return webMusicLoadPromise;
-  }
-
-  function warmWebMusicWhenIdle(){
-    if(!useWebAudio||webAudioBuffers.music||webMusicLoadPromise||webMusicIdleHandle||!menu||menu.classList.contains('hidden'))return;
-    const run=()=>{
-      webMusicIdleHandle=0;
-      if(!menu||menu.classList.contains('hidden')||!gameAudioEnabled)return;
-      loadWebMusic().then(ok=>{if(ok&&menu&&!menu.classList.contains('hidden')&&gameAudioEnabled)playWebMusic();});
-    };
-    if(typeof requestIdleCallback==='function')webMusicIdleHandle=requestIdleCallback(run,{timeout:1200});
-    else webMusicIdleHandle=setTimeout(run,650);
   }
 
   function playWebEffect(key){
@@ -502,7 +404,7 @@
       ensureAudioContext();
       const ok=await loadWebAudio();
       audioUnlocked=!!ok;
-      if(ok)warmWebMusicWhenIdle();
+      if(ok&&menu&&!menu.classList.contains('hidden')&&gameAudioEnabled)playWebMusic();
       return audioUnlocked;
     }
     if(audioUnlocked)return true;
@@ -562,23 +464,13 @@
     if(useWebAudio){
       ensureAudioContext();
       if(playWebMusic())return;
-      // No decodificar 2,9 MB de musica justo en el gesto que puede arrancar
-      // una partida. Primero quedan listos los efectos y la musica se calienta
-      // en tiempo ocioso mientras el usuario sigue en el menu.
-      loadWebAudio().then(ok=>{if(ok)warmWebMusicWhenIdle();});
+      loadWebAudio().then(ok=>{if(ok)playWebMusic();});
       return;
     }
     if(!sounds.music||!sounds.music.paused)return;
     sounds.music.play().then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
   }
   function stopMusic(){
-    if(webMusicIdleHandle){
-      try{
-        if(typeof cancelIdleCallback==='function')cancelIdleCallback(webMusicIdleHandle);
-        else clearTimeout(webMusicIdleHandle);
-      }catch(_){}
-      webMusicIdleHandle=0;
-    }
     stopWebMusic();
     if(sounds.music)try{sounds.music.pause();sounds.music.currentTime=0;}catch(_){}
     musicStarted=false;
@@ -1196,7 +1088,6 @@
   }
   async function startLocalCpu(){
     startMusic();await prepareMobileControls();closeRoomDialogs();
-    const graphicsReady=prepareGameAssets();
     if(typeof window.GalaxyLocalCpu!=='function'){
       statusEl.textContent='MODO CPU LOCAL NO DISPONIBLE';
       return;
@@ -1206,7 +1097,6 @@
     const difficulty=document.getElementById('difficulty').value;
     postAnalyticsEvent('cpu_match');
     const brain=difficulty==='dificil'?await loadCpuBrain():null;
-    await graphicsReady;
     localCpu=new window.GalaxyLocalCpu({onState:m=>handle(m),onEvent:m=>handle(m)});
     localCpu.start(sinTildes(campoNombre.value),difficulty,document.getElementById('cpuCount').value,brain);
     localCpuActive=true;
@@ -1215,11 +1105,10 @@
     handle(localCpu.publicState());
   }
   async function createOnlineRoom(isPublic){
-    startMusic();prepareGameAssets();await prepareMobileControls();closeRoomDialogs();
+    startMusic();await prepareMobileControls();closeRoomDialogs();
     send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic,lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es'),authToken:authToken()});
   }
   async function joinRoomByCode(code){
-    prepareGameAssets();
     const clean=String(code||'').trim().toUpperCase();
     if(!clean){showPublicRoomsDialog();return;}
     startMusic();await prepareMobileControls();closeRoomDialogs();
@@ -1505,10 +1394,7 @@
   window.addEventListener('resize',scheduleCanvasResolution,{passive:true});
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
   scheduleCanvasResolution();
-  startBtn.addEventListener('click',async()=>{
-    await Promise.all([prepareMobileControls(),prepareGameAssets()]);
-    calibrateMobileMotion();send({t:'start'});
-  });
+  startBtn.addEventListener('click',async()=>{await prepareMobileControls();calibrateMobileMotion();send({t:'start'});});
   function returnToMainMenu(notifyServer=true){
     if(!sharedRoomCode)sharedRoomJoinStarted=false;
     invisibleHudUntil.fill(0);
@@ -1565,14 +1451,7 @@
       else if(inGame)returnToMainMenu();
     }
   });
-  window.addEventListener('keyup',e=>{
-    keys.delete(e.code);
-    if(isMobile&&mobileKeyboardActive&&MOBILE_KEYBOARD_CODES.has(e.code)){
-      let keyboardStillHeld=false;
-      for(const code of MOBILE_KEYBOARD_CODES){if(keys.has(code)){keyboardStillHeld=true;break;}}
-      if(!keyboardStillHeld)setMobileKeyboardActive(false);
-    }
-  });
+  window.addEventListener('keyup',e=>keys.delete(e.code));
   // Si el navegador pierde el foco, puede no llegar el keyup de una tecla que
   // estaba pulsada. Limpiamos el estado para evitar giro/aceleracion/disparo
   // pegados al volver a la ventana.
@@ -1620,7 +1499,7 @@
       ctx.restore();
     }
   }
-  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1'};
+  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed'};
   function pickupExpiryAlpha(pk,nowSec){
     const raw=pk&&pk.expiresIn;
     // null significa que esta mejora NO esta pendiente de desaparecer.
@@ -1811,14 +1690,10 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
-    const localized=!!localizedTargets[Number(p.i)];
     let alpha=1;
     if(p.camo>0&&!local){
       const revealAlpha=ghostRevealAlpha(p,now);
-      if(revealAlpha<=0){
-        if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,.92);
-        return;
-      }
+      if(revealAlpha<=0)return;
       // Revelacion encadenada: aparece y desaparece suavemente.
       alpha=.78*revealAlpha;
     }
@@ -1851,8 +1726,6 @@
     // Canvas gira en el sentido visual contrario a esa convencion, por eso
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
-    if(p.mira===true&&imageReady(images.navemira))drawImageCentered(images.navemira,x,y,64,-r,Math.min(1,alpha*.95));
-    if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,Math.min(1,alpha*.95));
   }
   function drawHud(now){
     if(!state)return;
@@ -2349,15 +2222,13 @@
   function render(rafNow){
     requestAnimationFrame(render);
     const now=Number.isFinite(rafNow)?rafNow:performance.now();
-    sampleDisplayRefresh(now);
     flushPendingState(false,now);
     pumpControls(now);
     if(localCpuActive&&localCpu)localCpu.advance(now);
     if(hostPhysics&&isHost)hostPhysics.advance(now);
-    // Fisica y controles siguen ejecutandose en todos los RAF. Solo el pintado
-    // usa un divisor entero para conservar un frame pacing regular.
-    renderCadenceTick++;
-    if(renderDivisor>1&&(renderCadenceTick%renderDivisor)!==0)return;
+    // En pantallas ProMotion/120 Hz no tiene sentido dibujar el juego a 120: la
+    // simulacion va a 60 Hz y la red a 30 Hz. Limitamos solo el pintado a 60 Hz.
+    if(lastPaintAt&&now-lastPaintAt<HIGH_REFRESH_SKIP_MS)return;
     lastPaintAt=now;
     if(perfStats){
       if(perfStats.lastPaint){
@@ -2396,19 +2267,6 @@
     const nowSec=now/1000;
     const blend=interpolationAlpha(now);
     const prev=previousState||state;
-    localizedTargets.fill(false);
-    for(const p of state.players||[]){
-      if(p&&p.mira===true){
-        const target=Number(p.mt);
-        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
-      }
-    }
-    for(const b of state.bullets||[]){
-      if(b&&b.g===true){
-        const target=Number(b.gt);
-        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
-      }
-    }
 
     // Capa de controles visuales movil: despues del fondo y antes de cualquier
     // objeto de juego, asi todos los elementos de la partida pasan por encima.
@@ -2448,7 +2306,7 @@
     for(const b of state.bullets){
       const x=b.x+b.vx*age,y=b.y+b.vy*age;
       const sp=Math.hypot(b.vx,b.vy)||1;
-      ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
+      ctx.strokeStyle='#50ff78';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*12,y-b.vy/sp*12);ctx.lineTo(x,y);ctx.stroke();
     }
     for(const p of state.players){
       const old=previousLookup.players.get(p.i);

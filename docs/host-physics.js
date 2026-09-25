@@ -49,7 +49,6 @@
   };
   const dirFromRot=rot=>{const r=rot*Math.PI/180;return{x:-Math.sin(r),y:-Math.cos(r)};};
   const normalize=(x,y)=>{const l=Math.hypot(x,y)||1;return{x:x/l,y:y/l};};
-  const round1=v=>Math.round(v*10)/10,round2=v=>Math.round(v*100)/100,round3=v=>Math.round(v*1000)/1000;
   // Si la inercia actual ya atraviesa un pickup, la CPU deja de acelerar y
   // entra recta por deslizamiento. Solo se cancela si hay un obstaculo peligroso
   // dentro de ese corredor antes de llegar al objeto.
@@ -160,7 +159,6 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,
-        guided:false,guidedTarget:-1,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty
       };
@@ -216,7 +214,7 @@
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false});
           if(wasCpu&&!isCpu){
             this.bullets=this.bullets.filter(b=>b.owner!==index);
-            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;
+            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;
             p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.dead=false;p.respawn=0;
             p.vx=0;p.vy=0;p.lastSpawn=null;this.placeAtSpawn(p);
           }
@@ -269,7 +267,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
@@ -338,7 +336,7 @@
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
       if(!attacker||attacker===victim)victim.kills=Math.max(0,victim.kills-1);
-      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;
+      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
       if(attacker&&attacker!==victim){
         attacker.kills++;
@@ -369,22 +367,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;p.guided=false;p.guidedTarget=-1;
-    }
-    guidedTargetFor(p){
-      if(!p||p.dead)return -1;
-      const forward=dirFromRot(p.rot);
-      let bestIndex=-1,bestAlign=-2,bestDistance=Infinity;
-      for(const target of this.players){
-        if(!target||target.index===p.index||target.dead||target.camo>0)continue;
-        const dx=target.x-p.x,dy=target.y-p.y,distance=Math.hypot(dx,dy);
-        if(distance<1)continue;
-        const align=(forward.x*dx+forward.y*dy)/distance;
-        if(align>bestAlign+1e-6||(Math.abs(align-bestAlign)<=1e-6&&distance<bestDistance)){
-          bestAlign=align;bestDistance=distance;bestIndex=target.index;
-        }
-      }
-      return bestIndex;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;
     }
     chooseCpuControls(cpu){
       let rival=null,best=Infinity;
@@ -524,11 +507,8 @@
         const vmax=330*p.speed,sp=Math.hypot(p.vx,p.vy);
         if(sp>vmax){p.vx=p.vx/sp*vmax;p.vy=p.vy/sp*vmax;}
         p.x=(p.x+p.vx*dt+W)%W;p.y=(p.y+p.vy*dt+H)%H;
-        p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;
         if(c.fire&&p.bullets>0&&p.reload<=0){
-          const guided=!!p.guided,guidedTarget=guided?p.guidedTarget:-1;
-          this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*this.bulletSpeed(p),vy:d.y*this.bulletSpeed(p),age:0,travel:0,guided,target:guidedTarget});
-          if(guided){p.guided=false;p.guidedTarget=-1;}
+          this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*this.bulletSpeed(p),vy:d.y*this.bulletSpeed(p),age:0,travel:0});
           p.bullets--;p.reload=Math.max(.5,p.cadence/8);this.emit({t:'sound',kind:'laser'});
         }
       }
@@ -555,22 +535,7 @@
       }
     }
     updateBullets(dt){
-      for(const b of this.bullets){
-        b.px=b.x;b.py=b.y;
-        if(b.guided&&Number.isInteger(b.target)){
-          const target=this.players.find(p=>p.index===b.target&&!p.dead);
-          if(target){
-            const dx=target.x-b.x,dy=target.y-b.y,distance=Math.hypot(dx,dy),speed=Math.hypot(b.vx,b.vy)||1;
-            if(distance>1){
-              const desiredX=dx/distance,desiredY=dy/distance,currentX=b.vx/speed,currentY=b.vy/speed;
-              const steer=Math.min(.09,3.2*dt);
-              const n=normalize(currentX+(desiredX-currentX)*steer,currentY+(desiredY-currentY)*steer);
-              b.vx=n.x*speed;b.vy=n.y*speed;
-            }
-          }
-        }
-        b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;
-      }
+      for(const b of this.bullets){b.px=b.x;b.py=b.y;b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;}
       for(let i=this.bullets.length-1;i>=0;i--){
         const b=this.bullets[i];let remove=b.age>3||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
         if(!remove){
@@ -597,12 +562,8 @@
     updatePickups(dt){
       this.nextPickup-=dt;
       if(this.nextPickup<=0){
-        let type;
-        if(Math.random()<.50&&!this.pickups.some(pk=>pk.type==='mira'))type='mira';
-        else{
-          const roll=randint(1,28);
-          if(roll<=7)type='ammo3';else if(roll<=16)type='ammo1';else if(roll<=19)type='cadence';else if(roll<=22)type='speed';else if(roll<=25)type='shield';else type='camo';
-        }
+        const roll=randint(1,28);let type;
+        if(roll<=7)type='ammo3';else if(roll<=16)type='ammo1';else if(roll<=19)type='cadence';else if(roll<=22)type='speed';else if(roll<=25)type='shield';else type='camo';
         this.pickups.push({id:uid(),type,x:rand(100,W-100),y:rand(100,H-100),phase:rand(0,Math.PI*2)});
         if(this.pickups.length>5)this.pickups.shift();
         this.nextPickup=rand(2,5);
@@ -613,9 +574,8 @@
         for(const p of this.players){
           if(p.dead)continue;
           if(sweptCircles(pk,PICKUP_RADIUS,p,SHIP_RADIUS,false)){
-            if(pk.type==='ammo3'){p.bullets+=6;p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));}else if(pk.type==='ammo1'){p.bullets+=1;p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));}
+            if(pk.type==='ammo3')p.bullets+=6;else if(pk.type==='ammo1')p.bullets+=1;
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
-            else if(pk.type==='mira'){p.guided=true;p.guidedTarget=this.guidedTargetFor(p);}
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
             else if(pk.type==='shield')p.shield=10;
             else if(pk.type==='camo')p.camo=10;
@@ -704,14 +664,14 @@
         t:'state',seq:++this.seq,code:this.code,mode:'p2p',started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
-        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),mira:!!p.guided,mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,dead:p.dead,respawn:round3(p.respawn)})),
-        asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type})),
-        bullets:this.bullets.map(b=>({id:b.id,o:b.owner,x:round1(b.x),y:round1(b.y),vx:round1(b.vx),vy:round1(b.vy),g:!!b.guided,gt:Number.isInteger(b.target)?b.target:-1})),
-        pickups:this.pickups.map((p,idx)=>({id:p.id,type:p.type,x:round1(p.x),y:round1(p.y+Math.cos(p.phase)*3),expiresIn:(idx===0&&this.pickups.length>=5)?round2(Math.max(0,this.nextPickup)):null})),
-        meteors:this.meteors.map(m=>({id:m.id,type:m.type,x:round1(m.x),y:round1(m.y),a:round1(m.angle)})),
-        giant:this.giant?{x:round1(this.giant.x),y:round1(this.giant.y)}:null,
-        shower:round2(this.showerLeft),
-        nextShower:this.showerLeft>0?0:round1(Math.max(0,Math.min(this.firstShower,this.nextShower||999999)))
+        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:+p.x.toFixed(1),y:+p.y.toFixed(1),r:+p.rot.toFixed(1),vx:+p.vx.toFixed(1),vy:+p.vy.toFixed(1),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:+p.shield.toFixed(2),camo:+p.camo.toFixed(2),prot:+p.protection.toFixed(2),dead:p.dead,respawn:+p.respawn.toFixed(3)})),
+        asteroids:this.asteroids.map(a=>({id:a.id,x:+a.x.toFixed(1),y:+a.y.toFixed(1),type:a.type})),
+        bullets:this.bullets.map(b=>({id:b.id,o:b.owner,x:+b.x.toFixed(1),y:+b.y.toFixed(1),vx:+b.vx.toFixed(1),vy:+b.vy.toFixed(1)})),
+        pickups:this.pickups.map((p,idx)=>({id:p.id,type:p.type,x:+p.x.toFixed(1),y:+(p.y+Math.cos(p.phase)*3).toFixed(1),expiresIn:(idx===0&&this.pickups.length>=5)?+Math.max(0,this.nextPickup).toFixed(2):null})),
+        meteors:this.meteors.map(m=>({id:m.id,type:m.type,x:+m.x.toFixed(1),y:+m.y.toFixed(1),a:+m.angle.toFixed(1)})),
+        giant:this.giant?{x:+this.giant.x.toFixed(1),y:+this.giant.y.toFixed(1)}:null,
+        shower:+this.showerLeft.toFixed(2),
+        nextShower:this.showerLeft>0?0:+Math.max(0,Math.min(this.firstShower,this.nextShower||999999)).toFixed(1)
       };
     }
   }
