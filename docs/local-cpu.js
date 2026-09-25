@@ -433,7 +433,8 @@
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty,
         tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random(),
-        resourceTargetId:null,meteorDecision:null
+        resourceTargetId:null,meteorDecision:null,
+        easyNextDecision:0,easyControl:null
       };
     }
     start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null,learningEnabled=true){
@@ -590,6 +591,7 @@
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;
         if(p.cpu){
+          p.easyNextDecision=0;p.easyControl=null;
           p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
           if(this.difficulty==='dificil'){
             const opening=this.chooseBrainAction('open3',['attack','evade','resource','scatter'],p.index===3?.24:.34);
@@ -670,7 +672,7 @@
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
       p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;
-      if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;}
+      if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.easyNextDecision=0;p.easyControl=null;}
     }
     guidedTargetFor(p){
       if(!p||p.dead)return -1;
@@ -693,6 +695,32 @@
       return bestIndex;
     }
     chooseCpuControls(cpu){
+      if(cpu.dead)return IDLE_CONTROL;
+
+      // FACIL reacciona deliberadamente mas despacio: mantiene la decision
+      // anterior durante unas decimas en vez de recalcularla en cada tick.
+      if(this.difficulty==='facil'&&cpu.easyControl&&this.fxClock<cpu.easyNextDecision){
+        return cpu.easyControl;
+      }
+
+      const base=this.chooseCpuControlsBase(cpu);
+      if(this.difficulty!=='facil')return base;
+
+      // Degradacion solo de la IA, nunca de las fisicas:
+      // gira con menos precision, a veces duda al acelerar y no dispara siempre
+      // que encuentra una oportunidad.
+      let turn=clamp((Number(base.turn)||0)*.68+rand(-.18,.18),-1,1);
+      if(Math.random()<.10)turn=clamp(turn+rand(-.35,.35),-1,1);
+      const control={
+        turn,
+        thrust:!!base.thrust&&Math.random()>.14,
+        fire:!!base.fire&&Math.random()>.22
+      };
+      cpu.easyControl=control;
+      cpu.easyNextDecision=this.fxClock+rand(.48,.82);
+      return control;
+    }
+    chooseCpuControlsBase(cpu){
       if(cpu.dead)return IDLE_CONTROL;
 
       const meteorControl=this.chooseMeteorControls(cpu);
@@ -1002,7 +1030,10 @@
             const tx=target.x-p.x,ty=target.y-p.y,td=Math.hypot(tx,ty);
             if(td<=0||td>=1350)continue;
             const dot=(d.x*tx+d.y*ty)/td;
-            if(dot>=Math.cos(7*Math.PI/180)){fireNow=true;break;}
+            // FACIL abre mucho el cono de disparo: intenta tiros peores y,
+            // por tanto, desperdicia mas balas y falla con mayor frecuencia.
+            const fireAngle=this.difficulty==='facil'?18:7;
+            if(dot>=Math.cos(fireAngle*Math.PI/180)){fireNow=true;break;}
           }
         }
         if(fireNow&&p.bullets>0&&p.reload<=0){
