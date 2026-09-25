@@ -106,11 +106,14 @@
   }
 
   class GalaxyHostPhysics{
-    constructor({onState,onEvent,code='P2P'}={}){
+    constructor({onState,onEvent,code='P2P',rankRound=1,rankHostToken=''}={}){
       this.onState=typeof onState==='function'?onState:()=>{};
       this.onEvent=typeof onEvent==='function'?onEvent:()=>{};
       this.code=String(code||'P2P');
+      this.rankRound=Math.max(1,Number(rankRound)||1);
+      this.rankHostToken=String(rankHostToken||'');
       this.rankReportSent=false;
+      this.rankReportAttempts=0;
       this.players=[];
       this.controls=new Map();
       this.started=false;
@@ -169,7 +172,7 @@
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
-      this.rankReportSent=false;
+      this.rankReportSent=false;this.rankReportAttempts=0;
       this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       for(const item of list){
@@ -271,23 +274,44 @@
         this.placeAtSpawn(p);p.dead=false;
       }
       this.started=true;this.lastNow=0;this.accumulator=0;this.tickCount=0;
+      this.rankRound=Math.max(1,Number(this.rankRound)||1)+1;
       return true;
     }
     reportRankedVictory(winnerIndex){
-      if(this.rankReportSent||this.code==='LOCAL'||this.players.some(p=>p.cpu))return;
+      if(this.rankReportSent||this.code==='LOCAL')return;
+      const base=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').replace(/\/$/,'');
+      if(!base||!this.rankHostToken)return;
       this.rankReportSent=true;
+      this.rankReportAttempts++;
+      const retry=()=>{
+        if(this.rankReportAttempts>=3)return;
+        this.rankReportSent=false;
+        setTimeout(()=>{
+          if(this.finished&&Number(this.winner)===Number(winnerIndex))this.reportRankedVictory(winnerIndex);
+        },1200*this.rankReportAttempts);
+      };
       try{
-        const auth=window.GalaxyAuth;
-        const token=auth&&typeof auth.getToken==='function'?String(auth.getToken()||''):'';
-        const base=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').replace(/\/$/,'');
-        if(!token||!base)return;
         fetch(base+'/api/rank-result',{
           method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-          body:JSON.stringify({roomCode:this.code,winnerIndex:Number(winnerIndex)}),
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            roomCode:this.code,
+            winnerIndex:Number(winnerIndex),
+            rankRound:this.rankRound,
+            hostToken:this.rankHostToken
+          }),
           cache:'no-store',keepalive:true
-        }).catch(err=>console.warn('[Galaxy Combat] No se pudo registrar el resultado:',err&&err.message||err));
-      }catch(err){console.warn('[Galaxy Combat] Error enviando resultado:',err&&err.message||err);}
+        }).then(res=>{
+          if(!res.ok)throw new Error('HTTP '+res.status);
+          return res.json().catch(()=>({ok:true}));
+        }).catch(err=>{
+          console.warn('[Galaxy Combat] No se pudo registrar el resultado:',err&&err.message||err);
+          retry();
+        });
+      }catch(err){
+        console.warn('[Galaxy Combat] Error enviando resultado:',err&&err.message||err);
+        retry();
+      }
     }
     emitShipImpact(player,source=null,destroyed=false){
       if(!player||!Number.isFinite(player.x)||!Number.isFinite(player.y))return;
