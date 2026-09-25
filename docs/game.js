@@ -1388,7 +1388,13 @@
     const brain=difficulty==='dificil'?await loadCpuBrain():null;
     await graphicsReady;
     localCpu=new window.GalaxyLocalCpu({onState:m=>handle(m),onEvent:m=>handle(m)});
-    localCpu.start(sinTildes(campoNombre.value),difficulty,document.getElementById('cpuCount').value,brain);
+    localCpu.start(
+      sinTildes(campoNombre.value),
+      difficulty,
+      document.getElementById('cpuCount').value,
+      brain,
+      cpuLearningControl.localHardEnabled===true
+    );
     localCpuActive=true;
     handle({t:'created',code:'LOCAL',index:0,cpu:true,playerToken:''});
     handle({t:'start'});
