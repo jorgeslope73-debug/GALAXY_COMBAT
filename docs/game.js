@@ -21,6 +21,7 @@
   // canvas dinamico. Movil conserva el contexto opaco que ya funciona fluido.
   const ctx=canvas.getContext('2d',{alpha:useStaticPcBackground})||canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
+  const buildVersionEl=document.getElementById('buildVersion');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),fillCpuBtn=document.getElementById('fillCpu'),waitingPlayersEl=document.getElementById('waitingPlayers'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
   const shareGameBtn=document.getElementById('shareGame'),shareRoomBtn=document.getElementById('shareRoom'),shareToast=document.getElementById('shareToast');
@@ -78,7 +79,8 @@
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[];
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
-  let localCpu=null,localCpuActive=false;
+  let localCpu=null,localCpuActive=false,activeLocalDifficulty='';
+  let cpuLearningControl={autoTrainingEnabled:false,localHardEnabled:false,ready:false};
   let p2p=null,hostPhysics=null,lobbyPlayers=[],cpuFillEnabled=false;
   let netStartAt=0,lastP2PStateAt=0,lastFallbackRequestAt=0,lastFallbackStateSentAt=0;
   let fallbackActive=false,p2pStableCount=0;
@@ -970,6 +972,48 @@
     if(location.hostname.endsWith('github.io'))return '';
     return location.origin;
   }
+  function applyCpuLearningControl(control){
+    const c=control&&typeof control==='object'?control:{};
+    cpuLearningControl={
+      autoTrainingEnabled:c.autoTrainingEnabled===true,
+      localHardEnabled:c.localHardEnabled===true,
+      ready:true
+    };
+    updateBuildVersionLearningState();
+  }
+  function updateBuildVersionLearningState(){
+    if(!buildVersionEl)return;
+    let mode='off',label='Aprendizaje desactivado';
+    // Durante una partida CPU dificil, el aprendizaje local tiene prioridad visual.
+    if(localCpuActive&&activeLocalDifficulty==='dificil'&&cpuLearningControl.localHardEnabled){
+      mode='hard';label='Aprendizaje LOCAL DIFICIL activo';
+    }else if(cpuLearningControl.autoTrainingEnabled){
+      mode='training';label='Entrenamiento automatico activo';
+    }else if(cpuLearningControl.localHardEnabled){
+      mode='hard';label='Aprendizaje LOCAL DIFICIL activo';
+    }
+    buildVersionEl.classList.remove('learning-training','learning-hard','learning-off');
+    buildVersionEl.classList.add(mode==='training'?'learning-training':mode==='hard'?'learning-hard':'learning-off');
+    buildVersionEl.title=label;
+    buildVersionEl.setAttribute('aria-label','Version del juego · '+label);
+  }
+  async function refreshCpuLearningControl(){
+    const base=apiBaseUrl();
+    if(!base){
+      cpuLearningControl={autoTrainingEnabled:false,localHardEnabled:false,ready:false};
+      updateBuildVersionLearningState();
+      return;
+    }
+    const ctl=typeof AbortController==='function'?new AbortController():null;
+    const timer=ctl?setTimeout(()=>ctl.abort(),1800):null;
+    try{
+      const res=await fetch(base+'/api/cpu-learning-status',{cache:'no-store',signal:ctl?ctl.signal:undefined});
+      if(!res.ok)return;
+      const data=await res.json();
+      if(data&&data.ok)applyCpuLearningControl(data.control);
+    }catch(_){}
+    finally{if(timer)clearTimeout(timer);}
+  }
   function postAnalyticsEvent(type){
     const base=apiBaseUrl();if(!base)return;
     try{
@@ -1301,7 +1345,8 @@
   function authToken(){return window.GalaxyAuth&&typeof window.GalaxyAuth.getToken==='function'?window.GalaxyAuth.getToken():'';}
   function stopLocalCpu(){
     if(localCpu&&typeof localCpu.stop==='function')localCpu.stop();
-    localCpu=null;localCpuActive=false;
+    localCpu=null;localCpuActive=false;activeLocalDifficulty='';
+    updateBuildVersionLearningState();
   }
   async function loadCpuBrain(){
     const base=apiBaseUrl();if(!base)return null;
@@ -1311,6 +1356,7 @@
       const res=await fetch(base+'/api/cpu-brain',{cache:'no-store',signal:ctl?ctl.signal:undefined});
       if(!res.ok)return null;
       const data=await res.json();
+      if(data&&data.control)applyCpuLearningControl(data.control);
       return data&&data.ok&&data.brain?data.brain:null;
     }catch(_){return null;}
     finally{if(timer)clearTimeout(timer);}
@@ -1336,6 +1382,8 @@
     stopLocalCpu();
     stopResumeWindow();clearResumeSession();playerToken='';
     const difficulty=document.getElementById('difficulty').value;
+    activeLocalDifficulty=difficulty;
+    updateBuildVersionLearningState();
     postAnalyticsEvent('cpu_match');
     const brain=difficulty==='dificil'?await loadCpuBrain():null;
     await graphicsReady;
@@ -1637,6 +1685,10 @@
   window.addEventListener('resize',scheduleCanvasResolution,{passive:true});
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
   scheduleCanvasResolution();
+  updateBuildVersionLearningState();
+  refreshCpuLearningControl();
+  const cpuLearningStatusTimer=setInterval(refreshCpuLearningControl,5000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCpuLearningControl();});
   startBtn.addEventListener('click',async()=>{
     await Promise.all([prepareMobileControls(),prepareGameAssets()]);
     calibrateMobileMotion();send({t:'start'});
@@ -1721,7 +1773,7 @@
   }
   window.addEventListener('blur',clearHeldKeys);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHeldKeys();});
-  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);stopLocalCpu();stopP2P();if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
+  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);clearInterval(cpuLearningStatusTimer);stopLocalCpu();stopP2P();if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
 
   function imageReady(im){
     // complete is ALSO true after a failed download. Check decoded dimensions.
