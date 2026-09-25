@@ -304,7 +304,7 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
-    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',localiza:'assets/sprites/localiza.png',
+    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',localiza:'assets/sprites/localiza.png',coete:'assets/sprites/coete.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
   for(let i=1;i<=4;i++){
@@ -2498,7 +2498,15 @@
     for(const b of state.bullets){
       const x=b.x+b.vx*age,y=b.y+b.vy*age;
       const sp=Math.hypot(b.vx,b.vy)||1;
-      ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
+      if(b.g&&imageReady(images.coete)){
+        // coete.png apunta hacia ARRIBA, igual que las naves.
+        // Convertimos la velocidad a rotacion de fisica y dibujamos con -rot
+        // para respetar la convencion visual existente.
+        const bulletRot=(Math.atan2(-b.vx,-b.vy)*180/Math.PI+360)%360;
+        drawImageCentered(images.coete,x,y,42,-bulletRot,1);
+      }else{
+        ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
+      }
     }
     for(const p of state.players){
       const old=previousLookup.players.get(p.i);
