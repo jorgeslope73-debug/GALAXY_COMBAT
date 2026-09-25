@@ -108,15 +108,6 @@ async function ensureDatabase(){
       INSERT INTO galaxy_cpu_training_stats(id,matches)
       VALUES(1,0)
       ON CONFLICT(id) DO NOTHING;
-      CREATE TABLE IF NOT EXISTS galaxy_cpu_learning_control (
-        id SMALLINT PRIMARY KEY,
-        auto_training_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-        local_hard_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      INSERT INTO galaxy_cpu_learning_control(id,auto_training_enabled,local_hard_enabled)
-      VALUES(1,TRUE,TRUE)
-      ON CONFLICT(id) DO NOTHING;
     `);
     dbReady=true;
     console.log('[Galaxy Combat P2P] Base de datos de cuentas preparada.');
@@ -296,15 +287,6 @@ async function requireTrainingAdmin(req,res){
   }
   return true;
 }
-async function getCpuLearningControl(client=db){
-  const {rows}=await client.query('SELECT auto_training_enabled,local_hard_enabled,updated_at FROM galaxy_cpu_learning_control WHERE id=1 LIMIT 1');
-  const row=rows[0]||{};
-  return{
-    autoTrainingEnabled:row.auto_training_enabled!==false,
-    localHardEnabled:row.local_hard_enabled!==false,
-    updatedAt:row.updated_at||null
-  };
-}
 
 const CPU_BRAIN_MAX_STRATEGIES=40;
 const CPU_BRAIN_MAX_CANDIDATES=32;
@@ -437,40 +419,14 @@ async function authApi(req,res,url){
   }
   if(url==='/api/cpu-training/access'&&req.method==='GET'){
     const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
-    const [{rows},control]=await Promise.all([
-      db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1'),
-      getCpuLearningControl()
-    ]);
+    const {rows}=await db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1');
     const row=rows[0]||{matches:0,updated_at:null};
-    sendJson(res,200,{ok:true,trainingMatches:Number(row.matches)||0,updatedAt:row.updated_at||null,control});
-    return true;
-  }
-  if(url==='/api/cpu-training/control'&&req.method==='POST'){
-    const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
-    let body;try{body=await readJsonBody(req,4096);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
-    const current=await getCpuLearningControl();
-    const autoTrainingEnabled=typeof body.autoTrainingEnabled==='boolean'?body.autoTrainingEnabled:current.autoTrainingEnabled;
-    const localHardEnabled=typeof body.localHardEnabled==='boolean'?body.localHardEnabled:current.localHardEnabled;
-    const {rows}=await db.query(
-      'UPDATE galaxy_cpu_learning_control SET auto_training_enabled=$1,local_hard_enabled=$2,updated_at=NOW() WHERE id=1 RETURNING auto_training_enabled,local_hard_enabled,updated_at',
-      [autoTrainingEnabled,localHardEnabled]
-    );
-    const row=rows[0]||{};
-    sendJson(res,200,{ok:true,control:{
-      autoTrainingEnabled:row.auto_training_enabled!==false,
-      localHardEnabled:row.local_hard_enabled!==false,
-      updatedAt:row.updated_at||null
-    }});
+    sendJson(res,200,{ok:true,trainingMatches:Number(row.matches)||0,updatedAt:row.updated_at||null});
     return true;
   }
   if(url==='/api/cpu-brain/train-learn'&&req.method==='POST'){
     const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
     let body;try{body=await readJsonBody(req,16384);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
-    const control=await getCpuLearningControl();
-    if(!control.autoTrainingEnabled){
-      sendJson(res,200,{ok:true,skipped:true,reason:'AUTO_TRAINING_PAUSED',control});
-      return true;
-    }
     const deltas=Array.isArray(body&&body.deltas)?body.deltas:[];
     const learning=summarizeCpuDeltas(deltas);
     const client=await db.connect();
@@ -523,11 +479,6 @@ async function authApi(req,res,url){
   }
   if(url==='/api/cpu-brain/learn'&&req.method==='POST'){
     let body;try{body=await readJsonBody(req,16384);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
-    const control=await getCpuLearningControl();
-    if(!control.localHardEnabled){
-      sendJson(res,200,{ok:true,skipped:true,reason:'LOCAL_HARD_LEARNING_PAUSED',control});
-      return true;
-    }
     const deltas=Array.isArray(body&&body.deltas)?body.deltas:[];
     const client=await db.connect();
     try{

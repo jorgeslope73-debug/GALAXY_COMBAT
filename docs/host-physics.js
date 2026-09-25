@@ -247,21 +247,16 @@
       let elapsed=now-this.lastNow;this.lastNow=now;
       if(!Number.isFinite(elapsed)||elapsed<0)elapsed=STEP_MS;
       this.accumulator+=Math.min(100,elapsed);
-      let steps=0,publishState=false;
+      let steps=0;
       while(this.accumulator>=STEP_MS&&steps<5){
         this.update(DT);
         this.accumulator-=STEP_MS;
         this.tickCount++;
-        if((this.tickCount&1)===0||this.finished)publishState=true;
+        if((this.tickCount&1)===0||this.finished)this.onState(this.publicState());
         steps++;
         if(this.finished)break;
       }
       if(steps===5&&this.accumulator>=STEP_MS)this.accumulator%=STEP_MS;
-      // Si el navegador llega tarde podemos recuperar varios ticks de fisica
-      // en esta llamada. Construir un snapshot por cada tick recuperado creaba
-      // arrays/objetos temporales justo cuando el frame ya iba retrasado.
-      // Publicamos solo el estado final mas reciente.
-      if(publishState)this.onState(this.publicState());
     }
     restart(){
       if(!this.finished||this.players.length<2)return false;
@@ -338,15 +333,6 @@
       });
       if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
     }
-    emitExplosionAt(x,y,ownerIndex=0){
-      if(!Number.isFinite(x)||!Number.isFinite(y))return;
-      const i=Number.isInteger(ownerIndex)&&ownerIndex>=0&&ownerIndex<4?ownerIndex:0;
-      this.fxEvents.push({
-        id:++this.fxSeq,i,x:+x.toFixed(1),y:+y.toFixed(1),
-        kind:'explosion',hidden:false,at:this.fxClock
-      });
-      if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
-    }
     destroyShip(victim,attacker=null){
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
@@ -383,22 +369,17 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=0;p.guided=false;p.guidedTarget=-1;
     }
     guidedTargetFor(p){
       if(!p||p.dead)return -1;
       const forward=dirFromRot(p.rot);
-      // La mira puede revelar FANTASMAS solo dentro de un cono frontal de 60
-      // grados (aprox. +/-30). Los rivales visibles conservan el comportamiento
-      // anterior y pueden ser elegidos aunque esten fuera de ese cono.
-      const ghostMinAlign=.8660254038;
       let bestIndex=-1,bestAlign=-2,bestDistance=Infinity;
       for(const target of this.players){
-        if(!target||target.index===p.index||target.dead)continue;
+        if(!target||target.index===p.index||target.dead||target.camo>0)continue;
         const dx=target.x-p.x,dy=target.y-p.y,distance=Math.hypot(dx,dy);
         if(distance<1)continue;
         const align=(forward.x*dx+forward.y*dy)/distance;
-        if(target.camo>0&&align<ghostMinAlign)continue;
         if(align>bestAlign+1e-6||(Math.abs(align-bestAlign)<=1e-6&&distance<bestDistance)){
           bestAlign=align;bestDistance=distance;bestIndex=target.index;
         }
@@ -594,10 +575,7 @@
         const b=this.bullets[i];let remove=b.age>3||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
         if(!remove){
           for(const p of this.players){
-            // Las balas normales no dañan al tirador. El cohete guiado sí:
-            // si su trayectoria regresa y alcanza a su dueño, aplica la misma
-            // colision/daño que contra cualquier otra nave.
-            if((p.index===b.owner&&!b.guided)||p.dead||p.protection>0)continue;
+            if(p.index===b.owner||p.dead||p.protection>0)continue;
             if(sweptCircles(b,BULLET_RADIUS,p,SHIP_RADIUS,false)){
               const attacker=this.players.find(q=>q.index===b.owner)||null;
               if(p.shield<=0){
@@ -611,13 +589,7 @@
         }
         if(!remove)for(const a of this.asteroids)if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){remove=true;break;}
         if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){remove=true;this.emit({t:'sound',kind:'impact'});}
-        if(!remove)for(let m=this.meteors.length-1;m>=0;m--){
-          const meteor=this.meteors[m];
-          if(sweptCircles(b,BULLET_RADIUS,meteor,SMALL_METEOR_RADIUS,false)){
-            if(b.guided)this.emitExplosionAt(meteor.x,meteor.y,b.owner);
-            this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;
-          }
-        }
+        if(!remove)for(let m=this.meteors.length-1;m>=0;m--)if(sweptCircles(b,BULLET_RADIUS,this.meteors[m],SMALL_METEOR_RADIUS,false)){this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;}
         if(!remove)for(let p=this.pickups.length-1;p>=0;p--)if(sweptCircles(b,BULLET_RADIUS,this.pickups[p],PICKUP_RADIUS,false)){this.pickups.splice(p,1);remove=true;break;}
         if(remove)this.bullets.splice(i,1);
       }
@@ -643,9 +615,7 @@
           if(sweptCircles(pk,PICKUP_RADIUS,p,SHIP_RADIUS,false)){
             if(pk.type==='ammo3'){p.bullets+=6;p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));}else if(pk.type==='ammo1'){p.bullets+=1;p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));}
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
-            else if(pk.type==='mira'){
-              p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
-            }
+            else if(pk.type==='mira'){p.guided=true;p.guidedTarget=this.guidedTargetFor(p);}
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
             else if(pk.type==='shield')p.shield=10;
             else if(pk.type==='camo')p.camo=10;

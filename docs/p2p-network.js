@@ -9,7 +9,6 @@
       this.onPeerState=onPeerState||(()=>{});
       this.myIndex=null;this.isHost=false;this.players=[];this.peers=new Map();
       this.pendingStateRaw=null;this.stateRaf=0;
-      this.pendingBroadcastState=null;this.broadcastTimer=0;
       this.iceServers=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
     }
     setIceServers(servers){if(Array.isArray(servers)&&servers.length)this.iceServers=servers;}
@@ -137,35 +136,17 @@
       if(!rec||!rec.dc||rec.dc.readyState!=='open')return false;
       try{rec.dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire}));return true;}catch(_){return false;}
     }
-    flushBroadcastState(){
-      if(!this.isHost||!this.pendingBroadcastState)return false;
-      const state=this.pendingBroadcastState;
-      this.pendingBroadcastState=null;
-      let raw;try{raw=JSON.stringify({t:'state',state});}catch(_){return false;}
+    broadcastState(state){
+      if(!this.isHost)return;
+      const raw=JSON.stringify({t:'state',state});
       for(const rec of this.peers.values()){
         if(rec.dc&&rec.dc.readyState==='open'&&rec.dc.bufferedAmount<128*1024){
           try{rec.dc.send(raw);}catch(_){}
         }
       }
-      return true;
-    }
-    broadcastState(state){
-      if(!this.isHost)return;
-      // El host puede generar mas de un snapshot al recuperar tiempo perdido.
-      // Guardamos solo el ultimo y serializamos fuera del RAF actual, evitando
-      // concentrar JSON.stringify + WebRTC justo antes del pintado.
-      this.pendingBroadcastState=state;
-      if(this.broadcastTimer)return;
-      this.broadcastTimer=setTimeout(()=>{
-        this.broadcastTimer=0;
-        this.flushBroadcastState();
-      },0);
     }
     broadcastEvent(event){
       if(!this.isHost)return;
-      // Mantener orden: un evento nunca adelanta al ultimo estado pendiente.
-      if(this.broadcastTimer){clearTimeout(this.broadcastTimer);this.broadcastTimer=0;}
-      this.flushBroadcastState();
       const raw=JSON.stringify({t:'event',event});
       for(const rec of this.peers.values())if(rec.dc&&rec.dc.readyState==='open'){try{rec.dc.send(raw);}catch(_){}}
     }
@@ -177,8 +158,7 @@
     }
     close(){
       if(this.stateRaf){cancelAnimationFrame(this.stateRaf);this.stateRaf=0;}
-      if(this.broadcastTimer){clearTimeout(this.broadcastTimer);this.broadcastTimer=0;}
-      this.pendingStateRaw=null;this.pendingBroadcastState=null;
+      this.pendingStateRaw=null;
       for(const rec of this.peers.values()){
         try{rec.dc&&rec.dc.close();}catch(_){}
         try{rec.pc.close();}catch(_){}

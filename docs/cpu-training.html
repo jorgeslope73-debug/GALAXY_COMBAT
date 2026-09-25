@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Galaxy Combat · Entrenamiento CPU</title>
 <script src="config.js"></script>
-<script src="local-cpu.js?v=V18.65"></script>
+<script src="local-cpu.js?v=V18.18"></script>
 <style>
 :root{color-scheme:dark;--bg:#060813;--panel:#101526;--line:#283451;--text:#eef6ff;--muted:#92a4bf;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#16243e 0,#070914 42%,#03050a 100%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
@@ -13,7 +13,7 @@ main{max-width:1280px;margin:auto;padding:20px}.top{display:flex;justify-content
 h1{margin:0;font-size:clamp(24px,4vw,40px)}.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:18px 0}
 .card,.panel{background:rgba(16,21,38,.92);border:1px solid var(--line);border-radius:14px;padding:14px}.label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}.value{font-size:25px;font-weight:800;margin-top:4px}
 .panel{margin-top:12px}.controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}button,select,a{border:1px solid #4a5d7f;border-radius:9px;background:#151d31;color:#fff;padding:9px 13px;font-weight:700;text-decoration:none}
-button{cursor:pointer}.ok{color:#72f2ad}.bad{color:#ff8295}.control-on{border-color:#3adf88;background:#123824;color:#8dffc1}.control-off{border-color:#ff6178;background:#3a1520;color:#ff9aaa}.control-master{border-color:#7b8fb6}.access-row{display:flex;gap:8px;justify-content:center;max-width:520px;margin:18px auto 0}.access-row input{flex:1;min-width:0;border:1px solid #4a5d7f;border-radius:9px;background:#0b1120;color:#fff;padding:10px 12px;font:600 16px Arial}.canvas-wrap{position:relative;background:#030610;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+button{cursor:pointer}.ok{color:#72f2ad}.bad{color:#ff8295}.access-row{display:flex;gap:8px;justify-content:center;max-width:520px;margin:18px auto 0}.access-row input{flex:1;min-width:0;border:1px solid #4a5d7f;border-radius:9px;background:#0b1120;color:#fff;padding:10px 12px;font:600 16px Arial}.canvas-wrap{position:relative;background:#030610;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px 18px;text-align:center}.hidden{display:none!important}
 .log{height:130px;overflow:auto;background:#090d18;border-radius:9px;padding:9px;font:12px/1.45 monospace;color:#b9c8dd}
 @media(max-width:820px){.cards{grid-template-columns:repeat(2,1fr)}}
@@ -47,18 +47,8 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
     </div>
 
     <section class="panel">
-      <div class="label" style="margin-bottom:9px">Control persistente de aprendizaje</div>
       <div class="controls">
-        <button id="autoTrainingToggle" type="button">AUTO: —</button>
-        <button id="localHardToggle" type="button">LOCAL DIFÍCIL: —</button>
-        <button id="allTrainingToggle" class="control-master" type="button">PARAR TODO</button>
-        <span id="learningControlStatus" class="muted">—</span>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="controls">
-        <button id="pause">PAUSAR SESIÓN</button>
+        <button id="pause">PAUSAR</button>
         <select id="speed" aria-label="Velocidad de entrenamiento">
           <option value="1">x1</option>
           <option value="5">x5</option>
@@ -87,7 +77,6 @@ const COLORS=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
 let trainingKey=(()=>{try{return localStorage.getItem(TRAINING_KEY_STORAGE)||''}catch(_){return ''}})();
 const $=id=>document.getElementById(id);
 let sim=null,state=null,running=false,busy=false,pendingDeltas=[],sessionCount=0,speed=15,lastPaint=0;
-let autoTrainingEnabled=true,localHardEnabled=true,manualPaused=false,frameStarted=false;
 const ctx=$('arena').getContext('2d');
 
 function trainingHeaders(){return trainingKey?{'X-Training-Key':trainingKey}:{}}
@@ -98,55 +87,6 @@ async function json(path,options={}){
   let d={};try{d=await r.json()}catch(_){}
   if(!r.ok){const e=new Error(d.message||d.code||('HTTP '+r.status));e.code=d.code;throw e}
   return d;
-}
-function applyLearningControl(control){
-  const c=control&&typeof control==='object'?control:{};
-  autoTrainingEnabled=c.autoTrainingEnabled!==false;
-  localHardEnabled=c.localHardEnabled!==false;
-  updateLearningControlUi();
-}
-function updateLearningControlUi(){
-  const autoBtn=$('autoTrainingToggle'),localBtn=$('localHardToggle'),allBtn=$('allTrainingToggle');
-  autoBtn.textContent='AUTO: '+(autoTrainingEnabled?'ACTIVO':'PARADO');
-  localBtn.textContent='LOCAL DIFÍCIL: '+(localHardEnabled?'ACTIVO':'PARADO');
-  autoBtn.className=autoTrainingEnabled?'control-on':'control-off';
-  localBtn.className=localHardEnabled?'control-on':'control-off';
-  const anyEnabled=autoTrainingEnabled||localHardEnabled;
-  allBtn.textContent=anyEnabled?'PARAR TODO':'ACTIVAR TODO';
-  $('learningControlStatus').textContent='AUTO '+(autoTrainingEnabled?'ON':'OFF')+' · LOCAL '+(localHardEnabled?'ON':'OFF');
-  $('learningControlStatus').className=(autoTrainingEnabled||localHardEnabled)?'ok':'bad';
-  $('pause').disabled=!autoTrainingEnabled;
-  if(!autoTrainingEnabled){
-    running=false;
-    $('status').textContent='ENTRENAMIENTO AUTOMÁTICO PARADO';
-    $('status').className='bad';
-    $('pause').textContent='PAUSAR SESIÓN';
-  }else if(manualPaused){
-    running=false;
-    $('status').textContent='SESIÓN PAUSADA';
-    $('status').className='';
-    $('pause').textContent='CONTINUAR SESIÓN';
-  }else if(sim&&!busy){
-    running=true;
-    $('status').textContent='ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA';
-    $('status').className='ok';
-    $('pause').textContent='PAUSAR SESIÓN';
-  }
-}
-async function setLearningControl(patch){
-  try{
-    const d=await json('/api/cpu-training/control',{method:'POST',body:JSON.stringify(patch)});
-    applyLearningControl(d.control);
-    if(autoTrainingEnabled&&sim&&sim.finished){
-      pendingDeltas=[];
-      sim.restart();
-      state=sim.publicState();
-    }
-    updateLearningControlUi();
-    log('Control actualizado · AUTO '+(autoTrainingEnabled?'ON':'OFF')+' · LOCAL DIFÍCIL '+(localHardEnabled?'ON':'OFF')+'.');
-  }catch(e){
-    log('ERROR cambiando control: '+e.message);
-  }
 }
 function triangle(x,y,r,color){
   ctx.save();ctx.translate(x,y);ctx.rotate(-r*Math.PI/180);ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=10;
@@ -176,9 +116,8 @@ function startSim(brain){
   });
   sim.startTraining(brain);
   state=sim.publicState();
-  running=autoTrainingEnabled&&!manualPaused;
-  updateLearningControlUi();
-  log(autoTrainingEnabled?'Comienza entrenamiento con 4 CPU.':'Simulador preparado, entrenamiento automático PARADO.');
+  running=true;
+  log('Comienza entrenamiento con 4 CPU.');
 }
 async function finishMatch(winner){
   if(busy)return;
@@ -189,14 +128,6 @@ async function finishMatch(winner){
   log('Gana CPU '+(Number(winner)+1)+(winnerPlayer?' con '+winnerPlayer.kills+' bajas':'')+'.');
   try{
     const d=await json('/api/cpu-brain/train-learn',{method:'POST',body:JSON.stringify({deltas:pendingDeltas.slice(0,24)})});
-    if(d.skipped){
-      pendingDeltas=[];
-      running=false;
-      if(d.control)applyLearningControl(d.control);
-      log('Aprendizaje no guardado: entrenamiento automático PARADO.');
-      updateLearningControlUi();
-      return;
-    }
     sessionCount++;
     $('sessionMatches').textContent=sessionCount;
     $('totalMatches').textContent=d.trainingMatches||0;
@@ -212,11 +143,9 @@ async function finishMatch(winner){
     }else{
       log('Partida terminada SIN deltas válidos: el brain no cambió.');
     }
-    running=autoTrainingEnabled&&!manualPaused;
-    if(running){
-      $('status').textContent=d.learned?'ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA':'ENTRENANDO · ÚLTIMA SIN APRENDIZAJE';
-      $('status').className=d.learned?'ok':'bad';
-    }else updateLearningControlUi();
+    running=true;
+    $('status').textContent=d.learned?'ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA':'ENTRENANDO · ÚLTIMA SIN APRENDIZAJE';
+    $('status').className=d.learned?'ok':'bad';
   }catch(e){
     log('ERROR guardando aprendizaje: '+e.message);
     $('status').textContent='PAUSADO POR ERROR';
@@ -231,15 +160,10 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 $('pause').addEventListener('click',()=>{
-  if(!autoTrainingEnabled)return;
-  manualPaused=!manualPaused;
-  updateLearningControlUi();
-});
-$('autoTrainingToggle').addEventListener('click',()=>setLearningControl({autoTrainingEnabled:!autoTrainingEnabled}));
-$('localHardToggle').addEventListener('click',()=>setLearningControl({localHardEnabled:!localHardEnabled}));
-$('allTrainingToggle').addEventListener('click',()=>{
-  const enable=!(autoTrainingEnabled||localHardEnabled);
-  setLearningControl({autoTrainingEnabled:enable,localHardEnabled:enable});
+  running=!running;
+  $('pause').textContent=running?'PAUSAR':'CONTINUAR';
+  $('status').textContent=running?'ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA':'PAUSADO';
+  $('status').className=running?'ok':'';
 });
 $('speed').addEventListener('change',()=>{speed=Math.max(1,Number($('speed').value)||1);$('speedValue').textContent='x'+speed;log('Velocidad x'+speed+'.')});
 
@@ -255,10 +179,9 @@ async function enterTraining(){
     try{localStorage.setItem(TRAINING_KEY_STORAGE,trainingKey)}catch(_){}
     $('totalMatches').textContent=access.trainingMatches||0;
     $('brainVersion').textContent=brain.version||'—';
-    applyLearningControl(access.control||{});
     $('locked').classList.add('hidden');$('trainer').classList.remove('hidden');
     startSim(brain.brain||null);
-    if(!frameStarted){frameStarted=true;requestAnimationFrame(frame);}
+    requestAnimationFrame(frame);
   }catch(e){
     if(e.code==='TRAINING_ADMIN_NOT_CONFIGURED')$('lockText').textContent='Falta configurar TRAINING_ADMIN_KEY en Render.';
     else if(e.code==='FORBIDDEN')$('lockText').textContent='Clave incorrecta.';

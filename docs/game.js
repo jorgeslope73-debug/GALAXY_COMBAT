@@ -7,19 +7,10 @@
   const tr=(key,vars)=>i18n?i18n.t(key,vars):key;
   const trServer=text=>i18n?i18n.translateServerText(text):String(text==null?'':text);
   const canvas=document.getElementById('game');
-  const useStaticPcBackground=!isMobile;
-  if(useStaticPcBackground){
-    // Fondo PC estatico: se compone una sola vez como capa CSS 16:9 y ya no se
-    // copia dentro del canvas en cada frame.
-    canvas.style.backgroundColor='#020714';
-    canvas.style.backgroundImage="url('assets/sprites/fondo.png')";
-    canvas.style.backgroundRepeat='no-repeat';
-    canvas.style.backgroundPosition='center center';
-    canvas.style.backgroundSize='100% 100%';
-  }
-  // En PC necesitamos alpha para que la capa estatica se vea a traves del
-  // canvas dinamico. Movil conserva el contexto opaco que ya funciona fluido.
-  const ctx=canvas.getContext('2d',{alpha:useStaticPcBackground})||canvas.getContext('2d');
+  // V16.4.41: usamos el compositor sincronizado tambien en PC. El hint
+  // `desynchronized` reduce latencia en algunos navegadores, pero puede producir
+  // pacing irregular/tearing en Canvas cuando la nave se mueve deprisa.
+  const ctx=canvas.getContext('2d',{alpha:false})||canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),fillCpuBtn=document.getElementById('fillCpu'),waitingPlayersEl=document.getElementById('waitingPlayers'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
@@ -59,8 +50,7 @@
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
-  const localizedTargetOwners=[-1,-1,-1,-1];
-  const localizaSpriteKeys=['localizaA','localizaB','localizaC','localizaD'];
+  const localizedTargets=[false,false,false,false];
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
@@ -119,11 +109,7 @@
           const hz=1000/(displaySampleTotal/displaySampleCount);
           if(Number.isFinite(hz)&&hz>=40&&hz<=360){
             measuredRefreshHz=hz;
-            // Divisor entero para conservar un frame pacing regular SIN caer
-            // por debajo de ~60 FPS. Ejemplos: 120 -> 60, 144 -> 72,
-            // 165 -> 82,5, 180 -> 60, 200 -> 66,7 y 240 -> 60.
-            // En monitores por debajo de 120 Hz pintamos cada RAF.
-            const next=hz>=118?Math.max(2,Math.floor(hz/60)):1;
+            const next=hz>=118?Math.max(2,Math.round(hz/75)):1;
             renderDivisor=Math.max(1,next);
           }
           displaySampleTotal=0;displaySampleCount=0;
@@ -186,7 +172,6 @@
   const voice=typeof window.GalaxyVoice==='function'?new window.GalaxyVoice({send:o=>send(o),isMobile}):null;
   let backgroundCache=null,backgroundCacheW=0,backgroundCacheH=0;
   function rebuildBackgroundCache(){
-    if(useStaticPcBackground)return;
     const bg=images.bg;
     if(!imageReady(bg)||!canvas.width||!canvas.height)return;
     if(backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height&&backgroundCache)return;
@@ -302,11 +287,10 @@
   campoNombre.addEventListener('compositionend',normalizarNombreVisible);
 
   const assetList={
-    bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
+    bg:isMobile?'assets/sprites/fondo_1280.png':'assets/sprites/fondo.png', giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
-    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',coete:'assets/sprites/coete.png',
-    localizaA:'assets/sprites/localizaA.png',localizaB:'assets/sprites/localizaB.png',localizaC:'assets/sprites/localizaC.png',localizaD:'assets/sprites/localizaD.png',
+    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',localiza:'assets/sprites/localiza.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
   for(let i=1;i<=4;i++){
@@ -323,7 +307,6 @@
   }
   const imageDecodePromises={};
   for(const [k,url] of Object.entries(assetList)){
-    if(!url)continue;
     const im=new Image();
     im.decoding='async';
     // Estos sprites aparecen desde el primer frame. Antes los asteroides tenian
@@ -348,33 +331,6 @@
     images[k]=im;
   }
 
-  let rendererWarmed=false;
-  function warmRendererCaches(){
-    if(rendererWarmed)return;
-    rendererWarmed=true;
-    // Fuerza durante el menu las primeras subidas de texturas y rutas costosas
-    // de Canvas (fuente, shadow blur y modos screen/lighter). Asi no aparecen
-    // como compilacion/transferencia puntual durante los primeros disparos.
-    try{
-      const c=document.createElement('canvas');c.width=256;c.height=256;
-      const g=c.getContext('2d',{alpha:true});
-      if(!g)return;
-      let x=0,y=0;
-      for(const im of Object.values(images)){
-        if(!imageReady(im))continue;
-        try{g.drawImage(im,x,y,32,32);}catch(_){}
-        x+=34;if(x>220){x=0;y+=34;if(y>200)y=0;}
-      }
-      g.font='20px Flashback,Arial';
-      g.fillStyle='#fff';g.fillText('GALAXY 0123456789',4,238);
-      g.shadowColor='rgba(90,225,255,.95)';g.shadowBlur=48;
-      g.fillText('READY',120,238);
-      g.shadowBlur=0;
-      g.globalCompositeOperation='screen';g.fillRect(0,0,8,8);
-      g.globalCompositeOperation='lighter';g.fillRect(10,0,8,8);
-      g.globalCompositeOperation='source-over';
-    }catch(_){}
-  }
   let gameAssetsReady=false,gameAssetsPromise=null,gameAssetsIdleHandle=0;
   function prepareGameAssets(){
     if(gameAssetsReady)return Promise.resolve(true);
@@ -389,7 +345,6 @@
       // Construye la cache grande del fondo mientras aun estamos en menu/lobby,
       // no durante los primeros frames de la partida.
       updateCanvasResolution();
-      warmRendererCaches();
       gameAssetsReady=true;
       return true;
     });
@@ -1665,12 +1620,6 @@
       ctx.restore();
     }
   }
-  function drawLocalizaMarker(x,y,owner,alpha=.92){
-    const idx=Math.max(0,Math.min(3,Number(owner)||0));
-    const im=images[localizaSpriteKeys[idx]];
-    if(!imageReady(im))return false;
-    return drawImageCentered(im,x,y,78,0,alpha);
-  }
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1'};
   function pickupExpiryAlpha(pk,nowSec){
     const raw=pk&&pk.expiresIn;
@@ -1862,13 +1811,12 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
-    const localizedOwner=localizedTargetOwners[Number(p.i)];
-    const localized=Number.isInteger(localizedOwner)&&localizedOwner>=0;
+    const localized=!!localizedTargets[Number(p.i)];
     let alpha=1;
     if(p.camo>0&&!local){
       const revealAlpha=ghostRevealAlpha(p,now);
       if(revealAlpha<=0){
-        if(localized)drawLocalizaMarker(x,y,localizedOwner,.92);
+        if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,.92);
         return;
       }
       // Revelacion encadenada: aparece y desaparece suavemente.
@@ -1904,7 +1852,7 @@
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
     if(p.mira===true&&imageReady(images.navemira))drawImageCentered(images.navemira,x,y,64,-r,Math.min(1,alpha*.95));
-    if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
+    if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,Math.min(1,alpha*.95));
   }
   function drawHud(now){
     if(!state)return;
@@ -2424,6 +2372,9 @@
         perfStats.windowStart=now;perfStats.frames=0;perfStats.longFrames=0;perfStats.maxFrame=0;perfStats.parseMs=0;perfStats.parseCount=0;perfStats.localErrMax=0;
       }
     }
+    // El fondo cacheado es opaco y cubre todo el backing canvas. Con la
+    // composicion `copy` sustituimos el frame anterior en una sola pasada y
+    // evitamos clearRect + drawImage (dos recorridos completos de memoria).
     ctx.setTransform(1,0,0,1,0,0);
     ctx.globalAlpha=1;
     ctx.filter='none';
@@ -2431,46 +2382,31 @@
     ctx.shadowBlur=0;
     ctx.shadowOffsetX=0;
     ctx.shadowOffsetY=0;
-    if(useStaticPcBackground){
-      // PC: el fondo vive debajo del canvas. Solo borramos los objetos del
-      // frame anterior; no volvemos a transferir/copyar 1920x1080 de fondo.
-      ctx.globalCompositeOperation='source-over';
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.globalCompositeOperation='copy';
+    if(backgroundCache&&backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height){
+      ctx.drawImage(backgroundCache,0,0,canvas.width,canvas.height);
     }else{
-      // Movil mantiene la ruta opaca/cacheada que ya va fluida.
-      ctx.globalCompositeOperation='copy';
-      if(backgroundCache&&backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height){
-        ctx.drawImage(backgroundCache,0,0,canvas.width,canvas.height);
-      }else{
-        ctx.fillStyle='#020714';ctx.fillRect(0,0,canvas.width,canvas.height);
-      }
-      ctx.globalCompositeOperation='source-over';
+      ctx.fillStyle='#020714';ctx.fillRect(0,0,canvas.width,canvas.height);
     }
+    ctx.globalCompositeOperation='source-over';
     ctx.setTransform(renderScale,0,0,renderScale,0,0);
-    if(!useStaticPcBackground&&!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){
-      ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);
-    }
+    if(!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
     if(!state)return;
 
     const nowSec=now/1000;
     const blend=interpolationAlpha(now);
     const prev=previousState||state;
-    localizedTargetOwners.fill(-1);
+    localizedTargets.fill(false);
     for(const p of state.players||[]){
       if(p&&p.mira===true){
-        const target=Number(p.mt),owner=Number(p.i);
-        if(Number.isInteger(target)&&target>=0&&target<localizedTargetOwners.length&&Number.isInteger(owner)){
-          localizedTargetOwners[target]=owner;
-        }
+        const target=Number(p.mt);
+        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
       }
     }
     for(const b of state.bullets||[]){
       if(b&&b.g===true){
-        const target=Number(b.gt),owner=Number(b.o);
-        if(Number.isInteger(target)&&target>=0&&target<localizedTargetOwners.length&&Number.isInteger(owner)){
-          // Tras disparar, el marcador conserva el color del propietario del misil.
-          localizedTargetOwners[target]=owner;
-        }
+        const target=Number(b.gt);
+        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
       }
     }
 
@@ -2512,15 +2448,7 @@
     for(const b of state.bullets){
       const x=b.x+b.vx*age,y=b.y+b.vy*age;
       const sp=Math.hypot(b.vx,b.vy)||1;
-      if(b.g&&imageReady(images.coete)){
-        // coete.png apunta hacia ARRIBA, igual que las naves.
-        // Convertimos la velocidad a rotacion de fisica y dibujamos con -rot
-        // para respetar la convencion visual existente.
-        const bulletRot=(Math.atan2(-b.vx,-b.vy)*180/Math.PI+360)%360;
-        drawImageCentered(images.coete,x,y,42,-bulletRot,1);
-      }else{
-        ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
-      }
+      ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
     }
     for(const p of state.players){
       const old=previousLookup.players.get(p.i);
