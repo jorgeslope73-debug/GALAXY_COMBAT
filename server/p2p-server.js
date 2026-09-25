@@ -435,6 +435,11 @@ async function authApi(req,res,url){
     if(!user){sendJson(res,401,{ok:false,code:'UNAUTHORIZED'});return true;}
     sendJson(res,200,{ok:true,user:{id:Number(user.id),username:user.username,email:user.email}});return true;
   }
+  if(url==='/api/cpu-learning-status'&&req.method==='GET'){
+    const control=await getCpuLearningControl();
+    sendJson(res,200,{ok:true,control});
+    return true;
+  }
   if(url==='/api/cpu-training/access'&&req.method==='GET'){
     const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
     const [{rows},control]=await Promise.all([
@@ -502,9 +507,10 @@ async function authApi(req,res,url){
     return true;
   }
   if(url==='/api/cpu-brain'&&req.method==='GET'){
-    const [{rows},{rows:trainingRows}]=await Promise.all([
+    const [{rows},{rows:trainingRows},control]=await Promise.all([
       db.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 LIMIT 1'),
-      db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1')
+      db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1'),
+      getCpuLearningControl()
     ]);
     const row=rows[0]||{version:1,brain:{version:1,strategies:[],candidates:[]},updated_at:null};
     const training=trainingRows[0]||{matches:0,updated_at:null};
@@ -517,6 +523,7 @@ async function authApi(req,res,url){
       bytes,
       maxBytes:CPU_BRAIN_MAX_BYTES,
       training:{matches:Number(training.matches)||0,updatedAt:training.updated_at||null},
+      control,
       brain:{version:brain.version,strategies:brain.strategies,candidates:brain.candidates}
     });
     return true;
