@@ -968,7 +968,10 @@
             }
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
             else if(pk.type==='mira'){
-              if(p.bullets<=0)p.bullets=1;
+              if(p.bullets<=0){
+                p.bullets=1;
+                p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));
+              }
               p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
             }
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
