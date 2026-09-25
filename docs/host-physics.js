@@ -598,7 +598,7 @@
       this.nextPickup-=dt;
       if(this.nextPickup<=0){
         let type;
-        if(Math.random()<.03&&!this.pickups.some(pk=>pk.type==='mira'))type='mira';
+        if(Math.random()<.50&&!this.pickups.some(pk=>pk.type==='mira'))type='mira';
         else{
           const roll=randint(1,28);
           if(roll<=7)type='ammo3';else if(roll<=16)type='ammo1';else if(roll<=19)type='cadence';else if(roll<=22)type='speed';else if(roll<=25)type='shield';else type='camo';
