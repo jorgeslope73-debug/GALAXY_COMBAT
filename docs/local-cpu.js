@@ -913,12 +913,23 @@
             }
           }
         }
-        if(!remove)for(const a of this.asteroids)if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){remove=true;break;}
-        if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){remove=true;this.emit({t:'sound',kind:'impact'});}
+        if(!remove)for(const a of this.asteroids){
+          if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){
+            if(b.guided){
+              this.emitExplosionAt(b.x,b.y,b.owner);
+              this.emit({t:'sound',kind:'impact'});
+            }
+            remove=true;break;
+          }
+        }
+        if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){
+          if(b.guided)this.emitExplosionAt(b.x,b.y,b.owner);
+          remove=true;this.emit({t:'sound',kind:'impact'});
+        }
         if(!remove)for(let m=this.meteors.length-1;m>=0;m--){
           const meteor=this.meteors[m];
           if(sweptCircles(b,BULLET_RADIUS,meteor,SMALL_METEOR_RADIUS,false)){
-            if(b.guided)this.emitExplosionAt(meteor.x,meteor.y,b.owner);
+            if(b.guided)this.emitExplosionAt(b.x,b.y,b.owner);
             this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;
           }
         }
