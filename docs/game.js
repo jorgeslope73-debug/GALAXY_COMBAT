@@ -647,9 +647,12 @@
       onControl:(i,m)=>{if(hostPhysics)hostPhysics.setControl(i,m.turn,m.thrust,m.fire);},
       onState:m=>handle(m),
       onEvent:m=>{
-        if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics&&hostPhysics.restart()){
-          p2p.broadcastEvent({t:'restarted'});
-          handle({t:'restarted'});
+        if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics){
+          send({t:'rank-restart'});
+          if(hostPhysics.restart()){
+            p2p.broadcastEvent({t:'restarted'});
+            handle({t:'restarted'});
+          }
         }else handle(m);
       },
       onPeerState:()=>{}
@@ -663,10 +666,10 @@
     hostPhysics=null;
     lobbyPlayers=[];
   }
-  function startHostPhysics(players){
+  function startHostPhysics(players,rankRound=1){
     if(!isHost||typeof window.GalaxyHostPhysics!=='function')return false;
     hostPhysics=new window.GalaxyHostPhysics({
-      code:roomCode,
+      code:roomCode,rankRound,rankHostToken:playerToken,
       onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);},
       onEvent:m=>{handle(m);if(p2p)p2p.broadcastEvent(m);}
     });
@@ -1115,7 +1118,7 @@
       playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
     }
-    else if(m.t==='start'){if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers);beginGame();playSound('start');}
+    else if(m.t==='start'){if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers,m.rankRound);beginGame();playSound('start');}
     else if(m.t==='state'){
       const now=performance.now();
       if(impactFX)impactFX.consume(m,myIndex,now);
@@ -1182,6 +1185,9 @@
       huntCpuAmmo=!!m.cpuAmmo;
       huntCpuBonus=Math.max(0,Number(m.cpuAmmoBonus)||0);
       huntCpuIndices=Array.isArray(m.cpuIndices)?m.cpuIndices.map(Number).filter(Number.isFinite):[];
+    }
+    else if(m.t==='rank-round'){
+      if(isHost&&hostPhysics&&Number.isFinite(Number(m.rankRound)))hostPhysics.rankRound=Number(m.rankRound);
     }
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
