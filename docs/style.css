@@ -1,0 +1,162 @@
+@font-face{font-family:Flashback;src:url('assets/font/Flashback.ttf') format('truetype');font-display:swap}
+:root{color-scheme:dark;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
+*{box-sizing:border-box}html,body{margin:0;background:#000;color:#fff;width:100%;height:100%;overflow:hidden;font-family:Flashback,Arial,sans-serif}
+#app{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#000}
+#game{display:block;width:min(100vw,177.7778vh,1920px);height:auto;max-width:100%;max-height:100%;aspect-ratio:16/9;background:#000;image-rendering:auto}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}.card{pointer-events:auto;width:min(520px,92vw);padding:26px;border:1px solid rgba(90,225,255,.5);background:rgba(2,8,20,.88);backdrop-filter:blur(8px);text-align:center;border-radius:14px;box-shadow:0 0 28px rgba(40,160,255,.18)}
+h1{font-size:38px;margin:0 0 8px;color:var(--cyan)}h2{font-size:28px;margin:0 0 18px}.sub{opacity:.75;margin:0 0 22px}.hidden{display:none!important}
+label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:inherit;font-size:18px;min-height:48px;border-radius:8px;border:1px solid #42617a;background:#081522;color:#fff;padding:10px 14px}input,select{width:100%}button{width:100%;margin-top:10px;cursor:pointer;background:#0d2f46;border-color:#4bb9e0}button:hover{background:#123e5c}button:disabled{opacity:.4;cursor:not-allowed}.row{display:flex;gap:8px}.joinrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.joinrow button{margin:0}.help{font-family:Arial,sans-serif;font-size:14px;opacity:.72;line-height:1.4}.status{font-family:Arial,sans-serif;font-size:14px;color:#ffd36a;min-height:20px}.status.waking::before{content:'◌ ';display:inline-block;animation:spin 1s linear infinite}.status.ready{color:#8fffb0}.status.ready::before{content:'● ';font-size:10px}@keyframes spin{to{transform:rotate(360deg)}}#players{font-family:Arial,sans-serif;text-align:left;line-height:1.8;padding:8px 16px;background:rgba(0,0,0,.25);border-radius:8px}
+#topbar{position:absolute;left:50%;top:8px;transform:translateX(-50%);display:flex;gap:24px;padding:7px 14px;border-radius:8px;background:rgba(0,0,0,.55);font:14px Arial,sans-serif;pointer-events:none}
+@media(max-width:600px){h1{font-size:30px}.card{padding:18px}.joinrow{grid-template-columns:1fr}.joinrow button{margin-top:0}}
+
+.mobile-setup{margin-top:10px}
+.mobile-setup button{border-color:#8a6bd6;background:#251a46}
+.motion-status{font:13px Arial,sans-serif;min-height:18px;margin:7px 0 0;color:#cdbdff}
+.mobile-controls{position:absolute;inset:0;z-index:4;pointer-events:none}
+.mobile-zone{position:absolute;bottom:0;width:50%;height:46%;display:flex;align-items:flex-end;padding:0 5vw 5vh;font:700 clamp(14px,3vw,24px) Arial,sans-serif;letter-spacing:.08em;color:rgba(255,255,255,.42);text-shadow:0 1px 4px #000;user-select:none;-webkit-user-select:none}
+.fire-zone{left:0;justify-content:flex-start;background:linear-gradient(to top,rgba(255,80,165,.08),transparent 62%)}
+.thrust-zone{right:0;justify-content:flex-end;background:linear-gradient(to top,rgba(90,225,255,.08),transparent 62%)}
+.mobile-zone.active{color:rgba(255,255,255,.9)}
+@media (pointer:coarse),(max-width:900px){
+  .desktop-help,.desktop-only{display:none!important}
+  #app{touch-action:none;-webkit-user-select:none;user-select:none}
+  #game{touch-action:none}
+  #topbar{font-size:12px;top:4px}
+}
+
+/* V16.4.3: las zonas tactiles son invisibles; sus rotulos se dibujan solo en canvas. */
+#mobileControls .mobile-zone{color:transparent!important;text-shadow:none!important;font-size:0!important;}
+#mobileControls .mobile-zone::before,#mobileControls .mobile-zone::after{content:none!important;display:none!important;}
+
+
+/* V16.4.82: celebracion final del ganador despues de mostrar el 5/5. */
+#victory.winner-celebration{
+  position:relative;
+  overflow:visible;
+  border-color:var(--winner-color,#d8a7ff);
+  box-shadow:0 0 28px rgba(255,255,255,.16),0 0 52px var(--winner-color,#d8a7ff);
+  animation:galaxyVictoryCard .9s cubic-bezier(.18,.9,.24,1.18) both;
+}
+#victory.winner-celebration::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:42%;
+  width:18px;
+  height:18px;
+  border:3px solid #fff;
+  border-radius:50%;
+  pointer-events:none;
+  transform:translate(-50%,-50%) scale(.2);
+  opacity:0;
+  box-shadow:0 0 24px #fff,0 0 48px var(--winner-color,#d8a7ff);
+  animation:galaxyVictoryFlash 1.15s ease-out both;
+}
+#victory.winner-celebration #victoryText{
+  color:var(--winner-color,#d8a7ff);
+  text-shadow:0 0 8px #fff,0 0 18px var(--winner-color,#d8a7ff),0 0 38px var(--winner-color,#d8a7ff);
+  animation:galaxyWinnerEgo 1.65s cubic-bezier(.18,.9,.22,1.08) both;
+}
+@keyframes galaxyVictoryCard{
+  0%{transform:scale(.86);filter:brightness(2.1)}
+  42%{transform:scale(1.08);filter:brightness(1.35)}
+  100%{transform:scale(1);filter:brightness(1)}
+}
+@keyframes galaxyVictoryFlash{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.15)}
+  12%{opacity:1}
+  55%{opacity:.72;transform:translate(-50%,-50%) scale(13)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(20)}
+}
+@keyframes galaxyWinnerEgo{
+  0%{transform:scale(.45);opacity:0;letter-spacing:.02em}
+  28%{transform:scale(1.55);opacity:1;letter-spacing:.13em}
+  48%{transform:scale(.92);letter-spacing:.07em}
+  68%{transform:scale(1.18)}
+  100%{transform:scale(1);opacity:1;letter-spacing:.08em}
+}
+
+
+/* V16.4.83: compartir juego y sala. */
+#lobby .share-room-btn{
+  border-color:rgba(205,145,255,.62);
+  background:linear-gradient(135deg,rgba(112,46,151,.95),rgba(62,26,91,.96));
+  color:#f5e7ff;
+}
+#lobby .share-room-btn:hover,#lobby .share-room-btn:focus-visible{
+  border-color:#efd1ff;
+  box-shadow:0 0 18px rgba(184,91,255,.28);
+}
+.share-toast{
+  position:fixed;
+  z-index:2147483647;
+  left:50%;
+  bottom:max(22px,env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  width:min(680px,calc(100vw - 28px));
+  box-sizing:border-box;
+  padding:12px 16px;
+  border:1px solid rgba(210,155,255,.7);
+  border-radius:10px;
+  background:rgba(20,7,34,.96);
+  color:#f8ecff;
+  box-shadow:0 12px 42px rgba(0,0,0,.55),0 0 24px rgba(165,78,235,.22);
+  font:800 12px/1.35 Arial,Helvetica,sans-serif;
+  letter-spacing:.035em;
+  text-align:center;
+  pointer-events:none;
+}
+.share-toast.hidden{display:none!important}
+@media(max-width:700px){
+  .share-toast{bottom:max(12px,env(safe-area-inset-bottom,0px));padding:10px 12px;font-size:11px}
+}
+
+
+/* V16.4.85: estado visual de sala lista y espera de jugadores. */
+#lobby #start.ready-to-start:not(:disabled){
+  background:linear-gradient(135deg,#1d8d48,#0c5b2c);
+  border-color:#69e99a;
+  color:#effff4;
+  box-shadow:0 0 18px rgba(65,226,125,.35),inset 0 1px 0 rgba(255,255,255,.12);
+}
+#lobby #start.ready-to-start:not(:disabled):hover,
+#lobby #start.ready-to-start:not(:disabled):focus-visible{
+  background:linear-gradient(135deg,#28a859,#11743a);
+  border-color:#9bffbd;
+  box-shadow:0 0 24px rgba(72,245,140,.46),inset 0 1px 0 rgba(255,255,255,.15);
+}
+#lobby .waiting-players{
+  margin:5px 0 0;
+  color:#ff5c66;
+  font:900 12px/1.2 Arial,Helvetica,sans-serif;
+  letter-spacing:.08em;
+  text-align:center;
+  text-shadow:0 0 8px rgba(255,40,55,.38);
+}
+#lobby .waiting-players.hidden{display:none!important}
+
+
+/* V18.22: el anfitrion puede completar las plazas libres con CPU dificiles. */
+#lobby .fill-cpu-btn{
+  width:auto;
+  min-height:28px;
+  margin:0;
+  padding:4px 8px;
+  border-radius:5px;
+  font:800 10px/1 Arial,Helvetica,sans-serif;
+  letter-spacing:.025em;
+  white-space:nowrap;
+  border-color:rgba(255,204,90,.72);
+  background:linear-gradient(135deg,rgba(126,79,10,.96),rgba(72,40,5,.96));
+  color:#fff0b3;
+}
+#lobby .fill-cpu-btn:hover,#lobby .fill-cpu-btn:focus-visible{
+  border-color:#ffe49a;
+  box-shadow:0 0 18px rgba(255,195,72,.28);
+}
+#lobby .fill-cpu-btn.cpu-fill-active{
+  border-color:#72f2ad;
+  background:linear-gradient(135deg,#17693b,#0b4326);
+  color:#effff6;
+  box-shadow:0 0 16px rgba(82,232,147,.22);
+}
