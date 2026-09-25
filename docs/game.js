@@ -1,7 +1,7 @@
 'use strict';
 (() => {
-  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const isMobile=document.documentElement.classList.contains('handheld-device')||matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   const perfDebug=new URLSearchParams(location.search).get('debug')==='1';
   const i18n=window.GalaxyI18n||null;
   const tr=(key,vars)=>i18n?i18n.t(key,vars):key;
@@ -1451,7 +1451,14 @@
       else if(inGame)returnToMainMenu();
     }
   });
-  window.addEventListener('keyup',e=>keys.delete(e.code));
+  window.addEventListener('keyup',e=>{
+    keys.delete(e.code);
+    if(isMobile&&mobileKeyboardActive&&MOBILE_KEYBOARD_CODES.has(e.code)){
+      let keyboardStillHeld=false;
+      for(const code of MOBILE_KEYBOARD_CODES){if(keys.has(code)){keyboardStillHeld=true;break;}}
+      if(!keyboardStillHeld)setMobileKeyboardActive(false);
+    }
+  });
   // Si el navegador pierde el foco, puede no llegar el keyup de una tecla que
   // estaba pulsada. Limpiamos el estado para evitar giro/aceleracion/disparo
   // pegados al volver a la ventana.
