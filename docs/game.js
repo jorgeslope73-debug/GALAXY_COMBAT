@@ -195,6 +195,15 @@
   const motionStatus=document.getElementById('motionStatus');
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
   const mobileExit=document.getElementById('mobileExit');
+  const mobileControlMotionBtn=document.getElementById('mobileControlMotion'),mobileControlButtonsBtn=document.getElementById('mobileControlButtons');
+  const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone');
+  const MOBILE_CONTROL_KEY='galaxyCombatMobileControlV1';
+  let mobileControlMode='motion';
+  try{if(localStorage.getItem(MOBILE_CONTROL_KEY)==='buttons')mobileControlMode='buttons';}catch(_){}
+  let mobileButtonTurn=0;
+  let mobileKeyboardActive=false;
+  const MOBILE_KEYBOARD_CODES=new Set(['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp','Space','ControlLeft','ControlRight']);
+  const mobileLeftPointers=new Set(),mobileRightPointers=new Set();
   // Los antiguos elementos izquierdo/derecho se mantienen solo como capa visual.
   // El control real usa toda la pantalla: toque corto = disparo, mantener = acelerar.
   if(isMobile){
@@ -466,6 +475,75 @@
     if(sounds.music)try{sounds.music.pause();sounds.music.currentTime=0;}catch(_){}
     musicStarted=false;
   }
+  function updateMobileControlUi(){
+    if(mobileControlMotionBtn){
+      const on=mobileControlMode==='motion';
+      mobileControlMotionBtn.classList.toggle('active',on);
+      mobileControlMotionBtn.setAttribute('aria-pressed',on?'true':'false');
+    }
+    if(mobileControlButtonsBtn){
+      const on=mobileControlMode==='buttons';
+      mobileControlButtonsBtn.classList.toggle('active',on);
+      mobileControlButtonsBtn.setAttribute('aria-pressed',on?'true':'false');
+    }
+    if(mobileControls){
+      mobileControls.classList.toggle('button-mode',mobileControlMode==='buttons');
+      mobileControls.classList.toggle('motion-mode',mobileControlMode==='motion');
+      mobileControls.classList.toggle('keyboard-mode',mobileKeyboardActive);
+    }
+  }
+  function setMobileKeyboardActive(active){
+    if(!isMobile)return;
+    mobileKeyboardActive=!!active;
+    if(mobileKeyboardActive){
+      resetMobileTouchControls();
+      mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
+      motionTurn=0;
+    }
+    updateMobileControlUi();
+  }
+  async function setMobileControlMode(mode,requestMotion=true){
+    if(mode!=='buttons')mode='motion';
+    mobileControlMode=mode;
+    try{localStorage.setItem(MOBILE_CONTROL_KEY,mobileControlMode);}catch(_){}
+    setMobileKeyboardActive(false);
+    mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
+    resetMobileTouchControls();
+    updateMobileControlUi();
+    if(mobileControlMode==='motion'&&requestMotion&&!motionEnabled)await enableMobileMotion();
+    if(mobileControlMode==='motion')calibrateMobileMotion();
+  }
+  function updateMobileButtonTurn(){
+    mobileButtonTurn=(mobileLeftPointers.size?1:0)-(mobileRightPointers.size?1:0);
+    if(mobileTurnLeft)mobileTurnLeft.classList.toggle('active',mobileLeftPointers.size>0);
+    if(mobileTurnRight)mobileTurnRight.classList.toggle('active',mobileRightPointers.size>0);
+  }
+  function bindMobileTurnButton(button,pointers){
+    if(!button)return;
+    button.addEventListener('pointerdown',e=>{
+      if(!isMobile||!inGame||mobileControlMode!=='buttons')return;
+      if(e.pointerType&&e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+      if(mobileKeyboardActive){
+        keys.clear();
+        lastControlTurn=0;
+        setMobileKeyboardActive(false);
+      }
+      pointers.add(e.pointerId);updateMobileButtonTurn();
+      try{button.setPointerCapture&&button.setPointerCapture(e.pointerId);}catch(_){}
+      e.preventDefault();e.stopPropagation();
+    },{passive:false});
+    const release=e=>{
+      if(pointers.delete(e.pointerId))updateMobileButtonTurn();
+      e.preventDefault();e.stopPropagation();
+    };
+    button.addEventListener('pointerup',release,{passive:false});
+    button.addEventListener('pointercancel',release,{passive:false});
+    button.addEventListener('lostpointercapture',e=>{if(pointers.delete(e.pointerId))updateMobileButtonTurn();});
+  }
+  updateMobileControlUi();
+  bindMobileTurnButton(mobileTurnLeft,mobileLeftPointers);
+  bindMobileTurnButton(mobileTurnRight,mobileRightPointers);
+
   function screenAngle(){
     if(screen.orientation&&Number.isFinite(screen.orientation.angle))return screen.orientation.angle;
     return Number.isFinite(window.orientation)?window.orientation:0;
@@ -530,6 +608,10 @@
     }
     if(fireZone)fireZone.classList.toggle('active',mobileFire);
     if(thrustZone)thrustZone.classList.toggle('active',mobileThrust);
+    if(mobileControls){
+      mobileControls.classList.toggle('firing',mobileFire);
+      mobileControls.classList.toggle('thrusting',mobileThrust);
+    }
   }
   function triggerMobileFire(){
     mobileFire=true;
@@ -548,13 +630,22 @@
     touchGestures.clear();
     clearTimeout(mobileFireTimer);mobileFireTimer=null;
     mobileFire=false;mobileThrust=false;
+    if(mobileControls){
+      mobileControls.classList.remove('firing','thrusting');
+    }
     refreshTouchControls();
   }
   function mobilePointerDown(e){
     if(!isMobile||!inGame)return;
     if(e.pointerType&&e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+    if(mobileKeyboardActive){
+      keys.clear();
+      lastControlTurn=0;
+      setMobileKeyboardActive(false);
+    }
     const target=e.target;
     if(target&&target.closest&&target.closest('button,input,select,textarea,a,[contenteditable="true"]'))return;
+    if(mobileControlMode==='buttons'&&!(target&&target.closest&&target.closest('#mobileActionZone')))return;
     const gesture={startedAt:performance.now(),accelerating:false,holdTimer:null};
     gesture.holdTimer=setTimeout(()=>{
       const current=touchGestures.get(e.pointerId);
@@ -839,12 +930,16 @@
     const left=keys.has('KeyA')||keys.has('ArrowLeft');
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
-    const rawTurn=(isMobile&&motionEnabled)?motionTurn:keyboardTurn;
+    const rawTurn=isMobile
+      ?(mobileKeyboardActive?keyboardTurn:(mobileControlMode==='buttons'?mobileButtonTurn:(motionEnabled?motionTurn:0)))
+      :keyboardTurn;
     // El sensor tiene un poco de ruido incluso con el telefono quieto. Redondear
     // a pasos de 1/64 evita JSON/WebSocket innecesarios sin alterar el tacto.
     const turn=Math.round(rawTurn*64)/64;
-    const thrust=(isMobile?mobileThrust:false)||keys.has('KeyW')||keys.has('ArrowUp');
-    const fire=(isMobile?mobileFire:false)||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
+    const touchThrust=isMobile&&!mobileKeyboardActive?mobileThrust:false;
+    const touchFire=isMobile&&!mobileKeyboardActive?mobileFire:false;
+    const thrust=touchThrust||keys.has('KeyW')||keys.has('ArrowUp');
+    const fire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
     if(Math.abs(rawTurn-lastControlTurn)>0.001){
       lastControlTurnChangedAt=now;
       lastControlTurn=rawTurn;
@@ -959,7 +1054,9 @@
     renderPublicRooms();send({t:'public-rooms'});
   }
   async function prepareMobileControls(){
-    if(isMobile&&!motionEnabled)await enableMobileMotion();
+    if(!isMobile)return;
+    if(mobileKeyboardActive)return;
+    if(mobileControlMode==='motion'&&!motionEnabled)await enableMobileMotion();
   }
   function authToken(){return window.GalaxyAuth&&typeof window.GalaxyAuth.getToken==='function'?window.GalaxyAuth.getToken():'';}
   function stopLocalCpu(){
@@ -1197,7 +1294,7 @@
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function beginGame(){stopMusic();if(isMobile&&mobileControlMode==='motion'&&!mobileKeyboardActive)calibrateMobileMotion();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
   function queueVictory(i){
     pendingVictoryIndex=Number(i);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;
@@ -1280,12 +1377,15 @@
   });
   if(lobbyChatInput)lobbyChatInput.addEventListener('keyup',e=>e.stopPropagation());
   if(isMobile){
+    if(mobileControlMotionBtn)mobileControlMotionBtn.addEventListener('click',()=>setMobileControlMode('motion',true));
+    if(mobileControlButtonsBtn)mobileControlButtonsBtn.addEventListener('click',()=>setMobileControlMode('buttons',false));
     document.getElementById('app').addEventListener('pointerdown',mobilePointerDown,{passive:false});
     document.getElementById('app').addEventListener('pointerup',mobilePointerEnd,{passive:false});
     document.getElementById('app').addEventListener('pointercancel',mobilePointerEnd,{passive:false});
     document.getElementById('app').addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
     window.addEventListener('orientationchange',()=>{
       motionNeutral=null;motionTurn=0;
+      mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
       resetMobileTouchControls();
       keys.clear();
     });
@@ -1306,7 +1406,7 @@
     if(voice)voice.clearSession();
     stopP2P();
     stopResumeWindow();clearResumeSession();playerToken='';
-    inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
+    inGame=false;setMobileKeyboardActive(false);state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
     roomCode='';myIndex=null;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
@@ -1340,7 +1440,17 @@
     if(!ok){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);
-  window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)returnToMainMenu();}});
+  window.addEventListener('keydown',e=>{
+    keys.add(e.code);
+    if(isMobile&&inGame&&MOBILE_KEYBOARD_CODES.has(e.code)){
+      if(!mobileKeyboardActive)setMobileKeyboardActive(true);
+    }
+    if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();
+    if(e.code==='Escape'){
+      if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}
+      else if(inGame)returnToMainMenu();
+    }
+  });
   window.addEventListener('keyup',e=>keys.delete(e.code));
   // Si el navegador pierde el foco, puede no llegar el keyup de una tecla que
   // estaba pulsada. Limpiamos el estado para evitar giro/aceleracion/disparo
@@ -1348,7 +1458,8 @@
   function clearHeldKeys(){
     keys.clear();
     lastControlTurn=0;
-    if(inGame&&!isMobile)sendControl(0,false,false);
+    if(isMobile)resetMobileTouchControls();
+    if(inGame)sendControl(0,false,false);
   }
   window.addEventListener('blur',clearHeldKeys);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHeldKeys();});
