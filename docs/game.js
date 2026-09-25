@@ -60,7 +60,7 @@
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
   const localizedTargetOwners=[-1,-1,-1,-1];
-  const localizaTintCache=[null,null,null,null];
+  const localizaSpriteKeys=['localizaA','localizaB','localizaC','localizaD'];
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
@@ -305,7 +305,8 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
-    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',localiza:'assets/sprites/localiza.png',coete:'assets/sprites/coete.png',
+    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',coete:'assets/sprites/coete.png',
+    localizaA:'assets/sprites/localizaA.png',localizaB:'assets/sprites/localizaB.png',localizaC:'assets/sprites/localizaC.png',localizaD:'assets/sprites/localizaD.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
   for(let i=1;i<=4;i++){
@@ -1664,42 +1665,11 @@
       ctx.restore();
     }
   }
-  function tintedLocaliza(owner){
-    const im=images.localiza;
-    if(!imageReady(im))return null;
-    const idx=Math.max(0,Math.min(3,Number(owner)||0));
-    const cached=localizaTintCache[idx];
-    if(cached&&cached.w===im.naturalWidth&&cached.h===im.naturalHeight)return cached.canvas;
-    const c=document.createElement('canvas');
-    c.width=im.naturalWidth;c.height=im.naturalHeight;
-    const g=c.getContext('2d',{alpha:true});
-    if(!g)return null;
-    g.clearRect(0,0,c.width,c.height);
-    g.drawImage(im,0,0);
-    // Conserva luces/detalle del PNG y aplica el color del jugador.
-    g.globalCompositeOperation='source-atop';
-    g.globalAlpha=.88;
-    g.fillStyle=playerColors[idx]||'#fff';
-    g.fillRect(0,0,c.width,c.height);
-    g.globalAlpha=1;
-    g.globalCompositeOperation='source-over';
-    localizaTintCache[idx]={canvas:c,w:im.naturalWidth,h:im.naturalHeight};
-    return c;
-  }
   function drawLocalizaMarker(x,y,owner,alpha=.92){
-    const marker=tintedLocaliza(owner);
-    if(!marker)return false;
     const idx=Math.max(0,Math.min(3,Number(owner)||0));
-    ctx.save();
-    try{
-      ctx.globalAlpha=alpha;
-      ctx.shadowColor=playerColors[idx]||'#fff';
-      ctx.shadowBlur=7;
-      ctx.drawImage(marker,x-39,y-39,78,78);
-      return true;
-    }finally{
-      ctx.restore();
-    }
+    const im=images[localizaSpriteKeys[idx]];
+    if(!imageReady(im))return false;
+    return drawImageCentered(im,x,y,78,0,alpha);
   }
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1'};
   function pickupExpiryAlpha(pk,nowSec){
