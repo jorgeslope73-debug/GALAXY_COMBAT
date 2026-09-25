@@ -464,6 +464,15 @@
       });
       if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
     }
+    emitExplosionAt(x,y,ownerIndex=0){
+      if(!Number.isFinite(x)||!Number.isFinite(y))return;
+      const i=Number.isInteger(ownerIndex)&&ownerIndex>=0&&ownerIndex<4?ownerIndex:0;
+      this.fxEvents.push({
+        id:++this.fxSeq,i,x:+x.toFixed(1),y:+y.toFixed(1),
+        kind:'explosion',hidden:false,at:this.fxClock
+      });
+      if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
+    }
     destroyShip(victim,attacker=null){
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
@@ -889,7 +898,10 @@
         const b=this.bullets[i];let remove=b.age>3||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
         if(!remove){
           for(const p of this.players){
-            if(p.index===b.owner||p.dead||p.protection>0)continue;
+            // Las balas normales no dañan al tirador. El cohete guiado sí:
+            // si su trayectoria regresa y alcanza a su dueño, aplica la misma
+            // colision/daño que contra cualquier otra nave.
+            if((p.index===b.owner&&!b.guided)||p.dead||p.protection>0)continue;
             if(sweptCircles(b,BULLET_RADIUS,p,SHIP_RADIUS,false)){
               const attacker=this.players.find(q=>q.index===b.owner)||null;
               if(p.shield<=0){
@@ -903,7 +915,13 @@
         }
         if(!remove)for(const a of this.asteroids)if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){remove=true;break;}
         if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){remove=true;this.emit({t:'sound',kind:'impact'});}
-        if(!remove)for(let m=this.meteors.length-1;m>=0;m--)if(sweptCircles(b,BULLET_RADIUS,this.meteors[m],SMALL_METEOR_RADIUS,false)){this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;}
+        if(!remove)for(let m=this.meteors.length-1;m>=0;m--){
+          const meteor=this.meteors[m];
+          if(sweptCircles(b,BULLET_RADIUS,meteor,SMALL_METEOR_RADIUS,false)){
+            if(b.guided)this.emitExplosionAt(meteor.x,meteor.y,b.owner);
+            this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;
+          }
+        }
         if(!remove)for(let p=this.pickups.length-1;p>=0;p--)if(sweptCircles(b,BULLET_RADIUS,this.pickups[p],PICKUP_RADIUS,false)){this.pickups.splice(p,1);remove=true;break;}
         if(remove)this.bullets.splice(i,1);
       }
