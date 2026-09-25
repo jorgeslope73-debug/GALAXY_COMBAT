@@ -1698,7 +1698,7 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
-    const localized=!!(state&&Array.isArray(state.players)&&state.players.some(q=>q&&!q.dead&&q.mira===true&&Number(q.mt)===Number(p.i)));
+    const localized=!!(state&&((Array.isArray(state.players)&&state.players.some(q=>q&&!q.dead&&q.mira===true&&Number(q.mt)===Number(p.i)))||(Array.isArray(state.bullets)&&state.bullets.some(b=>b&&b.g===true&&Number(b.gt)===Number(p.i)))));
     let alpha=1;
     if(p.camo>0&&!local){
       const revealAlpha=ghostRevealAlpha(p,now);
