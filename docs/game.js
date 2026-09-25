@@ -7,10 +7,19 @@
   const tr=(key,vars)=>i18n?i18n.t(key,vars):key;
   const trServer=text=>i18n?i18n.translateServerText(text):String(text==null?'':text);
   const canvas=document.getElementById('game');
-  // V16.4.41: usamos el compositor sincronizado tambien en PC. El hint
-  // `desynchronized` reduce latencia en algunos navegadores, pero puede producir
-  // pacing irregular/tearing en Canvas cuando la nave se mueve deprisa.
-  const ctx=canvas.getContext('2d',{alpha:false})||canvas.getContext('2d');
+  const useStaticPcBackground=!isMobile;
+  if(useStaticPcBackground){
+    // Fondo PC estatico: se compone una sola vez como capa CSS 16:9 y ya no se
+    // copia dentro del canvas en cada frame.
+    canvas.style.backgroundColor='#020714';
+    canvas.style.backgroundImage="url('assets/sprites/fondo.png')";
+    canvas.style.backgroundRepeat='no-repeat';
+    canvas.style.backgroundPosition='center center';
+    canvas.style.backgroundSize='100% 100%';
+  }
+  // En PC necesitamos alpha para que la capa estatica se vea a traves del
+  // canvas dinamico. Movil conserva el contexto opaco que ya funciona fluido.
+  const ctx=canvas.getContext('2d',{alpha:useStaticPcBackground})||canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),fillCpuBtn=document.getElementById('fillCpu'),waitingPlayersEl=document.getElementById('waitingPlayers'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
@@ -176,6 +185,7 @@
   const voice=typeof window.GalaxyVoice==='function'?new window.GalaxyVoice({send:o=>send(o),isMobile}):null;
   let backgroundCache=null,backgroundCacheW=0,backgroundCacheH=0;
   function rebuildBackgroundCache(){
+    if(useStaticPcBackground)return;
     const bg=images.bg;
     if(!imageReady(bg)||!canvas.width||!canvas.height)return;
     if(backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height&&backgroundCache)return;
@@ -291,7 +301,7 @@
   campoNombre.addEventListener('compositionend',normalizarNombreVisible);
 
   const assetList={
-    bg:isMobile?'assets/sprites/fondo_1280.png':'assets/sprites/fondo.png', giant:'assets/sprites/asteroidegrande_270.png',
+    bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
     mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',localiza:'assets/sprites/localiza.png',
@@ -311,6 +321,7 @@
   }
   const imageDecodePromises={};
   for(const [k,url] of Object.entries(assetList)){
+    if(!url)continue;
     const im=new Image();
     im.decoding='async';
     // Estos sprites aparecen desde el primer frame. Antes los asteroides tenian
@@ -2404,9 +2415,6 @@
         perfStats.windowStart=now;perfStats.frames=0;perfStats.longFrames=0;perfStats.maxFrame=0;perfStats.parseMs=0;perfStats.parseCount=0;perfStats.localErrMax=0;
       }
     }
-    // El fondo cacheado es opaco y cubre todo el backing canvas. Con la
-    // composicion `copy` sustituimos el frame anterior en una sola pasada y
-    // evitamos clearRect + drawImage (dos recorridos completos de memoria).
     ctx.setTransform(1,0,0,1,0,0);
     ctx.globalAlpha=1;
     ctx.filter='none';
@@ -2414,15 +2422,25 @@
     ctx.shadowBlur=0;
     ctx.shadowOffsetX=0;
     ctx.shadowOffsetY=0;
-    ctx.globalCompositeOperation='copy';
-    if(backgroundCache&&backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height){
-      ctx.drawImage(backgroundCache,0,0,canvas.width,canvas.height);
+    if(useStaticPcBackground){
+      // PC: el fondo vive debajo del canvas. Solo borramos los objetos del
+      // frame anterior; no volvemos a transferir/copyar 1920x1080 de fondo.
+      ctx.globalCompositeOperation='source-over';
+      ctx.clearRect(0,0,canvas.width,canvas.height);
     }else{
-      ctx.fillStyle='#020714';ctx.fillRect(0,0,canvas.width,canvas.height);
+      // Movil mantiene la ruta opaca/cacheada que ya va fluida.
+      ctx.globalCompositeOperation='copy';
+      if(backgroundCache&&backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height){
+        ctx.drawImage(backgroundCache,0,0,canvas.width,canvas.height);
+      }else{
+        ctx.fillStyle='#020714';ctx.fillRect(0,0,canvas.width,canvas.height);
+      }
+      ctx.globalCompositeOperation='source-over';
     }
-    ctx.globalCompositeOperation='source-over';
     ctx.setTransform(renderScale,0,0,renderScale,0,0);
-    if(!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
+    if(!useStaticPcBackground&&!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){
+      ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);
+    }
     if(!state)return;
 
     const nowSec=now/1000;
