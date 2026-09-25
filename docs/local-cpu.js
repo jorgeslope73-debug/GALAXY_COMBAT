@@ -143,8 +143,13 @@
       this.tickCount=0;
       this.brain=null;
       this.trainingMode=false;
+      this.learningEnabled=true;
       this.learningByCpu=new Map();
       this.meteorLearningByCpu=new Map();
+      this.humanLearning=new Map();
+      this.humanMeteorLearning=new Map();
+      this.humanMeteorDecision=null;
+      this.nextHumanObserve=0;
       this.learningSent=false;
       this.resetAsteroids();
     }
@@ -193,7 +198,7 @@
       return 'meteor-s'+side+'-v'+velocity+'-d'+distance;
     }
     recordLearning(cpu,context,action){
-      if(this.difficulty!=='dificil'||!cpu||!cpu.cpu)return;
+      if(!this.learningEnabled||this.difficulty!=='dificil'||!cpu||!cpu.cpu)return;
       let map=this.learningByCpu.get(cpu.index);
       if(!map){map=new Map();this.learningByCpu.set(cpu.index,map);}
       const key=context+'|'+action;
@@ -202,7 +207,7 @@
       map.set(key,item);
     }
     recordMeteorLearning(cpu,context,action,reward){
-      if(this.difficulty!=='dificil'||!cpu||!cpu.cpu||!context||!action)return;
+      if(!this.learningEnabled||this.difficulty!=='dificil'||!cpu||!cpu.cpu||!context||!action)return;
       let map=this.meteorLearningByCpu.get(cpu.index);
       if(!map){map=new Map();this.meteorLearningByCpu.set(cpu.index,map);}
       const key=context+'|'+action;
@@ -216,6 +221,107 @@
       if(!d)return;
       this.recordMeteorLearning(cpu,d.context,d.action,reward);
       cpu.meteorDecision=null;
+    }
+    recordHumanLearning(context,action){
+      if(!this.learningEnabled||this.trainingMode||this.difficulty!=='dificil'||!context||!action)return;
+      const key=context+'|'+action;
+      const item=this.humanLearning.get(key)||{context,action,uses:0};
+      item.uses=Math.min(40,item.uses+1);
+      this.humanLearning.set(key,item);
+    }
+    recordHumanMeteorLearning(context,action,reward){
+      if(!this.learningEnabled||this.trainingMode||this.difficulty!=='dificil'||!context||!action)return;
+      const key=context+'|'+action;
+      const item=this.humanMeteorLearning.get(key)||{context,action,uses:0,total:0};
+      item.uses=Math.min(40,item.uses+1);
+      item.total=clamp(item.total+clamp(Number(reward)||0,-2,2),-100,100);
+      this.humanMeteorLearning.set(key,item);
+    }
+    settleHumanMeteorDecision(reward){
+      const d=this.humanMeteorDecision;
+      if(!d)return;
+      this.recordHumanMeteorLearning(d.context,d.action,reward);
+      this.humanMeteorDecision=null;
+    }
+    observeHumanLearning(human,control){
+      if(!this.learningEnabled||this.trainingMode||this.difficulty!=='dificil'||!human||human.cpu||human.dead)return;
+
+      // Si una maniobra de meteorito dejo de estar en peligro, la consideramos
+      // una demostracion valida. Solo premiamos exitos claros para no contaminar
+      // el cerebro con muertes causadas por balas u otros choques.
+      if(this.humanMeteorDecision){
+        const tracked=this.meteors.find(m=>m.id===this.humanMeteorDecision.meteorId)||null;
+        const threat=tracked?this.meteorThreatInfo(human,tracked):null;
+        if(!tracked||(!threat&&this.fxClock-this.humanMeteorDecision.started>.35)){
+          this.settleHumanMeteorDecision(.7);
+        }
+      }
+
+      // Muestreo deliberadamente bajo: 4 Hz. No toca red, DOM ni almacenamiento.
+      if(this.fxClock<this.nextHumanObserve)return;
+      this.nextHumanObserve=this.fxClock+.25;
+
+      let meteorThreat=null,meteorRisk=Infinity;
+      for(const m of this.meteors){
+        const info=this.meteorThreatInfo(human,m);
+        if(!info)continue;
+        const risk=info.ttc*90+info.closest*.7+info.dist*.08;
+        if(risk<meteorRisk){meteorRisk=risk;meteorThreat=info;}
+      }
+      if(meteorThreat&&(!this.humanMeteorDecision||this.humanMeteorDecision.meteorId!==meteorThreat.meteor.id)){
+        if(this.humanMeteorDecision)this.settleHumanMeteorDecision(.2);
+        let meteorAction='';
+        if(!control.thrust)meteorAction='meteor_brake';
+        else if(Number(control.turn)>.18)meteorAction='meteor_left';
+        else if(Number(control.turn)<-.18)meteorAction='meteor_right';
+        if(meteorAction){
+          this.humanMeteorDecision={
+            meteorId:meteorThreat.meteor.id,
+            context:this.meteorLearningContext(human,meteorThreat),
+            action:meteorAction,
+            started:this.fxClock
+          };
+        }
+      }
+
+      let rival=null,best=Infinity;
+      for(const p of this.players){
+        if(p.cpu&& !p.dead && p.camo<=0){
+          const d=dist2(human,p);
+          if(d<best){best=d;rival=p;}
+        }
+      }
+      if(!rival)return;
+      const distance=Math.sqrt(best);
+      const context=this.learningContext(human,rival,distance);
+      const forward=dirFromRot(human.rot);
+      const dx=rival.x-human.x,dy=rival.y-human.y;
+      const align=distance>1?(forward.x*dx+forward.y*dy)/distance:1;
+
+      let resourceAligned=false;
+      if(control.thrust&&(human.bullets<=2||human.shield<=0)){
+        let pickup=null,pickupDistance=Infinity;
+        for(const pk of this.pickups){
+          if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
+          const pd=Math.sqrt(dist2(human,pk));
+          if(pd<pickupDistance){pickupDistance=pd;pickup=pk;}
+        }
+        if(pickup&&pickupDistance<700){
+          const px=pickup.x-human.x,py=pickup.y-human.y;
+          const pickupAlign=(forward.x*px+forward.y*py)/(pickupDistance||1);
+          resourceAligned=pickupAlign>.45;
+        }
+      }
+
+      let action='';
+      if(resourceAligned)action='resource';
+      else if(control.fire&&human.bullets>0)action='attack';
+      else if(human.bullets===0)action='evade';
+      else if(control.thrust&&align>.38)action='attack';
+      else if(control.thrust&&align<-.08)action='evade';
+      else if(distance<430&&human.shield<=0&&Math.abs(Number(control.turn)||0)>.45)action='evade';
+
+      if(action)this.recordHumanLearning(context,action);
     }
     chooseMeteorControls(cpu){
       if(!cpu||cpu.dead)return null;
@@ -255,8 +361,8 @@
       return{turn:action==='meteor_left'?1:-1,thrust:true,fire:false};
     }
     buildLearningDeltas(){
-      if(this.difficulty!=='dificil')return [];
-      const general=[],meteor=[];
+      if(!this.learningEnabled||this.difficulty!=='dificil')return [];
+      const general=[],meteor=[],humanGeneral=[],humanMeteor=[];
       const human=this.players.find(p=>!p.cpu);
       for(const cpu of this.players.filter(p=>p.cpu)){
         const won=this.winner===cpu.index;
@@ -272,7 +378,37 @@
           meteor.push({context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+clamp(avg,-2,2).toFixed(3)});
         }
       }
-      return meteor.slice(0,10).concat(general.slice(0,14)).slice(0,24);
+
+      if(human){
+        let reward=(human.kills-human.deaths)/Math.max(2,SCORE_TO_WIN);
+        if(this.winner===human.index)reward+=1.25;
+        else if(this.winner!==null)reward-=.2;
+        reward=clamp(reward,-.75,1.8);
+
+        const humanItems=Array.from(this.humanLearning.values()).sort((a,b)=>b.uses-a.uses);
+        for(const item of humanItems){
+          humanGeneral.push({
+            context:item.context,action:item.action,
+            uses:Math.min(4,item.uses),
+            reward:+reward.toFixed(3)
+          });
+        }
+        const humanMeteorItems=Array.from(this.humanMeteorLearning.values()).sort((a,b)=>b.uses-a.uses);
+        for(const item of humanMeteorItems){
+          const avg=item.uses?item.total/item.uses:0;
+          humanMeteor.push({
+            context:item.context,action:item.action,
+            uses:Math.min(4,item.uses),
+            reward:+clamp(avg,-2,2).toFixed(3)
+          });
+        }
+      }
+
+      // Reparto fijo: el aprendizaje humano complementa al existente y nunca
+      // desplaza por completo lo aprendido por las CPU.
+      return humanMeteor.slice(0,4)
+        .concat(meteor.slice(0,6),humanGeneral.slice(0,6),general.slice(0,8))
+        .slice(0,24);
     }
     resetAsteroids(){
       this.asteroids=ASTEROID_STARTS.map(([x,y,rot,type])=>{
@@ -293,12 +429,17 @@
         resourceTargetId:null,meteorDecision:null
       };
     }
-    start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null){
+    start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null,learningEnabled=true){
       this.trainingMode=false;
+      this.learningEnabled=learningEnabled!==false;
       this.difficulty=String(difficulty||'medio');
       this.brain=this.difficulty==='dificil'&&brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
       this.meteorLearningByCpu.clear();
+      this.humanLearning.clear();
+      this.humanMeteorLearning.clear();
+      this.humanMeteorDecision=null;
+      this.nextHumanObserve=0;
       this.learningSent=false;
       this.cpuCount=clamp(Math.round(Number(cpuCount)||1),1,3);
       this.huntTargetIndex=0;
@@ -339,10 +480,15 @@
     }
     startTraining(brain=null){
       this.trainingMode=true;
+      this.learningEnabled=true;
       this.difficulty='dificil';
       this.brain=brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
       this.meteorLearningByCpu.clear();
+      this.humanLearning.clear();
+      this.humanMeteorLearning.clear();
+      this.humanMeteorDecision=null;
+      this.nextHumanObserve=0;
       this.learningSent=false;
       this.cpuCount=4;
       this.huntTargetIndex=0;
@@ -418,7 +564,9 @@
     restart(){
       if(!this.finished||this.players.length<2)return false;
       this.started=false;this.finished=false;this.winner=null;this.seq=0;
-      this.learningByCpu.clear();this.meteorLearningByCpu.clear();this.learningSent=false;
+      this.learningByCpu.clear();this.meteorLearningByCpu.clear();
+      this.humanLearning.clear();this.humanMeteorLearning.clear();this.humanMeteorDecision=null;this.nextHumanObserve=0;
+      this.learningSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
       this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
@@ -477,6 +625,7 @@
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
+      if(!victim.cpu)this.humanMeteorDecision=null;
       if(!attacker||attacker===victim)victim.kills=Math.max(0,victim.kills-1);
       victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
@@ -821,6 +970,7 @@
         p.px=p.x;p.py=p.y;
         const stored=this.controls.get(p.index)||IDLE_CONTROL;
         const c=p.cpu?this.chooseCpuControls(p):((Date.now()-(p.lastControlAt||0)<=300)?stored:IDLE_CONTROL);
+        if(!p.cpu)this.observeHumanLearning(p,c);
         p.thrust=!!c.thrust;
         p.rot=(p.rot+c.turn*240*dt+360)%360;
         const d=dirFromRot(p.rot);
