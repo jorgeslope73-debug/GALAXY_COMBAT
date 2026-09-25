@@ -546,7 +546,8 @@
         p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;
         if(c.fire&&p.bullets>0&&p.reload<=0){
           const guided=!!p.guided,guidedTarget=guided?p.guidedTarget:-1;
-          this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*this.bulletSpeed(p),vy:d.y*this.bulletSpeed(p),age:0,travel:0,guided,target:guidedTarget});
+          const projectileSpeed=guided?500:this.bulletSpeed(p);
+          this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget});
           if(guided){p.guided=false;p.guidedTarget=-1;}
           p.bullets--;p.reload=Math.max(.5,p.cadence/8);this.emit({t:'sound',kind:'laser'});
         }
