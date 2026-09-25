@@ -563,7 +563,7 @@
             const dx=target.x-b.x,dy=target.y-b.y,distance=Math.hypot(dx,dy),speed=Math.hypot(b.vx,b.vy)||1;
             if(distance>1){
               const desiredX=dx/distance,desiredY=dy/distance,currentX=b.vx/speed,currentY=b.vy/speed;
-              const steer=Math.min(.02,.65*dt);
+              const steer=Math.min(.09,3.2*dt);
               const n=normalize(currentX+(desiredX-currentX)*steer,currentY+(desiredY-currentY)*steer);
               b.vx=n.x*speed;b.vy=n.y*speed;
             }
