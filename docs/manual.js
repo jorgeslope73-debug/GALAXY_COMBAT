@@ -53,7 +53,7 @@
         ]},
         {id:'online',title:'10. Online, salas, chat y voz',body:[
           'No necesitas registrarte para jugar. Puedes entrar como invitado y empezar una partida con el nombre que quieras, siempre que no esté reservado por otra cuenta.',
-          'Si te registras, tu nombre queda reservado solo para ti y tus partidas válidas cuentan para el ranking.',
+          'Si te registras, tu nombre queda reservado solo para ti. En partidas online con al menos 2 jugadores humanos, cada ronda y cada revancha cuenta para el ranking de los jugadores registrados; invitados y CPU no aparecen ni reciben puntuación.',
           'Para jugar online, escribe tu nombre y espera a que aparezca SERVIDOR CONECTADO. Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.',
           'Para entrar en una partida, pulsa UNIRSE. Elige una sala pública o escribe el código de una sala privada.',
           'Si una partida ya está en marcha con CPUs de relleno y queda alguna plaza CPU, también puedes entrar: sustituyes una CPU sin reiniciar la partida y comienzas con 0 bajas, 5 balas y mejoras a cero.',
