@@ -94,9 +94,30 @@
     localVisual.ready=false;localVisual.index=-1;localVisual.lastAt=0;localVisual.lastError=0;
   }
   const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,localErrMax:0,report:{fps:0,long:0,max:0,frame:0,parse:0,localErr:0}}:null;
-  // Solo saltamos callbacks propios de 120 Hz (~8,3 ms). No usamos un umbral
-  // de 16,7 ms para no convertir una pequena variacion de un panel de 60 Hz en 30 Hz.
-  const HIGH_REFRESH_SKIP_MS=10.5;
+  // Cadencia de pintado adaptativa. El antiguo umbral fijo de 10,5 ms podia
+  // convertir un monitor de 100/110 Hz en ~50/55 FPS. Medimos el RAF real y
+  // usamos un divisor entero estable: 60/75/100 Hz pintan cada RAF; 120/144/
+  // 165 Hz cada 2; frecuencias aun mayores usan el divisor mas cercano a 75 FPS.
+  let displaySampleLast=0,displaySampleTotal=0,displaySampleCount=0;
+  let renderDivisor=1,renderCadenceTick=0,measuredRefreshHz=60;
+  function sampleDisplayRefresh(now){
+    if(displaySampleLast){
+      const dt=now-displaySampleLast;
+      if(dt>=4&&dt<=25){
+        displaySampleTotal+=dt;displaySampleCount++;
+        if(displaySampleCount>=30){
+          const hz=1000/(displaySampleTotal/displaySampleCount);
+          if(Number.isFinite(hz)&&hz>=40&&hz<=360){
+            measuredRefreshHz=hz;
+            const next=hz>=118?Math.max(2,Math.round(hz/75)):1;
+            renderDivisor=Math.max(1,next);
+          }
+          displaySampleTotal=0;displaySampleCount=0;
+        }
+      }
+    }
+    displaySampleLast=now;
+  }
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const cpuButton=document.getElementById('cpu');
@@ -284,26 +305,58 @@
     warnedImages.add(im);
     console.warn('[Galaxy Combat] Image unavailable; continuing without blocking the game.',im.currentSrc||im.src,error||'');
   }
+  const imageDecodePromises={};
   for(const [k,url] of Object.entries(assetList)){
     const im=new Image();
     im.decoding='async';
-    // El fondo, HUD y naves son lo primero que necesita la partida. Los assets
-    // raros pueden esperar sin competir con la entrada al juego.
-    if('fetchPriority' in im)im.fetchPriority=(k==='bg'||k.startsWith('ship')||k.startsWith('pant'))?'high':'low';
-    im.onerror=()=>reportImageFailure(im);
-    im.onload=()=>{
-      const decoded=typeof im.decode==='function'?im.decode().catch(()=>{}):Promise.resolve();
-      if(k==='bg')decoded.then(()=>{
-        backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
-        // El canvas ya se dimensiona al cargar la pagina. Tras decodificar el
-        // fondo reconstruimos la cache en el siguiente frame, evitando que
-        // drawImage fuerce una decodificacion sincrona en mitad del arranque.
-        scheduleCanvasResolution();
-      });
-    };
+    // Estos sprites aparecen desde el primer frame. Antes los asteroides tenian
+    // prioridad baja y podian terminar de descargarse/decodificarse ya jugando.
+    const critical=k==='bg'||k==='giant'||k.startsWith('ship')||k.startsWith('pant')||
+      k.startsWith('asteroid')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed';
+    if('fetchPriority' in im)im.fetchPriority=critical?'high':'auto';
+    imageDecodePromises[k]=new Promise(resolve=>{
+      im.onerror=()=>{reportImageFailure(im);resolve(false);};
+      im.onload=()=>{
+        const decoded=typeof im.decode==='function'?im.decode():Promise.resolve();
+        Promise.resolve(decoded).then(()=>{
+          if(k==='bg'){
+            backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
+            scheduleCanvasResolution();
+          }
+          resolve(true);
+        }).catch(()=>resolve(false));
+      };
+    });
     im.src=url;
     images[k]=im;
   }
+
+  let gameAssetsReady=false,gameAssetsPromise=null,gameAssetsIdleHandle=0;
+  function prepareGameAssets(){
+    if(gameAssetsReady)return Promise.resolve(true);
+    if(gameAssetsPromise)return gameAssetsPromise;
+    const fontPromise=(document.fonts&&typeof document.fonts.load==='function')
+      ?Promise.allSettled([
+        document.fonts.load('20px Flashback'),
+        document.fonts.load('64px Flashback')
+      ])
+      :Promise.resolve();
+    gameAssetsPromise=Promise.allSettled([...Object.values(imageDecodePromises),fontPromise]).then(()=>{
+      // Construye la cache grande del fondo mientras aun estamos en menu/lobby,
+      // no durante los primeros frames de la partida.
+      updateCanvasResolution();
+      gameAssetsReady=true;
+      return true;
+    });
+    return gameAssetsPromise;
+  }
+  function warmGameAssetsWhenIdle(){
+    if(gameAssetsReady||gameAssetsPromise||gameAssetsIdleHandle)return;
+    const run=()=>{gameAssetsIdleHandle=0;prepareGameAssets();};
+    if(typeof requestIdleCallback==='function')gameAssetsIdleHandle=requestIdleCallback(run,{timeout:900});
+    else gameAssetsIdleHandle=setTimeout(run,350);
+  }
+  warmGameAssetsWhenIdle();
   const AUDIO_ASSET_VERSION='V18.13';
   const soundDefs={
     laser:{url:'assets/sonido/laser_1.mp3?v='+AUDIO_ASSET_VERSION,size:8,volume:.55},
@@ -311,10 +364,11 @@
     pickup:{url:'assets/sonido/carga3.wav?v='+AUDIO_ASSET_VERSION,size:3,volume:.75},
     start:{url:'assets/sonido/inicio.wav?v='+AUDIO_ASSET_VERSION,size:1,volume:.75}
   };
-  // En movil usamos Web Audio. Detectarlo ANTES de crear pools evita mantener
-  // a la vez decenas de <audio> precargando los mismos ficheros.
+  // Web Audio tambien en PC: cada efecto se descarga/decodifica una sola vez.
+  // Los antiguos pools de varios <audio> podian provocar microtirones en los
+  // primeros disparos/impactos al activar decodificadores distintos.
   const AudioContextCtor=window.AudioContext||window.webkitAudioContext;
-  const useWebAudio=!!(isMobile&&AudioContextCtor);
+  const useWebAudio=!!AudioContextCtor;
   const gameVolume=isMobile?0.45:0.75;
   let gameAudioEnabled=true,audioUnlocked=false;
   const soundPools={};
@@ -1142,6 +1196,7 @@
   }
   async function startLocalCpu(){
     startMusic();await prepareMobileControls();closeRoomDialogs();
+    const graphicsReady=prepareGameAssets();
     if(typeof window.GalaxyLocalCpu!=='function'){
       statusEl.textContent='MODO CPU LOCAL NO DISPONIBLE';
       return;
@@ -1151,6 +1206,7 @@
     const difficulty=document.getElementById('difficulty').value;
     postAnalyticsEvent('cpu_match');
     const brain=difficulty==='dificil'?await loadCpuBrain():null;
+    await graphicsReady;
     localCpu=new window.GalaxyLocalCpu({onState:m=>handle(m),onEvent:m=>handle(m)});
     localCpu.start(sinTildes(campoNombre.value),difficulty,document.getElementById('cpuCount').value,brain);
     localCpuActive=true;
@@ -1159,10 +1215,11 @@
     handle(localCpu.publicState());
   }
   async function createOnlineRoom(isPublic){
-    startMusic();await prepareMobileControls();closeRoomDialogs();
+    startMusic();prepareGameAssets();await prepareMobileControls();closeRoomDialogs();
     send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic,lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es'),authToken:authToken()});
   }
   async function joinRoomByCode(code){
+    prepareGameAssets();
     const clean=String(code||'').trim().toUpperCase();
     if(!clean){showPublicRoomsDialog();return;}
     startMusic();await prepareMobileControls();closeRoomDialogs();
@@ -1448,7 +1505,10 @@
   window.addEventListener('resize',scheduleCanvasResolution,{passive:true});
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
   scheduleCanvasResolution();
-  startBtn.addEventListener('click',async()=>{await prepareMobileControls();calibrateMobileMotion();send({t:'start'});});
+  startBtn.addEventListener('click',async()=>{
+    await Promise.all([prepareMobileControls(),prepareGameAssets()]);
+    calibrateMobileMotion();send({t:'start'});
+  });
   function returnToMainMenu(notifyServer=true){
     if(!sharedRoomCode)sharedRoomJoinStarted=false;
     invisibleHudUntil.fill(0);
@@ -2289,13 +2349,15 @@
   function render(rafNow){
     requestAnimationFrame(render);
     const now=Number.isFinite(rafNow)?rafNow:performance.now();
+    sampleDisplayRefresh(now);
     flushPendingState(false,now);
     pumpControls(now);
     if(localCpuActive&&localCpu)localCpu.advance(now);
     if(hostPhysics&&isHost)hostPhysics.advance(now);
-    // En pantallas ProMotion/120 Hz no tiene sentido dibujar el juego a 120: la
-    // simulacion va a 60 Hz y la red a 30 Hz. Limitamos solo el pintado a 60 Hz.
-    if(lastPaintAt&&now-lastPaintAt<HIGH_REFRESH_SKIP_MS)return;
+    // Fisica y controles siguen ejecutandose en todos los RAF. Solo el pintado
+    // usa un divisor entero para conservar un frame pacing regular.
+    renderCadenceTick++;
+    if(renderDivisor>1&&(renderCadenceTick%renderDivisor)!==0)return;
     lastPaintAt=now;
     if(perfStats){
       if(perfStats.lastPaint){
