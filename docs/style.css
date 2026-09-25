@@ -160,3 +160,127 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   color:#effff6;
   box-shadow:0 0 16px rgba(82,232,147,.22);
 }
+
+
+/* V18.43: selector de control movil y modo de botones en pantalla. */
+.mobile-control-choice{display:none}
+@media (pointer:coarse),(max-width:900px){
+  #menu .mobile-control-choice{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    margin:0;
+    font:800 9px/1 Arial,Helvetica,sans-serif;
+    letter-spacing:.06em;
+    color:rgba(255,255,255,.72);
+  }
+  #menu .mobile-control-choice-label{white-space:nowrap}
+  #menu .mobile-control-choice-buttons{display:flex;gap:5px}
+  #menu .mobile-control-choice button{
+    width:auto!important;
+    min-width:76px!important;
+    min-height:28px!important;
+    height:28px!important;
+    margin:0!important;
+    padding:4px 9px!important;
+    border-radius:999px!important;
+    border:1px solid rgba(105,196,235,.5)!important;
+    background:rgba(8,27,42,.82)!important;
+    color:#dff8ff!important;
+    font:900 9px/1 Arial,Helvetica,sans-serif!important;
+    letter-spacing:.045em!important;
+  }
+  #menu .mobile-control-choice button.active{
+    border-color:#86e9ff!important;
+    background:linear-gradient(180deg,rgba(45,132,173,.96),rgba(17,73,103,.96))!important;
+    box-shadow:0 0 14px rgba(90,225,255,.28)!important;
+    color:#fff!important;
+  }
+
+  #mobileControls .mobile-turn-pad,
+  #mobileControls .mobile-action-zone{display:none}
+
+  #mobileControls.button-mode .mobile-turn-pad{
+    position:absolute;
+    left:calc(10.7vw + 16px);
+    bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px));
+    z-index:20;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    pointer-events:auto;
+  }
+  #mobileControls.button-mode .mobile-turn-button{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:64px!important;
+    height:64px!important;
+    min-width:64px!important;
+    min-height:64px!important;
+    margin:0!important;
+    padding:0!important;
+    border:1px solid rgba(255,255,255,.52)!important;
+    border-radius:50%!important;
+    background:rgba(6,18,31,.50)!important;
+    color:rgba(255,255,255,.80)!important;
+    box-shadow:0 3px 14px rgba(0,0,0,.30)!important;
+    font:900 36px/1 Arial,Helvetica,sans-serif!important;
+    touch-action:none!important;
+    -webkit-user-select:none!important;
+    user-select:none!important;
+  }
+  #mobileControls.button-mode .mobile-turn-button.active{
+    background:rgba(35,122,163,.68)!important;
+    border-color:rgba(134,233,255,.92)!important;
+    color:#fff!important;
+    transform:scale(.96);
+  }
+
+  #mobileControls.button-mode .mobile-action-zone{
+    position:absolute;
+    right:0;
+    bottom:0;
+    z-index:18;
+    display:flex;
+    width:50%;
+    height:54%;
+    align-items:flex-end;
+    justify-content:center;
+    gap:10px;
+    padding:0 10vw max(34px,calc(env(safe-area-inset-bottom) + 26px)) 0;
+    border:0;
+    background:transparent;
+    box-shadow:none;
+    pointer-events:auto;
+    touch-action:none;
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  #mobileControls.button-mode .mobile-action-zone span{
+    display:none;
+    color:rgba(255,255,255,.62);
+    font:900 12px/1 Arial,Helvetica,sans-serif;
+    letter-spacing:.08em;
+    text-shadow:0 2px 5px rgba(0,0,0,.8);
+    pointer-events:none;
+  }
+  #mobileControls.button-mode.firing .mobile-action-zone span:first-child{display:block}
+  #mobileControls.button-mode.thrusting .mobile-action-zone span:last-child{display:block}
+
+  #mobileControls.button-mode .mobile-zone{display:none!important}
+
+  #mobileControls.keyboard-mode .mobile-turn-pad,
+  #mobileControls.keyboard-mode .mobile-action-zone,
+  #mobileControls.keyboard-mode .mobile-zone{
+    display:none!important;
+    pointer-events:none!important;
+  }
+}
+@media (orientation:landscape) and (max-height:520px){
+  #mobileControls.button-mode .mobile-turn-button{
+    width:58px!important;height:58px!important;min-width:58px!important;min-height:58px!important;
+    font-size:33px!important;
+  }
+}
