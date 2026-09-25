@@ -863,9 +863,7 @@
   async function shareGameLink(){
     const url=cleanGameUrl();
     const ok=await copyTextToClipboard(url);
-    showShareToast(ok
-      ? 'LINK COPIADO. MANDALO A UN AMIGO: SOLO PEGA CON CTRL+V EN WHATSAPP, MAIL O DONDE QUIERAS.'
-      : 'NO SE PUDO COPIAR. COPIA LA DIRECCION DEL NAVEGADOR Y MANDALA A TU AMIGO.');
+    showShareToast(ok?tr('shareGameCopied'):tr('shareGameCopyFailed'));
   }
   async function shareCurrentRoom(){
     if(!roomCode||roomCode==='LOCAL'){
