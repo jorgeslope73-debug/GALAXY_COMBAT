@@ -59,7 +59,8 @@
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
-  const localizedTargets=[false,false,false,false];
+  const localizedTargetOwners=[-1,-1,-1,-1];
+  const localizaTintCache=[null,null,null,null];
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
@@ -1663,6 +1664,43 @@
       ctx.restore();
     }
   }
+  function tintedLocaliza(owner){
+    const im=images.localiza;
+    if(!imageReady(im))return null;
+    const idx=Math.max(0,Math.min(3,Number(owner)||0));
+    const cached=localizaTintCache[idx];
+    if(cached&&cached.w===im.naturalWidth&&cached.h===im.naturalHeight)return cached.canvas;
+    const c=document.createElement('canvas');
+    c.width=im.naturalWidth;c.height=im.naturalHeight;
+    const g=c.getContext('2d',{alpha:true});
+    if(!g)return null;
+    g.clearRect(0,0,c.width,c.height);
+    g.drawImage(im,0,0);
+    // Conserva luces/detalle del PNG y aplica el color del jugador.
+    g.globalCompositeOperation='source-atop';
+    g.globalAlpha=.88;
+    g.fillStyle=playerColors[idx]||'#fff';
+    g.fillRect(0,0,c.width,c.height);
+    g.globalAlpha=1;
+    g.globalCompositeOperation='source-over';
+    localizaTintCache[idx]={canvas:c,w:im.naturalWidth,h:im.naturalHeight};
+    return c;
+  }
+  function drawLocalizaMarker(x,y,owner,alpha=.92){
+    const marker=tintedLocaliza(owner);
+    if(!marker)return false;
+    const idx=Math.max(0,Math.min(3,Number(owner)||0));
+    ctx.save();
+    try{
+      ctx.globalAlpha=alpha;
+      ctx.shadowColor=playerColors[idx]||'#fff';
+      ctx.shadowBlur=7;
+      ctx.drawImage(marker,x-39,y-39,78,78);
+      return true;
+    }finally{
+      ctx.restore();
+    }
+  }
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1'};
   function pickupExpiryAlpha(pk,nowSec){
     const raw=pk&&pk.expiresIn;
@@ -1854,12 +1892,13 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
-    const localized=!!localizedTargets[Number(p.i)];
+    const localizedOwner=localizedTargetOwners[Number(p.i)];
+    const localized=Number.isInteger(localizedOwner)&&localizedOwner>=0;
     let alpha=1;
     if(p.camo>0&&!local){
       const revealAlpha=ghostRevealAlpha(p,now);
       if(revealAlpha<=0){
-        if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,.92);
+        if(localized)drawLocalizaMarker(x,y,localizedOwner,.92);
         return;
       }
       // Revelacion encadenada: aparece y desaparece suavemente.
@@ -1895,7 +1934,7 @@
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
     if(p.mira===true&&imageReady(images.navemira))drawImageCentered(images.navemira,x,y,64,-r,Math.min(1,alpha*.95));
-    if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,Math.min(1,alpha*.95));
+    if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
   }
   function drawHud(now){
     if(!state)return;
@@ -2446,17 +2485,22 @@
     const nowSec=now/1000;
     const blend=interpolationAlpha(now);
     const prev=previousState||state;
-    localizedTargets.fill(false);
+    localizedTargetOwners.fill(-1);
     for(const p of state.players||[]){
       if(p&&p.mira===true){
-        const target=Number(p.mt);
-        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
+        const target=Number(p.mt),owner=Number(p.i);
+        if(Number.isInteger(target)&&target>=0&&target<localizedTargetOwners.length&&Number.isInteger(owner)){
+          localizedTargetOwners[target]=owner;
+        }
       }
     }
     for(const b of state.bullets||[]){
       if(b&&b.g===true){
-        const target=Number(b.gt);
-        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
+        const target=Number(b.gt),owner=Number(b.o);
+        if(Number.isInteger(target)&&target>=0&&target<localizedTargetOwners.length&&Number.isInteger(owner)){
+          // Tras disparar, el marcador conserva el color del propietario del misil.
+          localizedTargetOwners[target]=owner;
+        }
       }
     }
 
