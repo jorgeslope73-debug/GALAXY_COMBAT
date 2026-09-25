@@ -360,6 +360,13 @@
       if(action==='meteor_brake')return{turn:awayTurn,thrust:false,fire:false};
       return{turn:action==='meteor_left'?1:-1,thrust:true,fire:false};
     }
+    flushLearning(){
+      if(this.learningSent||!this.learningEnabled||this.difficulty!=='dificil')return false;
+      const deltas=this.buildLearningDeltas();
+      this.learningSent=true;
+      if(deltas.length)this.emit({t:'cpu-learning',deltas});
+      return deltas.length>0;
+    }
     buildLearningDeltas(){
       if(!this.learningEnabled||this.difficulty!=='dificil')return [];
       const general=[],meteor=[],humanGeneral=[],humanMeteor=[];
@@ -563,6 +570,10 @@
     }
     restart(){
       if(!this.finished||this.players.length<2)return false;
+      // REPETIR nunca descarta aprendizaje pendiente: se envia antes de limpiar
+      // la ronda. Si ya se guardo al producirse la victoria, learningSent evita
+      // cualquier envio duplicado.
+      this.flushLearning();
       this.started=false;this.finished=false;this.winner=null;this.seq=0;
       this.learningByCpu.clear();this.meteorLearningByCpu.clear();
       this.humanLearning.clear();this.humanMeteorLearning.clear();this.humanMeteorDecision=null;this.nextHumanObserve=0;
@@ -633,11 +644,7 @@
         attacker.kills++;
         if(attacker.kills>=SCORE_TO_WIN){
           this.finished=true;this.winner=attacker.index;
-          if(this.difficulty==='dificil'&&!this.learningSent){
-            this.learningSent=true;
-            const deltas=this.buildLearningDeltas();
-            if(deltas.length)this.emit({t:'cpu-learning',deltas});
-          }
+          this.flushLearning();
           this.emit({t:'victory',winner:this.winner});
         }
       }
