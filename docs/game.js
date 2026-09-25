@@ -577,7 +577,7 @@
     if(!audioToggleButton)return;
     audioToggleButton.classList.toggle('active',gameAudioEnabled);
     audioToggleButton.setAttribute('aria-pressed',gameAudioEnabled?'true':'false');
-    audioToggleButton.textContent=gameAudioEnabled?'AUDIO ACTIVO':'AUDIO DESACTIVADO';
+    audioToggleButton.textContent=gameAudioEnabled?tr('gameAudioOn'):tr('gameAudioOff');
   }
   function toggleGameAudio(){
     gameAudioEnabled=!gameAudioEnabled;
@@ -2647,6 +2647,7 @@
     }
   }
   window.addEventListener('galaxy-languagechange',()=>{
+    updateAudioButton();
     renderPublicRooms();
     updateLobbyStartButton(startBtn&&!startBtn.disabled);
     updateCpuFillButton(cpuFillEnabled);
