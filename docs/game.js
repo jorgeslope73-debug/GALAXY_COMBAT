@@ -59,7 +59,8 @@
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
-  const localizedTargets=[false,false,false,false];
+  const localizedTargetOwners=[-1,-1,-1,-1];
+  const localizaSpriteKeys=['localizaA','localizaB','localizaC','localizaD'];
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
@@ -308,7 +309,8 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
-    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',localiza:'assets/sprites/localiza.png',
+    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',coete:'assets/sprites/coete.png',
+    localizaA:'assets/sprites/localizaA.png',localizaB:'assets/sprites/localizaB.png',localizaC:'assets/sprites/localizaC.png',localizaD:'assets/sprites/localizaD.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
   for(let i=1;i<=4;i++){
@@ -1757,6 +1759,12 @@
       ctx.restore();
     }
   }
+  function drawLocalizaMarker(x,y,owner,alpha=.92){
+    const idx=Math.max(0,Math.min(3,Number(owner)||0));
+    const im=images[localizaSpriteKeys[idx]];
+    if(!imageReady(im))return false;
+    return drawImageCentered(im,x,y,78,0,alpha);
+  }
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1'};
   function pickupExpiryAlpha(pk,nowSec){
     const raw=pk&&pk.expiresIn;
@@ -1948,12 +1956,13 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
-    const localized=!!localizedTargets[Number(p.i)];
+    const localizedOwner=localizedTargetOwners[Number(p.i)];
+    const localized=Number.isInteger(localizedOwner)&&localizedOwner>=0;
     let alpha=1;
     if(p.camo>0&&!local){
       const revealAlpha=ghostRevealAlpha(p,now);
       if(revealAlpha<=0){
-        if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,.92);
+        if(localized)drawLocalizaMarker(x,y,localizedOwner,.92);
         return;
       }
       // Revelacion encadenada: aparece y desaparece suavemente.
@@ -1989,7 +1998,7 @@
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
     if(p.mira===true&&imageReady(images.navemira))drawImageCentered(images.navemira,x,y,64,-r,Math.min(1,alpha*.95));
-    if(localized&&imageReady(images.localiza))drawImageCentered(images.localiza,x,y,78,0,Math.min(1,alpha*.95));
+    if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
   }
   function drawHud(now){
     if(!state)return;
@@ -2540,17 +2549,21 @@
     const nowSec=now/1000;
     const blend=interpolationAlpha(now);
     const prev=previousState||state;
-    localizedTargets.fill(false);
+    localizedTargetOwners.fill(-1);
     for(const p of state.players||[]){
       if(p&&p.mira===true){
-        const target=Number(p.mt);
-        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
+        const target=Number(p.mt),owner=Number(p.i);
+        if(Number.isInteger(target)&&target>=0&&target<localizedTargetOwners.length&&Number.isInteger(owner)){
+          localizedTargetOwners[target]=owner;
+        }
       }
     }
     for(const b of state.bullets||[]){
       if(b&&b.g===true){
-        const target=Number(b.gt);
-        if(Number.isInteger(target)&&target>=0&&target<localizedTargets.length)localizedTargets[target]=true;
+        const target=Number(b.gt),owner=Number(b.o);
+        if(Number.isInteger(target)&&target>=0&&target<localizedTargetOwners.length&&Number.isInteger(owner)){
+          localizedTargetOwners[target]=owner;
+        }
       }
     }
 
@@ -2592,7 +2605,12 @@
     for(const b of state.bullets){
       const x=b.x+b.vx*age,y=b.y+b.vy*age;
       const sp=Math.hypot(b.vx,b.vy)||1;
-      ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
+      if(b.g&&imageReady(images.coete)){
+        const bulletRot=(Math.atan2(-b.vx,-b.vy)*180/Math.PI+360)%360;
+        drawImageCentered(images.coete,x,y,42,-bulletRot,1);
+      }else{
+        ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
+      }
     }
     for(const p of state.players){
       const old=previousLookup.players.get(p.i);
