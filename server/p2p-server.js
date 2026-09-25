@@ -76,7 +76,6 @@ async function ensureDatabase(){
         winner_user_id BIGINT NOT NULL REFERENCES galaxy_users(id) ON DELETE RESTRICT,
         played_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-      ALTER TABLE galaxy_ranked_matches ALTER COLUMN winner_user_id DROP NOT NULL;
       CREATE TABLE IF NOT EXISTS galaxy_ranked_match_players (
         match_id VARCHAR(64) NOT NULL REFERENCES galaxy_ranked_matches(match_id) ON DELETE CASCADE,
         user_id BIGINT NOT NULL REFERENCES galaxy_users(id) ON DELETE RESTRICT,
@@ -222,22 +221,21 @@ function expireDisconnectedPlayers(wss){
 }
 
 async function recordRankedMatch(room,winner){
-  if(!db||!room||room.rankRecorded||!room.rankEligible||!room.rankMatchId)return false;
+  if(!db||!room||room.rankRecorded||!room.rankEligible||!room.rankMatchId||!winner||!winner.userId)return false;
   room.rankRecorded=true;
   try{
     if(!await ensureDatabase()){room.rankRecorded=false;return false;}
     const players=room.players.filter(p=>p.userId);
     if(players.length<2||players.length!==room.players.length){room.rankRecorded=false;return false;}
-    const winnerUserId=winner&&winner.userId?Number(winner.userId):null;
     const client=await db.connect();
     try{
       await client.query('BEGIN');
-      await client.query(`INSERT INTO galaxy_ranked_matches(match_id,room_code,winner_user_id) VALUES($1,$2,$3) ON CONFLICT(match_id) DO NOTHING`,[room.rankMatchId,room.code,winnerUserId]);
+      await client.query(`INSERT INTO galaxy_ranked_matches(match_id,room_code,winner_user_id) VALUES($1,$2,$3) ON CONFLICT(match_id) DO NOTHING`,[room.rankMatchId,room.code,winner.userId]);
       for(const p of players){
         await client.query(`INSERT INTO galaxy_ranked_match_players(match_id,user_id,player_index) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,[room.rankMatchId,p.userId,p.i]);
       }
       await client.query('COMMIT');
-      console.log(`[Galaxy Combat P2P] Partida rankeada ${room.rankMatchId} registrada. Ganador: ${winnerUserId===null?'CPU':winnerUserId}`);
+      console.log(`[Galaxy Combat P2P] Partida rankeada ${room.rankMatchId} registrada.`);
       return true;
     }catch(err){try{await client.query('ROLLBACK');}catch(_){}throw err;}
     finally{client.release();}
@@ -571,13 +569,11 @@ async function authApi(req,res,url){
     if(!room||!room.started){sendJson(res,404,{ok:false,code:'ROOM_NOT_FOUND'});return true;}
     const host=room.players.find(p=>p.i===0);
     if(!host||Number(host.userId)!==Number(user.id)){sendJson(res,403,{ok:false,code:'HOST_REQUIRED'});return true;}
-    const rankRound=Math.max(0,Number(body.rankRound)||0);
-    if(rankRound&&rankRound!==Number(room.rankRound||0)){sendJson(res,409,{ok:false,code:'STALE_ROUND'});return true;}
-    const winner=room.players.find(p=>p.i===winnerIndex)||null;
-    const cpuWinner=!winner&&room.cpuFill&&Number.isInteger(winnerIndex)&&winnerIndex>=0&&winnerIndex<MAX_PLAYERS;
-    if(!winner&&!cpuWinner){sendJson(res,400,{ok:false,code:'BAD_WINNER'});return true;}
+    if(room.cpuFill){sendJson(res,200,{ok:true,ranked:false,reason:'CPU_PLAYERS'});return true;}
+    const winner=room.players.find(p=>p.i===winnerIndex);
+    if(!winner){sendJson(res,400,{ok:false,code:'BAD_WINNER'});return true;}
     room.rankEligible=room.players.length>=2&&room.players.every(p=>p.registered&&p.userId);
-    if(!room.rankEligible){sendJson(res,200,{ok:true,ranked:false,reason:room.players.length<2?'NOT_ENOUGH_HUMANS':'NOT_ALL_REGISTERED'});return true;}
+    if(!room.rankEligible){sendJson(res,200,{ok:true,ranked:false,reason:'NOT_ALL_REGISTERED'});return true;}
     const recorded=await recordRankedMatch(room,winner);
     sendJson(res,200,{ok:true,ranked:!!recorded});return true;
   }
@@ -620,7 +616,7 @@ wss.on('connection',ws=>{
     if(m.t==='create'){
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,createdAt:Date.now()};
+      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,createdAt:Date.now()};
       const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
@@ -668,7 +664,7 @@ wss.on('connection',ws=>{
 
     const startPlayers=roster(r);
     if(m.t==='start'&&x.i===0&&canStartRoom(r)){
-      r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');r.rankRound=1;
+      r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');
       if(db){
         try{
           await ensureDatabase();
@@ -676,17 +672,8 @@ wss.on('connection',ws=>{
             ON CONFLICT(day) DO UPDATE SET online_matches=galaxy_analytics_daily.online_matches+1`);
         }catch(err){console.error('[Galaxy Combat P2P] Error contando partida online:',err&&err.message||err);}
       }
-      r.rankEligible=r.players.length>=2&&r.players.every(p=>p.registered&&p.userId);
-      broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible,rankRound:r.rankRound});publicUpdate(wss);return;
-    }
-
-    if(m.t==='rank-restart'&&x.i===0&&r.started){
-      r.rankRecorded=false;
-      r.rankMatchId=randomBytes(24).toString('hex');
-      r.rankRound=Math.max(1,Number(r.rankRound)||1)+1;
-      r.rankEligible=r.players.length>=2&&r.players.every(p=>p.registered&&p.userId);
-      send(ws,{t:'rank-round',rankRound:r.rankRound,rankEligible:r.rankEligible});
-      return;
+      r.rankEligible=!r.cpuFill&&r.players.length>=2&&r.players.every(p=>p.registered&&p.userId);
+      broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible});publicUpdate(wss);return;
     }
 
     if(['p2p-offer','p2p-answer','p2p-ice'].includes(m.t)){
