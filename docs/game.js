@@ -478,8 +478,16 @@
     if(!isHost||typeof window.GalaxyHostPhysics!=='function')return false;
     hostPhysics=new window.GalaxyHostPhysics({
       code:roomCode,
-      onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);},
-      onEvent:m=>{handle(m);if(p2p)p2p.broadcastEvent(m);}
+      onState:m=>{
+        handle(m);
+        if(p2p)p2p.broadcastState(m);
+        if(ws&&ws.readyState===WebSocket.OPEN&&(!p2p||p2p.needsFallback()))ws.send(JSON.stringify({t:'fallback-state',state:m}));
+      },
+      onEvent:m=>{
+        handle(m);
+        if(p2p)p2p.broadcastEvent(m);
+        if(ws&&ws.readyState===WebSocket.OPEN&&(!p2p||p2p.needsFallback()))ws.send(JSON.stringify({t:'fallback-event',event:m}));
+      }
     });
     return hostPhysics.start(players||lobbyPlayers);
   }
@@ -590,6 +598,26 @@
       // requieren orden estricto con el ultimo estado recibido.
       let m;try{m=JSON.parse(raw);}catch(_){return;}
       if(m&&['p2p-offer','p2p-answer','p2p-ice'].includes(m.t)){ensureP2P()?.handleSignal(m);return;}
+      if(m&&m.t==='fallback-state'){
+        if(!isHost&&m.state&&(!p2p||p2p.needsFallback()))handle(m.state);
+        return;
+      }
+      if(m&&m.t==='fallback-event'){
+        if(!isHost&&m.event&&(!p2p||p2p.needsFallback()))handle(m.event);
+        return;
+      }
+      if(m&&m.t==='fallback-ctrl'){
+        if(isHost&&hostPhysics)hostPhysics.setControl(Number(m.from),Number(m.turn)||0,!!m.thrust,!!m.fire);
+        return;
+      }
+      if(m&&m.t==='fallback-action'){
+        if(isHost&&m.action==='restart'&&hostPhysics&&hostPhysics.restart()){
+          if(p2p)p2p.broadcastEvent({t:'restarted'});
+          if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({t:'fallback-event',event:{t:'restarted'}}));
+          handle({t:'restarted'});
+        }
+        return;
+      }
       if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}
       if(m&&(['victory','restarted','closed','start'].includes(m.t)))flushPendingState(true);
       handle(m);
@@ -603,7 +631,13 @@
   }
   function sendControl(turn,thrust,fire){
     if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire);return true;}
-    if(inGame&&p2p)return p2p.sendControl(turn,thrust,fire);
+    if(inGame&&p2p){
+      if(p2p.sendControl(turn,thrust,fire))return true;
+      if(!isHost&&ws&&ws.readyState===WebSocket.OPEN){
+        try{ws.send(JSON.stringify({t:'fallback-ctrl',turn,thrust,fire}));return true;}catch(_){return false;}
+      }
+      return false;
+    }
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     // Los controles caducan enseguida. Si la salida esta congestionada, es
     // mejor omitir uno y mandar el mas reciente 33 ms despues que acumular lag.
@@ -1023,7 +1057,10 @@
   if(restartMatchBtn)restartMatchBtn.addEventListener('click',()=>{
     restartMatchBtn.disabled=true;
     restartMatchBtn.textContent=tr('restarting');
-    const ok=(p2p&&roomCode!=='LOCAL')?p2p.sendAction('restart'):send({t:'restart'});
+    let ok=(p2p&&roomCode!=='LOCAL')?p2p.sendAction('restart'):send({t:'restart'});
+    if(!ok&&roomCode!=='LOCAL'&&ws&&ws.readyState===WebSocket.OPEN){
+      try{ws.send(JSON.stringify({t:'fallback-action',action:'restart'}));ok=true;}catch(_){}
+    }
     if(!ok){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);

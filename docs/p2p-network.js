@@ -88,6 +88,22 @@
       }catch(err){console.warn('[Galaxy P2P] signaling',err);}
       return false;
     }
+    isOpenTo(peerIndex){
+      const rec=this.peers.get(Number(peerIndex));
+      return !!(rec&&rec.dc&&rec.dc.readyState==='open');
+    }
+    hasOpenHost(){
+      if(this.isHost)return true;
+      return this.isOpenTo(0);
+    }
+    needsFallback(){
+      if(!this.isHost)return !this.hasOpenHost();
+      const expected=this.players
+        .map(p=>Number(p&&p.i))
+        .filter(i=>Number.isInteger(i)&&i!==this.myIndex);
+      if(!expected.length)return false;
+      return expected.some(i=>!this.isOpenTo(i));
+    }
     sendControl(turn,thrust,fire){
       if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire});return true;}
       const rec=this.peers.get(0)||[...this.peers.values()].find(x=>x.open);
