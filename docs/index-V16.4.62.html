@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#10051e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Galaxy Combat">
+<link rel="manifest" href="manifest.webmanifest?v=V16.4.60">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=V16.4.60">
+<script>
+(() => {
+  const ua=navigator.userAgent||'';
+  const handheld=/Android|iPhone|iPad|iPod|Mobile/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(handheld)document.documentElement.classList.add('handheld-device');
+})();
+</script>
+<title>Galaxy Combat | Jorge Lopez Diaz</title>
+<link rel="stylesheet" href="style.css?v=V16.4.62-ranking-20260920">
+<link rel="stylesheet" href="menu-portada.css?v=V16.4.62-ui-20260921">
+<link rel="stylesheet" href="voz.css?v=V16.4.62-ranking-20260920">
+<style>
+/* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
+#lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
+.lobby-chat{margin:12px auto 8px;width:min(540px,100%);display:flex;flex-direction:column;gap:7px}
+.lobby-chat-title{font-family:'Flashback',Arial,sans-serif;font-size:12px;letter-spacing:.08em;color:rgba(235,225,255,.82);text-align:left}
+.lobby-chat-log{height:150px;overflow-y:auto;padding:9px 10px;border:1px solid rgba(187,131,255,.25);border-radius:6px;background:rgba(6,4,18,.45);box-shadow:inset 0 0 18px rgba(0,0,0,.28);scrollbar-width:thin;scrollbar-color:rgba(177,120,255,.55) transparent}
+.lobby-chat-empty{margin:0;color:rgba(230,220,245,.48);font:11px 'Flashback',Arial,sans-serif;text-align:center;padding-top:52px}
+.lobby-chat-line{display:flex;gap:7px;align-items:flex-start;margin:0 0 6px;font-family:Arial,sans-serif;font-size:13px;line-height:1.25;overflow-wrap:anywhere}
+.lobby-chat-line:last-child{margin-bottom:0}
+.lobby-chat-name{flex:0 0 auto;font-weight:700;text-shadow:0 0 7px currentColor}
+.lobby-chat-text{color:rgba(245,242,255,.92)}
+.lobby-chat-compose{display:flex;gap:7px;align-items:center}
+#lobby .lobby-chat-compose{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:7px!important;align-items:center!important;width:100%!important}
+#lobby #lobbyChatInput{display:block!important;width:100%!important;min-width:0!important;max-width:none!important;box-sizing:border-box!important;height:36px!important;padding:0 11px!important;border:1px solid rgba(184,125,255,.45)!important;border-radius:5px!important;background:rgba(10,6,24,.72)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;caret-color:#fff!important;font:600 14px/1.2 Arial,Helvetica,sans-serif!important;letter-spacing:0!important;outline:none!important}
+#lobby #lobbyChatInput::placeholder{color:rgba(235,228,255,.48)!important;-webkit-text-fill-color:rgba(235,228,255,.48)!important}
+#lobby #lobbyChatInput:focus{border-color:rgba(208,168,255,.88)!important;box-shadow:0 0 12px rgba(155,83,255,.24)!important}
+#lobby #lobbyChatSend{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;max-width:max-content!important;flex:none!important;min-height:36px!important;height:36px!important;padding:5px 10px!important;margin:0!important;font-family:Arial,Helvetica,sans-serif!important;font-size:12px!important;font-weight:700!important;letter-spacing:.02em!important;white-space:nowrap!important}
+.lobby-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:5px}
+
+/* V16.4.56: lobby PC/web mas compacto y jugadores en dos columnas. */
+html:not(.handheld-device) #lobby.lobby-with-chat{width:min(560px,88vw)}
+html:not(.handheld-device) #lobby #players{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  grid-template-rows:auto auto;
+  column-gap:24px;
+  row-gap:7px;
+  width:100%;
+  padding:8px 12px;
+  box-sizing:border-box;
+  line-height:1.25;
+}
+html:not(.handheld-device) #lobby #players>div{
+  min-width:0;
+  padding:7px 10px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:7px;
+  background:rgba(5,8,20,.48);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+html:not(.handheld-device) #lobby #players>div:nth-child(1){grid-column:1;grid-row:1;text-align:left}
+html:not(.handheld-device) #lobby #players>div:nth-child(2){grid-column:1;grid-row:2;text-align:left}
+html:not(.handheld-device) #lobby #players>div:nth-child(3){grid-column:2;grid-row:1;text-align:right}
+html:not(.handheld-device) #lobby #players>div:nth-child(4){grid-column:2;grid-row:2;text-align:right}
+html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
+@media (max-width:760px){
+  html,body{touch-action:manipulation;overscroll-behavior:none}
+  #lobby.lobby-with-chat{width:min(96vw,620px);max-height:92vh;padding:12px}
+  .lobby-chat{margin-top:8px}.lobby-chat-log{height:112px;padding:7px 8px}
+  .lobby-chat-line{font-size:11px;margin-bottom:4px}.lobby-chat-title{font-size:10px}
+  #lobby #lobbyChatInput{height:40px!important;font-family:Arial,Helvetica,sans-serif!important;font-size:16px!important;font-weight:600!important;line-height:1.2!important;touch-action:manipulation!important}#lobby .lobby-chat-compose{gap:6px!important;touch-action:manipulation!important}#lobby #lobbyChatSend{height:40px!important;min-height:40px!important;padding:5px 11px!important;font-family:Arial,Helvetica,sans-serif!important;font-size:14px!important;font-weight:800!important;line-height:1!important;touch-action:manipulation!important}
+}
+
+/* V16.4.20: lobby/chat compacto para movil horizontal. */
+@media (orientation:landscape){
+  html.handheld-device #lobby.lobby-with-chat{
+    width:min(760px,calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 46px));
+    max-width:calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 46px);
+    height:calc(100dvh - 10px);max-height:calc(100dvh - 10px);
+    padding:8px 12px max(8px,env(safe-area-inset-bottom,0px));
+    display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:6px;
+    overflow:hidden;border-radius:10px;
+  }
+  html.handheld-device #lobby>h2{
+    margin:0;font-size:17px;line-height:1.05;letter-spacing:.04em;
+  }
+  html.handheld-device #lobby #players{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-rows:auto auto;
+    column-gap:12px;row-gap:5px;
+    min-height:66px;width:100%;padding:0;background:transparent;border-radius:0;
+    line-height:1;overflow:hidden;text-align:center;
+  }
+  html.handheld-device #lobby #players>div{
+    min-width:0;max-width:none;
+    padding:7px 9px;border:1px solid rgba(255,255,255,.20);border-radius:8px;
+    background:rgba(7,10,24,.76);box-shadow:inset 0 0 10px rgba(255,255,255,.025),0 2px 8px rgba(0,0,0,.24);
+    font:800 12px/1 Arial,Helvetica,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  html.handheld-device #lobby #players>div:nth-child(1){grid-column:1;grid-row:1;text-align:left}
+  html.handheld-device #lobby #players>div:nth-child(2){grid-column:1;grid-row:2;text-align:left}
+  html.handheld-device #lobby #players>div:nth-child(3){grid-column:2;grid-row:1;text-align:right}
+  html.handheld-device #lobby #players>div:nth-child(4){grid-column:2;grid-row:2;text-align:right}
+  html.handheld-device #lobby .lobby-chat{
+    width:100%;min-height:0;margin:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:4px;
+  }
+  html.handheld-device #lobby .lobby-chat-title{
+    margin:0;font:700 9px/1 Arial,Helvetica,sans-serif;letter-spacing:.08em;opacity:.72;
+  }
+  html.handheld-device #lobby .lobby-chat-log{
+    height:auto;min-height:54px;padding:6px 8px;border-radius:5px;overscroll-behavior:contain;
+  }
+  html.handheld-device #lobby .lobby-chat-empty{padding-top:18px;font-size:10px}
+  html.handheld-device #lobby .lobby-chat-line{gap:5px;margin-bottom:3px;font-size:11px;line-height:1.18}
+  html.handheld-device #lobby .lobby-chat-compose{
+    display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:5px!important;
+  }
+  html.handheld-device #lobby #lobbyChatInput{
+    height:34px!important;min-height:34px!important;padding:0 9px!important;border-radius:5px!important;
+    font:600 16px/1.1 Arial,Helvetica,sans-serif!important;
+  }
+  html.handheld-device #lobby #lobbyChatSend{
+    height:34px!important;min-height:34px!important;margin:0!important;padding:4px 11px!important;
+    border-radius:5px!important;font:800 12px/1 Arial,Helvetica,sans-serif!important;
+  }
+  html.handheld-device #lobby .lobby-actions{
+    display:flex;flex-wrap:nowrap;justify-content:center;align-items:center;gap:6px;width:100%;margin:0;
+  }
+  html.handheld-device #lobby .lobby-actions button{
+    flex:1 1 0;width:auto;max-width:230px;height:34px;min-height:34px;margin:0;padding:4px 10px;
+    border-radius:5px;font:800 11px/1 Arial,Helvetica,sans-serif;white-space:nowrap;
+  }
+  html.handheld-device #lobby>.help{display:none!important}
+}
+
+/* El credito del autor solo se muestra en el menu principal. */
+#menu.submenu-open .menu-credit{display:none!important}
+</style>
+
+<style id="build-version-style">
+#buildVersion{position:fixed!important;z-index:2147483647!important;top:calc(env(safe-area-inset-top,0px) + 7px)!important;right:max(8px,env(safe-area-inset-right,0px))!important;display:block!important;visibility:visible!important;opacity:1!important;padding:5px 8px!important;border:1px solid rgba(124,255,124,.7)!important;border-radius:6px!important;background:rgba(0,0,0,.82)!important;color:#7CFF7C!important;font:700 12px/1 Arial,sans-serif!important;letter-spacing:.08em!important;pointer-events:none!important;text-shadow:0 1px 2px #000!important;transform:none!important}
+</style>
+<style id="orientation-gate-style">
+.orientation-gate{display:none;position:fixed;inset:0;z-index:2147483646;align-items:center;justify-content:center;padding:28px;background:radial-gradient(circle at 50% 45%,rgba(31,14,55,.98),rgba(3,2,12,.995) 68%);color:#fff;text-align:center;pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none}
+.orientation-gate-card{width:min(430px,88vw);padding:28px 24px;border:1px solid rgba(126,225,255,.58);border-radius:16px;background:rgba(3,8,22,.86);box-shadow:0 0 36px rgba(59,186,255,.2)}
+.orientation-gate-icon{display:block;margin:0 auto 14px;font:900 48px/1 Arial,Helvetica,sans-serif;color:#7fe5ff;transform:rotate(90deg);text-shadow:0 0 18px rgba(90,225,255,.45)}
+.orientation-gate-title{margin:0 0 10px;font:900 clamp(24px,7vw,36px)/1 Arial,Helvetica,sans-serif;letter-spacing:.035em}
+.orientation-gate-copy{margin:0;color:rgba(239,245,255,.82);font:700 15px/1.35 Arial,Helvetica,sans-serif}
+@media (orientation:portrait){html.handheld-device .orientation-gate{display:flex}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="orientationGate" class="orientation-gate" role="alert" aria-live="assertive">
+    <div class="orientation-gate-card">
+      <span class="orientation-gate-icon" aria-hidden="true">&#8596;</span>
+      <p class="orientation-gate-title" data-i18n="orientationTitle">GIRA EL MÓVIL</p>
+      <p class="orientation-gate-copy" data-i18n="orientationCopy">Galaxy Combat se juega en horizontal.</p>
+    </div>
+  </div>
+  <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
+  <div id="ui" class="overlay">
+    <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
+      <div id="buildVersion" aria-label="Version del juego">V16.4.62</div>
+      <div class="menu-left-tools" aria-label="Clasificacion">
+        <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
+      </div>
+      <div class="menu-top-tools" aria-label="Menu de idioma y ayuda">
+        <button id="manualOpen" class="manual-launch" type="button" aria-haspopup="dialog">MANUAL</button>
+        <button id="authLoginOpen" class="account-launch" type="button">INICIO</button>
+        <button id="authRegisterOpen" class="account-launch" type="button">REGISTRO</button>
+        <button id="authUserOpen" class="account-launch account-user hidden" type="button" aria-haspopup="dialog"></button>
+        <div id="languageSwitcher" class="language-switcher">
+          <details id="languageDropdown" class="language-dropdown">
+          <summary id="languageCurrent" class="language-current" aria-label="Idioma / Language">
+            <span id="languageCurrentFlag" class="language-flag flag-es" aria-hidden="true"></span>
+            <span id="languageCurrentCode">ES</span>
+            <span class="language-chevron" aria-hidden="true">▾</span>
+          </summary>
+          <div class="language-menu" role="menu" aria-label="Idioma / Language">
+            <button type="button" role="menuitem" data-language="es"><span class="language-flag flag-es" aria-hidden="true"></span><span>ES</span></button>
+            <button type="button" role="menuitem" data-language="en"><span class="language-flag flag-en" aria-hidden="true"></span><span>EN</span></button>
+            <button type="button" role="menuitem" data-language="it"><span class="language-flag flag-it" aria-hidden="true"></span><span>IT</span></button>
+            <button type="button" role="menuitem" data-language="fr"><span class="language-flag flag-fr" aria-hidden="true"></span><span>FR</span></button>
+            <button type="button" role="menuitem" data-language="de"><span class="language-flag flag-de" aria-hidden="true"></span><span>DE</span></button>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div id="manualDialog" class="manual-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="manualTitle">
+        <div class="manual-card">
+          <header class="manual-header">
+            <div>
+              <div class="manual-kicker">GALAXY COMBAT</div>
+              <h2 id="manualTitle">MANUAL DE JUEGO</h2>
+              <p id="manualSubtitle"></p>
+            </div>
+            <button id="manualClose" class="manual-close" type="button" aria-label="Cerrar manual" title="Cerrar">×</button>
+          </header>
+          <div class="manual-layout">
+            <nav id="manualNav" class="manual-nav" aria-label="Contenido del manual"></nav>
+            <main id="manualContent" class="manual-content" tabindex="0"></main>
+          </div>
+        </div>
+      </div>
+      <div id="rankingDialog" class="ranking-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="rankingTitle">
+        <div class="ranking-card">
+          <div class="ranking-card-head">
+            <div>
+              <div class="ranking-kicker">GALAXY COMBAT</div>
+              <h2 id="rankingTitle">RANKING</h2>
+            </div>
+            <button id="rankingClose" class="ranking-close" type="button" aria-label="Cerrar">×</button>
+          </div>
+          <div id="rankingListView" class="ranking-list-view">
+            <div class="ranking-table-wrap">
+              <table class="ranking-table">
+                <thead>
+                  <tr><th id="rankingColPosition">PUESTO</th><th id="rankingColPlayer">JUGADOR</th></tr>
+                </thead>
+                <tbody id="rankingRows"></tbody>
+              </table>
+              <p id="rankingMessage" class="ranking-message" aria-live="polite">CARGANDO...</p>
+            </div>
+          </div>
+          <div id="rankingDetail" class="ranking-detail hidden" aria-live="polite">
+            <button id="rankingBack" class="ranking-back" type="button">← VOLVER</button>
+            <div class="ranking-detail-position"><span id="rankingDetailPositionLabel">PUESTO</span><strong id="rankingDetailPosition">#1</strong></div>
+            <h3 id="rankingDetailPlayer">JUGADOR</h3>
+            <div class="ranking-detail-grid">
+              <div><span id="rankingDetailWinsLabel">VICTORIAS</span><strong id="rankingDetailWins">0</strong></div>
+              <div><span id="rankingDetailLossesLabel">DERROTAS</span><strong id="rankingDetailLosses">0</strong></div>
+              <div><span id="rankingDetailPlayedLabel">PARTIDAS</span><strong id="rankingDetailPlayed">0</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="authDialog" class="auth-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="authDialogTitle">
+        <div class="auth-card">
+          <div class="auth-card-head">
+            <div>
+              <div class="auth-kicker">GALAXY COMBAT</div>
+              <h2 id="authDialogTitle">INICIO DE SESION</h2>
+            </div>
+            <button id="authClose" class="auth-close" type="button" aria-label="Cerrar">×</button>
+          </div>
+          <form id="authLoginForm" class="auth-form">
+            <label><span id="authLoginNameLabel">NOMBRE</span><input id="authLoginName" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
+            <label><span id="authLoginPasswordLabel">CLAVE</span><input id="authLoginPassword" type="password" maxlength="128" autocomplete="current-password"></label>
+            <button id="authLoginSubmit" type="submit">ENTRAR</button>
+          </form>
+          <form id="authRegisterForm" class="auth-form hidden">
+            <label><span id="authRegisterNameLabel">NOMBRE</span><input id="authRegisterName" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
+            <label><span id="authRegisterEmailLabel">CORREO</span><input id="authRegisterEmail" type="email" maxlength="254" autocomplete="email" autocapitalize="off" spellcheck="false"></label>
+            <label><span id="authRegisterPasswordLabel">CLAVE</span><input id="authRegisterPassword" type="password" maxlength="128" autocomplete="new-password"></label>
+            <label><span id="authRegisterRepeatLabel">REPETIR CLAVE</span><input id="authRegisterRepeat" type="password" maxlength="128" autocomplete="new-password"></label>
+            <button id="authRegisterSubmit" type="submit">CREAR CUENTA</button>
+          </form>
+          <div id="authAccountPanel" class="auth-account hidden">
+            <p id="authAccountName" class="auth-account-name"></p>
+            <p id="authAccountEmail" class="auth-account-email"></p>
+            <button id="authLogout" type="button">CERRAR SESION</button>
+          </div>
+          <p id="authMessage" class="auth-message" aria-live="polite"></p>
+        </div>
+      </div>
+      <div class="menu-scene">
+        <img class="menu-art" src="assets/sprites/INTRO.png?v=portada-1" width="1920" height="1080" alt="" fetchpriority="high" draggable="false">
+        <h1 id="menuTitle" class="menu-sr-only">GALAXY COMBAT</h1>
+        <div class="menu-body">
+          <div class="launch-console">
+            <div class="pilot-row">
+              <label class="pilot-field" for="name"><span class="field-title" data-i18n="yourName">TU NOMBRE</span><input id="name" maxlength="16" value="JUGADOR" autocomplete="nickname" spellcheck="false" autocapitalize="characters" data-i18n-aria="playerNameAria" aria-label="Nombre del jugador"></label>
+              <div class="connection-info">
+                <div id="serverWait" class="server-wait" role="status" aria-live="polite">
+                  <span class="server-spinner" aria-hidden="true"></span>
+                  <span id="serverWaitText" data-i18n="connectingWait">Conectando con el servidor... espera un momento.</span>
+                </div>
+                <p id="status" class="status waking" aria-live="polite" data-i18n="connectingShort">Conectando con el servidor...</p>
+              </div>
+            </div>
+            <div class="mode-grid" data-i18n-aria="modesAria" aria-label="Modos de juego">
+              <div class="mode-card cpu-mode">
+                <h2 class="mode-title"><span class="mode-number" aria-hidden="true">01</span> <span data-i18n="modeCpu">CONTRA LA MAQUINA</span></h2>
+                <div class="mode-actions cpu-actions">
+                  <select id="difficulty" data-i18n-aria="cpuDifficultyAria" aria-label="Dificultad CPU">
+                    <option value="facil" selected data-i18n="easy">FACIL</option>
+                    <option value="medio" data-i18n="medium">MEDIO</option>
+                    <option value="dificil" data-i18n="hard">DIFICIL</option>
+                  </select>
+                  <button id="cpu" type="button" disabled><span data-i18n="play">JUGAR</span> <span aria-hidden="true">&rarr;</span></button>
+                </div>
+              </div>
+              <div class="mode-card online-mode">
+                <h2 class="mode-title"><span class="mode-number" aria-hidden="true">02</span> <span data-i18n="modeOnline">ONLINE &middot; 2-4 JUGADORES</span></h2>
+                <div class="mode-actions"><button id="create" type="button" disabled><span data-i18n="createGame">CREAR PARTIDA</span> <span aria-hidden="true">+</span></button></div>
+              </div>
+              <div class="mode-card join-mode">
+                <h2 class="mode-title"><span class="mode-number" aria-hidden="true">03</span> <span data-i18n="modeJoin">UNIRSE A UNA SALA</span></h2>
+                <div class="mode-actions code-actions">
+                  <button id="join" type="button" disabled><span data-i18n="join">UNIRSE</span> <span aria-hidden="true">&rarr;</span></button>
+                </div>
+              </div>
+            </div>
+            <div id="roomTypeDialog" class="room-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="roomTypeTitle">
+              <div class="room-dialog-card">
+                <h3 id="roomTypeTitle" data-i18n="roomTypeTitle">TIPO DE PARTIDA</h3>
+                <p class="room-dialog-copy" data-i18n="roomTypeCopy">PUBLICA aparece en la lista. PRIVADA solo se puede abrir con su codigo.</p>
+                <div class="room-dialog-actions">
+                  <button id="createPublic" type="button" data-i18n="publicRoom">PUBLICA</button>
+                  <button id="createPrivate" type="button" data-i18n="privateRoom">PRIVADA</button>
+                </div>
+                <button id="closeRoomType" class="room-dialog-close" type="button" data-i18n="cancel">CANCELAR</button>
+              </div>
+            </div>
+            <div id="publicRoomsDialog" class="room-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="publicRoomsTitle">
+              <div class="room-dialog-card room-browser-card">
+                <div class="room-browser-top">
+                  <h3 id="publicRoomsTitle" data-i18n="publicGames">PARTIDAS PUBLICAS</h3>
+                  <div id="publicRoomsList" class="public-rooms-list" aria-live="polite">
+                    <p class="public-rooms-empty" data-i18n="searchingGames">Buscando partidas...</p>
+                  </div>
+                </div>
+                <div class="room-browser-bottom">
+                  <div class="private-code-block">
+                    <span class="private-code-title" data-i18n="orEnterCode">O ENTRA POR CODIGO</span>
+                    <div class="private-code-row">
+                      <input id="joinCodeDialog" maxlength="4" placeholder="CODIGO" data-i18n-placeholder="codePlaceholder" autocomplete="off" autocapitalize="characters" spellcheck="false" data-i18n-aria="roomCodeAria" aria-label="Codigo de sala">
+                      <button id="joinByCodeDialog" type="button" data-i18n="join">UNIRSE</button>
+                    </div>
+                  </div>
+                  <button id="closePublicRooms" class="room-dialog-close" type="button" data-i18n="close">CERRAR</button>
+                </div>
+              </div>
+            </div>
+            <div class="menu-control-tools">
+              <div class="voice-setup" data-i18n-aria="voiceChatAria" aria-label="Chat de voz">
+                <button id="enableVoice" type="button" data-i18n="activateVoice">ACTIVAR VOZ</button>
+                <span id="voiceStatus" class="voice-status" aria-live="polite" data-i18n="voiceDisabled">VOZ DESACTIVADA</span>
+              </div>
+            </div>
+            <p class="help desktop-help menu-keys"><span><span data-i18n="rotateControl">GIRAR</span> <b>A / D</b> <span data-i18n="orArrows">o flechas</span></span><i aria-hidden="true"></i><span><span data-i18n="accelerate">ACELERAR</span> <b>W / ARRIBA</b></span><i aria-hidden="true"></i><span><span data-i18n="fire">DISPARAR</span> <b>CTRL / ESPACIO</b></span></p>
+            <p class="help mobile-guide mobile-guide-main" data-i18n="mobileGuide">Inclina para girar &middot; izquierda: disparo &middot; derecha: acelerar.</p>
+            <p id="motionStatus" class="motion-status mobile-motion-status" aria-live="polite"></p>
+          </div>
+          <footer class="menu-credit">BY <strong>JORGE LOPEZ DIAZ</strong></footer>
+        </div>
+      </div>
+    </section>
+    <section id="lobby" class="card lobby-with-chat hidden">
+      <h2><span data-i18n="room">SALA</span> <span id="roomCode"></span></h2>
+      <div id="players"></div>
+      <div class="lobby-chat" aria-label="Chat de la sala">
+        <div class="lobby-chat-title" data-i18n="roomChat">CHAT DE SALA</div>
+        <div id="lobbyChatLog" class="lobby-chat-log" aria-live="polite">
+          <p id="lobbyChatEmpty" class="lobby-chat-empty" data-i18n="noMessages">Sin mensajes</p>
+        </div>
+        <div class="lobby-chat-compose">
+          <input id="lobbyChatInput" maxlength="120" placeholder="ESCRIBE MENSAJE..." data-i18n-placeholder="messagePlaceholder" autocomplete="off" spellcheck="false" data-i18n-aria="messageAria" aria-label="Mensaje para la sala">
+          <button id="lobbyChatSend" type="button" data-i18n="send">ENVIAR</button>
+        </div>
+      </div>
+      <div class="lobby-actions">
+        <button id="start" class="hidden" disabled data-i18n="start">EMPEZAR</button>
+        <button id="leaveRoom" type="button" data-i18n="leaveRoom">SALIR DE SALA</button>
+      </div>
+      <p class="help" data-i18n="lobbyHelp">Los demas abren esta misma direccion y escriben el codigo.</p>
+    </section>
+    <section id="victory" class="card hidden">
+      <h2 id="victoryText" data-i18n="victory">VICTORIA</h2>
+      <button id="restartMatch" data-i18n="rematch">REPETIR PARTIDA</button>
+      <button id="back" data-i18n="mainMenu">MENU PRINCIPAL</button>
+    </section>
+  </div>
+  <div id="topbar" class="hidden"><span id="roomMini"></span><span id="voiceHint" class="voice-hint hidden"></span><span class="desktop-only" data-i18n="escExit">ESC: salir</span></div>
+  <div id="voiceTalker" class="voice-talker hidden" aria-live="polite"></div>
+  <div id="mobileControls" class="mobile-controls hidden" aria-hidden="true">
+    <div class="mobile-zone fire-zone"></div>
+    <div class="mobile-zone thrust-zone"></div>
+  </div>
+  <button id="voicePtt" class="voice-ptt hidden" type="button" data-i18n-aria="holdToTalk" aria-label="Mantener para hablar"><span data-i18n="activateVoice">ACTIVAR VOZ</span></button>
+  <button id="mobileExit" class="mobile-exit hidden" type="button" data-i18n-aria="exitAria" aria-label="Salir de la partida y volver al inicio"><span data-i18n="exit">SALIR</span></button>
+</div>
+<script src="config.js"></script>
+<script src="i18n.js?v=V16.4.62-ranking-20260920"></script>
+<script src="manual.js?v=V16.4.62-ranking-20260920"></script>
+<script src="impactos.js?v=V16.4.62-ranking-20260920"></script>
+<script src="voz.js?v=V16.4.62-ranking-20260920"></script>
+<script src="auth.js?v=V16.4.62-ranking-20260920"></script>
+<script src="ranking.js?v=V16.4.62-ranking-20260920"></script>
+<script src="game.js?v=V16.4.62-ranking-20260920"></script>
+<script src="pwa.js?v=V16.4.62-ranking-20260920"></script>
+</body>
+</html>
