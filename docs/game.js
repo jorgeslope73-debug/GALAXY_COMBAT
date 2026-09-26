@@ -1386,7 +1386,7 @@
         label.style.color=playerColors[Number(slot.i)]||'#fff';
         label.textContent=`J${Number(slot.i)+1} · ${sinTildes(slot.n||tr('defaultPlayer'))}${slot.registered?' · ✓':''}`;
         player.append(label);
-        if(room.started&&slot.cpu){
+        if(slot.cpu){
           const take=document.createElement('button');
           take.type='button';take.className='public-room-cpu-join';take.textContent=tr('join');
           take.setAttribute('aria-label',tr('joinCpuSlot',{index:Number(slot.i)+1}));
