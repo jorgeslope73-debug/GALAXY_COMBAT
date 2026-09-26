@@ -1521,7 +1521,14 @@
     const clean=String(code||'').trim().toUpperCase();
     if(!clean){showPublicRoomsDialog();return;}
     startMusic();await prepareMobileControls();closeRoomDialogs();
-    const msg={t:'join',name:sinTildes(campoNombre.value),code:clean,authToken:authToken()};
+    const msg={
+      t:'join',
+      name:sinTildes(campoNombre.value),
+      code:clean,
+      authToken:authToken(),
+      clientId:roomClientId(),
+      testRoomToken:testRoomPermitToken()
+    };
     // Solo enviamos slot cuando el usuario ha pulsado UNIRSE sobre una CPU.
     // El boton general de una sala en espera no debe convertirse en slot 0.
     if(slot!==null&&slot!==undefined&&slot!==''){
