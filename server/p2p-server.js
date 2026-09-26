@@ -84,12 +84,21 @@ function roomCreationIdentity(identity,msg,ws){
     };
   }
   if(identity&&identity.registered&&identity.userId){
+    // Una cuenta registrada se identifica por usuario: dos personas distintas
+    // de una misma casa pueden jugar si cada una usa su propia cuenta.
     return{creatorKey:'user:'+String(identity.userId),roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
   }
+
+  // Invitados: usamos la IP publica como identidad principal para que cambiar
+  // de navegador no permita abrir otra participacion simultanea. El clientId
+  // queda solo como respaldo si el proxy no facilita una IP util.
+  const meta=connectionMeta.get(ws)||{};
+  const ip=String(meta.ip||'').trim();
+  if(ip&&ip!=='unknown'&&!ip.startsWith('unknown-'))return{creatorKey:'ip:'+ip,roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
+
   const clientId=safeClientId(msg&&msg.clientId);
   if(clientId)return{creatorKey:'client:'+clientId,roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
-  const meta=connectionMeta.get(ws)||{};
-  return{creatorKey:'ip:'+String(meta.ip||'unknown'),roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
+  return{creatorKey:'connection:unknown',roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
 }
 
 async function hashPassword(password,saltHex=''){
@@ -777,7 +786,8 @@ const server=http.createServer(async(req,res)=>{
 const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false});
 
 wss.on('connection',(ws,req)=>{
-  connectionMeta.set(ws,{ip:requestIp(req)});
+  const detectedIp=requestIp(req);
+  connectionMeta.set(ws,{ip:detectedIp==='unknown'?('unknown-'+randomBytes(8).toString('hex')):detectedIp});
   send(ws,{t:'hello',p2p:true,accounts:!!db});
   send(ws,{t:'public-rooms',rooms:publicRooms()});
 
