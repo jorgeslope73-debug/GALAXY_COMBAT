@@ -506,13 +506,12 @@
   }
 }
 
-/* V18.88: en PC alto mantenemos el borde inferior en la misma posicion,
-   pero ampliamos la ventana hacia arriba para ver mas salas/jugadores.
-   La zona inferior de codigo conserva sus 340 px; todo el espacio extra
-   se entrega a la lista superior. */
+/* V18.89: en PC alto ampliamos un poco mas la ventana UNIRSE.
+   Conserva el mismo ancho y la misma zona inferior, pero gana espacio arriba
+   para mostrar mas salas/jugadores sin quedar pegada al borde superior. */
 @media (min-width:900px) and (min-height:900px){
   #menu #publicRoomsDialog .room-browser-card{
-    height:780px;
+    height:820px;
     grid-template-rows:minmax(0,1fr) 340px;
     transform:translateY(-96px);
   }
