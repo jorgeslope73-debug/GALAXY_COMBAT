@@ -49,6 +49,21 @@
 .voice-ptt::before{display:none!important;content:none!important}
 .voice-ptt.talking{background:transparent!important;border:0!important;box-shadow:none!important}
 .voice-ptt:active{transform:translateX(-50%)}
+/* V18.100: en modo BOTONES el PTT deja el centro de la pantalla y se coloca
+   entre las flechas de giro, algo mas abajo, para no pisar la zona de acelerar. */
+@media (pointer:coarse),(max-width:900px){
+  #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
+    left:calc(17vw + 120px);
+    bottom:max(18px,calc(env(safe-area-inset-bottom) + 10px));
+    width:54px;height:54px;min-width:54px;min-height:54px;
+  }
+}
+@media (orientation:landscape) and (max-height:520px){
+  #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
+    left:calc(17vw + 112px);
+    width:50px;height:50px;min-width:50px;min-height:50px;
+  }
+}
 @media (pointer:fine){.voice-ptt{display:none!important}}
 @media (max-width:760px){
   .voice-setup{gap:7px;margin-top:4px}#enableVoice,#enableAudio{font-size:9px!important;height:28px!important;min-height:28px!important;padding:0 8px!important}.voice-status{font-size:8px}
