@@ -244,7 +244,7 @@
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
   const mobileExit=document.getElementById('mobileExit');
   const mobileControlMotionBtn=document.getElementById('mobileControlMotion'),mobileControlButtonsBtn=document.getElementById('mobileControlButtons');
-  const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone');
+  const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone'),mobileAudioButton=document.getElementById('mobileGameAudio');
   const MOBILE_CONTROL_KEY='galaxyCombatMobileControlV1';
   let mobileControlMode='motion';
   try{if(localStorage.getItem(MOBILE_CONTROL_KEY)==='buttons')mobileControlMode='buttons';}catch(_){}
@@ -583,10 +583,13 @@
     return audioUnlocked;
   }
   function updateAudioButton(){
-    if(!audioToggleButton)return;
-    audioToggleButton.classList.toggle('active',gameAudioEnabled);
-    audioToggleButton.setAttribute('aria-pressed',gameAudioEnabled?'true':'false');
-    audioToggleButton.textContent=gameAudioEnabled?tr('gameAudioOn'):tr('gameAudioOff');
+    const text=gameAudioEnabled?tr('gameAudioOn'):tr('gameAudioOff');
+    for(const button of [audioToggleButton,mobileAudioButton]){
+      if(!button)continue;
+      button.classList.toggle('active',gameAudioEnabled);
+      button.setAttribute('aria-pressed',gameAudioEnabled?'true':'false');
+      button.textContent=text;
+    }
   }
   function toggleGameAudio(){
     gameAudioEnabled=!gameAudioEnabled;
@@ -1784,7 +1787,13 @@
   menu.addEventListener('touchstart',unlockAudioFromUserGesture,{passive:true});
   menu.addEventListener('click',unlockAudioFromUserGesture);
   menu.addEventListener('keydown',unlockAudioFromUserGesture);
-  if(audioToggleButton){updateAudioButton();audioToggleButton.addEventListener('click',toggleGameAudio);}
+  updateAudioButton();
+  if(audioToggleButton)audioToggleButton.addEventListener('click',toggleGameAudio);
+  if(mobileAudioButton){
+    mobileAudioButton.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleGameAudio();});
+    mobileAudioButton.addEventListener('pointerdown',e=>e.stopPropagation());
+    mobileAudioButton.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+  }
 
   if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
   if(shareRoomBtn)shareRoomBtn.addEventListener('click',shareCurrentRoom);
