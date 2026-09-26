@@ -23,6 +23,11 @@
   Object.assign(dictionaries.it,{playerJoinedNotice:'ENTRA IN PARTITA'});
   Object.assign(dictionaries.fr,{playerJoinedNotice:'ENTRE DANS LA PARTIE'});
   Object.assign(dictionaries.de,{playerJoinedNotice:'TRITT DEM SPIEL BEI'});
+  Object.assign(dictionaries.es,{weaponTheft:'ROBO DE ARMAMENTO'});
+  Object.assign(dictionaries.en,{weaponTheft:'WEAPON THEFT'});
+  Object.assign(dictionaries.it,{weaponTheft:'FURTO DI ARMAMENTI'});
+  Object.assign(dictionaries.fr,{weaponTheft:"VOL D'ARMEMENT"});
+  Object.assign(dictionaries.de,{weaponTheft:'WAFFENRAUB'});
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
   let language='es';
