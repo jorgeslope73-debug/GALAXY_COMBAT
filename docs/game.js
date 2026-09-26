@@ -244,7 +244,8 @@
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
   const mobileExit=document.getElementById('mobileExit');
   const mobileControlMotionBtn=document.getElementById('mobileControlMotion'),mobileControlButtonsBtn=document.getElementById('mobileControlButtons');
-  const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone'),mobileAudioButton=document.getElementById('mobileGameAudio');
+  const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone');
+  const voicePttEl=document.getElementById('voicePtt');
   const MOBILE_CONTROL_KEY='galaxyCombatMobileControlV1';
   let mobileControlMode='motion';
   try{if(localStorage.getItem(MOBILE_CONTROL_KEY)==='buttons')mobileControlMode='buttons';}catch(_){}
@@ -583,13 +584,10 @@
     return audioUnlocked;
   }
   function updateAudioButton(){
-    const text=gameAudioEnabled?tr('gameAudioOn'):tr('gameAudioOff');
-    for(const button of [audioToggleButton,mobileAudioButton]){
-      if(!button)continue;
-      button.classList.toggle('active',gameAudioEnabled);
-      button.setAttribute('aria-pressed',gameAudioEnabled?'true':'false');
-      button.textContent=text;
-    }
+    if(!audioToggleButton)return;
+    audioToggleButton.classList.toggle('active',gameAudioEnabled);
+    audioToggleButton.setAttribute('aria-pressed',gameAudioEnabled?'true':'false');
+    audioToggleButton.textContent=gameAudioEnabled?tr('gameAudioOn'):tr('gameAudioOff');
   }
   function toggleGameAudio(){
     gameAudioEnabled=!gameAudioEnabled;
@@ -1794,11 +1792,6 @@
   menu.addEventListener('keydown',unlockAudioFromUserGesture);
   updateAudioButton();
   if(audioToggleButton)audioToggleButton.addEventListener('click',toggleGameAudio);
-  if(mobileAudioButton){
-    mobileAudioButton.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleGameAudio();});
-    mobileAudioButton.addEventListener('pointerdown',e=>e.stopPropagation());
-    mobileAudioButton.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
-  }
 
   if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
   if(shareRoomBtn)shareRoomBtn.addEventListener('click',shareCurrentRoom);
@@ -2726,9 +2719,21 @@
   }
   function drawMobileVoiceControl(){
     if(!isMobile||!inGame||!voice||!voice.enabled||voice.cpuMode)return;
-    // V16.4.57: micro movil mas grande y ligeramente mas alto.
-    const x=W/2,y=H-96;
+    let x=W/2,y=H-96;
+    const buttonMode=mobileControlMode==='buttons'&&!mobileKeyboardActive;
+    // La zona tactil del PTT se mueve con CSS. Convertimos su centro real a
+    // coordenadas logicas del canvas para que el icono quede justo bajo el dedo.
+    if(voicePttEl&&!voicePttEl.classList.contains('hidden')){
+      const pr=voicePttEl.getBoundingClientRect();
+      const cr=canvas.getBoundingClientRect();
+      if(pr.width>0&&pr.height>0&&cr.width>0&&cr.height>0){
+        x=((pr.left+pr.width*.5-cr.left)/cr.width)*W;
+        y=((pr.top+pr.height*.5-cr.top)/cr.height)*H;
+      }
+    }
     const talking=!!voice.talking;
+    const scale=buttonMode?.72:1;
+    const radius=38*scale;
     ctx.save();
     try{
       // El control visual se pinta en el canvas, justo encima del fondo.
@@ -2737,24 +2742,24 @@
       ctx.globalAlpha=talking?.56:.28;
       ctx.fillStyle=talking?'rgba(95,255,150,.76)':'rgba(255,255,255,.46)';
       ctx.strokeStyle=talking?'rgba(150,255,188,.94)':'rgba(255,255,255,.58)';
-      ctx.lineWidth=3.5;
-      ctx.beginPath();ctx.arc(x,y,38,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.lineWidth=3.5*scale;
+      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
 
       ctx.globalAlpha=talking?.82:.56;
       ctx.strokeStyle='#ffffff';
       ctx.fillStyle='#ffffff';
-      ctx.lineWidth=4.5;
+      ctx.lineWidth=4.5*scale;
       ctx.lineCap='round';ctx.lineJoin='round';
       // Capsula del microfono.
       ctx.beginPath();
-      ctx.roundRect(x-10,y-20,20,31,10);
+      ctx.roundRect(x-10*scale,y-20*scale,20*scale,31*scale,10*scale);
       ctx.fill();
       // Arco inferior, pie y base.
       ctx.beginPath();
-      ctx.arc(x,y-3,17,0,Math.PI,false);
+      ctx.arc(x,y-3*scale,17*scale,0,Math.PI,false);
       ctx.stroke();
-      ctx.beginPath();ctx.moveTo(x,y+15);ctx.lineTo(x,y+25);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(x-10,y+25);ctx.lineTo(x+10,y+25);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x,y+15*scale);ctx.lineTo(x,y+25*scale);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x-10*scale,y+25*scale);ctx.lineTo(x+10*scale,y+25*scale);ctx.stroke();
     }finally{
       ctx.restore();
     }
