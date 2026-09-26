@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.3**
+**Versión actual: V19.4**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -40,7 +40,7 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 
 - BRUTAL: el rótulo se dibuja en una capa baja, por detrás de meteoritos, asteroides, naves, balas y mejoras, para no ocultar la acción ni la posición del jugador.
 
-- Salas online: un usuario normal solo puede estar en 1 sala activa a la vez: o crea una sala o se une a una, pero no puede mantener otra participación simultánea. Para usuarios registrados el límite se aplica a la cuenta y para invitados al navegador/dispositivo. El MODO TEST activado desde la página privada de entrenamiento queda exento de esta exclusividad: permite crear varias salas (entre 2 y 10 según el permiso) y también unirse a salas desde otras pestañas para realizar pruebas. El permiso dura 8 horas y no depende de la IP.\n\n## Control móvil
+- Salas online: un usuario normal solo puede estar en 1 sala activa a la vez: o crea una sala o se une a una, pero no puede mantener otra participación simultánea. Para usuarios registrados el límite se aplica a la cuenta. Para invitados se aplica por IP pública, de forma que cambiar de navegador en el mismo ordenador no permite crear una sala y entrar después como un segundo jugador. Si el servidor no puede obtener una IP válida, usa el identificador local del navegador como respaldo para no bloquear el juego. El MODO TEST activado desde la página privada de entrenamiento queda exento de esta exclusividad: permite crear varias salas (entre 2 y 10 según el permiso) y también unirse a salas para realizar pruebas. El permiso dura 8 horas.\n\n## Control móvil
 
 Se juega en horizontal.
 
