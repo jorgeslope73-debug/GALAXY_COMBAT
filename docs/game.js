@@ -949,6 +949,7 @@
       },
       onEvent:m=>{
         if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics){
+          if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
           send({t:'rank-restart'});
           if(hostPhysics.restart()){
             p2p.broadcastEvent({t:'restarted'});
@@ -1197,6 +1198,7 @@
       }
       if(m&&m.t==='fallback-action'){
         if(isHost&&m.action==='restart'&&hostPhysics){
+          if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
           send({t:'rank-restart'});
           if(hostPhysics.restart()){
             if(p2p)p2p.broadcastEvent({t:'restarted'});
@@ -1630,7 +1632,9 @@
     else if(m.t==='lobby'){
       roomCode=m.code;lobbyPlayers=Array.isArray(m.players)?m.players.slice():[];cpuFillEnabled=!!m.cpuFill;
       ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
-      if(isHost&&inGame&&hostPhysics&&typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
+      // El roster es la autoridad sobre si cada plaza es HUMANO o CPU,
+      // tambien durante la victoria/espera entre partidas.
+      if(isHost&&hostPhysics&&typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
       syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;
       playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
