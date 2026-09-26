@@ -794,38 +794,75 @@
     }
     refreshTouchControls();
   }
-  function mobilePointerDown(e){
-    if(!isMobile||!inGame)return;
-    if(e.pointerType&&e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+  function mobileActionTargetAllowed(target){
+    if(target&&target.closest&&target.closest('button,input,select,textarea,a,[contenteditable="true"]'))return false;
+    if(mobileControlMode==='buttons'&&!(target&&target.closest&&target.closest('#mobileActionZone')))return false;
+    return true;
+  }
+  function beginMobileActionGesture(key,target){
+    if(!isMobile||!inGame||!mobileActionTargetAllowed(target))return false;
     if(mobileKeyboardActive){
       keys.clear();
       lastControlTurn=0;
       setMobileKeyboardActive(false);
     }
-    const target=e.target;
-    if(target&&target.closest&&target.closest('button,input,select,textarea,a,[contenteditable="true"]'))return;
-    if(mobileControlMode==='buttons'&&!(target&&target.closest&&target.closest('#mobileActionZone')))return;
+    // Si Safari reutiliza un identificador tras perder un final de gesto,
+    // eliminamos primero cualquier estado antiguo asociado a ese contacto.
+    const stale=touchGestures.get(key);
+    if(stale&&stale.holdTimer)clearTimeout(stale.holdTimer);
+    touchGestures.delete(key);
     const gesture={startedAt:performance.now(),accelerating:false,holdTimer:null};
     gesture.holdTimer=setTimeout(()=>{
-      const current=touchGestures.get(e.pointerId);
+      const current=touchGestures.get(key);
       if(!inGame||current!==gesture)return;
       current.accelerating=true;
       refreshTouchControls();
     },MOBILE_HOLD_MS);
-    touchGestures.set(e.pointerId,gesture);
+    touchGestures.set(key,gesture);
+    return true;
+  }
+  function endMobileActionGesture(key,allowFire=false){
+    const gesture=touchGestures.get(key);
+    if(!gesture)return false;
+    clearTimeout(gesture.holdTimer);
+    touchGestures.delete(key);
+    const elapsed=performance.now()-gesture.startedAt;
+    if(allowFire&&!gesture.accelerating&&elapsed<MOBILE_HOLD_MS)triggerMobileFire();
+    refreshTouchControls();
+    return true;
+  }
+  function mobilePointerDown(e){
+    if(!isMobile||!inGame)return;
+    if(e.pointerType&&e.pointerType!=='touch'&&e.pointerType!=='pen')return;
+    // En iPhone/iPad los gestos tactiles usan Touch Events nativos. Safari
+    // puede perder pointerup/pointercancel durante un gesto y dejar thrust=true.
+    if(isIOS&&e.pointerType==='touch')return;
+    if(!beginMobileActionGesture(e.pointerId,e.target))return;
     try{e.target.setPointerCapture&&e.target.setPointerCapture(e.pointerId);}catch(_){}
     e.preventDefault();
   }
   function mobilePointerEnd(e){
-    const gesture=touchGestures.get(e.pointerId);
-    if(gesture){
-      clearTimeout(gesture.holdTimer);
-      touchGestures.delete(e.pointerId);
-      const elapsed=performance.now()-gesture.startedAt;
-      if(e.type==='pointerup'&&!gesture.accelerating&&elapsed<MOBILE_HOLD_MS)triggerMobileFire();
-      refreshTouchControls();
+    if(isIOS&&e.pointerType==='touch')return;
+    const handled=endMobileActionGesture(e.pointerId,e.type==='pointerup');
+    if((handled||inGame)&&e.cancelable)e.preventDefault();
+  }
+  function mobileTouchStart(e){
+    if(!isIOS||!isMobile||!inGame)return;
+    let handled=false;
+    for(const touch of Array.from(e.changedTouches||[])){
+      const target=touch.target||e.target;
+      if(beginMobileActionGesture('touch:'+touch.identifier,target))handled=true;
     }
-    if(inGame)e.preventDefault();
+    if(handled&&e.cancelable)e.preventDefault();
+  }
+  function mobileTouchEnd(e){
+    if(!isIOS||!isMobile)return;
+    let handled=false;
+    const allowFire=e.type==='touchend';
+    for(const touch of Array.from(e.changedTouches||[])){
+      if(endMobileActionGesture('touch:'+touch.identifier,allowFire))handled=true;
+    }
+    if((handled||inGame)&&e.cancelable)e.preventDefault();
   }
 
   function cleanGameUrl(room=''){
@@ -1680,17 +1717,26 @@
     appEl.addEventListener('pointerdown',mobilePointerDown,{passive:false});
     appEl.addEventListener('pointerup',mobilePointerEnd,{passive:false});
     appEl.addEventListener('pointercancel',mobilePointerEnd,{passive:false});
+    appEl.addEventListener('lostpointercapture',mobilePointerEnd,{passive:false});
     appEl.addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
-    // V18.79: Safari/iOS puede perder el pointerup si el dedo sale de la zona,
-    // cambia el foco o el navegador interrumpe el gesto. Escuchamos tambien a
-    // nivel global y limpiamos cualquier gesto retenido para que acelerar o
-    // disparar nunca se queden enganchados.
+    // V18.81: iOS usa Touch Events nativos para disparo/acelerador porque
+    // Safari puede perder el final de un Pointer Event. touch.identifier se
+    // conserva hasta touchend/touchcancel y evita que quede un gesto fantasma.
+    if(isIOS){
+      appEl.addEventListener('touchstart',mobileTouchStart,{passive:false});
+      appEl.addEventListener('touchend',mobileTouchEnd,{passive:false});
+      appEl.addEventListener('touchcancel',mobileTouchEnd,{passive:false});
+    }
+    // Respaldo global para Android/otros navegadores con Pointer Events.
     window.addEventListener('pointerup',mobilePointerEnd,{passive:false,capture:true});
     window.addEventListener('pointercancel',mobilePointerEnd,{passive:false,capture:true});
+    window.addEventListener('lostpointercapture',mobilePointerEnd,{passive:false,capture:true});
     window.addEventListener('blur',resetMobileTouchControls);
+    window.addEventListener('pagehide',resetMobileTouchControls);
     document.addEventListener('visibilitychange',()=>{
       if(document.hidden)resetMobileTouchControls();
     });
+    document.addEventListener('freeze',resetMobileTouchControls);
     window.addEventListener('orientationchange',()=>{
       motionNeutral=null;motionTurn=0;
       mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
