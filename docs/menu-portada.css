@@ -506,6 +506,18 @@
   }
 }
 
+/* V18.88: en PC alto mantenemos el borde inferior en la misma posicion,
+   pero ampliamos la ventana hacia arriba para ver mas salas/jugadores.
+   La zona inferior de codigo conserva sus 340 px; todo el espacio extra
+   se entrega a la lista superior. */
+@media (min-width:900px) and (min-height:900px){
+  #menu #publicRoomsDialog .room-browser-card{
+    height:780px;
+    grid-template-rows:minmax(0,1fr) 340px;
+    transform:translateY(-96px);
+  }
+}
+
 /* Ajuste fino: subir ligeramente solo el bloque principal del menu */
 #menu:not(.join-browser-open) .launch-console{
   top:-10px;
