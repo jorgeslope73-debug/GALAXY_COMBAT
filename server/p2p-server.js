@@ -201,9 +201,17 @@ function remove(ws,wss){
   const x=info.get(ws);if(!x)return;info.delete(ws);
   const r=rooms.get(x.code);if(!r)return;
   const p=r.players.find(p=>p.i===x.i&&p.ws===ws);if(!p)return;
-  const host=p.i===0;r.players=r.players.filter(q=>q!==p);
-  if(host){broadcast(r,{t:'closed',reason:'El anfitrion cerro la sala.'});rooms.delete(r.code);}
-  else{const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r)});}
+  const host=p.i===0;
+  const replaceWithCpu=!!(r.started&&r.cpuFill&&!host);
+  r.players=r.players.filter(q=>q!==p);
+  if(host){
+    broadcast(r,{t:'closed',reason:'El anfitrion cerro la sala.'});
+    rooms.delete(r.code);
+  }else{
+    const players=roster(r);
+    broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started});
+    if(replaceWithCpu)broadcast(r,{t:'player-cpu-replaced',name:p.n,index:p.i});
+  }
   publicUpdate(wss);
 }
 function disconnect(ws,wss){
@@ -229,6 +237,7 @@ function expireDisconnectedPlayers(wss){
         for(const p of expired)r.players=r.players.filter(q=>q!==p);
         const players=roster(r);
         broadcast(r,{t:'lobby',code:r.code,players,cpuFill:true,canStart:false,started:true});
+        for(const p of expired)broadcast(r,{t:'player-cpu-replaced',name:p.n,index:p.i});
         publicUpdate(wss);continue;
       }
       broadcast(r,{t:'closed',reason:'Un jugador perdio la conexion.'});
