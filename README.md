@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V18.31**
+**Versión actual: V18.80**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
