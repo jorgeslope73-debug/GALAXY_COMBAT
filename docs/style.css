@@ -203,39 +203,48 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 
   #mobileControls.button-mode .mobile-turn-pad{
     position:absolute;
-    left:calc(15vw + 16px);
+    left:calc(17vw + 16px);
     bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px));
     z-index:20;
     display:flex;
     align-items:center;
-    gap:18px;
+    gap:26px;
     pointer-events:auto;
   }
   #mobileControls.button-mode .mobile-turn-button{
+    position:relative;
     display:flex;
     align-items:center;
     justify-content:center;
-    width:64px!important;
-    height:64px!important;
-    min-width:64px!important;
-    min-height:64px!important;
+    width:76px!important;
+    height:76px!important;
+    min-width:76px!important;
+    min-height:76px!important;
     margin:0!important;
     padding:0!important;
-    border:1px solid rgba(255,255,255,.52)!important;
+    border:.5px solid rgba(255,255,255,.38)!important;
     border-radius:50%!important;
-    background:rgba(6,18,31,.50)!important;
-    color:rgba(255,255,255,.80)!important;
-    box-shadow:0 3px 14px rgba(0,0,0,.30)!important;
+    background:rgba(6,18,31,.34)!important;
+    color:rgba(255,255,255,.52)!important;
+    box-shadow:0 3px 12px rgba(0,0,0,.22)!important;
     font:900 36px/1 Arial,Helvetica,sans-serif!important;
     touch-action:none!important;
     -webkit-user-select:none!important;
     user-select:none!important;
   }
+  #mobileControls.button-mode .mobile-turn-button::before{
+    content:"";
+    position:absolute;
+    inset:-8px;
+    border-radius:50%;
+    background:rgba(0,0,0,.001);
+    pointer-events:auto;
+  }
   #mobileControls.button-mode .mobile-turn-button.active{
-    background:rgba(35,122,163,.68)!important;
-    border-color:rgba(134,233,255,.92)!important;
-    color:#fff!important;
-    transform:scale(.96);
+    background:rgba(35,122,163,.50)!important;
+    border-color:rgba(134,233,255,.66)!important;
+    color:rgba(255,255,255,.72)!important;
+    transform:scale(.97);
   }
 
   #mobileControls.button-mode .mobile-action-zone{
@@ -259,15 +268,9 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     user-select:none;
   }
   #mobileControls.button-mode .mobile-action-zone span{
-    display:none;
-    color:rgba(255,255,255,.62);
-    font:900 12px/1 Arial,Helvetica,sans-serif;
-    letter-spacing:.08em;
-    text-shadow:0 2px 5px rgba(0,0,0,.8);
+    display:none!important;
     pointer-events:none;
   }
-  #mobileControls.button-mode.firing .mobile-action-zone span:first-child{display:block}
-  #mobileControls.button-mode.thrusting .mobile-action-zone span:last-child{display:block}
 
   #mobileControls.button-mode .mobile-zone{display:none!important}
 
@@ -280,7 +283,8 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 }
 @media (orientation:landscape) and (max-height:520px){
   #mobileControls.button-mode .mobile-turn-button{
-    width:58px!important;height:58px!important;min-width:58px!important;min-height:58px!important;
+    width:68px!important;height:68px!important;min-width:68px!important;min-height:68px!important;
     font-size:33px!important;
   }
+  #mobileControls.button-mode .mobile-turn-button::before{inset:-7px}
 }
