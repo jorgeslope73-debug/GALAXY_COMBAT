@@ -734,8 +734,9 @@ wss.on('connection',ws=>{
       // dos jugadores pueden pulsar UNIRTE casi a la vez sobre la misma CPU.
       const used=new Set(r.players.map(p=>p.i));
       let i=-1;
-      const requestedSlot=Number(m.slot);
-      if(Number.isInteger(requestedSlot)){
+      const hasRequestedSlot=Object.prototype.hasOwnProperty.call(m,'slot')&&m.slot!==null&&m.slot!=='';
+      const requestedSlot=hasRequestedSlot?Number(m.slot):NaN;
+      if(hasRequestedSlot&&Number.isInteger(requestedSlot)){
         // Una plaza seleccionable representa una CPU sintetica del relleno.
         // Se puede ocupar antes de empezar o durante la partida.
         if(!r.cpuFill||requestedSlot<0||requestedSlot>=MAX_PLAYERS||used.has(requestedSlot)){
@@ -745,6 +746,8 @@ wss.on('connection',ws=>{
         }
         i=requestedSlot;
       }else{
+        // Union normal: funciona haya o no CPU de relleno, siempre que exista
+        // una plaza humana libre en una sala que aun esta esperando.
         for(let slot=0;slot<MAX_PLAYERS;slot++)if(!used.has(slot)){i=slot;break;}
       }
       if(i<0){send(ws,{t:'error',message:'Sala llena.'});return;}
