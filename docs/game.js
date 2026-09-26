@@ -1348,7 +1348,8 @@
       const p=document.createElement('p');p.className='public-rooms-empty';p.textContent=tr('noPublicRooms');publicRoomsList.appendChild(p);return;
     }
     for(const room of publicRooms){
-      const row=document.createElement('div');row.className='public-room-row';
+      const row=document.createElement('div');row.className='public-room-row public-room-row-detailed';
+      const head=document.createElement('div');head.className='public-room-head';
       const info=document.createElement('div');info.className='public-room-info';
       const hostRow=document.createElement('div');hostRow.className='public-room-host-row';
       const lang=String(room.lang||'es').toLowerCase();
@@ -1358,10 +1359,42 @@
       hostRow.append(flag,host);
       const code=document.createElement('span');code.className='public-room-code';code.textContent=tr('roomPrefix')+' '+String(room.code||'');
       info.append(hostRow,code);
-      const count=document.createElement('span');count.className='public-room-count';count.textContent=`${Number(room.players)||0}/${Number(room.maxPlayers)||4}${room.started?' · '+tr('inProgress'):''}`;
-      const joinBtn=document.createElement('button');joinBtn.type='button';joinBtn.className='public-room-join';joinBtn.textContent=tr('join');
-      joinBtn.addEventListener('click',()=>joinRoomByCode(room.code));
-      row.append(info,count,joinBtn);publicRoomsList.appendChild(row);
+
+      const status=document.createElement('span');
+      status.className='public-room-status '+(room.started?'playing':'waiting');
+      status.textContent=room.started?tr('playingStatus'):tr('waitingStatus');
+
+      const slots=Array.isArray(room.slots)?room.slots:[];
+      const count=document.createElement('span');count.className='public-room-count';
+      count.textContent=`${slots.length||Number(room.players)||0}/${Number(room.maxPlayers)||4}`;
+
+      head.append(info,status,count);
+
+      if(!room.started){
+        const joinBtn=document.createElement('button');joinBtn.type='button';joinBtn.className='public-room-join';joinBtn.textContent=tr('join');
+        joinBtn.addEventListener('click',()=>joinRoomByCode(room.code));
+        head.append(joinBtn);
+      }
+
+      const players=document.createElement('div');players.className='public-room-players';
+      for(const slot of slots){
+        const player=document.createElement('div');
+        player.className='public-room-player '+(slot.cpu?'cpu':'human');
+        const label=document.createElement('span');label.className='public-room-player-name';
+        label.style.color=playerColors[Number(slot.i)]||'#fff';
+        label.textContent=`J${Number(slot.i)+1} · ${sinTildes(slot.n||tr('defaultPlayer'))}${slot.registered?' · ✓':''}`;
+        player.append(label);
+        if(room.started&&slot.cpu){
+          const take=document.createElement('button');
+          take.type='button';take.className='public-room-cpu-join';take.textContent=tr('join');
+          take.setAttribute('aria-label',tr('joinCpuSlot',{index:Number(slot.i)+1}));
+          take.addEventListener('click',()=>joinRoomByCode(room.code,Number(slot.i)));
+          player.append(take);
+        }
+        players.append(player);
+      }
+      row.append(head,players);
+      publicRoomsList.appendChild(row);
     }
   }
   function showRoomTypeDialog(){
@@ -1441,12 +1474,15 @@
     startMusic();prepareGameAssets();await prepareMobileControls();closeRoomDialogs();
     send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic,lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es'),authToken:authToken()});
   }
-  async function joinRoomByCode(code){
+  async function joinRoomByCode(code,slot=null){
     prepareGameAssets();
     const clean=String(code||'').trim().toUpperCase();
     if(!clean){showPublicRoomsDialog();return;}
     startMusic();await prepareMobileControls();closeRoomDialogs();
-    send({t:'join',name:sinTildes(campoNombre.value),code:clean,authToken:authToken()});
+    const msg={t:'join',name:sinTildes(campoNombre.value),code:clean,authToken:authToken()};
+    const selectedSlot=Number(slot);
+    if(Number.isInteger(selectedSlot)&&selectedSlot>=0&&selectedSlot<4)msg.slot=selectedSlot;
+    send(msg);
   }
   function updateLobbyStartButton(canStart=false){
     if(!startBtn)return;
