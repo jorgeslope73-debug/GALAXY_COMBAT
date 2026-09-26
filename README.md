@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V18.89**
+**Versión actual: V18.90**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -31,6 +31,7 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 - Cuando un jugador no anfitrion abandona una partida con CPU de relleno, su misma plaza pasa a CPU sin detener la partida y se muestra un aviso durante 3 segundos.
 - Si se pierde definitivamente el anfitrión, la partida termina porque la física vive en su navegador.
 - Las partidas que usan CPU de relleno no cuentan para el ranking.
+- IA difícil: la MIRA es un recurso ofensivo prioritario (especialmente con poca o ninguna munición). Al tener misil guiado preparado puede disparar con una aproximación de hasta unos 30°, mientras que las balas normales mantienen su precisión estricta.
 
 ## Control móvil
 
