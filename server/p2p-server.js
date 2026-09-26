@@ -64,6 +64,16 @@ function activeHostedRooms(creatorKey){
   for(const room of rooms.values())if(room&&room.creatorKey===creatorKey)count++;
   return count;
 }
+function activeRoomParticipations(participantKey){
+  if(!participantKey)return 0;
+  let count=0;
+  for(const room of rooms.values()){
+    for(const p of (room&&Array.isArray(room.players)?room.players:[])){
+      if(p&&p.participantKey===participantKey)count++;
+    }
+  }
+  return count;
+}
 function roomCreationIdentity(identity,msg,ws){
   const admin=testRoomPermit(msg&&msg.testRoomToken);
   if(admin){
@@ -775,16 +785,20 @@ wss.on('connection',(ws,req)=>{
     let m;try{m=JSON.parse(String(raw));}catch(_){return;}
 
     if(m.t==='create'){
-      if(info.get(ws)){send(ws,{t:'error',message:'YA TIENES UNA SALA ACTIVA.'});return;}
+      if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
       const creator=roomCreationIdentity(identity,m,ws);
+      if(!creator.testMode&&activeRoomParticipations(creator.creatorKey)>=1){
+        send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});
+        return;
+      }
       if(activeHostedRooms(creator.creatorKey)>=creator.roomLimit){
-        send(ws,{t:'error',message:creator.testMode?'LIMITE DE SALAS DE PRUEBA ALCANZADO.':'YA TIENES UNA SALA ACTIVA.'});
+        send(ws,{t:'error',message:creator.testMode?'LIMITE DE SALAS DE PRUEBA ALCANZADO.':'YA ESTAS EN UNA SALA ACTIVA.'});
         return;
       }
       const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
-      const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
+      const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
       broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false});publicUpdate(wss);return;
@@ -794,8 +808,14 @@ wss.on('connection',(ws,req)=>{
       const r=rooms.get(String(m.code||'').trim().toUpperCase());
       const liveJoin=!!(r&&r.started&&r.cpuFill&&r.players.length<MAX_PLAYERS&&r.players[0]&&r.players[0].ws);
       if(!r||r.players.length>=MAX_PLAYERS||(r.started&&!liveJoin)){send(ws,{t:'error',message:'Sala no disponible.'});return;}
+      if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
+      const participant=roomCreationIdentity(identity,m,ws);
+      if(!participant.testMode&&activeRoomParticipations(participant.creatorKey)>=1){
+        send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});
+        return;
+      }
 
       // Revalidar la plaza despues de cualquier consulta asincrona de cuenta:
       // dos jugadores pueden pulsar UNIRTE casi a la vez sobre la misma CPU.
@@ -819,7 +839,7 @@ wss.on('connection',(ws,req)=>{
       }
       if(i<0){send(ws,{t:'error',message:'Sala llena.'});return;}
 
-      const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
+      const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:participant.creatorKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);info.set(ws,{code:r.code,i});
       const players=roster(r);
       send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin});
