@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V18.92**
+**Versión actual: V18.93**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -32,7 +32,7 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 - Si se pierde definitivamente el anfitrión, la partida termina porque la física vive en su navegador.
 - Las partidas que usan CPU de relleno no cuentan para el ranking.
 - IA difícil: la MIRA es un recurso ofensivo prioritario (especialmente con poca o ninguna munición). Al tener misil guiado preparado puede disparar con una aproximación de hasta unos 30°, mientras que las balas normales mantienen su precisión estricta.
-- Cohetes personalizados por jugador: J1 usa `coeteA.png`, J2 `coeteB.png`, J3 `coeteC.png` y J4 `coeteD.png`, tanto cuando está preparado sobre la nave como durante el vuelo.
+- Misiles personalizados por jugador: el misil disparado usa `coeteA.png`, `coeteB.png`, `coeteC.png` o `coeteD.png`; el misil preparado sobre la nave usa `navemiraA.png`, `navemiraB.png`, `navemiraC.png` o `navemiraD.png`. Si falta uno de los nuevos `navemira`, se usa temporalmente `navemira.png` como respaldo.
 - ROBO DE ARMAMENTO: si un jugador consigue una baja mientras lleva escudo activo, suma las balas que conservaba la víctima y adopta sus mejoras si son superiores (cadencia, velocidad, camuflaje y mira). Se muestra un aviso de 2 segundos en el color del atacante, apilado con los demás avisos para no solaparlos.
 
 ## Control móvil
