@@ -207,44 +207,14 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px));
     z-index:20;
     display:flex;
-    flex-direction:column;
     align-items:center;
-    gap:7px;
     pointer-events:auto;
   }
   #mobileControls.button-mode .mobile-turn-row{
     display:flex;
     align-items:center;
     justify-content:center;
-    gap:26px;
-  }
-  #mobileControls.button-mode .mobile-game-audio{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    width:auto!important;
-    min-width:104px!important;
-    height:24px!important;
-    min-height:24px!important;
-    margin:0!important;
-    padding:3px 12px!important;
-    border:.5px solid rgba(255,255,255,.30)!important;
-    border-radius:999px!important;
-    background:rgba(6,18,31,.30)!important;
-    color:rgba(255,255,255,.62)!important;
-    box-shadow:0 2px 8px rgba(0,0,0,.18)!important;
-    font:800 9px/1 Arial,Helvetica,sans-serif!important;
-    letter-spacing:.045em!important;
-    white-space:nowrap;
-    touch-action:manipulation!important;
-    -webkit-user-select:none!important;
-    user-select:none!important;
-  }
-  #mobileControls.button-mode .mobile-game-audio.active{
-    border-color:rgba(134,233,255,.62)!important;
-    background:rgba(35,122,163,.38)!important;
-    color:rgba(255,255,255,.82)!important;
-    box-shadow:0 0 10px rgba(90,225,255,.16)!important;
+    gap:56px;
   }
   #mobileControls.button-mode .mobile-turn-button{
     position:relative;
