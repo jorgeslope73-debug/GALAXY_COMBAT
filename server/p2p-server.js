@@ -182,7 +182,19 @@ function broadcast(r,o){for(const p of r.players)send(p.ws,o);}
 function publicRooms(){
   return [...rooms.values()]
     .filter(r=>r.public&&r.players[0]&&r.players[0].ws&&(!r.started||(r.cpuFill&&r.players.length<MAX_PLAYERS)))
-    .map(r=>({code:r.code,host:r.players[0]?.n||'JUGADOR',lang:r.lang,players:r.players.length,maxPlayers:MAX_PLAYERS,started:!!r.started,cpuFill:!!r.cpuFill}));
+    .map(r=>{
+      const slots=roster(r);
+      return{
+        code:r.code,
+        host:r.players[0]?.n||'JUGADOR',
+        lang:r.lang,
+        players:r.players.length,
+        maxPlayers:MAX_PLAYERS,
+        started:!!r.started,
+        cpuFill:!!r.cpuFill,
+        slots
+      };
+    });
 }
 function publicUpdate(wss){const raw=JSON.stringify({t:'public-rooms',rooms:publicRooms()});for(const ws of wss.clients)if(ws.readyState===1)ws.send(raw);}
 function remove(ws,wss){
@@ -708,7 +720,24 @@ wss.on('connection',ws=>{
       if(!r||r.players.length>=MAX_PLAYERS||(r.started&&!liveJoin)){send(ws,{t:'error',message:'Sala no disponible.'});return;}
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
-      const used=new Set(r.players.map(p=>p.i));let i=0;while(used.has(i))i++;
+
+      // Revalidar la plaza despues de cualquier consulta asincrona de cuenta:
+      // dos jugadores pueden pulsar UNIRTE casi a la vez sobre la misma CPU.
+      const used=new Set(r.players.map(p=>p.i));
+      let i=-1;
+      const requestedSlot=Number(m.slot);
+      if(r.started&&Number.isInteger(requestedSlot)){
+        if(requestedSlot<0||requestedSlot>=MAX_PLAYERS||used.has(requestedSlot)){
+          send(ws,{t:'error',message:'Sala no disponible.'});
+          send(ws,{t:'public-rooms',rooms:publicRooms()});
+          return;
+        }
+        i=requestedSlot;
+      }else{
+        for(let slot=0;slot<MAX_PLAYERS;slot++)if(!used.has(slot)){i=slot;break;}
+      }
+      if(i<0){send(ws,{t:'error',message:'Sala llena.'});return;}
+
       const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);info.set(ws,{code:r.code,i});
       const players=roster(r);
