@@ -160,6 +160,7 @@
     {base:'ship3',a:'ship3a',f:'ship3f',af:'ship3af'},
     {base:'ship4',a:'ship4a',f:'ship4f',af:'ship4af'}
   ];
+  const ROCKET_IMAGE_KEYS=['rocketA','rocketB','rocketC','rocketD'];
   const ASTEROID_IMAGE_KEYS=['','asteroid1','asteroid2','asteroid3','asteroid4','asteroid5','asteroid6'];
   const METEOR_DRAW_SIZES=[0,22,27,31];
   // Cache de textos del HUD: evita crear cientos de strings por segundo.
@@ -313,7 +314,8 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
-    mira1:'assets/sprites/mira1.png',navemira:'assets/sprites/navemira.png',coete:'assets/sprites/coete.png',
+    mira1:'assets/sprites/mira1.png',coete:'assets/sprites/coete.png',
+    rocketA:'assets/sprites/coeteA.png',rocketB:'assets/sprites/coeteB.png',rocketC:'assets/sprites/coeteC.png',rocketD:'assets/sprites/coeteD.png',
     localizaA:'assets/sprites/localizaA.png',localizaB:'assets/sprites/localizaB.png',localizaC:'assets/sprites/localizaC.png',localizaD:'assets/sprites/localizaD.png',
     asteroid1:'assets/sprites/asteroide1.png',asteroid2:'assets/sprites/asteroide2.png',asteroid3:'assets/sprites/asteroide3.png',asteroid4:'assets/sprites/asteroide5.png',asteroid5:'assets/sprites/asteroide6.png',asteroid6:'assets/sprites/dos.png'
   };
@@ -337,7 +339,7 @@
     // Estos sprites aparecen desde el primer frame. Antes los asteroides tenian
     // prioridad baja y podian terminar de descargarse/decodificarse ya jugando.
     const critical=k==='bg'||k==='giant'||k.startsWith('ship')||k.startsWith('pant')||
-      k.startsWith('asteroid')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed';
+      k.startsWith('asteroid')||k.startsWith('rocket')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed';
     if('fetchPriority' in im)im.fetchPriority=critical?'high':'auto';
     imageDecodePromises[k]=new Promise(resolve=>{
       im.onerror=()=>{reportImageFailure(im);resolve(false);};
@@ -2200,7 +2202,11 @@
     // Canvas gira en el sentido visual contrario a esa convencion, por eso
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
-    if(p.mira===true&&imageReady(images.navemira))drawImageCentered(images.navemira,x,y,64,-r,Math.min(1,alpha*.95));
+    if(p.mira===true){
+      const rocketKey=ROCKET_IMAGE_KEYS[Math.max(0,Math.min(3,Number(p.i)||0))]||ROCKET_IMAGE_KEYS[0];
+      const rocketIm=imageReady(images[rocketKey])?images[rocketKey]:images.coete;
+      if(imageReady(rocketIm))drawImageCentered(rocketIm,x,y,64,-r,Math.min(1,alpha*.95));
+    }
     if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
   }
   function drawHud(now){
@@ -2808,12 +2814,16 @@
     for(const b of state.bullets){
       const x=b.x+b.vx*age,y=b.y+b.vy*age;
       const sp=Math.hypot(b.vx,b.vy)||1;
-      if(b.g&&imageReady(images.coete)){
-        const bulletRot=(Math.atan2(-b.vx,-b.vy)*180/Math.PI+360)%360;
-        drawImageCentered(images.coete,x,y,42,-bulletRot,1);
-      }else{
-        ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
+      if(b.g){
+        const rocketKey=ROCKET_IMAGE_KEYS[Math.max(0,Math.min(3,Number(b.o)||0))]||ROCKET_IMAGE_KEYS[0];
+        const rocketIm=imageReady(images[rocketKey])?images[rocketKey]:images.coete;
+        if(imageReady(rocketIm)){
+          const bulletRot=(Math.atan2(-b.vx,-b.vy)*180/Math.PI+360)%360;
+          drawImageCentered(rocketIm,x,y,42,-bulletRot,1);
+          continue;
+        }
       }
+      ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
     }
     for(const p of state.players){
       const old=previousLookup.players.get(p.i);
