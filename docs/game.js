@@ -1541,16 +1541,46 @@
     if(!text)return;
     if(send({t:'chat',text}))lobbyChatInput.value='';
   }
+  function hidePlayerChangeNotice(){
+    if(!playerChangeNotice)return;
+    playerChangeNotice.classList.add('hidden');
+    playerChangeNotice.classList.remove('player-join-notice');
+    playerChangeNotice.style.removeProperty('--join-player-color');
+    playerChangeNotice.textContent='';
+  }
   function showPlayerCpuReplaceNotice(name,index){
     if(!playerChangeNotice)return;
     clearTimeout(playerChangeNoticeTimer);
+    playerChangeNotice.classList.remove('player-join-notice');
+    playerChangeNotice.style.removeProperty('--join-player-color');
     const cleanName=sinTildes(String(name||tr('defaultPlayer')).trim());
     const slot=Math.max(1,Math.min(4,(Number(index)||0)+1));
     playerChangeNotice.textContent=tr('playerCpuReplaceNotice',{name:cleanName,index:slot});
     playerChangeNotice.classList.remove('hidden');
     playerChangeNoticeTimer=setTimeout(()=>{
       playerChangeNoticeTimer=null;
-      playerChangeNotice.classList.add('hidden');
+      hidePlayerChangeNotice();
+    },3000);
+  }
+  function showPlayerJoinedNotice(name,index){
+    if(!playerChangeNotice)return;
+    clearTimeout(playerChangeNoticeTimer);
+    const idx=Math.max(0,Math.min(3,Number(index)||0));
+    const cleanName=sinTildes(String(name||tr('defaultPlayer')).trim());
+    playerChangeNotice.textContent='';
+    playerChangeNotice.classList.add('player-join-notice');
+    playerChangeNotice.style.setProperty('--join-player-color',playerColors[idx]||'#fff');
+    const nameEl=document.createElement('strong');
+    nameEl.className='player-join-name';
+    nameEl.textContent=cleanName;
+    const copyEl=document.createElement('span');
+    copyEl.className='player-join-copy';
+    copyEl.textContent=tr('playerJoinedNotice');
+    playerChangeNotice.append(nameEl,copyEl);
+    playerChangeNotice.classList.remove('hidden');
+    playerChangeNoticeTimer=setTimeout(()=>{
+      playerChangeNoticeTimer=null;
+      hidePlayerChangeNotice();
     },3000);
   }
   function handle(m){
@@ -1558,6 +1588,7 @@
       publicRooms=Array.isArray(m.rooms)?m.rooms:[];renderPublicRooms();return;
     }
     if(m.t==='player-cpu-replaced'){showPlayerCpuReplaceNotice(m.name,m.index);return;}
+    if(m.t==='player-joined-live'){showPlayerJoinedNotice(m.name,m.index);return;}
     if(m.t==='chat-history'){loadLobbyChatHistory(m.messages);return;}
     if(m.t==='chat'){appendLobbyChatMessage(m);return;}
     if(m.t==='created'||m.t==='joined'){
