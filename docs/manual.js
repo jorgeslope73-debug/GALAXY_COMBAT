@@ -353,7 +353,13 @@
           src: 'assets/manual/hud.png',
           alt: patch.hudDiagramAlt,
           caption: patch.hudDiagramCaption,
-          items: patch.hudLegend
+          items: patch.hudLegend.map((item,index)=>[
+            item[0],
+            item[1],
+            index===0?'assets/sprites/municion1.png':
+            index===1?'assets/sprites/cadencia.png':
+            index===2?'assets/sprites/velocidad.png':''
+          ])
         };
       }
       const weapons = pack.sections.find(section => section.id === 'weapons');
@@ -419,7 +425,7 @@
       const pickups=section.pickups?'<div class="manual-pickup-grid">'+section.pickups.map(([kind,name,desc])=>'<article class="manual-pickup"><div class="manual-pickup-icon">'+pickupIcon(kind)+'</div><div><h4>'+escapeHtml(name)+'</h4><p>'+escapeHtml(desc)+'</p></div></article>').join('')+'</div>':'';
       const steps=section.steps&&section.steps.length?'<div class="manual-steps"><h4>'+escapeHtml(section.stepsTitle||'')+'</h4>'+section.steps.map(([name,desc])=>'<article class="manual-step"><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></article>').join('')+'</div>':'';
       const media=section.media&&section.media.length?'<div class="manual-media-grid">'+section.media.map(([src,alt,caption])=>'<figure class="manual-media"><img src="'+escapeHtml(src)+'" alt="'+escapeHtml(alt)+'" loading="lazy"><figcaption>'+escapeHtml(caption)+'</figcaption></figure>').join('')+'</div>':'';
-      const diagram=section.diagram?'<div class="manual-diagram"><h4>'+escapeHtml(section.diagram.title||'')+'</h4><div class="manual-diagram-layout"><figure class="manual-diagram-figure"><img src="'+escapeHtml(section.diagram.src)+'" alt="'+escapeHtml(section.diagram.alt||'')+'" loading="lazy"><figcaption>'+escapeHtml(section.diagram.caption||'')+'</figcaption></figure><div class="manual-diagram-items">'+(section.diagram.items||[]).map(([name,desc])=>'<article class="manual-diagram-item"><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></article>').join('')+'</div></div></div>':'';
+      const diagram=section.diagram?'<div class="manual-diagram"><h4>'+escapeHtml(section.diagram.title||'')+'</h4><div class="manual-diagram-layout"><figure class="manual-diagram-figure"><img src="'+escapeHtml(section.diagram.src)+'" alt="'+escapeHtml(section.diagram.alt||'')+'" loading="lazy"><figcaption>'+escapeHtml(section.diagram.caption||'')+'</figcaption></figure><div class="manual-diagram-items">'+(section.diagram.items||[]).map(([name,desc,icon])=>'<article class="manual-diagram-item"><div class="manual-diagram-item-head">'+(icon?'<img class="manual-diagram-item-icon" src="'+escapeHtml(icon)+'" alt="" loading="lazy">':'')+'<h5>'+escapeHtml(name)+'</h5></div><p>'+escapeHtml(desc)+'</p></article>').join('')+'</div></div></div>':'';
       const weaponStates=section.weaponStates&&section.weaponStates.length?'<div class="manual-weapon-states"><h4>'+escapeHtml(section.weaponStateTitle||'')+'</h4><div class="manual-weapon-state-grid">'+section.weaponStates.map(([src,name,desc],idx)=>'<article class="manual-weapon-state '+(idx===1?'ready':'not-ready')+'"><div class="manual-weapon-state-image"><img src="'+escapeHtml(src)+'" alt="'+escapeHtml(name)+'" loading="lazy"></div><div><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></div></article>').join('')+'</div></div>':'';
       return '<section id="manual-'+section.id+'" class="manual-section" data-section="'+section.id+'"><h3>'+escapeHtml(stripFlashbackText(section.title))+'</h3>'+body+notice+diagram+weaponStates+steps+media+pickups+tips+'</section>';
     }).join('');
