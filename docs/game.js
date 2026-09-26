@@ -2526,12 +2526,14 @@
       ctx.scale(scale,scale);
       ctx.textAlign='center';
       ctx.textBaseline='middle';
-      ctx.globalAlpha=alpha*.68;
-      ctx.font=isMobile?'900 48px Arial Black,Arial,sans-serif':'900 40px Arial Black,Arial,sans-serif';
-      ctx.lineWidth=isMobile?7:6;
-      ctx.strokeStyle='rgba(0,0,0,.72)';
+      ctx.globalAlpha=alpha*.64;
+      // Usa la tipografia propia del juego y un tamano mas contenido para que
+      // el aviso acompane a la accion sin dominar la pantalla.
+      ctx.font=isMobile?'36px Flashback,Arial':'28px Flashback,Arial';
+      ctx.lineWidth=isMobile?5:4;
+      ctx.strokeStyle='rgba(0,0,0,.68)';
       ctx.shadowColor=color;
-      ctx.shadowBlur=18*(1-Math.min(1,age/900));
+      ctx.shadowBlur=14*(1-Math.min(1,age/900));
       ctx.fillStyle=color;
       const text=tr('weaponTheft');
       ctx.strokeText(text,0,0);
