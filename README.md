@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.14**
+**Versión actual: V19.15**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -44,7 +44,7 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 
 - BRUTAL: el rótulo se dibuja en una capa baja, por detrás de meteoritos, asteroides, naves, balas y mejoras, para no ocultar la acción ni la posición del jugador.
 
-- Salas online: un usuario normal solo puede estar en 1 sala activa a la vez: o crea una sala o se une a una. La restricción se aplica también por IP pública tanto a registrados como a invitados, por lo que desde la misma conexión no se puede crear con una cuenta y entrar después desde otro navegador, otra cuenta o como invitado. Si el servidor no puede obtener una IP válida, conserva la protección por cuenta o por identificador local del navegador para no bloquear el juego. El MODO TEST activado desde la página privada de entrenamiento autoriza durante 8 horas a los navegadores que salgan por la misma IP pública. El límite elegido (2–10) se aplica al total de participaciones de prueba simultáneas, tanto creando salas como uniéndose a ellas. El token del navegador administrador sigue funcionando como respaldo si cambia de red.\n\n- Voz móvil V19.14: el PTT usa Touch Events nativos en iPhone/iPad para evitar pérdidas inmediatas de `pointercapture`. Al comenzar a hablar vuelve a anunciar `voice-ready` y reintenta la negociación WebRTC con los jugadores conocidos. Los receptores reintentan reproducir el audio remoto en el siguiente gesto si el navegador bloqueó el autoplay.
+- Salas online: un usuario normal solo puede estar en 1 sala activa a la vez: o crea una sala o se une a una. La restricción se aplica también por IP pública tanto a registrados como a invitados, por lo que desde la misma conexión no se puede crear con una cuenta y entrar después desde otro navegador, otra cuenta o como invitado. Si el servidor no puede obtener una IP válida, conserva la protección por cuenta o por identificador local del navegador para no bloquear el juego. El MODO TEST activado desde la página privada de entrenamiento autoriza durante 8 horas a los navegadores que salgan por la misma IP pública. El límite elegido (2–10) se aplica al total de participaciones de prueba simultáneas, tanto creando salas como uniéndose a ellas. El token del navegador administrador sigue funcionando como respaldo si cambia de red.\n\n- Voz móvil V19.15: además del PTT táctil nativo, iPhone/iPad usan una ruta WebAudio dedicada: el micrófono permanece negociado y el PTT abre/cierra una ganancia de audio en vez de activar/desactivar la pista WebRTC. El audio remoto se reproduce por WebAudio en móvil y por HTMLAudio como respaldo. La voz usa ahora la configuración ICE del backend (`/rtc-config`), incluido TURN si está configurado en Render, y reintenta automáticamente un peer de voz si falla.
 
 ## Control móvil
 
