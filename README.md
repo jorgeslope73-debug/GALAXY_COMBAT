@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V18.96**
+**Versión actual: V18.97**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -33,7 +33,7 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 - Las partidas que usan CPU de relleno no cuentan para el ranking.
 - IA difícil: la MIRA es un recurso ofensivo prioritario (especialmente con poca o ninguna munición). Al tener misil guiado preparado puede disparar con una aproximación de hasta unos 30°, mientras que las balas normales mantienen su precisión estricta.
 - Misiles personalizados por jugador: el misil disparado usa `coeteA.png`, `coeteB.png`, `coeteC.png` o `coeteD.png`; el misil preparado sobre la nave usa `navemiraA.png`, `navemiraB.png`, `navemiraC.png` o `navemiraD.png`. Si falta uno de los nuevos `navemira`, se usa temporalmente `navemira.png` como respaldo.
-- ROBO DE ARMAMENTO: si un jugador consigue una baja mientras lleva escudo activo, suma las balas que conservaba la víctima y adopta sus mejoras si son superiores (cadencia, velocidad, camuflaje y mira). Se muestra un aviso de 2 segundos en el color del atacante, apilado con los demás avisos para no solaparlos.
+- ROBO DE ARMAMENTO: solo se activa por embestida directa. Un jugador con escudo activo debe chocar físicamente con un rival sin escudo y destruirlo; las bajas por bala o misil no roban armamento aunque el tirador lleve escudo. En una embestida válida suma las balas que conservaba la víctima y adopta sus mejoras si son superiores (cadencia, velocidad, camuflaje y mira).
 - Manual: se documenta la MIRA / misil dirigido en español, inglés, italiano, francés y alemán, incluida su cápsula y la regla de 1 bala cuando se recoge sin munición.
 - Móvil · modo BOTONES: el control de audio queda centrado debajo de las dos flechas de giro y mantiene sincronizado su estado ACTIVO/DESACTIVADO con el botón del menú.
 
