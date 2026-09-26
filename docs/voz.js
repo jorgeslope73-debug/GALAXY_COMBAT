@@ -35,6 +35,7 @@
       this.pendingIce=new Map();
       this.keyVDown=false;
       this.talking=false;
+      this.pttTouchActive=false;
       this.remoteTalking=new Set();
 
       this.enableButton=document.getElementById('enableVoice');
@@ -60,7 +61,31 @@
       }
 
       if(this.pttButton){
+        const startTouch=async e=>{
+          e.preventDefault();e.stopPropagation();
+          this.pttTouchActive=true;
+          if(!this.enabled){
+            const ok=await this.enable();
+            if(!ok||!this.pttTouchActive)return;
+          }
+          if(this.pttTouchActive)this.setTalking(true);
+        };
+        const endTouch=e=>{
+          if(e){e.preventDefault();e.stopPropagation();}
+          this.pttTouchActive=false;
+          this.setTalking(false);
+        };
+
+        // iPhone/iPad: los Touch Events son la ruta principal del PTT.
+        // Evitamos depender de pointer-capture, que Safari/PWA puede perder
+        // inmediatamente al coexistir con las zonas táctiles del juego.
+        this.pttButton.addEventListener('touchstart',startTouch,{passive:false});
+        this.pttButton.addEventListener('touchend',endTouch,{passive:false});
+        this.pttButton.addEventListener('touchcancel',endTouch,{passive:false});
+
+        // Ratón/pen y navegadores sin Touch Events.
         this.pttButton.addEventListener('pointerdown',async e=>{
+          if(e.pointerType==='touch')return;
           e.preventDefault();e.stopPropagation();
           try{this.pttButton.setPointerCapture?.(e.pointerId);}catch(_){}
           if(!this.enabled){
@@ -69,14 +94,24 @@
           }
           this.setTalking(true);
         },{passive:false});
-        const end=e=>{
+        const endPointer=e=>{
+          if(e.pointerType==='touch')return;
           e.preventDefault();e.stopPropagation();
           this.setTalking(false);
         };
-        this.pttButton.addEventListener('pointerup',end,{passive:false});
-        this.pttButton.addEventListener('pointercancel',end,{passive:false});
-        this.pttButton.addEventListener('lostpointercapture',()=>this.setTalking(false));
+        this.pttButton.addEventListener('pointerup',endPointer,{passive:false});
+        this.pttButton.addEventListener('pointercancel',endPointer,{passive:false});
+        this.pttButton.addEventListener('lostpointercapture',e=>{
+          if(!e||e.pointerType!=='touch')this.setTalking(false);
+        });
       }
+
+      // Si el navegador receptor bloquea autoplay, cualquier gesto posterior
+      // del jugador vuelve a intentar arrancar los audios remotos.
+      const retryRemoteAudio=()=>this.resumeRemoteAudio();
+      window.addEventListener('pointerdown',retryRemoteAudio,{passive:true});
+      window.addEventListener('touchstart',retryRemoteAudio,{passive:true});
+      window.addEventListener('keydown',retryRemoteAudio);
 
       window.addEventListener('keydown',async e=>{
         if(e.code!=='KeyV'||isEditableTarget(e.target))return;
@@ -143,6 +178,7 @@
 
     disable(notify=true){
       this.hideActivationTip();
+      this.pttTouchActive=false;
       this.setTalking(false);
       if(notify&&this.localIndex!==null)this.send({t:'voice-offline'});
       this.enabled=false;
@@ -157,6 +193,7 @@
 
     shutdown(notify=true){
       this.hideActivationTip();
+      this.pttTouchActive=false;
       if(notify&&this.enabled&&this.localIndex!==null)this.send({t:'voice-offline'});
       this.setTalking(false);
       this.closeAllPeers();
@@ -313,16 +350,27 @@
       if(!audio){
         audio=document.createElement('audio');
         audio.autoplay=true;audio.playsInline=true;
+        audio.muted=false;audio.volume=1;
         audio.dataset.voicePlayer=String(id);
         audio.style.display='none';
         document.body.appendChild(audio);
         this.remoteAudio.set(id,audio);
       }
       if(audio.srcObject!==stream)audio.srcObject=stream;
+      audio.muted=false;audio.volume=1;
       const p=audio.play();
       if(p&&typeof p.catch==='function')p.catch(()=>{
         this.setStatus(tr('tapVoiceToHear'));
       });
+    }
+
+    resumeRemoteAudio(){
+      for(const audio of this.remoteAudio.values()){
+        if(!audio||!audio.srcObject)continue;
+        audio.muted=false;audio.volume=1;
+        const p=audio.play();
+        if(p&&typeof p.catch==='function')p.catch(()=>{});
+      }
     }
 
     closePeer(id){
@@ -338,7 +386,16 @@
       if(this.talking===on)return;
       this.talking=on;
       if(this.localTrack)this.localTrack.enabled=on;
-      if(this.localIndex!==null)this.send({t:'voice-talking',on});
+      if(this.localIndex!==null){
+        if(on){
+          // Repara automáticamente una negociación WebRTC perdida: al pulsar
+          // hablar volvemos a anunciarnos y reintentamos los peers conocidos.
+          this.send({t:'voice-ready'});
+          for(const id of this.peerPlayers)this.maybeOffer(id);
+          for(const id of this.readyPeers)this.maybeOffer(id);
+        }
+        this.send({t:'voice-talking',on});
+      }
       this.refreshUI();
     }
 
