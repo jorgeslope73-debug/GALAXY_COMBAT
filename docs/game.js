@@ -1708,9 +1708,14 @@
     }
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';brutalShooter=sinTildes(String(m.shooter||'')).trim();}
     else if(m.t==='weapon-theft'){
-      weaponTheftFxStart=performance.now();
-      weaponTheftFxUntil=weaponTheftFxStart+2000;
-      weaponTheftIndex=Math.max(0,Math.min(3,Number(m.index)||0));
+      const theftIndex=Math.max(0,Math.min(3,Number(m.index)||0));
+      // El robo sigue siendo un evento de partida, pero el cartel es privado:
+      // solo lo ve en su pantalla el jugador que ha realizado la embestida.
+      if(Number(myIndex)===theftIndex){
+        weaponTheftFxStart=performance.now();
+        weaponTheftFxUntil=weaponTheftFxStart+2000;
+        weaponTheftIndex=theftIndex;
+      }
     }
     else if(m.t==='hunt'){
       huntFxStart=performance.now();
