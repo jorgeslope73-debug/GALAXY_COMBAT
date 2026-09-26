@@ -431,10 +431,15 @@
       if(cpu.bullets===0){
         let bestAmmoScore=Infinity,bestAmmoDistance=Infinity,seekPickupRivalDistance=Infinity;
         for(const pk of this.pickups){
-          if(!pk.type.startsWith('ammo'))continue;
+          const isAmmo=pk.type.startsWith('ammo');
+          const isHardSight=cpu.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided;
+          if(!isAmmo&&!isHardSight)continue;
           const cpuDistance=Math.sqrt(dist2(cpu,pk)),rivalDistance=Math.sqrt(dist2(rival,pk));
           const danger=Math.max(0,900-rivalDistance),dangerWeight=cpu.shield>0?.45:1.35;
-          const score=cpuDistance+danger*dangerWeight;
+          // En dificil, MIRA cuenta incluso algo mas que una bala suelta:
+          // rearma con 1 bala y deja preparado un misil teledirigido.
+          const sightBonus=isHardSight?220:0;
+          const score=cpuDistance+danger*dangerWeight-sightBonus;
           if(score<bestAmmoScore){bestAmmoScore=score;bestAmmoDistance=cpuDistance;seekPickupRivalDistance=rivalDistance;seekPickup=pk;}
         }
         const ammoDistance=seekPickup?bestAmmoDistance:Infinity;
@@ -472,7 +477,8 @@
           let bestScore=10;
           for(const pk of this.pickups){
             let value=0;
-            if(pk.type.startsWith('ammo'))value=cpu.bullets<=2?85:25;
+            if(pk.type==='mira'&&!cpu.guided)value=cpu.bullets<=1?125:105;
+            else if(pk.type.startsWith('ammo'))value=cpu.bullets<=2?85:25;
             else if(pk.type==='cadence')value=cpu.cadence>=20?100:35;
             else if(pk.type==='speed')value=cpu.speed<2?55:10;
             else if(pk.type==='shield')value=cpu.shield<=0?95:20;
@@ -504,7 +510,9 @@
       if(!pickupRunClear&&avoidMag>20){const ar=(Math.atan2(-avoidX,-avoidY)*180/Math.PI+360)%360;err=((ar-cpu.rot+540)%360)-180;}
       const turn=pickupRunClear&&pickupRun.aligned?0:clamp(err/38,-1,1);
       const thrust=pickupRunClear?true:!!(Math.abs(err)<60&&(seekPickup||defensiveNoAmmo||ramming||distance>280||avoidMag>20));
-      const fire=(huntActive||!rivalDangerous)&&!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<6&&distance<1350;
+      const guidedReady=!!(cpu.guided&&Number.isInteger(cpu.guidedTarget)&&cpu.guidedTarget>=0);
+      const fireArc=guidedReady&&cpu.difficulty==='dificil'?30:6;
+      const fire=(huntActive||!rivalDangerous)&&!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<fireArc&&distance<1350;
       return{turn,thrust,fire};
     }
     update(dt){
