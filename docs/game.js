@@ -39,7 +39,31 @@
   const images={},sounds={};
   let state=null,previousState=null,myIndex=null,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
   const RESUME_STORAGE_KEY='galaxyCombatResumeV1';
+  const ROOM_CLIENT_ID_KEY='galaxyRoomClientIdV1';
+  const TEST_ROOM_PERMIT_STORAGE='galaxyTestRoomPermitV1';
   const RESUME_WINDOW_MS=30000;
+  function roomClientId(){
+    try{
+      let id=String(localStorage.getItem(ROOM_CLIENT_ID_KEY)||'').trim().toLowerCase();
+      if(/^[a-f0-9]{32}$/.test(id))return id;
+      const bytes=new Uint8Array(16);
+      if(window.crypto&&typeof window.crypto.getRandomValues==='function')window.crypto.getRandomValues(bytes);
+      else for(let i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);
+      id=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+      localStorage.setItem(ROOM_CLIENT_ID_KEY,id);
+      return id;
+    }catch(_){return '';}
+  }
+  function testRoomPermitToken(){
+    try{
+      const data=JSON.parse(localStorage.getItem(TEST_ROOM_PERMIT_STORAGE)||'null');
+      const token=String(data&&data.token||'').trim();
+      const expiresAt=Number(data&&data.expiresAt)||0;
+      if(/^[a-f0-9]{64}$/i.test(token)&&expiresAt>Date.now())return token;
+      if(data)localStorage.removeItem(TEST_ROOM_PERMIT_STORAGE);
+    }catch(_){}
+    return '';
+  }
   let resumeStartedAt=0,resumeExpiryTimer=null;
   function loadResumeSession(){
     try{
@@ -1482,7 +1506,15 @@
   }
   async function createOnlineRoom(isPublic){
     startMusic();prepareGameAssets();await prepareMobileControls();closeRoomDialogs();
-    send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic,lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es'),authToken:authToken()});
+    send({
+      t:'create',
+      name:sinTildes(campoNombre.value),
+      public:!!isPublic,
+      lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es'),
+      authToken:authToken(),
+      clientId:roomClientId(),
+      testRoomToken:testRoomPermitToken()
+    });
   }
   async function joinRoomByCode(code,slot=null){
     prepareGameAssets();
