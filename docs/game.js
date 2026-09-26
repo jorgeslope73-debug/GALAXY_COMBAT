@@ -1676,10 +1676,21 @@
   if(isMobile){
     if(mobileControlMotionBtn)mobileControlMotionBtn.addEventListener('click',()=>setMobileControlMode('motion',true));
     if(mobileControlButtonsBtn)mobileControlButtonsBtn.addEventListener('click',()=>setMobileControlMode('buttons',false));
-    document.getElementById('app').addEventListener('pointerdown',mobilePointerDown,{passive:false});
-    document.getElementById('app').addEventListener('pointerup',mobilePointerEnd,{passive:false});
-    document.getElementById('app').addEventListener('pointercancel',mobilePointerEnd,{passive:false});
-    document.getElementById('app').addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
+    const appEl=document.getElementById('app');
+    appEl.addEventListener('pointerdown',mobilePointerDown,{passive:false});
+    appEl.addEventListener('pointerup',mobilePointerEnd,{passive:false});
+    appEl.addEventListener('pointercancel',mobilePointerEnd,{passive:false});
+    appEl.addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
+    // V18.79: Safari/iOS puede perder el pointerup si el dedo sale de la zona,
+    // cambia el foco o el navegador interrumpe el gesto. Escuchamos tambien a
+    // nivel global y limpiamos cualquier gesto retenido para que acelerar o
+    // disparar nunca se queden enganchados.
+    window.addEventListener('pointerup',mobilePointerEnd,{passive:false,capture:true});
+    window.addEventListener('pointercancel',mobilePointerEnd,{passive:false,capture:true});
+    window.addEventListener('blur',resetMobileTouchControls);
+    document.addEventListener('visibilitychange',()=>{
+      if(document.hidden)resetMobileTouchControls();
+    });
     window.addEventListener('orientationchange',()=>{
       motionNeutral=null;motionTurn=0;
       mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
