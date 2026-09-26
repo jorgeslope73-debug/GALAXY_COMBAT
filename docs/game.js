@@ -78,6 +78,7 @@
   let crashScoreHeldValue=null,crashScorePendingValue=null;
   let penaltyMessageUntil=0;
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='',brutalShooter='';
+  let weaponTheftFxStart=0,weaponTheftFxUntil=0,weaponTheftIndex=-1;
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[];
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
@@ -1701,6 +1702,11 @@
       if(!inGame&&m.started&&!m.finished)beginGame();
     }
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';brutalShooter=sinTildes(String(m.shooter||'')).trim();}
+    else if(m.t==='weapon-theft'){
+      weaponTheftFxStart=performance.now();
+      weaponTheftFxUntil=weaponTheftFxStart+2000;
+      weaponTheftIndex=Math.max(0,Math.min(3,Number(m.index)||0));
+    }
     else if(m.t==='hunt'){
       huntFxStart=performance.now();
       huntFxUntil=huntFxStart+Math.max(2200,Number(m.graceMs)||0);
@@ -1715,7 +1721,7 @@
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
-    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
@@ -2412,14 +2418,16 @@
   function centerNoticeY(kind,now,defaultY){
     const active=[];
     if(brutalFxUntil&&now<brutalFxUntil)active.push('brutal');
+    if(weaponTheftFxUntil&&now<weaponTheftFxUntil&&weaponTheftIndex>=0)active.push('theft');
     if(huntFxUntil&&now<huntFxUntil&&huntText)active.push('hunt');
     if(invisibleNoticeUntil&&now<invisibleNoticeUntil&&invisibleNoticeIndex>=0)active.push('ghost');
     if(active.length<=1)return defaultY;
-    const order=['hunt','brutal','ghost'].filter(k=>active.includes(k));
+    const order=['hunt','brutal','theft','ghost'].filter(k=>active.includes(k));
     const idx=order.indexOf(kind);
     if(idx<0)return defaultY;
-    if(order.length===2)return idx===0?H*.34:H*.57;
-    return [H*.28,H*.48,H*.68][idx]||defaultY;
+    if(order.length===2)return [H*.34,H*.57][idx]||defaultY;
+    if(order.length===3)return [H*.28,H*.48,H*.68][idx]||defaultY;
+    return [H*.23,H*.39,H*.55,H*.71][idx]||defaultY;
   }
 
   function drawPenaltyAnnouncement(now){
@@ -2494,6 +2502,38 @@
           ctx.fillText(brutalShooter,0,84);
         }
       }
+    }finally{ctx.restore();}
+  }
+
+  function drawWeaponTheftAnnouncement(now){
+    if(!weaponTheftFxUntil||now>=weaponTheftFxUntil||weaponTheftIndex<0)return;
+    const age=now-weaponTheftFxStart,total=2000;
+    const remaining=Math.max(0,total-age);
+    const fadeIn=clamp(age/120,0,1);
+    const fadeOut=clamp(remaining/300,0,1);
+    const alpha=Math.min(fadeIn,fadeOut);
+    const intro=clamp(age/170,0,1);
+    const introEase=1-Math.pow(1-intro,3);
+    const settle=1+Math.sin(Math.min(1,age/520)*Math.PI)*.10;
+    const scale=(.62+.38*introEase)*settle;
+    const color=playerColors[Math.max(0,Math.min(3,Number(weaponTheftIndex)||0))]||'#fff';
+    const y=centerNoticeY('theft',now,H*.52)-Math.min(18,age*.012);
+    ctx.save();
+    try{
+      ctx.translate(W/2,y);
+      ctx.scale(scale,scale);
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.globalAlpha=alpha*.68;
+      ctx.font=isMobile?'900 48px Arial Black,Arial,sans-serif':'900 40px Arial Black,Arial,sans-serif';
+      ctx.lineWidth=isMobile?7:6;
+      ctx.strokeStyle='rgba(0,0,0,.72)';
+      ctx.shadowColor=color;
+      ctx.shadowBlur=18*(1-Math.min(1,age/900));
+      ctx.fillStyle=color;
+      const text=tr('weaponTheft');
+      ctx.strokeText(text,0,0);
+      ctx.fillText(text,0,0);
     }finally{ctx.restore();}
   }
 
@@ -2834,6 +2874,7 @@
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
     drawBrutalAnnouncement(now);
+    drawWeaponTheftAnnouncement(now);
     drawHuntAnnouncement(now);
     drawInvisibleModeNotice(now);
     if(state.shower>0){
