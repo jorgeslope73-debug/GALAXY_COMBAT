@@ -322,3 +322,42 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     font-size:10px;
   }
 }
+
+
+/* V18.84: incorporacion de jugador en partida activa. */
+.player-change-notice.player-join-notice{
+  min-width:min(340px,72vw);
+  padding:8px 18px 9px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:2px;
+  border-color:color-mix(in srgb,var(--join-player-color,#fff) 42%,transparent);
+  background:rgba(4,7,18,.48);
+  box-shadow:0 4px 18px rgba(0,0,0,.26),0 0 12px color-mix(in srgb,var(--join-player-color,#fff) 18%,transparent);
+}
+.player-change-notice .player-join-name{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:var(--join-player-color,#fff);
+  font:900 21px/1.05 Arial,Helvetica,sans-serif;
+  letter-spacing:.045em;
+  text-shadow:0 0 8px color-mix(in srgb,var(--join-player-color,#fff) 38%,transparent);
+}
+.player-change-notice .player-join-copy{
+  display:block;
+  color:rgba(242,238,250,.72);
+  font:800 9px/1.1 Arial,Helvetica,sans-serif;
+  letter-spacing:.14em;
+}
+@media (pointer:coarse),(max-width:900px){
+  .player-change-notice.player-join-notice{
+    min-width:min(280px,70vw);
+    padding:6px 14px 7px;
+    background:rgba(4,7,18,.42);
+  }
+  .player-change-notice .player-join-name{font-size:18px}
+  .player-change-notice .player-join-copy{font-size:8px}
+}
