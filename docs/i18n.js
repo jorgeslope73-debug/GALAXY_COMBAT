@@ -13,6 +13,11 @@
   Object.assign(dictionaries.it,{playingStatus:'IN GIOCO',waitingStatus:'IN ATTESA',joinCpuSlot:'Entra come giocatore J{index}'});
   Object.assign(dictionaries.fr,{playingStatus:'EN JEU',waitingStatus:'EN ATTENTE',joinCpuSlot:'Rejoindre comme joueur J{index}'});
   Object.assign(dictionaries.de,{playingStatus:'SPIELT',waitingStatus:'WARTET',joinCpuSlot:'Als Spieler J{index} beitreten'});
+  Object.assign(dictionaries.es,{playerCpuReplaceNotice:'{name} abandona partida, CPU J{index} entra'});
+  Object.assign(dictionaries.en,{playerCpuReplaceNotice:'{name} leaves the match, CPU J{index} joins'});
+  Object.assign(dictionaries.it,{playerCpuReplaceNotice:'{name} lascia la partita, entra CPU J{index}'});
+  Object.assign(dictionaries.fr,{playerCpuReplaceNotice:'{name} quitte la partie, CPU J{index} entre'});
+  Object.assign(dictionaries.de,{playerCpuReplaceNotice:'{name} verlaesst das Spiel, CPU J{index} uebernimmt'});
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
   let language='es';
