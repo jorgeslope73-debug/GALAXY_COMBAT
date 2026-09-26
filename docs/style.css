@@ -288,3 +288,37 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   }
   #mobileControls.button-mode .mobile-turn-button::before{inset:-7px}
 }
+
+
+/* V18.83: aviso temporal cuando un jugador deja paso a una CPU. */
+.player-change-notice{
+  position:absolute;
+  z-index:16;
+  left:50%;
+  bottom:max(18px,calc(env(safe-area-inset-bottom,0px) + 12px));
+  transform:translateX(-50%);
+  max-width:min(760px,86vw);
+  padding:8px 14px;
+  border:1px solid rgba(194,145,235,.42);
+  border-radius:999px;
+  background:rgba(7,5,18,.76);
+  color:rgba(244,236,255,.92);
+  box-shadow:0 4px 18px rgba(0,0,0,.34);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  font:800 12px/1.25 Arial,Helvetica,sans-serif;
+  letter-spacing:.025em;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  pointer-events:none;
+}
+@media (pointer:coarse),(max-width:900px){
+  .player-change-notice{
+    bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 8px));
+    max-width:78vw;
+    padding:6px 11px;
+    font-size:10px;
+  }
+}
