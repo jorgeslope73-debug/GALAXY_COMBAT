@@ -735,8 +735,10 @@ wss.on('connection',ws=>{
       const used=new Set(r.players.map(p=>p.i));
       let i=-1;
       const requestedSlot=Number(m.slot);
-      if(r.started&&Number.isInteger(requestedSlot)){
-        if(requestedSlot<0||requestedSlot>=MAX_PLAYERS||used.has(requestedSlot)){
+      if(Number.isInteger(requestedSlot)){
+        // Una plaza seleccionable representa una CPU sintetica del relleno.
+        // Se puede ocupar antes de empezar o durante la partida.
+        if(!r.cpuFill||requestedSlot<0||requestedSlot>=MAX_PLAYERS||used.has(requestedSlot)){
           send(ws,{t:'error',message:'Sala no disponible.'});
           send(ws,{t:'public-rooms',rooms:publicRooms()});
           return;
