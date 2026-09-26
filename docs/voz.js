@@ -24,6 +24,14 @@
       this.enabling=false;
       this.localStream=null;
       this.localTrack=null;
+      this.captureStream=null;
+      this.audioContext=null;
+      this.micSource=null;
+      this.micGain=null;
+      this.micDestination=null;
+      this.remoteNodes=new Map();
+      this.iceServers=DEFAULT_ICE_SERVERS.slice();
+      this.rtcConfigPromise=null;
       this.localIndex=null;
       this.roomCode='';
       this.cpuMode=false;
@@ -137,6 +145,64 @@
       window.addEventListener('pagehide',()=>this.shutdown(false));
     }
 
+    async loadRtcConfig(){
+      if(this.rtcConfigPromise)return this.rtcConfigPromise;
+      this.rtcConfigPromise=(async()=>{
+        try{
+          const base=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').replace(/\/$/,'');
+          if(!base)return this.iceServers;
+          const res=await fetch(base+'/rtc-config',{cache:'no-store'});
+          if(!res.ok)throw new Error('HTTP '+res.status);
+          const data=await res.json();
+          if(Array.isArray(data&&data.iceServers)&&data.iceServers.length){
+            this.iceServers=data.iceServers;
+          }
+        }catch(err){
+          console.warn('[Galaxy Combat Voice] RTC config no disponible; se usan STUN por defecto.',err&&err.message||err);
+        }
+        return this.iceServers;
+      })();
+      return this.rtcConfigPromise;
+    }
+
+    async prepareMobileAudio(capture){
+      if(!this.isMobile)return false;
+      const AudioCtx=window.AudioContext||window.webkitAudioContext;
+      if(!AudioCtx)return false;
+      try{
+        if(!this.audioContext)this.audioContext=new AudioCtx();
+        if(this.audioContext.state==='suspended')await this.audioContext.resume();
+        this.micSource=this.audioContext.createMediaStreamSource(capture);
+        this.micGain=this.audioContext.createGain();
+        this.micGain.gain.value=0;
+        this.micDestination=this.audioContext.createMediaStreamDestination();
+        this.micSource.connect(this.micGain);
+        this.micGain.connect(this.micDestination);
+        const outTrack=this.micDestination.stream.getAudioTracks()[0];
+        if(!outTrack)throw new Error('No hay pista WebAudio de salida');
+        this.localStream=this.micDestination.stream;
+        this.localTrack=outTrack;
+        this.localTrack.enabled=true;
+        return true;
+      }catch(err){
+        console.warn('[Galaxy Combat Voice] WebAudio movil no disponible; usando pista directa.',err&&err.message||err);
+        this.micSource=null;this.micGain=null;this.micDestination=null;
+        try{if(this.audioContext&&this.audioContext.state!=='closed')await this.audioContext.close();}catch(_){}
+        this.audioContext=null;
+        return false;
+      }
+    }
+
+    closeAudioGraph(){
+      for(const node of this.remoteNodes.values()){try{node.disconnect();}catch(_){}}
+      this.remoteNodes.clear();
+      try{this.micSource&&this.micSource.disconnect();}catch(_){}
+      try{this.micGain&&this.micGain.disconnect();}catch(_){}
+      this.micSource=null;this.micGain=null;this.micDestination=null;
+      if(this.audioContext){try{this.audioContext.close();}catch(_){}}
+      this.audioContext=null;
+    }
+
     async enable(){
       if(this.enabled)return true;
       if(this.enabling)return false;
@@ -147,17 +213,25 @@
       this.enabling=true;
       this.setStatus(tr('requestingMicrophone'));
       try{
+        const rtcPromise=this.loadRtcConfig();
         const stream=await navigator.mediaDevices.getUserMedia({
           audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
           video:false
         });
-        const track=stream.getAudioTracks()[0];
-        if(!track)throw new Error('No hay pista de audio');
-        track.enabled=false;
-        this.localStream=stream;
-        this.localTrack=track;
+        const captureTrack=stream.getAudioTracks()[0];
+        if(!captureTrack)throw new Error('No hay pista de audio');
+        this.captureStream=stream;
+
+        const webAudioReady=await this.prepareMobileAudio(stream);
+        if(!webAudioReady){
+          captureTrack.enabled=false;
+          this.localStream=stream;
+          this.localTrack=captureTrack;
+        }
+
+        await rtcPromise;
         this.enabled=true;
-        track.addEventListener('ended',()=>this.disable(false),{once:true});
+        captureTrack.addEventListener('ended',()=>this.disable(false),{once:true});
         this.setStatus(tr('voiceEnabled'));
         this.refreshUI();
         this.showActivationTip();
@@ -182,11 +256,14 @@
       this.setTalking(false);
       if(notify&&this.localIndex!==null)this.send({t:'voice-offline'});
       this.enabled=false;
+      this.closeAllPeers();
       if(this.localTrack){try{this.localTrack.stop();}catch(_){}}
       if(this.localStream){for(const t of this.localStream.getTracks()){try{t.stop();}catch(_){}}}
+      if(this.captureStream){for(const t of this.captureStream.getTracks()){try{t.stop();}catch(_){}}}
       this.localTrack=null;
       this.localStream=null;
-      this.closeAllPeers();
+      this.captureStream=null;
+      this.closeAudioGraph();
       this.setStatus(tr('voiceDisabled'));
       this.refreshUI();
     }
@@ -198,7 +275,9 @@
       this.setTalking(false);
       this.closeAllPeers();
       if(this.localStream){for(const t of this.localStream.getTracks()){try{t.stop();}catch(_){}}}
-      this.localTrack=null;this.localStream=null;this.enabled=false;
+      if(this.captureStream){for(const t of this.captureStream.getTracks()){try{t.stop();}catch(_){}}}
+      this.localTrack=null;this.localStream=null;this.captureStream=null;this.enabled=false;
+      this.closeAudioGraph();
     }
 
     setSession(code,index,cpuMode=false){
@@ -270,19 +349,23 @@
     makePeer(id){
       if(this.peers.has(id))return this.peers.get(id);
       if(!this.enabled||!this.localStream)return null;
-      const pc=new RTCPeerConnection({
-        iceServers:[
-          {urls:'stun:stun.l.google.com:19302'},
-          {urls:'stun:stun1.l.google.com:19302'}
-        ]
-      });
+      const pc=new RTCPeerConnection({iceServers:this.iceServers});
       this.localStream.getTracks().forEach(track=>pc.addTrack(track,this.localStream));
       pc.onicecandidate=e=>{
         if(e.candidate)this.send({t:'voice-ice',to:id,data:e.candidate.toJSON?e.candidate.toJSON():e.candidate});
       };
       pc.ontrack=e=>this.attachRemoteAudio(id,e.streams&&e.streams[0]?e.streams[0]:new MediaStream([e.track]));
       pc.onconnectionstatechange=()=>{
-        if(pc.connectionState==='failed'||pc.connectionState==='closed')this.closePeer(id);
+        if(pc.connectionState==='failed'){
+          this.closePeer(id);
+          setTimeout(()=>{
+            if(!this.enabled||this.localIndex===null||!this.peerPlayers.has(id))return;
+            this.send({t:'voice-ready'});
+            this.maybeOffer(id);
+          },300);
+        }else if(pc.connectionState==='closed'){
+          this.closePeer(id);
+        }
       };
       this.peers.set(id,pc);
       return pc;
@@ -346,13 +429,38 @@
     }
 
     attachRemoteAudio(id,stream){
+      if(this.isMobile&&this.audioContext){
+        try{
+          const old=this.remoteNodes.get(id);
+          if(old){try{old.disconnect();}catch(_){}}
+          const source=this.audioContext.createMediaStreamSource(stream);
+          source.connect(this.audioContext.destination);
+          this.remoteNodes.set(id,source);
+          if(this.audioContext.state==='suspended')this.audioContext.resume().catch(()=>{});
+          return;
+        }catch(err){
+          console.warn('[Galaxy Combat Voice] Fallo salida WebAudio; usando audio HTML.',err&&err.message||err);
+        }
+      }
+
       let audio=this.remoteAudio.get(id);
       if(!audio){
         audio=document.createElement('audio');
-        audio.autoplay=true;audio.playsInline=true;
+        audio.autoplay=true;
+        audio.playsInline=true;
+        audio.setAttribute('playsinline','');
+        audio.setAttribute('webkit-playsinline','');
         audio.muted=false;audio.volume=1;
         audio.dataset.voicePlayer=String(id);
-        audio.style.display='none';
+        // Evitar display:none en Safari/iOS: algunos WebKit dejan el elemento
+        // fuera de la ruta de reproducción si no participa en el render tree.
+        audio.style.position='fixed';
+        audio.style.width='1px';
+        audio.style.height='1px';
+        audio.style.opacity='0.001';
+        audio.style.pointerEvents='none';
+        audio.style.left='-10px';
+        audio.style.bottom='0';
         document.body.appendChild(audio);
         this.remoteAudio.set(id,audio);
       }
@@ -365,6 +473,9 @@
     }
 
     resumeRemoteAudio(){
+      if(this.audioContext&&this.audioContext.state==='suspended'){
+        this.audioContext.resume().catch(()=>{});
+      }
       for(const audio of this.remoteAudio.values()){
         if(!audio||!audio.srcObject)continue;
         audio.muted=false;audio.volume=1;
@@ -376,6 +487,7 @@
     closePeer(id){
       const pc=this.peers.get(id);if(pc){try{pc.close();}catch(_){}this.peers.delete(id);}
       const audio=this.remoteAudio.get(id);if(audio){try{audio.pause();audio.srcObject=null;audio.remove();}catch(_){}this.remoteAudio.delete(id);}
+      const node=this.remoteNodes.get(id);if(node){try{node.disconnect();}catch(_){}this.remoteNodes.delete(id);}
       this.pendingIce.delete(id);this.offerBusy.delete(id);
     }
 
@@ -385,7 +497,15 @@
       on=!!on&&this.enabled&&!!this.localTrack&&this.localIndex!==null;
       if(this.talking===on)return;
       this.talking=on;
-      if(this.localTrack)this.localTrack.enabled=on;
+      if(this.micGain&&this.audioContext){
+        try{
+          if(this.audioContext.state==='suspended'&&on)this.audioContext.resume().catch(()=>{});
+          this.micGain.gain.setValueAtTime(on?1:0,this.audioContext.currentTime);
+          this.localTrack.enabled=true;
+        }catch(_){}
+      }else if(this.localTrack){
+        this.localTrack.enabled=on;
+      }
       if(this.localIndex!==null){
         if(on){
           // Repara automáticamente una negociación WebRTC perdida: al pulsar
