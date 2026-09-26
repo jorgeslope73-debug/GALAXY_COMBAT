@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Galaxy Combat · Entrenamiento CPU</title>
 <script src="config.js"></script>
-<script src="local-cpu.js?v=V18.70"></script>
+<script src="local-cpu.js?v=V19.2"></script>
 <style>
 :root{color-scheme:dark;--bg:#060813;--panel:#101526;--line:#283451;--text:#eef6ff;--muted:#92a4bf;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#16243e 0,#070914 42%,#03050a 100%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
@@ -57,6 +57,27 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
     </section>
 
     <section class="panel">
+      <div class="label" style="margin-bottom:9px">Modo privado de pruebas · salas simultáneas</div>
+      <div class="controls">
+        <select id="testRoomLimit" aria-label="Número máximo de salas de prueba">
+          <option value="2" selected>2 SALAS</option>
+          <option value="3">3 SALAS</option>
+          <option value="4">4 SALAS</option>
+          <option value="5">5 SALAS</option>
+          <option value="6">6 SALAS</option>
+          <option value="7">7 SALAS</option>
+          <option value="8">8 SALAS</option>
+          <option value="9">9 SALAS</option>
+          <option value="10">10 SALAS</option>
+        </select>
+        <button id="activateTestRooms" class="control-master" type="button">ACTIVAR MODO TEST</button>
+        <button id="disableTestRooms" type="button">DESACTIVAR</button>
+        <span id="testRoomStatus" class="muted">USUARIOS NORMALES: 1 SALA</span>
+      </div>
+      <p class="muted" style="margin:9px 0 0;font-size:12px">El permiso se guarda solo en este navegador y dura 8 horas. Funciona también si estás fuera de casa; no depende de tu IP.</p>
+    </section>
+
+    <section class="panel">
       <div class="controls">
         <button id="pause">PAUSAR SESIÓN</button>
         <select id="speed" aria-label="Velocidad de entrenamiento">
@@ -83,6 +104,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
 <script>
 const API=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').replace(/\/$/,'');
 const TRAINING_KEY_STORAGE='galaxyCpuTrainingKeyV1';
+const TEST_ROOM_PERMIT_STORAGE='galaxyTestRoomPermitV1';
 const COLORS=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
 let trainingKey=(()=>{try{return localStorage.getItem(TRAINING_KEY_STORAGE)||''}catch(_){return ''}})();
 const $=id=>document.getElementById(id);
@@ -241,6 +263,40 @@ $('allTrainingToggle').addEventListener('click',()=>{
   const enable=!(autoTrainingEnabled||localHardEnabled);
   setLearningControl({autoTrainingEnabled:enable,localHardEnabled:enable});
 });
+function updateTestRoomPermitUi(){
+  const status=$('testRoomStatus');
+  if(!status)return;
+  try{
+    const data=JSON.parse(localStorage.getItem(TEST_ROOM_PERMIT_STORAGE)||'null');
+    if(data&&/^[a-f0-9]{64}$/i.test(String(data.token||''))&&Number(data.expiresAt)>Date.now()){
+      const mins=Math.max(1,Math.ceil((Number(data.expiresAt)-Date.now())/60000));
+      status.textContent='MODO TEST ACTIVO · '+Number(data.maxRooms||2)+' SALAS · '+mins+' MIN';
+      status.className='ok';
+      return;
+    }
+    if(data)localStorage.removeItem(TEST_ROOM_PERMIT_STORAGE);
+  }catch(_){}
+  status.textContent='USUARIOS NORMALES: 1 SALA';
+  status.className='muted';
+}
+async function activateTestRooms(){
+  const maxRooms=Math.max(2,Math.min(10,Number($('testRoomLimit').value)||2));
+  try{
+    const d=await json('/api/cpu-training/test-room-permit',{method:'POST',body:JSON.stringify({maxRooms})});
+    localStorage.setItem(TEST_ROOM_PERMIT_STORAGE,JSON.stringify({token:d.token,maxRooms:d.maxRooms,expiresAt:d.expiresAt}));
+    updateTestRoomPermitUi();
+    log('Modo TEST activado · máximo '+d.maxRooms+' salas simultáneas durante 8 horas.');
+  }catch(e){
+    log('ERROR activando modo TEST: '+e.message);
+  }
+}
+$('activateTestRooms').addEventListener('click',activateTestRooms);
+$('disableTestRooms').addEventListener('click',()=>{
+  try{localStorage.removeItem(TEST_ROOM_PERMIT_STORAGE)}catch(_){}
+  updateTestRoomPermitUi();
+  log('Modo TEST desactivado en este navegador.');
+});
+updateTestRoomPermitUi();
 $('speed').addEventListener('change',()=>{speed=Math.max(1,Number($('speed').value)||1);$('speedValue').textContent='x'+speed;log('Velocidad x'+speed+'.')});
 
 async function enterTraining(){
