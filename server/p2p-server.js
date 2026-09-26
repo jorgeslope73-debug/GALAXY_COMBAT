@@ -14,6 +14,9 @@ const SESSION_DAYS=30;
 const PASSWORD_MIN_LENGTH=8;
 const DATABASE_URL=String(process.env.DATABASE_URL||'').trim();
 const TRAINING_ADMIN_KEY=String(process.env.TRAINING_ADMIN_KEY||'').trim();
+const NORMAL_HOST_ROOM_LIMIT=1;
+const TEST_ROOM_PERMIT_MAX=10;
+const TEST_ROOM_PERMIT_TTL_MS=8*60*60*1000;
 
 let dbReady=false;
 let dbInitPromise=null;
@@ -24,6 +27,8 @@ const db=DATABASE_URL?new Pool({
 
 const rooms=new Map();
 const info=new WeakMap();
+const connectionMeta=new WeakMap();
+const testRoomPermits=new Map();
 
 function normalizeUsername(value){return String(value||'').replace(/[\x00-\x1f\x7f]/g,'').replace(/\s+/g,' ').trim().slice(0,16);}
 function usernameKey(value){return normalizeUsername(value).toLowerCase();}
@@ -32,6 +37,50 @@ function validEmail(value){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);}
 function validRegisteredUsername(value){return /^[A-Za-z0-9 _-]{2,16}$/.test(normalizeUsername(value));}
 function safeName(v){return normalizeUsername(v)||'JUGADOR';}
 function tokenHash(token){return createHash('sha256').update(String(token||'')).digest('hex');}
+function safeClientId(value){
+  const id=String(value||'').trim().toLowerCase();
+  return /^[a-f0-9]{32}$/.test(id)?id:'';
+}
+function requestIp(req){
+  const forwarded=String(req&&req.headers&&req.headers['x-forwarded-for']||'').split(',')[0].trim();
+  return forwarded||String(req&&req.socket&&req.socket.remoteAddress||'').trim()||'unknown';
+}
+function cleanupTestRoomPermits(){
+  const now=Date.now();
+  for(const [key,p] of testRoomPermits)if(!p||Number(p.expiresAt)<=now)testRoomPermits.delete(key);
+}
+function testRoomPermit(rawToken){
+  const token=String(rawToken||'').trim();
+  if(!/^[a-f0-9]{64}$/i.test(token))return null;
+  cleanupTestRoomPermits();
+  const key=tokenHash(token);
+  const permit=testRoomPermits.get(key);
+  if(!permit||Number(permit.expiresAt)<=Date.now())return null;
+  return {key,permit};
+}
+function activeHostedRooms(creatorKey){
+  if(!creatorKey)return 0;
+  let count=0;
+  for(const room of rooms.values())if(room&&room.creatorKey===creatorKey)count++;
+  return count;
+}
+function roomCreationIdentity(identity,msg,ws){
+  const admin=testRoomPermit(msg&&msg.testRoomToken);
+  if(admin){
+    return{
+      creatorKey:'test:'+admin.key,
+      roomLimit:Math.max(1,Math.min(TEST_ROOM_PERMIT_MAX,Number(admin.permit.maxRooms)||1)),
+      testMode:true
+    };
+  }
+  if(identity&&identity.registered&&identity.userId){
+    return{creatorKey:'user:'+String(identity.userId),roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
+  }
+  const clientId=safeClientId(msg&&msg.clientId);
+  if(clientId)return{creatorKey:'client:'+clientId,roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
+  const meta=connectionMeta.get(ws)||{};
+  return{creatorKey:'ip:'+String(meta.ip||'unknown'),roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
+}
 
 async function hashPassword(password,saltHex=''){
   const salt=saltHex?Buffer.from(saltHex,'hex'):randomBytes(16);
@@ -461,6 +510,17 @@ async function authApi(req,res,url){
     sendJson(res,200,{ok:true,control});
     return true;
   }
+  if(url==='/api/cpu-training/test-room-permit'&&req.method==='POST'){
+    const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
+    let body;try{body=await readJsonBody(req,2048);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
+    const maxRooms=Math.max(1,Math.min(TEST_ROOM_PERMIT_MAX,Math.floor(Number(body.maxRooms)||2)));
+    cleanupTestRoomPermits();
+    const token=randomBytes(32).toString('hex');
+    const expiresAt=Date.now()+TEST_ROOM_PERMIT_TTL_MS;
+    testRoomPermits.set(tokenHash(token),{maxRooms,expiresAt});
+    sendJson(res,200,{ok:true,token,maxRooms,expiresAt,ttlMs:TEST_ROOM_PERMIT_TTL_MS});
+    return true;
+  }
   if(url==='/api/cpu-training/access'&&req.method==='GET'){
     const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
     const [{rows},control]=await Promise.all([
@@ -706,7 +766,8 @@ const server=http.createServer(async(req,res)=>{
 
 const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false});
 
-wss.on('connection',ws=>{
+wss.on('connection',(ws,req)=>{
+  connectionMeta.set(ws,{ip:requestIp(req)});
   send(ws,{t:'hello',p2p:true,accounts:!!db});
   send(ws,{t:'public-rooms',rooms:publicRooms()});
 
@@ -714,9 +775,15 @@ wss.on('connection',ws=>{
     let m;try{m=JSON.parse(String(raw));}catch(_){return;}
 
     if(m.t==='create'){
+      if(info.get(ws)){send(ws,{t:'error',message:'YA TIENES UNA SALA ACTIVA.'});return;}
       const identity=await resolvePlayerIdentity(m);
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,createdAt:Date.now()};
+      const creator=roomCreationIdentity(identity,m,ws);
+      if(activeHostedRooms(creator.creatorKey)>=creator.roomLimit){
+        send(ws,{t:'error',message:creator.testMode?'LIMITE DE SALAS DE PRUEBA ALCANZADO.':'YA TIENES UNA SALA ACTIVA.'});
+        return;
+      }
+      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
       const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
