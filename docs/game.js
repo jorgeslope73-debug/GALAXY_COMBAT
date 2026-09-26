@@ -2845,9 +2845,10 @@
     drawMobileExitControl();
     drawMobileVoiceControl();
 
-    // El aviso FANTASMA vive en la capa baja: permanece visible mientras dura
-    // el camuflaje, pero naves, meteoritos, balas y demas objetos lo tapan.
+    // Los avisos FANTASMA y BRUTAL viven en la capa baja: siguen visibles,
+    // pero meteoritos, asteroides, naves, balas y mejoras pasan por encima.
     drawGhostStatus(now);
+    drawBrutalAnnouncement(now);
 
     for(const a of state.asteroids){
       const old=previousLookup.asteroids.get(a.id);
@@ -2896,7 +2897,6 @@
     drawHud(now);
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
-    drawBrutalAnnouncement(now);
     drawWeaponTheftAnnouncement(now);
     drawHuntAnnouncement(now);
     drawInvisibleModeNotice(now);
