@@ -752,6 +752,7 @@ wss.on('connection',ws=>{
       const players=roster(r);
       send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin});
       broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started});
+      if(liveJoin)broadcast(r,{t:'player-joined-live',name:p.n,index:p.i});
       publicUpdate(wss);return;
     }
 
