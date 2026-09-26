@@ -22,6 +22,8 @@
   const ctx=canvas.getContext('2d',{alpha:useStaticPcBackground})||canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const buildVersionEl=document.getElementById('buildVersion');
+  const playerChangeNotice=document.getElementById('playerChangeNotice');
+  let playerChangeNoticeTimer=null;
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),fillCpuBtn=document.getElementById('fillCpu'),waitingPlayersEl=document.getElementById('waitingPlayers'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
   const shareGameBtn=document.getElementById('shareGame'),shareRoomBtn=document.getElementById('shareRoom'),shareToast=document.getElementById('shareToast');
@@ -1539,10 +1541,23 @@
     if(!text)return;
     if(send({t:'chat',text}))lobbyChatInput.value='';
   }
+  function showPlayerCpuReplaceNotice(name,index){
+    if(!playerChangeNotice)return;
+    clearTimeout(playerChangeNoticeTimer);
+    const cleanName=sinTildes(String(name||tr('defaultPlayer')).trim());
+    const slot=Math.max(1,Math.min(4,(Number(index)||0)+1));
+    playerChangeNotice.textContent=tr('playerCpuReplaceNotice',{name:cleanName,index:slot});
+    playerChangeNotice.classList.remove('hidden');
+    playerChangeNoticeTimer=setTimeout(()=>{
+      playerChangeNoticeTimer=null;
+      playerChangeNotice.classList.add('hidden');
+    },3000);
+  }
   function handle(m){
     if(m.t==='public-rooms'){
       publicRooms=Array.isArray(m.rooms)?m.rooms:[];renderPublicRooms();return;
     }
+    if(m.t==='player-cpu-replaced'){showPlayerCpuReplaceNotice(m.name,m.index);return;}
     if(m.t==='chat-history'){loadLobbyChatHistory(m.messages);return;}
     if(m.t==='chat'){appendLobbyChatMessage(m);return;}
     if(m.t==='created'||m.t==='joined'){
