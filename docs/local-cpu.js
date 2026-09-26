@@ -754,7 +754,8 @@
         // Sin objetivo visible (por ejemplo jugador en FANTASMA): deriva y busca recursos.
         let target=null,best=Infinity;
         for(const pk of this.pickups){
-          if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
+          const useful=pk.type==='shield'||pk.type.startsWith('ammo')||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided);
+          if(!useful)continue;
           const d=dist2(cpu,pk);
           if(d<best){best=d;target=pk;}
         }
@@ -799,7 +800,7 @@
 
         let hasUsefulPickup=false;
         for(const pk of this.pickups){
-          if(pk.type==='shield'||pk.type.startsWith('ammo')){hasUsefulPickup=true;break;}
+          if(pk.type==='shield'||pk.type.startsWith('ammo')||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)){hasUsefulPickup=true;break;}
         }
         if(!hasUsefulPickup)resourceScore-=40;
 
@@ -830,13 +831,15 @@
       let defensive=false;
 
       const findResource=(preferShield=false)=>{
+        const isUsefulResource=pk=>!!(pk&&(pk.type==='shield'||pk.type.startsWith('ammo')||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)));
         const locked=cpu.resourceTargetId==null?null:this.pickups.find(pk=>pk.id===cpu.resourceTargetId);
-        if(locked&&(locked.type==='shield'||locked.type.startsWith('ammo')))return locked;
+        if(isUsefulResource(locked))return locked;
         let bestPk=null,bestScore=Infinity;
         for(const pk of this.pickups){
-          if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
+          if(!isUsefulResource(pk))continue;
           let score=Math.sqrt(dist2(cpu,pk));
           if(preferShield&&pk.type==='shield')score-=260;
+          if(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)score-=cpu.bullets<=1?390:260;
           if(cpu.bullets===0&&pk.type.startsWith('ammo'))score-=320;
           if(cpu.bullets<=2&&pk.type.startsWith('ammo'))score-=130;
           const rivalDistance=Math.sqrt(dist2(rival,pk));
@@ -971,7 +974,9 @@
       // terminada, rival visible y estar dentro del alcance.
       const aimRot=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
       const aimErr=((aimRot-cpu.rot+540)%360)-180;
-      const inFiringArc=Math.abs(aimErr)<7&&distance<1350;
+      const guidedReady=!!(cpu.guided&&Number.isInteger(cpu.guidedTarget)&&cpu.guidedTarget>=0);
+      const firingArc=guidedReady&&this.difficulty==='dificil'?30:7;
+      const inFiringArc=Math.abs(aimErr)<firingArc&&distance<1350;
       const fire=cpu.bullets>0&&cpu.reload<=0&&inFiringArc&&(huntActive||!rivalDangerous);
       return{turn,thrust,fire};
     }
