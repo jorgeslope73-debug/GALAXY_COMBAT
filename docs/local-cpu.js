@@ -640,6 +640,23 @@
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
       if(!victim.cpu)this.humanMeteorDecision=null;
       if(!attacker||attacker===victim)victim.kills=Math.max(0,victim.kills-1);
+
+      // ROBO DE ARMAMENTO: si el atacante lleva escudo activo al conseguir
+      // la baja, absorbe la municion restante de la victima y conserva la
+      // mejor version disponible de sus mejoras ofensivas/movilidad.
+      if(attacker&&attacker!==victim&&attacker.shield>0){
+        const stolenAmmo=Math.max(0,Math.floor(Number(victim.bullets)||0));
+        attacker.bullets+=stolenAmmo;
+        if(Number(victim.cadence)<Number(attacker.cadence))attacker.cadence=victim.cadence;
+        if(Number(victim.speed)>Number(attacker.speed))attacker.speed=victim.speed;
+        if(Number(victim.camo)>Number(attacker.camo))attacker.camo=victim.camo;
+        if(victim.guided&&!attacker.guided){
+          attacker.guided=true;
+          attacker.guidedTarget=this.guidedTargetFor(attacker);
+        }
+        this.emit({t:'weapon-theft',index:attacker.index,name:attacker.name,ammo:stolenAmmo});
+      }
+
       victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
       if(attacker&&attacker!==victim){
