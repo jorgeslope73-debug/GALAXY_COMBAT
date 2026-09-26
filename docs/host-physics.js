@@ -347,16 +347,17 @@
       });
       if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
     }
-    destroyShip(victim,attacker=null){
+    destroyShip(victim,attacker=null,weaponTheft=false){
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
       if(!attacker||attacker===victim)victim.kills=Math.max(0,victim.kills-1);
 
-      // ROBO DE ARMAMENTO: si el atacante lleva escudo activo al conseguir
-      // la baja, absorbe la municion restante de la victima y conserva la
-      // mejor version disponible de sus mejoras ofensivas/movilidad.
-      if(attacker&&attacker!==victim&&attacker.shield>0){
+      // ROBO DE ARMAMENTO solo ocurre por EMBESTIDA: un jugador con
+      // escudo activo choca fisicamente con un rival sin escudo y lo destruye.
+      // Las bajas por bala o misil nunca roban armamento aunque el tirador
+      // lleve escudo.
+      if(weaponTheft&&attacker&&attacker!==victim&&attacker.shield>0){
         const stolenAmmo=Math.max(0,Math.floor(Number(victim.bullets)||0));
         attacker.bullets+=stolenAmmo;
         if(Number(victim.cadence)<Number(attacker.cadence))attacker.cadence=victim.cadence;
@@ -772,8 +773,8 @@
         const a=this.players[i],b=this.players[j];if(a.dead||b.dead||!sweptCircles(a,SHIP_RADIUS,b,SHIP_RADIUS,true))continue;
         if(a.shield>0||a.protection>0)this.emitShipImpact(a,b,false);
         if(b.shield>0||b.protection>0)this.emitShipImpact(b,a,false);
-        if(a.shield>0&&b.shield<=0)this.destroyShip(b,a);
-        else if(b.shield>0&&a.shield<=0)this.destroyShip(a,b);
+        if(a.shield>0&&b.shield<=0)this.destroyShip(b,a,true);
+        else if(b.shield>0&&a.shield<=0)this.destroyShip(a,b,true);
         else if(a.shield<=0&&b.shield<=0){this.destroyShip(a,null);this.destroyShip(b,null);}
         else{const n=normalize(wrapDelta(a.x-b.x,W),wrapDelta(a.y-b.y,H));a.vx=n.x*120;a.vy=n.y*120;b.vx=-n.x*120;b.vy=-n.y*120;}
       }
