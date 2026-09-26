@@ -18,6 +18,11 @@
   Object.assign(dictionaries.it,{playerCpuReplaceNotice:'{name} lascia la partita, entra CPU J{index}'});
   Object.assign(dictionaries.fr,{playerCpuReplaceNotice:'{name} quitte la partie, CPU J{index} entre'});
   Object.assign(dictionaries.de,{playerCpuReplaceNotice:'{name} verlaesst das Spiel, CPU J{index} uebernimmt'});
+  Object.assign(dictionaries.es,{playerJoinedNotice:'ENTRA EN PARTIDA'});
+  Object.assign(dictionaries.en,{playerJoinedNotice:'JOINS THE MATCH'});
+  Object.assign(dictionaries.it,{playerJoinedNotice:'ENTRA IN PARTITA'});
+  Object.assign(dictionaries.fr,{playerJoinedNotice:'ENTRE DANS LA PARTIE'});
+  Object.assign(dictionaries.de,{playerJoinedNotice:'TRITT DEM SPIEL BEI'});
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
   let language='es';
