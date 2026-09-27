@@ -217,12 +217,12 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   #mobileControls.button-mode .mobile-turn-row{
     position:absolute;
     left:50%;
-    bottom:max(88px,calc(env(safe-area-inset-bottom) + 80px));
+    bottom:max(76px,calc(env(safe-area-inset-bottom) + 68px));
     transform:translateX(-50%);
     display:flex;
     align-items:center;
     justify-content:center;
-    gap:10px;
+    gap:8px;
     pointer-events:none;
   }
   #mobileControls.button-mode .mobile-turn-button{
@@ -230,18 +230,18 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     display:flex;
     align-items:center;
     justify-content:center;
-    width:76px!important;
-    height:76px!important;
-    min-width:76px!important;
-    min-height:76px!important;
+    width:64px!important;
+    height:64px!important;
+    min-width:64px!important;
+    min-height:64px!important;
     margin:0!important;
     padding:0!important;
-    border:.5px solid rgba(255,255,255,.38)!important;
+    border:.5px solid rgba(255,255,255,.34)!important;
     border-radius:50%!important;
-    background:rgba(6,18,31,.34)!important;
-    color:rgba(255,255,255,.52)!important;
-    box-shadow:0 3px 12px rgba(0,0,0,.22)!important;
-    font:900 36px/1 Arial,Helvetica,sans-serif!important;
+    background:rgba(6,18,31,.24)!important;
+    color:rgba(255,255,255,.48)!important;
+    box-shadow:0 3px 10px rgba(0,0,0,.18)!important;
+    font:900 30px/1 Arial,Helvetica,sans-serif!important;
     touch-action:none!important;
     -webkit-user-select:none!important;
     user-select:none!important;
@@ -256,9 +256,10 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     pointer-events:auto;
   }
   #mobileControls.button-mode .mobile-turn-button.active{
-    background:rgba(35,122,163,.50)!important;
-    border-color:rgba(134,233,255,.66)!important;
-    color:rgba(255,255,255,.72)!important;
+    background:rgba(35,122,163,.40)!important;
+    border-color:rgba(134,233,255,.58)!important;
+    color:rgba(255,255,255,.68)!important;
+    box-shadow:0 3px 10px rgba(0,0,0,.18),0 0 8px rgba(90,225,255,.12)!important;
     transform:scale(.97);
   }
 
@@ -297,9 +298,12 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   }
 }
 @media (orientation:landscape) and (max-height:520px){
+  #mobileControls.button-mode .mobile-turn-row{
+    bottom:max(68px,calc(env(safe-area-inset-bottom) + 60px));
+  }
   #mobileControls.button-mode .mobile-turn-button{
-    width:68px!important;height:68px!important;min-width:68px!important;min-height:68px!important;
-    font-size:33px!important;
+    width:58px!important;height:58px!important;min-width:58px!important;min-height:58px!important;
+    font-size:28px!important;
   }
   #mobileControls.button-mode .mobile-turn-button::before{inset:-7px}
 }
