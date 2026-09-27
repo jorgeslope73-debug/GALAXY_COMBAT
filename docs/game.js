@@ -274,6 +274,9 @@
   // Se elimina la seleccion y no se solicita permiso de giroscopio.
   const mobileControlMode='buttons';
   let mobileButtonTurn=0;
+  let mobileTurnTarget=0,mobileTurnStartedAt=0;
+  const MOBILE_TURN_START=0.22;
+  const MOBILE_TURN_RAMP_MS=500;
   let mobileKeyboardActive=false;
   const MOBILE_KEYBOARD_CODES=new Set(['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp','Space','ControlLeft','ControlRight']);
   const mobileLeftPointers=new Set(),mobileRightPointers=new Set();
@@ -680,15 +683,35 @@
     mobileKeyboardActive=!!active;
     if(mobileKeyboardActive){
       resetMobileTouchControls();
-      mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
+      mobileButtonTurn=0;mobileTurnTarget=0;mobileTurnStartedAt=0;
+      mobileLeftPointers.clear();mobileRightPointers.clear();
       motionTurn=0;
     }
     updateMobileControlUi();
   }
-  function updateMobileButtonTurn(){
-    mobileButtonTurn=(mobileLeftPointers.size?1:0)-(mobileRightPointers.size?1:0);
+  function updateMobileButtonTurn(now=performance.now()){
+    const nextTarget=(mobileLeftPointers.size?1:0)-(mobileRightPointers.size?1:0);
+    if(nextTarget!==mobileTurnTarget){
+      mobileTurnTarget=nextTarget;
+      mobileTurnStartedAt=nextTarget?now:0;
+      if(!nextTarget)mobileButtonTurn=0;
+    }
     if(mobileTurnLeft)mobileTurnLeft.classList.toggle('active',mobileLeftPointers.size>0);
     if(mobileTurnRight)mobileTurnRight.classList.toggle('active',mobileRightPointers.size>0);
+  }
+  function progressiveMobileTurn(now=performance.now()){
+    if(!mobileTurnTarget){
+      mobileButtonTurn=0;
+      return 0;
+    }
+    const elapsed=Math.max(0,now-mobileTurnStartedAt);
+    const t=clamp(elapsed/MOBILE_TURN_RAMP_MS,0,1);
+    // smoothstep: comienza suave, acelera en la zona central y llega sin salto
+    // a la velocidad máxima de giro que ya tenía el juego.
+    const eased=t*t*(3-2*t);
+    const strength=MOBILE_TURN_START+(1-MOBILE_TURN_START)*eased;
+    mobileButtonTurn=mobileTurnTarget*strength;
+    return mobileButtonTurn;
   }
   function mobileTurnDirection(clientX){
     if(!mobileTurnPad)return 0;
@@ -866,7 +889,8 @@
       if(gesture&&gesture.holdTimer)clearTimeout(gesture.holdTimer);
     }
     touchGestures.clear();
-    mobileLeftPointers.clear();mobileRightPointers.clear();mobileButtonTurn=0;
+    mobileLeftPointers.clear();mobileRightPointers.clear();
+    mobileButtonTurn=0;mobileTurnTarget=0;mobileTurnStartedAt=0;
     updateMobileButtonTurn();
     clearTimeout(mobileFireTimer);mobileFireTimer=null;
     mobileFire=false;mobileThrust=false;
@@ -1335,7 +1359,7 @@
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
     const rawTurn=isMobile
-      ?(mobileKeyboardActive?keyboardTurn:mobileButtonTurn)
+      ?(mobileKeyboardActive?keyboardTurn:progressiveMobileTurn(now))
       :keyboardTurn;
     // El sensor tiene un poco de ruido incluso con el telefono quieto. Redondear
     // a pasos de 1/64 evita JSON/WebSocket innecesarios sin alterar el tacto.
@@ -1971,7 +1995,8 @@
     document.addEventListener('freeze',resetMobileTouchControls);
     window.addEventListener('orientationchange',()=>{
       motionNeutral=null;motionTurn=0;
-      mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
+      mobileButtonTurn=0;mobileTurnTarget=0;mobileTurnStartedAt=0;
+      mobileLeftPointers.clear();mobileRightPointers.clear();
       resetMobileTouchControls();
       keys.clear();
     });
