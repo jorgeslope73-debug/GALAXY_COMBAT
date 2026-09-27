@@ -102,6 +102,9 @@
   let crashScoreHeldValue=null,crashScorePendingValue=null;
   let penaltyMessageUntil=0;
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='',brutalShooter='';
+  // V19.28: el titulo BRUTAL se prerenderiza. El shadowBlur grande era caro
+  // si se recalculaba en cada frame y podia producir tirones en PC.
+  let brutalTitleCache=null,brutalTitleCacheText='',brutalTitleCacheMobile=null;
   let weaponTheftFxStart=0,weaponTheftFxUntil=0,weaponTheftIndex=-1;
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[];
   let pendingVictoryIndex=null,victoryShowTimer=null;
@@ -2634,6 +2637,34 @@
     }
   }
 
+  function getBrutalTitleCache(){
+    const text=tr('brutal');
+    if(brutalTitleCache&&brutalTitleCacheText===text&&brutalTitleCacheMobile===isMobile)return brutalTitleCache;
+    const cache=document.createElement('canvas');
+    // Margen amplio para que el glow quede contenido y no fuerce recortes.
+    cache.width=520;
+    cache.height=210;
+    const c=cache.getContext('2d');
+    if(!c)return null;
+    c.clearRect(0,0,cache.width,cache.height);
+    c.textAlign='center';
+    c.textBaseline='middle';
+    c.font=isMobile?'900 72px Arial Black,Arial,sans-serif':'900 64px Arial Black,Arial,sans-serif';
+    c.lineWidth=10;
+    c.strokeStyle='rgba(0,0,0,.86)';
+    c.shadowColor='rgba(255,85,20,.95)';
+    // Glow fijo prerenderizado: visualmente conserva el efecto pero evita
+    // recalcular un blur de 34-62 px en cada frame del juego.
+    c.shadowBlur=48;
+    c.fillStyle='#ffdb35';
+    c.strokeText(text,cache.width/2,cache.height/2);
+    c.fillText(text,cache.width/2,cache.height/2);
+    brutalTitleCache=cache;
+    brutalTitleCacheText=text;
+    brutalTitleCacheMobile=isMobile;
+    return cache;
+  }
+
   function drawBrutalAnnouncement(now){
     if(!brutalFxUntil||now>=brutalFxUntil)return;
     const age=now-brutalFxStart;
@@ -2654,19 +2685,21 @@
       ctx.scale(scale,scale);
       ctx.textAlign='center';
       ctx.textBaseline='middle';
-      ctx.font=isMobile?'900 72px Arial Black,Arial,sans-serif':'900 64px Arial Black,Arial,sans-serif';
-      // BRUTAL conserva el fade de entrada/salida, pero nunca llega a ser
-      // completamente opaco para que no tape la accion.
+      // BRUTAL conserva escala, rotacion y fade, pero el texto con glow ya
+      // viene rasterizado y aqui solo hacemos un drawImage muy barato.
       ctx.globalAlpha=alpha*.82;
-      ctx.lineWidth=10;
-      ctx.strokeStyle='rgba(0,0,0,.86)';
-      ctx.shadowColor='rgba(255,85,20,.95)';
-      ctx.shadowBlur=34+28*(1-t);
-      ctx.fillStyle='#ffdb35';
-      ctx.strokeText(tr('brutal'),0,0);
-      ctx.fillText(tr('brutal'),0,0);
+      const title=getBrutalTitleCache();
+      if(title)ctx.drawImage(title,-title.width/2,-title.height/2);
+      else{
+        ctx.font=isMobile?'900 72px Arial Black,Arial,sans-serif':'900 64px Arial Black,Arial,sans-serif';
+        ctx.lineWidth=10;
+        ctx.strokeStyle='rgba(0,0,0,.86)';
+        ctx.fillStyle='#ffdb35';
+        ctx.strokeText(tr('brutal'),0,0);
+        ctx.fillText(tr('brutal'),0,0);
+      }
       if(brutalDistance>0){
-        ctx.shadowBlur=10;
+        ctx.shadowBlur=0;
         ctx.font=isMobile?'800 24px Arial,Helvetica,sans-serif':'800 20px Arial,Helvetica,sans-serif';
         ctx.fillStyle='#ffffff';
         // Escala fisica del juego: diametro de colision de nave = 48 px = 8 m.
