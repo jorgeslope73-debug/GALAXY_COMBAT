@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.19**
+**Versión actual: V19.20**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -52,13 +52,15 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 
 - Móvil V19.19: los controles de giro bajan prácticamente al borde inferior de la pantalla. En reposo son mucho más transparentes y al pulsarlos solo aumentan ligeramente su opacidad, manteniendo el aspecto ligero en lugar de volverse opacos. El botón MICRO permanece en la misma franja inferior, a la derecha de los controles de giro y respetando la zona segura del dispositivo.
 
+- Móvil V19.20: se elimina el modo ROTACIÓN/giroscopio. El juego móvil usa exclusivamente los controles táctiles por botones, por lo que desaparecen del menú los botones ROTACIÓN y BOTONES y ya no se solicita permiso del sensor de orientación.
+
 ## Control móvil
 
-Se juega en horizontal.
+Se juega en horizontal y desde V19.20 el único control móvil es por botones/tacto; se elimina el modo de giro por inclinación y su selector del menú.
 
-- Inclinar el móvil: girar.
-- Toque rápido en la zona de juego: disparar.
-- Mantener pulsado: acelerar mientras el dedo siga apoyado.
+- Mitad izquierda: giro. El cuarto izquierdo gira a la izquierda y el cuarto siguiente gira a la derecha.
+- Mitad derecha: toque rápido para disparar y mantener pulsado para acelerar.
+- Si hay teclado físico conectado, conserva los controles habituales de teclado.
 - El control de voz y los botones de interfaz quedan fuera de estos gestos.
 
 ## Configuración del backend
