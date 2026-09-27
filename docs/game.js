@@ -2214,10 +2214,9 @@
       const age=Math.min(.05,Math.max(0,(now-lastStateTime)/1000));
       const targetX=(p.x+p.vx*age+W)%W;
       const targetY=(p.y+p.vy*age+H)%H;
-      // Para la rotacion local no extrapolamos el snapshot con el input actual.
-      // En pulsaciones cortas, el snapshot puede corresponder todavia al input
-      // anterior; extrapolarlo con el estado actual provoca un rollback visual
-      // al soltar y otro giro cuando llega el siguiente snapshot.
+      // En movil extrapolamos solo unas decimas del snapshot recibido. La pose
+      // visual continua se encarga del resto y, en online, V19.22 evita corregir
+      // contra snapshots atrasados mientras el giro local esta activo.
       const targetR=isMobile?(p.r+lastControlTurn*240*age+360)%360:(p.r+360)%360;
       const needsReset=!localVisual.ready||localVisual.index!==p.i||(previous&&previous.dead)||now-localVisual.lastAt>250;
       if(needsReset){
@@ -2271,24 +2270,27 @@
           localVisual.y=(localVisual.y+dy*positionFollow+H)%H;
         }
         const dr=angleDelta(localVisual.r,targetR);
-        // El servidor va por detras del input local aproximadamente un snapshot
-        // + latencia. Tras pulsar o soltar giro, damos un breve margen para que
-        // el snapshot autoritativo alcance la rotacion ya mostrada. Asi una
-        // pulsacion corta no hace: gira -> vuelve -> gira otra vez.
-        const rotationGrace=(now-lastControlTurnChangedAt)<180;
-        // En PC, mientras la tecla de giro esta pulsada, la pose local ya usa
-        // exactamente los 240 deg/s del servidor. Corregir contra un snapshot
-        // que va unos ms por detras restaria giro y causaria un segundo tiron.
-        // Tras soltar, esperamos 180 ms para que el servidor alcance la pose.
-        const deferDesktopRotation=!isMobile&&(Math.abs(lastControlTurn)>0.001||rotationGrace);
-        if(!deferDesktopRotation){
-          // Correccion deliberadamente suave: seguimos siendo autoritativos,
-          // pero sin que el jitter de red se convierta en un rebote visible.
+        // V19.22: en movil ONLINE la nave local tambien necesita un margen de
+        // reconciliacion. Antes solo se aplicaba en PC: el movil mostraba el giro
+        // al instante, recibia despues un snapshot anterior del anfitrion y lo
+        // corregia hacia atras; el siguiente snapshot volvia a llevarlo al sitio.
+        // El resultado visual era exactamente: gira -> vuelve -> gira otra vez.
+        const mobileOnline=isMobile&&!localCpuActive&&roomCode&&roomCode!=='LOCAL';
+        const rotationGraceMs=mobileOnline?260:180;
+        const rotationGrace=(now-lastControlTurnChangedAt)<rotationGraceMs;
+        const deferRotationCorrection=(!isMobile||mobileOnline)&&
+          (Math.abs(lastControlTurn)>0.001||rotationGrace);
+        if(!deferRotationCorrection){
+          // Una vez que el estado autoritativo ha tenido tiempo de alcanzar al
+          // input local, corregimos con suavidad. En movil online usamos la misma
+          // respuesta tranquila que en PC en lugar de la correccion agresiva.
           const absDr=Math.abs(dr);
-          if(absDr>55){
+          const snapAngle=mobileOnline?70:55;
+          if(absDr>snapAngle){
             localVisual.r=targetR;
           }else{
-            const rotationFollow=1-Math.exp(-(isMobile?20:8)*dt);
+            const rotationRate=mobileOnline?8:(isMobile?20:8);
+            const rotationFollow=1-Math.exp(-rotationRate*dt);
             localVisual.r=(localVisual.r+dr*rotationFollow+360)%360;
           }
         }
