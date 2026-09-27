@@ -217,7 +217,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   #mobileControls.button-mode .mobile-turn-row{
     position:absolute;
     left:50%;
-    bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px));
+    bottom:max(88px,calc(env(safe-area-inset-bottom) + 80px));
     transform:translateX(-50%);
     display:flex;
     align-items:center;
