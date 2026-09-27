@@ -557,12 +557,13 @@
         this.statusEl.textContent=this.enabled?tr('voiceEnabled'):tr('voiceDisabled');
       }
       if(this.pttButton){
-        const show=this.isMobile&&inRoom&&this.enabled&&!this.cpuMode;
+        const show=this.isMobile&&inRoom&&!this.cpuMode;
         this.pttButton.classList.toggle('hidden',!show);
         this.pttButton.textContent=this.enabled?tr('talk'):tr('activateVoice');
         this.pttButton.setAttribute('aria-label',this.enabled?tr('holdToTalk'):tr('activateVoice'));
         this.pttButton.title=this.enabled?tr('holdToTalk'):tr('activateVoice');
         this.pttButton.classList.toggle('talking',this.talking);
+        this.pttButton.classList.toggle('mic-enabled',this.enabled);
       }
       if(this.hintEl){
         const show=!this.isMobile&&inRoom&&this.enabled&&!this.cpuMode;
