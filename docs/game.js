@@ -928,6 +928,10 @@
     if((handled||inGame)&&e.cancelable)e.preventDefault();
   }
   function mobileTouchTargetIsUi(target){
+    // V19.26: las flechas de giro son botones HTML, pero forman parte del
+    // control de juego. En iOS no deben filtrarse como interfaz, porque si no
+    // tocar directamente sobre ← o → descarta el gesto antes de iniciar el giro.
+    if(target&&target.closest&&target.closest('#mobileTurnPad'))return false;
     return !!(target&&target.closest&&target.closest('button,input,select,textarea,a,[contenteditable="true"]'));
   }
   function mobileTouchStart(e){
