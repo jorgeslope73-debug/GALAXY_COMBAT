@@ -54,15 +54,15 @@
 @media (pointer:coarse),(max-width:900px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
     left:25vw;
-    bottom:max(12px,calc(env(safe-area-inset-bottom) + 6px));
-    width:54px;height:54px;min-width:54px;min-height:54px;
+    bottom:max(8px,calc(env(safe-area-inset-bottom) + 4px));
+    width:76px;height:76px;min-width:76px;min-height:76px;
   }
 }
 @media (orientation:landscape) and (max-height:520px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
     left:25vw;
-    bottom:max(10px,calc(env(safe-area-inset-bottom) + 4px));
-    width:50px;height:50px;min-width:50px;min-height:50px;
+    bottom:max(8px,calc(env(safe-area-inset-bottom) + 3px));
+    width:68px;height:68px;min-width:68px;min-height:68px;
   }
 }
 @media (pointer:fine){.voice-ptt{display:none!important}}
@@ -121,4 +121,41 @@
    Evitamos dos grandes capas con gradiente sobre Safari/iOS durante toda la partida. */
 @media (pointer:coarse){
   #mobileControls .fire-zone,#mobileControls .thrust-zone{background:transparent!important;}
+}
+
+/* V19.17: unifica CONTROL MOVIL + AUDIO/MICRO en el menu. */
+@media (pointer:coarse),(max-width:900px){
+  #menu .voice-setup{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    margin:4px auto 0;
+    min-height:28px;
+  }
+  #menu #enableVoice,
+  #menu #enableAudio{
+    width:auto!important;
+    min-width:76px!important;
+    max-width:none!important;
+    height:28px!important;
+    min-height:28px!important;
+    margin:0!important;
+    padding:4px 9px!important;
+    border-radius:999px!important;
+    border:1px solid rgba(105,196,235,.5)!important;
+    background:rgba(8,27,42,.82)!important;
+    color:#dff8ff!important;
+    box-shadow:none!important;
+    font:900 9px/1 Arial,Helvetica,sans-serif!important;
+    letter-spacing:.045em!important;
+    white-space:nowrap!important;
+  }
+  #menu #enableVoice.active,
+  #menu #enableAudio.active{
+    border-color:#86e9ff!important;
+    background:linear-gradient(180deg,rgba(45,132,173,.96),rgba(17,73,103,.96))!important;
+    box-shadow:0 0 14px rgba(90,225,255,.28)!important;
+    color:#fff!important;
+  }
 }
