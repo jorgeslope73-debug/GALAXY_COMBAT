@@ -217,7 +217,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   #mobileControls.button-mode .mobile-turn-row{
     position:absolute;
     left:50%;
-    bottom:max(76px,calc(env(safe-area-inset-bottom) + 68px));
+    bottom:max(10px,calc(env(safe-area-inset-bottom) + 6px));
     transform:translateX(-50%);
     display:flex;
     align-items:center;
@@ -236,11 +236,11 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     min-height:64px!important;
     margin:0!important;
     padding:0!important;
-    border:.5px solid rgba(255,255,255,.34)!important;
+    border:.5px solid rgba(255,255,255,.18)!important;
     border-radius:50%!important;
-    background:rgba(6,18,31,.24)!important;
-    color:rgba(255,255,255,.48)!important;
-    box-shadow:0 3px 10px rgba(0,0,0,.18)!important;
+    background:rgba(6,18,31,.10)!important;
+    color:rgba(255,255,255,.30)!important;
+    box-shadow:0 2px 8px rgba(0,0,0,.10)!important;
     font:900 30px/1 Arial,Helvetica,sans-serif!important;
     touch-action:none!important;
     -webkit-user-select:none!important;
@@ -256,10 +256,10 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     pointer-events:auto;
   }
   #mobileControls.button-mode .mobile-turn-button.active{
-    background:rgba(35,122,163,.40)!important;
-    border-color:rgba(134,233,255,.58)!important;
-    color:rgba(255,255,255,.68)!important;
-    box-shadow:0 3px 10px rgba(0,0,0,.18),0 0 8px rgba(90,225,255,.12)!important;
+    background:rgba(35,122,163,.18)!important;
+    border-color:rgba(134,233,255,.30)!important;
+    color:rgba(255,255,255,.44)!important;
+    box-shadow:0 2px 8px rgba(0,0,0,.10),0 0 6px rgba(90,225,255,.06)!important;
     transform:scale(.97);
   }
 
@@ -299,7 +299,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 }
 @media (orientation:landscape) and (max-height:520px){
   #mobileControls.button-mode .mobile-turn-row{
-    bottom:max(68px,calc(env(safe-area-inset-bottom) + 60px));
+    bottom:max(8px,calc(env(safe-area-inset-bottom) + 4px));
   }
   #mobileControls.button-mode .mobile-turn-button{
     width:58px!important;height:58px!important;min-width:58px!important;min-height:58px!important;
