@@ -53,16 +53,16 @@
    debajo de las dos flechas tras acercar aun mas la flecha derecha. */
 @media (pointer:coarse),(max-width:900px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
-    left:25vw;
+    left:calc(25vw + 70px);
     bottom:max(8px,calc(env(safe-area-inset-bottom) + 4px));
-    width:76px;height:76px;min-width:76px;min-height:76px;
+    width:64px;height:64px;min-width:64px;min-height:64px;
   }
 }
 @media (orientation:landscape) and (max-height:520px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
-    left:25vw;
+    left:calc(25vw + 62px);
     bottom:max(8px,calc(env(safe-area-inset-bottom) + 3px));
-    width:68px;height:68px;min-width:68px;min-height:68px;
+    width:58px;height:58px;min-width:58px;min-height:58px;
   }
 }
 @media (pointer:fine){.voice-ptt{display:none!important}}
