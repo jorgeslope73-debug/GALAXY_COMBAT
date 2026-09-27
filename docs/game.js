@@ -277,8 +277,10 @@
   let mobileKeyboardActive=false;
   const MOBILE_KEYBOARD_CODES=new Set(['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp','Space','ControlLeft','ControlRight']);
   const mobileLeftPointers=new Set(),mobileRightPointers=new Set();
-  // Los antiguos elementos izquierdo/derecho se mantienen solo como capa visual.
-  // El control real usa toda la pantalla: toque corto = disparo, mantener = acelerar.
+  // En modo BOTONES la mitad izquierda completa se dedica al giro:
+  // cuarto izquierdo = giro izquierda, cuarto siguiente = giro derecha.
+  // La mitad derecha queda exclusivamente para disparar/acelerar.
+  // Las flechas siguen siendo la referencia visual, pero ya no son el unico hit-area.
   if(isMobile){
     const fireLabel=fireZone&&fireZone.querySelector('span');
     const thrustLabel=thrustZone&&thrustZone.querySelector('span');
@@ -709,31 +711,97 @@
     if(mobileTurnLeft)mobileTurnLeft.classList.toggle('active',mobileLeftPointers.size>0);
     if(mobileTurnRight)mobileTurnRight.classList.toggle('active',mobileRightPointers.size>0);
   }
-  function bindMobileTurnButton(button,pointers){
-    if(!button)return;
-    button.addEventListener('pointerdown',e=>{
-      if(!isMobile||!inGame||mobileControlMode!=='buttons')return;
+  function mobileTurnDirection(clientX){
+    if(!mobileTurnPad)return 0;
+    const rect=mobileTurnPad.getBoundingClientRect();
+    if(!rect.width||clientX<rect.left||clientX>rect.right)return 0;
+    return clientX<(rect.left+rect.width*.5)?1:-1;
+  }
+  function beginMobileTurnGesture(key,clientX){
+    if(!isMobile||!inGame||mobileControlMode!=='buttons'||mobileKeyboardActive)return false;
+    const dir=mobileTurnDirection(clientX);
+    if(!dir)return false;
+    mobileLeftPointers.delete(key);
+    mobileRightPointers.delete(key);
+    (dir>0?mobileLeftPointers:mobileRightPointers).add(key);
+    updateMobileButtonTurn();
+    return true;
+  }
+  function moveMobileTurnGesture(key,clientX){
+    if(!mobileLeftPointers.has(key)&&!mobileRightPointers.has(key))return false;
+    const dir=mobileTurnDirection(clientX);
+    if(!dir)return true;
+    const left=dir>0;
+    if(left&&mobileLeftPointers.has(key))return true;
+    if(!left&&mobileRightPointers.has(key))return true;
+    mobileLeftPointers.delete(key);
+    mobileRightPointers.delete(key);
+    (left?mobileLeftPointers:mobileRightPointers).add(key);
+    updateMobileButtonTurn();
+    return true;
+  }
+  function endMobileTurnGesture(key){
+    const changed=mobileLeftPointers.delete(key)|mobileRightPointers.delete(key);
+    if(changed)updateMobileButtonTurn();
+    return !!changed;
+  }
+  function bindMobileTurnPad(){
+    if(!mobileTurnPad)return;
+
+    mobileTurnPad.addEventListener('pointerdown',e=>{
       if(e.pointerType&&e.pointerType!=='touch'&&e.pointerType!=='pen')return;
-      if(mobileKeyboardActive){
-        keys.clear();
-        lastControlTurn=0;
-        setMobileKeyboardActive(false);
-      }
-      pointers.add(e.pointerId);updateMobileButtonTurn();
-      try{button.setPointerCapture&&button.setPointerCapture(e.pointerId);}catch(_){}
+      if(isIOS&&e.pointerType==='touch')return;
+      if(!beginMobileTurnGesture(e.pointerId,e.clientX))return;
+      try{mobileTurnPad.setPointerCapture?.(e.pointerId);}catch(_){}
       e.preventDefault();e.stopPropagation();
     },{passive:false});
-    const release=e=>{
-      if(pointers.delete(e.pointerId))updateMobileButtonTurn();
-      e.preventDefault();e.stopPropagation();
+    mobileTurnPad.addEventListener('pointermove',e=>{
+      if(isIOS&&e.pointerType==='touch')return;
+      if(moveMobileTurnGesture(e.pointerId,e.clientX)){
+        e.preventDefault();e.stopPropagation();
+      }
+    },{passive:false});
+    const releasePointer=e=>{
+      if(isIOS&&e.pointerType==='touch')return;
+      if(endMobileTurnGesture(e.pointerId)){
+        e.preventDefault();e.stopPropagation();
+      }
     };
-    button.addEventListener('pointerup',release,{passive:false});
-    button.addEventListener('pointercancel',release,{passive:false});
-    button.addEventListener('lostpointercapture',e=>{if(pointers.delete(e.pointerId))updateMobileButtonTurn();});
+    mobileTurnPad.addEventListener('pointerup',releasePointer,{passive:false});
+    mobileTurnPad.addEventListener('pointercancel',releasePointer,{passive:false});
+    mobileTurnPad.addEventListener('lostpointercapture',releasePointer);
+
+    // iOS/PWA: Touch Events nativos para que un giro mantenido no se quede
+    // enganchado si Safari pierde un Pointer Event.
+    mobileTurnPad.addEventListener('touchstart',e=>{
+      if(!isIOS||!inGame||mobileControlMode!=='buttons')return;
+      let handled=false;
+      for(const touch of Array.from(e.changedTouches||[])){
+        if(beginMobileTurnGesture('turn-touch:'+touch.identifier,touch.clientX))handled=true;
+      }
+      if(handled){e.preventDefault();e.stopPropagation();}
+    },{passive:false});
+    mobileTurnPad.addEventListener('touchmove',e=>{
+      if(!isIOS)return;
+      let handled=false;
+      for(const touch of Array.from(e.changedTouches||[])){
+        if(moveMobileTurnGesture('turn-touch:'+touch.identifier,touch.clientX))handled=true;
+      }
+      if(handled){e.preventDefault();e.stopPropagation();}
+    },{passive:false});
+    const releaseTouch=e=>{
+      if(!isIOS)return;
+      let handled=false;
+      for(const touch of Array.from(e.changedTouches||[])){
+        if(endMobileTurnGesture('turn-touch:'+touch.identifier))handled=true;
+      }
+      if(handled){e.preventDefault();e.stopPropagation();}
+    };
+    mobileTurnPad.addEventListener('touchend',releaseTouch,{passive:false});
+    mobileTurnPad.addEventListener('touchcancel',releaseTouch,{passive:false});
   }
   updateMobileControlUi();
-  bindMobileTurnButton(mobileTurnLeft,mobileLeftPointers);
-  bindMobileTurnButton(mobileTurnRight,mobileRightPointers);
+  bindMobileTurnPad();
 
   function screenAngle(){
     if(screen.orientation&&Number.isFinite(screen.orientation.angle))return screen.orientation.angle;
@@ -819,6 +887,8 @@
       if(gesture&&gesture.holdTimer)clearTimeout(gesture.holdTimer);
     }
     touchGestures.clear();
+    mobileLeftPointers.clear();mobileRightPointers.clear();mobileButtonTurn=0;
+    updateMobileButtonTurn();
     clearTimeout(mobileFireTimer);mobileFireTimer=null;
     mobileFire=false;mobileThrust=false;
     if(mobileControls){
