@@ -270,9 +270,9 @@
   const mobileControlMotionBtn=document.getElementById('mobileControlMotion'),mobileControlButtonsBtn=document.getElementById('mobileControlButtons');
   const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone');
   const voicePttEl=document.getElementById('voicePtt');
-  const MOBILE_CONTROL_KEY='galaxyCombatMobileControlV1';
-  let mobileControlMode='motion';
-  try{if(localStorage.getItem(MOBILE_CONTROL_KEY)==='buttons')mobileControlMode='buttons';}catch(_){}
+  // V19.20: en movil solo existe el control por botones/tacto.
+  // Se elimina la seleccion y no se solicita permiso de giroscopio.
+  const mobileControlMode='buttons';
   let mobileButtonTurn=0;
   let mobileKeyboardActive=false;
   const MOBILE_KEYBOARD_CODES=new Set(['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp','Space','ControlLeft','ControlRight']);
@@ -669,19 +669,9 @@
     musicStarted=false;
   }
   function updateMobileControlUi(){
-    if(mobileControlMotionBtn){
-      const on=mobileControlMode==='motion';
-      mobileControlMotionBtn.classList.toggle('active',on);
-      mobileControlMotionBtn.setAttribute('aria-pressed',on?'true':'false');
-    }
-    if(mobileControlButtonsBtn){
-      const on=mobileControlMode==='buttons';
-      mobileControlButtonsBtn.classList.toggle('active',on);
-      mobileControlButtonsBtn.setAttribute('aria-pressed',on?'true':'false');
-    }
     if(mobileControls){
-      mobileControls.classList.toggle('button-mode',mobileControlMode==='buttons');
-      mobileControls.classList.toggle('motion-mode',mobileControlMode==='motion');
+      mobileControls.classList.add('button-mode');
+      mobileControls.classList.remove('motion-mode');
       mobileControls.classList.toggle('keyboard-mode',mobileKeyboardActive);
     }
   }
@@ -694,17 +684,6 @@
       motionTurn=0;
     }
     updateMobileControlUi();
-  }
-  async function setMobileControlMode(mode,requestMotion=true){
-    if(mode!=='buttons')mode='motion';
-    mobileControlMode=mode;
-    try{localStorage.setItem(MOBILE_CONTROL_KEY,mobileControlMode);}catch(_){}
-    setMobileKeyboardActive(false);
-    mobileButtonTurn=0;mobileLeftPointers.clear();mobileRightPointers.clear();
-    resetMobileTouchControls();
-    updateMobileControlUi();
-    if(mobileControlMode==='motion'&&requestMotion&&!motionEnabled)await enableMobileMotion();
-    if(mobileControlMode==='motion')calibrateMobileMotion();
   }
   function updateMobileButtonTurn(){
     mobileButtonTurn=(mobileLeftPointers.size?1:0)-(mobileRightPointers.size?1:0);
@@ -1356,7 +1335,7 @@
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
     const rawTurn=isMobile
-      ?(mobileKeyboardActive?keyboardTurn:(mobileControlMode==='buttons'?mobileButtonTurn:(motionEnabled?motionTurn:0)))
+      ?(mobileKeyboardActive?keyboardTurn:mobileButtonTurn)
       :keyboardTurn;
     // El sensor tiene un poco de ruido incluso con el telefono quieto. Redondear
     // a pasos de 1/64 evita JSON/WebSocket innecesarios sin alterar el tacto.
@@ -1513,8 +1492,7 @@
   }
   async function prepareMobileControls(){
     if(!isMobile)return;
-    if(mobileKeyboardActive)return;
-    if(mobileControlMode==='motion'&&!motionEnabled)await enableMobileMotion();
+    updateMobileControlUi();
   }
   function authToken(){return window.GalaxyAuth&&typeof window.GalaxyAuth.getToken==='function'?window.GalaxyAuth.getToken():'';}
   function stopLocalCpu(){
@@ -1883,7 +1861,7 @@
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();if(isMobile&&mobileControlMode==='motion'&&!mobileKeyboardActive)calibrateMobileMotion();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function beginGame(){stopMusic();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
   function queueVictory(i){
     pendingVictoryIndex=Number(i);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;
@@ -1967,8 +1945,6 @@
   });
   if(lobbyChatInput)lobbyChatInput.addEventListener('keyup',e=>e.stopPropagation());
   if(isMobile){
-    if(mobileControlMotionBtn)mobileControlMotionBtn.addEventListener('click',()=>setMobileControlMode('motion',true));
-    if(mobileControlButtonsBtn)mobileControlButtonsBtn.addEventListener('click',()=>setMobileControlMode('buttons',false));
     const appEl=document.getElementById('app');
     appEl.addEventListener('pointerdown',mobilePointerDown,{passive:false});
     appEl.addEventListener('pointerup',mobilePointerEnd,{passive:false});
@@ -2010,7 +1986,7 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCpuLearningControl();});
   startBtn.addEventListener('click',async()=>{
     await Promise.all([prepareMobileControls(),prepareGameAssets()]);
-    calibrateMobileMotion();send({t:'start'});
+    send({t:'start'});
   });
   function returnToMainMenu(notifyServer=true){
     if(!sharedRoomCode)sharedRoomJoinStarted=false;
