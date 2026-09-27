@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.18**
+**Versión actual: V19.19**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -49,6 +49,8 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 - Móvil V19.17: los botones ROTACIÓN, BOTONES, AUDIO y MICRO comparten el mismo tamaño, forma de pastilla, borde y estado activo. `ACTIVAR VOZ` pasa a `ACTIVAR MICRO`. En partida, el control de micrófono se mantiene centrado bajo las dos flechas, ahora con el mismo diámetro y lenguaje visual que ellas; si el micro aún no está habilitado, el primer toque sirve para activarlo y después el mismo control funciona como PTT.
 
 - Móvil V19.18: los botones de giro izquierda/derecha se reducen a 64 px (58 px en pantallas horizontales bajas) sin reducir sus zonas táctiles amplias. En reposo son más transparentes y, al pulsarlos, solo ganan algo de opacidad y brillo sin volverse opacos. El botón MICRO conserva el mismo tamaño/estilo y pasa a situarse abajo y a la derecha, próximo al botón de giro derecho pero con separación para no solaparse.
+
+- Móvil V19.19: los controles de giro bajan prácticamente al borde inferior de la pantalla. En reposo son mucho más transparentes y al pulsarlos solo aumentan ligeramente su opacidad, manteniendo el aspecto ligero en lugar de volverse opacos. El botón MICRO permanece en la misma franja inferior, a la derecha de los controles de giro y respetando la zona segura del dispositivo.
 
 ## Control móvil
 
