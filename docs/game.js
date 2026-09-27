@@ -2867,48 +2867,63 @@
     }finally{ctx.restore();}
   }
   function drawMobileVoiceControl(){
-    if(!isMobile||!inGame||!voice||!voice.enabled||voice.cpuMode)return;
-    let x=W/2,y=H-96;
+    if(!isMobile||!inGame||!voice||voice.cpuMode)return;
+    let x=W/2,y=H-96,radius=38;
     const buttonMode=mobileControlMode==='buttons'&&!mobileKeyboardActive;
-    // La zona tactil del PTT se mueve con CSS. Convertimos su centro real a
-    // coordenadas logicas del canvas para que el icono quede justo bajo el dedo.
+    // La zona tactil del micro se mueve con CSS. Su tamaño real se convierte a
+    // coordenadas logicas para que el circulo visible coincida exactamente con
+    // el tamaño de las flechas (76 px; 68 px en pantallas horizontales bajas).
     if(voicePttEl&&!voicePttEl.classList.contains('hidden')){
       const pr=voicePttEl.getBoundingClientRect();
       const cr=canvas.getBoundingClientRect();
       if(pr.width>0&&pr.height>0&&cr.width>0&&cr.height>0){
         x=((pr.left+pr.width*.5-cr.left)/cr.width)*W;
         y=((pr.top+pr.height*.5-cr.top)/cr.height)*H;
+        if(buttonMode)radius=(pr.width/cr.width)*W*.5;
       }
     }
     const talking=!!voice.talking;
-    const scale=buttonMode?.72:1;
-    const radius=38*scale;
+    const enabled=!!voice.enabled;
+    const unit=radius/38;
     ctx.save();
     try{
-      // El control visual se pinta en el canvas, justo encima del fondo.
-      // Las naves, meteoritos, balas y mejoras se dibujan despues y por tanto
-      // siempre pasan por encima del icono.
-      ctx.globalAlpha=talking?.56:.28;
-      ctx.fillStyle=talking?'rgba(95,255,150,.76)':'rgba(255,255,255,.46)';
-      ctx.strokeStyle=talking?'rgba(150,255,188,.94)':'rgba(255,255,255,.58)';
-      ctx.lineWidth=3.5*scale;
+      // Mismo lenguaje visual que las flechas: fondo oscuro translucido,
+      // borde blanco fino y estado activo cian. Se mantiene en la capa baja.
+      ctx.globalAlpha=1;
+      ctx.fillStyle=talking?'rgba(35,122,163,.50)':'rgba(6,18,31,.34)';
+      ctx.strokeStyle=talking?'rgba(134,233,255,.66)':'rgba(255,255,255,.38)';
+      ctx.lineWidth=Math.max(.8,1.4*unit);
       ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
 
-      ctx.globalAlpha=talking?.82:.56;
+      ctx.globalAlpha=talking?.92:(enabled?.72:.52);
       ctx.strokeStyle='#ffffff';
       ctx.fillStyle='#ffffff';
-      ctx.lineWidth=4.5*scale;
+      ctx.lineWidth=3.2*unit;
       ctx.lineCap='round';ctx.lineJoin='round';
-      // Capsula del microfono.
+
+      // Icono de microfono proporcionado al mismo boton circular.
       ctx.beginPath();
-      ctx.roundRect(x-10*scale,y-20*scale,20*scale,31*scale,10*scale);
+      ctx.roundRect(x-8*unit,y-17*unit,16*unit,25*unit,8*unit);
       ctx.fill();
-      // Arco inferior, pie y base.
       ctx.beginPath();
-      ctx.arc(x,y-3*scale,17*scale,0,Math.PI,false);
+      ctx.arc(x,y-3*unit,14*unit,0,Math.PI,false);
       ctx.stroke();
-      ctx.beginPath();ctx.moveTo(x,y+15*scale);ctx.lineTo(x,y+25*scale);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(x-10*scale,y+25*scale);ctx.lineTo(x+10*scale,y+25*scale);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x,y+11*unit);ctx.lineTo(x,y+19*unit);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x-8*unit,y+19*unit);ctx.lineTo(x+8*unit,y+19*unit);ctx.stroke();
+
+      // Si aun no esta habilitado, una pequena marca + indica que este mismo
+      // boton sirve para ACTIVAR MICRO en el primer toque.
+      if(!enabled){
+        ctx.globalAlpha=.78;
+        ctx.lineWidth=2.4*unit;
+        ctx.beginPath();
+        ctx.arc(x+20*unit,y-20*unit,8*unit,0,Math.PI*2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x+16*unit,y-20*unit);ctx.lineTo(x+24*unit,y-20*unit);
+        ctx.moveTo(x+20*unit,y-24*unit);ctx.lineTo(x+20*unit,y-16*unit);
+        ctx.stroke();
+      }
     }finally{
       ctx.restore();
     }
