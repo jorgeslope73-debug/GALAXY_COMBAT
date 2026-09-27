@@ -54,14 +54,14 @@
 @media (pointer:coarse),(max-width:900px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
     left:calc(25vw + 70px);
-    bottom:max(8px,calc(env(safe-area-inset-bottom) + 4px));
+    bottom:max(4px,env(safe-area-inset-bottom));
     width:64px;height:64px;min-width:64px;min-height:64px;
   }
 }
 @media (orientation:landscape) and (max-height:520px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
     left:calc(25vw + 62px);
-    bottom:max(8px,calc(env(safe-area-inset-bottom) + 3px));
+    bottom:max(3px,env(safe-area-inset-bottom));
     width:58px;height:58px;min-width:58px;min-height:58px;
   }
 }
