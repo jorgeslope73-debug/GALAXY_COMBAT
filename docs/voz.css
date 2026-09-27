@@ -53,12 +53,12 @@
    debajo de las dos flechas tras acercar aun mas la flecha derecha. */
 @media (pointer:coarse),(max-width:900px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
-    /* V19.27: micro mas pequeno y desplazado abajo a la derecha.
-       Se deja margen lateral e inferior para no pisar el HUD amarillo. */
+    /* V19.29: micro pegado a la esquina inferior derecha,
+       fuera del HUD amarillo y respetando solo la zona segura. */
     left:auto;
-    right:max(14px,calc(env(safe-area-inset-right) + 10px));
+    right:max(4px,calc(env(safe-area-inset-right) + 4px));
     transform:none;
-    bottom:max(74px,calc(env(safe-area-inset-bottom) + 62px));
+    bottom:max(4px,calc(env(safe-area-inset-bottom) + 4px));
     width:46px;height:46px;min-width:46px;min-height:46px;
   }
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt:active{
@@ -68,8 +68,8 @@
 @media (orientation:landscape) and (max-height:520px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
     left:auto;
-    right:max(12px,calc(env(safe-area-inset-right) + 8px));
-    bottom:max(66px,calc(env(safe-area-inset-bottom) + 54px));
+    right:max(3px,calc(env(safe-area-inset-right) + 3px));
+    bottom:max(3px,calc(env(safe-area-inset-bottom) + 3px));
     width:42px;height:42px;min-width:42px;min-height:42px;
   }
 }
