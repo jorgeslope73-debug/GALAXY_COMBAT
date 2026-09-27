@@ -77,6 +77,27 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 }
 
 
+
+/* V19.21: ganador mas legible en movil, con mucho menos glow. */
+@media (pointer:coarse),(max-width:900px){
+  #victory.winner-celebration #victoryText{
+    text-shadow:
+      0 1px 2px rgba(0,0,0,.92),
+      0 0 3px rgba(255,255,255,.28),
+      0 0 7px color-mix(in srgb,var(--winner-color,#d8a7ff) 55%,transparent);
+    line-height:1.05;
+    letter-spacing:.035em;
+    animation:galaxyWinnerEgoMobile 1.35s cubic-bezier(.18,.9,.22,1.08) both;
+  }
+}
+@keyframes galaxyWinnerEgoMobile{
+  0%{transform:scale(.72);opacity:0;letter-spacing:.01em}
+  30%{transform:scale(1.18);opacity:1;letter-spacing:.05em}
+  52%{transform:scale(.97);letter-spacing:.035em}
+  72%{transform:scale(1.06)}
+  100%{transform:scale(1);opacity:1;letter-spacing:.035em}
+}
+
 /* V16.4.83: compartir juego y sala. */
 #lobby .share-room-btn{
   border-color:rgba(205,145,255,.62);
