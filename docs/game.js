@@ -297,6 +297,7 @@
   const MOBILE_FIRE_PULSE_MS=120;
   let mobileFireTimer=null;
   const touchGestures=new Map();
+  const mobileTouchRoles=new Map();
 
   // Solo quitamos el acento de las vocales; se conserva la letra enie.
   // NFC admite nombres escritos o pegados con acentos combinados.
@@ -773,34 +774,8 @@
     mobileTurnPad.addEventListener('pointercancel',releasePointer,{passive:false});
     mobileTurnPad.addEventListener('lostpointercapture',releasePointer);
 
-    // iOS/PWA: Touch Events nativos para que un giro mantenido no se quede
-    // enganchado si Safari pierde un Pointer Event.
-    mobileTurnPad.addEventListener('touchstart',e=>{
-      if(!isIOS||!inGame||mobileControlMode!=='buttons')return;
-      let handled=false;
-      for(const touch of Array.from(e.changedTouches||[])){
-        if(beginMobileTurnGesture('turn-touch:'+touch.identifier,touch.clientX))handled=true;
-      }
-      if(handled){e.preventDefault();e.stopPropagation();}
-    },{passive:false});
-    mobileTurnPad.addEventListener('touchmove',e=>{
-      if(!isIOS)return;
-      let handled=false;
-      for(const touch of Array.from(e.changedTouches||[])){
-        if(moveMobileTurnGesture('turn-touch:'+touch.identifier,touch.clientX))handled=true;
-      }
-      if(handled){e.preventDefault();e.stopPropagation();}
-    },{passive:false});
-    const releaseTouch=e=>{
-      if(!isIOS)return;
-      let handled=false;
-      for(const touch of Array.from(e.changedTouches||[])){
-        if(endMobileTurnGesture('turn-touch:'+touch.identifier))handled=true;
-      }
-      if(handled){e.preventDefault();e.stopPropagation();}
-    };
-    mobileTurnPad.addEventListener('touchend',releaseTouch,{passive:false});
-    mobileTurnPad.addEventListener('touchcancel',releaseTouch,{passive:false});
+    // En iOS los dos dedos (giro + acelerar/disparar) se gestionan juntos
+    // desde #app para que cada touch.identifier conserve su funcion.
   }
   updateMobileControlUi();
   bindMobileTurnPad();
@@ -889,6 +864,7 @@
       if(gesture&&gesture.holdTimer)clearTimeout(gesture.holdTimer);
     }
     touchGestures.clear();
+    mobileTouchRoles.clear();
     mobileLeftPointers.clear();mobileRightPointers.clear();
     mobileButtonTurn=0;mobileTurnTarget=0;mobileTurnStartedAt=0;
     updateMobileButtonTurn();
@@ -951,12 +927,38 @@
     const handled=endMobileActionGesture(e.pointerId,e.type==='pointerup');
     if((handled||inGame)&&e.cancelable)e.preventDefault();
   }
+  function mobileTouchTargetIsUi(target){
+    return !!(target&&target.closest&&target.closest('button,input,select,textarea,a,[contenteditable="true"]'));
+  }
   function mobileTouchStart(e){
     if(!isIOS||!isMobile||!inGame)return;
     let handled=false;
     for(const touch of Array.from(e.changedTouches||[])){
+      const id=touch.identifier;
+      const key='touch:'+id;
       const target=touch.target||e.target;
-      if(beginMobileActionGesture('touch:'+touch.identifier,target))handled=true;
+      if(mobileTouchTargetIsUi(target))continue;
+
+      const turnDir=mobileTurnDirection(touch.clientX);
+      if(turnDir){
+        if(beginMobileTurnGesture('turn-'+key,touch.clientX)){
+          mobileTouchRoles.set(id,'turn');
+          handled=true;
+        }
+      }else if(beginMobileActionGesture(key,target)){
+        mobileTouchRoles.set(id,'action');
+        handled=true;
+      }
+    }
+    if(handled&&e.cancelable)e.preventDefault();
+  }
+  function mobileTouchMove(e){
+    if(!isIOS||!isMobile||!inGame)return;
+    let handled=false;
+    for(const touch of Array.from(e.changedTouches||[])){
+      const id=touch.identifier;
+      if(mobileTouchRoles.get(id)!=='turn')continue;
+      if(moveMobileTurnGesture('turn-touch:'+id,touch.clientX))handled=true;
     }
     if(handled&&e.cancelable)e.preventDefault();
   }
@@ -965,7 +967,14 @@
     let handled=false;
     const allowFire=e.type==='touchend';
     for(const touch of Array.from(e.changedTouches||[])){
-      if(endMobileActionGesture('touch:'+touch.identifier,allowFire))handled=true;
+      const id=touch.identifier;
+      const role=mobileTouchRoles.get(id);
+      if(role==='turn'){
+        if(endMobileTurnGesture('turn-touch:'+id))handled=true;
+      }else if(role==='action'){
+        if(endMobileActionGesture('touch:'+id,allowFire))handled=true;
+      }
+      mobileTouchRoles.delete(id);
     }
     if((handled||inGame)&&e.cancelable)e.preventDefault();
   }
@@ -1980,6 +1989,7 @@
     // conserva hasta touchend/touchcancel y evita que quede un gesto fantasma.
     if(isIOS){
       appEl.addEventListener('touchstart',mobileTouchStart,{passive:false});
+      appEl.addEventListener('touchmove',mobileTouchMove,{passive:false});
       appEl.addEventListener('touchend',mobileTouchEnd,{passive:false});
       appEl.addEventListener('touchcancel',mobileTouchEnd,{passive:false});
     }
