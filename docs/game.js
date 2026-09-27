@@ -2906,13 +2906,14 @@
     try{
       // Mismo lenguaje visual que las flechas: fondo oscuro translucido,
       // borde blanco fino y estado activo cian. Se mantiene en la capa baja.
-      ctx.globalAlpha=1;
-      ctx.fillStyle=talking?'rgba(35,122,163,.50)':'rgba(6,18,31,.34)';
-      ctx.strokeStyle=talking?'rgba(134,233,255,.66)':'rgba(255,255,255,.38)';
+      // V19.27: micro mas discreto para no competir con el HUD.
+      ctx.globalAlpha=talking?.72:.46;
+      ctx.fillStyle=talking?'rgba(35,122,163,.42)':'rgba(6,18,31,.22)';
+      ctx.strokeStyle=talking?'rgba(134,233,255,.58)':'rgba(255,255,255,.24)';
       ctx.lineWidth=Math.max(.8,1.4*unit);
       ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.stroke();
 
-      ctx.globalAlpha=talking?.92:(enabled?.72:.52);
+      ctx.globalAlpha=talking?.84:(enabled?.58:.38);
       ctx.strokeStyle='#ffffff';
       ctx.fillStyle='#ffffff';
       ctx.lineWidth=3.2*unit;
