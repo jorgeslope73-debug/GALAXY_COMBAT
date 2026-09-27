@@ -275,8 +275,8 @@
   const mobileControlMode='buttons';
   let mobileButtonTurn=0;
   let mobileTurnTarget=0,mobileTurnStartedAt=0;
-  const MOBILE_TURN_START=0.22;
-  const MOBILE_TURN_RAMP_MS=500;
+  const MOBILE_TURN_START=0.28;
+  const MOBILE_TURN_RAMP_MS=420;
   let mobileKeyboardActive=false;
   const MOBILE_KEYBOARD_CODES=new Set(['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp','Space','ControlLeft','ControlRight']);
   const mobileLeftPointers=new Set(),mobileRightPointers=new Set();
@@ -707,8 +707,8 @@
     }
     const elapsed=Math.max(0,now-mobileTurnStartedAt);
     const t=clamp(elapsed/MOBILE_TURN_RAMP_MS,0,1);
-    // smoothstep: comienza suave, acelera en la zona central y llega sin salto
-    // a la velocidad máxima de giro que ya tenía el juego.
+    // V19.25: un poco más de respuesta al inicio y una subida algo más rápida,
+    // pero la fuerza sigue limitada a 1.0: la velocidad máxima no cambia.
     const eased=t*t*(3-2*t);
     const strength=MOBILE_TURN_START+(1-MOBILE_TURN_START)*eased;
     mobileButtonTurn=mobileTurnTarget*strength;
