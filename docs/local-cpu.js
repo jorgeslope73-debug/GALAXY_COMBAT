@@ -419,27 +419,40 @@
         .slice(0,24);
     }
     resetAsteroids(){
-      // V19.53: arranque suave hasta 5; despues la poblacion varia al azar 1..5.
-      const [x,y,rot,type]=ASTEROID_STARTS[0],d=dirFromRot(rot);
-      this.asteroids=[{id:uid(),x,y,rot,type,vx:d.x*80,vy:d.y*80,r:ASTEROID_RADIUS,exiting:false,exitDelay:-1}];
+      // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
+      this.asteroids=[];
+      this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1),true);
       this.nextAsteroidIndex=1;
       this.nextAsteroidSpawn=rand(18,24);
       this.asteroidRampComplete=false;
       this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
       this.nextAsteroidPopulationChange=999999;
     }
-    spawnAsteroidFromEdge(templateIndex){
+    spawnAsteroidFromEdge(templateIndex,fullyRandom=false){
       const idx=clamp(Math.round(Number(templateIndex)||0),0,ASTEROID_STARTS.length-1);
-      const [targetX,targetY,rot,type]=ASTEROID_STARTS[idx];
+      let [targetX,targetY,rot,type]=ASTEROID_STARTS[idx];
       const edge=ASTEROID_RADIUS*2;
-      const choices=[
-        {d:targetX,x:-edge,y:clamp(targetY+rand(-110,110),70,H-70)},
-        {d:W-targetX,x:W+edge,y:clamp(targetY+rand(-110,110),70,H-70)},
-        {d:targetY,x:clamp(targetX+rand(-150,150),70,W-70),y:-edge},
-        {d:H-targetY,x:clamp(targetX+rand(-150,150),70,W-70),y:H+edge}
-      ];
-      choices.sort((a,b)=>a.d-b.d);
-      const start=choices[0],n=normalize(targetX-start.x,targetY-start.y);
+      let start;
+      if(fullyRandom){
+        targetX=rand(W*.18,W*.82);
+        targetY=rand(H*.18,H*.82);
+        const side=randint(0,3);
+        if(side===0)start={x:-edge,y:rand(60,H-60)};
+        else if(side===1)start={x:W+edge,y:rand(60,H-60)};
+        else if(side===2)start={x:rand(60,W-60),y:-edge};
+        else start={x:rand(60,W-60),y:H+edge};
+        rot=rand(0,360);
+      }else{
+        const choices=[
+          {d:targetX,x:-edge,y:clamp(targetY+rand(-110,110),70,H-70)},
+          {d:W-targetX,x:W+edge,y:clamp(targetY+rand(-110,110),70,H-70)},
+          {d:targetY,x:clamp(targetX+rand(-150,150),70,W-70),y:-edge},
+          {d:H-targetY,x:clamp(targetX+rand(-150,150),70,W-70),y:H+edge}
+        ];
+        choices.sort((a,b)=>a.d-b.d);
+        start=choices[0];
+      }
+      const n=normalize(targetX-start.x,targetY-start.y);
       this.asteroids.push({
         id:uid(),x:start.x,y:start.y,rot,type,
         vx:n.x*80,vy:n.y*80,r:ASTEROID_RADIUS,exiting:false,exitDelay:-1
