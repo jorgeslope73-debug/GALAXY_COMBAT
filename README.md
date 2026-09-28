@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.48**
+**Versión actual: V19.49**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -125,3 +125,6 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 
 - Móvil V19.48: al abrir UNIRSE / PARTIDAS PUBLICAS, todo el menú principal permanece visible detrás pero desenfocado, incluidos INICIO, RANKING, MANUAL, REGISTRO/CUENTA, idioma y versión. Esos controles quedan por debajo de la ventana y sin interacción mientras UNIRSE está abierto. PC no cambia.
+
+
+- Móvil V19.49: se fuerza RANKING, MANUAL, COMPARTIR JUEGO, INICIO, REGISTRO/CUENTA, idioma y versión a una capa inferior y con desenfoque directo mientras UNIRSE está abierto. PARTIDAS PUBLICAS queda en la capa máxima. PC no cambia.
