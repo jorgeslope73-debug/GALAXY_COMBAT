@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.53**
+**Versión actual: V19.54**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -140,3 +140,6 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 
 - Jugabilidad V19.53: los asteroides medianos tienen un máximo de 5. El inicio mantiene la entrada progresiva desde 1 hasta 5; después la población cambia aleatoriamente entre 1 y 5. Cuando toca bajar, varios asteroides salen de pantalla de forma escalonada y no se reponen inmediatamente; cuando toca subir, nuevas unidades entran desde bordes aleatorios con pausas de 4-12 s. Cada nuevo objetivo de población se decide tras periodos aleatorios de 22-48 s. Se aplica a CPU/local y online P2P.
+
+
+- Jugabilidad V19.54: el primer asteroide mediano ya no aparece en un punto fijo. Entra desde fuera de pantalla por uno de los cuatro bordes elegido al azar, con punto de entrada, objetivo interior, tipo y trayectoria variables. Se aplica igual a CPU/local y online P2P.
