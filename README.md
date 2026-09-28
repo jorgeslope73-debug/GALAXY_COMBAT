@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.33**
+**Versión actual: V19.34**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -70,7 +70,7 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 
 - Rendimiento V19.28: BRUTAL conserva su animación, escala, rotación y glow, pero el título se prerenderiza una sola vez en un canvas auxiliar. Durante la partida se reutiliza como imagen, evitando recalcular en cada frame el costoso shadowBlur del texto y reduciendo tirones en PC sin modificar físicas, red, controles ni velocidades.
 
-- Móvil V19.29: el botón MICRO/PTT se desplaza hasta la esquina inferior derecha, pegado al borde seguro del dispositivo para no cubrir el HUD amarillo. Mantiene su tamaño y transparencia.\n\n- Interfaz V19.30: primera separación visual entre partidas públicas y privadas en la ventana UNIRSE.\n\n- Interfaz V19.31: PARTIDAS PUBLICAS y PARTIDA PRIVADA pasan a ser dos paneles independientes separados por espacio. La zona privada es compacta, con CODIGO y el botón UNIRSE pequeño en la misma línea; ambos títulos usan la tipografía Flashback y el mismo tamaño visual. La lista pública gana altura útil. No cambia la lógica de conexión.\n\n- Móvil V19.32: al abrir UNIRSE se ocultan VERSION, RANKING, MANUAL, COMPARTIR JUEGO, INICIO, REGISTRO/CUENTA e idioma de la interfaz principal. El navegador de partidas usa un fondo opaco para que no se vea el menú principal por detrás. Al cerrar UNIRSE reaparece todo automáticamente.\n\n- Interfaz V19.33: el campo de entrada de una partida privada muestra ESCRIBE CODIGO en lugar de CODIGO.
+- Móvil V19.29: el botón MICRO/PTT se desplaza hasta la esquina inferior derecha, pegado al borde seguro del dispositivo para no cubrir el HUD amarillo. Mantiene su tamaño y transparencia.\n\n- Interfaz V19.30: primera separación visual entre partidas públicas y privadas en la ventana UNIRSE.\n\n- Interfaz V19.31: PARTIDAS PUBLICAS y PARTIDA PRIVADA pasan a ser dos paneles independientes separados por espacio. La zona privada es compacta, con CODIGO y el botón UNIRSE pequeño en la misma línea; ambos títulos usan la tipografía Flashback y el mismo tamaño visual. La lista pública gana altura útil. No cambia la lógica de conexión.\n\n- Móvil V19.32: al abrir UNIRSE se ocultan VERSION, RANKING, MANUAL, COMPARTIR JUEGO, INICIO, REGISTRO/CUENTA e idioma de la interfaz principal. El navegador de partidas usa un fondo opaco para que no se vea el menú principal por detrás. Al cerrar UNIRSE reaparece todo automáticamente.\n\n- Interfaz V19.33: el campo de entrada de una partida privada muestra ESCRIBE CODIGO en lugar de CODIGO.\n\n- PC V19.34: el navegador UNIRSE puede crecer hasta aproximadamente un 30% más de altura. El bloque de PARTIDA PRIVADA conserva su tamaño compacto y el espacio adicional se destina a PARTIDAS PUBLICAS, limitado automáticamente por la altura disponible de la pantalla.
 
 ## Control móvil
 
