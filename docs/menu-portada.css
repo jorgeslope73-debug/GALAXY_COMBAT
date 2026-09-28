@@ -1837,3 +1837,14 @@ html.handheld-device #menu.join-browser-open #publicRoomsDialog{
   backdrop-filter:none!important;
   -webkit-backdrop-filter:none!important;
 }
+
+
+/* V19.34 - PC: ampliar hasta un 30% la altura del navegador de partidas publicas */
+@media (min-width:901px) and (min-height:650px){
+  html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-card{
+    height:min(988px,calc(100vh - 36px));
+    max-height:calc(100vh - 36px);
+    grid-template-rows:minmax(0,1fr) auto;
+    transform:none;
+  }
+}
