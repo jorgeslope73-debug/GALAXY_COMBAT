@@ -1964,10 +1964,10 @@ html:not(.handheld-device) #menu.join-browser-open > #buildVersion{
 }
 
 
-/* V19.40 - PC: subir PARTIDA PRIVADA aproximadamente un 20% */
+/* V19.41 - PC: subir PARTIDA PRIVADA un 20% adicional (40% total) */
 @media (min-width:901px){
   html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-bottom{
     margin-top:clamp(24px,3vh,32px);
-    transform:translateY(-20%);
+    transform:translateY(-40%);
   }
 }
