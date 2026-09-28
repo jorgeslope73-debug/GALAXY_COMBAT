@@ -1954,3 +1954,11 @@ html:not(.handheld-device) #menu.join-browser-open > #buildVersion{
     font-size:12px!important;
   }
 }
+
+
+/* V19.39 - PC: subir ligeramente PARTIDA PRIVADA sin mover los titulos */
+@media (min-width:901px){
+  html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-card{
+    gap:6px;
+  }
+}
