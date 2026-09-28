@@ -1992,7 +1992,7 @@ html.handheld-device #menu.join-browser-open > .menu-top-tools{
 /* V19.46 - PC: subir todo el bloque UNIRSE exactamente 2px */
 @media (min-width:901px){
   html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-card{
-    top:-2px;
+    top:-20px;
     position:relative;
   }
 }
