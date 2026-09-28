@@ -26,6 +26,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;bord
     <div class="card"><div class="label">Candidatas</div><div class="value" id="candidates">—</div></div>
     <div class="card"><div class="label">Tamaño</div><div class="value" id="bytes">—</div></div>
     <div class="card"><div class="label">Entrenamientos automáticos</div><div class="value" id="trainingMatches">—</div></div>
+    <div class="card"><div class="label">Partidas LOCAL DIFÍCIL aprendidas</div><div class="value" id="localMatches">—</div></div>
     <div class="card"><div class="label">Muestras totales</div><div class="value" id="totalSamples">—</div></div>
     <div class="card"><div class="label">Muestras último ciclo</div><div class="value" id="lastSampleGain">0</div></div>
     <div class="card"><div class="label">Último cambio Brain</div><div class="value" id="updatedAt" style="font-size:16px">—</div></div>
@@ -73,6 +74,7 @@ async function load(){
     version.textContent=d.version??brain.version??'—';strategies.textContent=active.length;candidates.textContent=cand.length;
     bytes.textContent=((Number(d.bytes)||0)/1024).toFixed(1)+' KB';
     trainingMatches.textContent=Number(d.training&&d.training.matches)||0;
+    localMatches.textContent=Number(d.training&&d.training.localMatches)||0;
     const allEntries=active.concat(cand);
     const totalSampleCount=allEntries.reduce((sum,e)=>sum+(Number(e.samples)||0),0);
     totalSamples.textContent=totalSampleCount;

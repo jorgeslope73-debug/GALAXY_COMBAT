@@ -204,10 +204,13 @@ async function ensureDatabase(){
       CREATE TABLE IF NOT EXISTS galaxy_cpu_training_stats (
         id SMALLINT PRIMARY KEY,
         matches BIGINT NOT NULL DEFAULT 0,
+        local_matches BIGINT NOT NULL DEFAULT 0,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
-      INSERT INTO galaxy_cpu_training_stats(id,matches)
-      VALUES(1,0)
+      ALTER TABLE galaxy_cpu_training_stats
+        ADD COLUMN IF NOT EXISTS local_matches BIGINT NOT NULL DEFAULT 0;
+      INSERT INTO galaxy_cpu_training_stats(id,matches,local_matches)
+      VALUES(1,0,0)
       ON CONFLICT(id) DO NOTHING;
       CREATE TABLE IF NOT EXISTS galaxy_cpu_learning_control (
         id SMALLINT PRIMARY KEY,
@@ -627,11 +630,17 @@ async function authApi(req,res,url){
   if(url==='/api/cpu-training/access'&&req.method==='GET'){
     const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
     const [{rows},control]=await Promise.all([
-      db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1'),
+      db.query('SELECT matches,local_matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1'),
       getCpuLearningControl()
     ]);
-    const row=rows[0]||{matches:0,updated_at:null};
-    sendJson(res,200,{ok:true,trainingMatches:Number(row.matches)||0,updatedAt:row.updated_at||null,control});
+    const row=rows[0]||{matches:0,local_matches:0,updated_at:null};
+    sendJson(res,200,{
+      ok:true,
+      trainingMatches:Number(row.matches)||0,
+      localMatches:Number(row.local_matches)||0,
+      updatedAt:row.updated_at||null,
+      control
+    });
     return true;
   }
   if(url==='/api/cpu-training/control'&&req.method==='POST'){
@@ -693,11 +702,11 @@ async function authApi(req,res,url){
   if(url==='/api/cpu-brain'&&req.method==='GET'){
     const [{rows},{rows:trainingRows},control]=await Promise.all([
       db.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 LIMIT 1'),
-      db.query('SELECT matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1'),
+      db.query('SELECT matches,local_matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1'),
       getCpuLearningControl()
     ]);
     const row=rows[0]||{version:1,brain:{version:1,strategies:[],candidates:[]},updated_at:null};
-    const training=trainingRows[0]||{matches:0,updated_at:null};
+    const training=trainingRows[0]||{matches:0,local_matches:0,updated_at:null};
     const brain=normalizeCpuBrain(row.brain);
     const bytes=Buffer.byteLength(JSON.stringify(brain),'utf8');
     sendJson(res,200,{
@@ -706,7 +715,11 @@ async function authApi(req,res,url){
       updatedAt:row.updated_at||null,
       bytes,
       maxBytes:CPU_BRAIN_MAX_BYTES,
-      training:{matches:Number(training.matches)||0,updatedAt:training.updated_at||null},
+      training:{
+        matches:Number(training.matches)||0,
+        localMatches:Number(training.local_matches)||0,
+        updatedAt:training.updated_at||null
+      },
       control,
       brain:{version:brain.version,strategies:brain.strategies,candidates:brain.candidates}
     });
@@ -720,6 +733,7 @@ async function authApi(req,res,url){
       return true;
     }
     const deltas=Array.isArray(body&&body.deltas)?body.deltas:[];
+    const learning=summarizeCpuDeltas(deltas);
     const client=await db.connect();
     try{
       await client.query('BEGIN');
@@ -728,8 +742,26 @@ async function authApi(req,res,url){
       const brain=mergeCpuBrain(current.brain,deltas);
       const bytes=Buffer.byteLength(JSON.stringify(brain),'utf8');
       await client.query('UPDATE galaxy_cpu_brain SET version=$1,brain=$2::jsonb,updated_at=NOW() WHERE id=1',[brain.version,JSON.stringify(brain)]);
+      let localMatches=null;
+      if(learning.appliedDeltas>0){
+        const stat=await client.query(`UPDATE galaxy_cpu_training_stats
+          SET local_matches=local_matches+1,updated_at=NOW() WHERE id=1 RETURNING local_matches`);
+        localMatches=Number(stat.rows[0]&&stat.rows[0].local_matches)||0;
+      }else{
+        const stat=await client.query('SELECT local_matches FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1');
+        localMatches=Number(stat.rows[0]&&stat.rows[0].local_matches)||0;
+      }
       await client.query('COMMIT');
-      sendJson(res,200,{ok:true,version:brain.version,strategies:brain.strategies.length,bytes});
+      sendJson(res,200,{
+        ok:true,
+        learned:learning.appliedDeltas>0,
+        appliedDeltas:learning.appliedDeltas,
+        sampleUses:learning.sampleUses,
+        localMatches,
+        version:brain.version,
+        strategies:brain.strategies.length,
+        bytes
+      });
     }catch(err){
       try{await client.query('ROLLBACK');}catch(_){}
       console.error('[Galaxy Combat P2P] Error actualizando CPU brain:',err&&err.message||err);
