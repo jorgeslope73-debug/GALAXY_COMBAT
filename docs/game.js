@@ -2622,17 +2622,19 @@
 
   function centerNoticeY(kind,now,defaultY){
     const active=[];
+    if(state&&Number(state.shower)>0)active.push('shower');
     if(brutalFxUntil&&now<brutalFxUntil)active.push('brutal');
     if(weaponTheftFxUntil&&now<weaponTheftFxUntil&&weaponTheftIndex>=0)active.push('theft');
     if(huntFxUntil&&now<huntFxUntil&&huntText)active.push('hunt');
     if(invisibleNoticeUntil&&now<invisibleNoticeUntil&&invisibleNoticeIndex>=0)active.push('ghost');
     if(active.length<=1)return defaultY;
-    const order=['hunt','brutal','theft','ghost'].filter(k=>active.includes(k));
+    const order=['shower','hunt','brutal','theft','ghost'].filter(k=>active.includes(k));
     const idx=order.indexOf(kind);
     if(idx<0)return defaultY;
     if(order.length===2)return [H*.34,H*.57][idx]||defaultY;
     if(order.length===3)return [H*.28,H*.48,H*.68][idx]||defaultY;
-    return [H*.23,H*.39,H*.55,H*.71][idx]||defaultY;
+    if(order.length===4)return [H*.23,H*.39,H*.55,H*.71][idx]||defaultY;
+    return [H*.18,H*.32,H*.46,H*.60,H*.74][idx]||defaultY;
   }
 
   function drawPenaltyAnnouncement(now){
@@ -2846,7 +2848,12 @@
     const settle=1+Math.sin(Math.min(1,age/520)*Math.PI)*.10;
     const scale=(.62+.38*introEase)*settle;
     const color=playerColors[Math.max(0,Math.min(3,Number(weaponTheftIndex)||0))]||'#fff';
-    const y=centerNoticeY('theft',now,H*.52)-Math.min(18,age*.012);
+    // V19.58: si coincide con LLUVIA DE METEORITOS, el aviso privado
+    // de robo ocupa una ranura inmediatamente inferior y nunca pisa el titulo.
+    // centerNoticeY sigue resolviendo coincidencias con BRUTAL/A POR/FANTASMA.
+    const showerActive=!!(state&&Number(state.shower)>0);
+    const theftBaseY=showerActive?285:H*.52;
+    const y=centerNoticeY('theft',now,theftBaseY)-Math.min(18,age*.012);
     ctx.save();
     try{
       ctx.translate(W/2,y);
