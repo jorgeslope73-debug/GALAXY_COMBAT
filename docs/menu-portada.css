@@ -1956,10 +1956,10 @@ html:not(.handheld-device) #menu.join-browser-open > #buildVersion{
 }
 
 
-/* V19.39 - PC: subir ligeramente PARTIDA PRIVADA sin mover los titulos */
+/* V19.45 - PC: ajustar hueco entre PUBLICAS y PRIVADA a 4px */
 @media (min-width:901px){
   html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-card{
-    gap:6px;
+    gap:4px;
   }
 }
 
