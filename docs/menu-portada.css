@@ -1868,3 +1868,27 @@ html.handheld-device #menu.join-browser-open #publicRoomsDialog{
   backdrop-filter:blur(6px)!important;
   -webkit-backdrop-filter:blur(6px)!important;
 }
+
+
+/* V19.36 - PC: restaurar privada y hacer crecer SOLO partidas publicas hacia arriba */
+@media (min-width:901px) and (min-height:650px){
+  html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-card{
+    height:min(760px,94vh);
+    max-height:94vh;
+    grid-template-rows:minmax(0,1fr) auto;
+    transform:translateY(-46px);
+    overflow:visible;
+  }
+}
+@media (min-width:901px) and (min-height:900px){
+  html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-card{
+    transform:translateY(-96px);
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-top{
+    --public-room-grow:clamp(0px,calc((100vh - 988px) / 2),180px);
+    height:calc(100% + var(--public-room-grow));
+    transform:translateY(calc(-1 * var(--public-room-grow)));
+    position:relative;
+    z-index:1;
+  }
+}
