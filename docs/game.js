@@ -106,6 +106,11 @@
   // V19.28: el titulo BRUTAL se prerenderiza. El shadowBlur grande era caro
   // si se recalculaba en cada frame y podia producir tirones en PC.
   let brutalTitleCache=null,brutalTitleCacheText='',brutalTitleCacheMobile=null;
+  // V19.56: cuenta atras online prerenderizada. PREPARADOS sirve de colchon
+  // para estabilizar WebRTC/recursos; al aparecer VAMOS arrancan fisica y controles.
+  const ONLINE_READY_MS=2000,ONLINE_GO_MS=900;
+  let onlineStartAt=0,onlineGoAt=0,onlineStartEndAt=0,onlineStartTimer=null,onlineStartRankRound=1;
+  let onlineReadyRedCache=null,onlineReadyOrangeCache=null,onlineGoCache=null;
   let weaponTheftFxStart=0,weaponTheftFxUntil=0,weaponTheftIndex=-1;
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[];
   let pendingVictoryIndex=null,victoryShowTimer=null;
@@ -430,7 +435,8 @@
     const fontPromise=(document.fonts&&typeof document.fonts.load==='function')
       ?Promise.allSettled([
         document.fonts.load('20px Flashback'),
-        document.fonts.load('64px Flashback')
+        document.fonts.load('64px Flashback'),
+        document.fonts.load('180px Flashback')
       ])
       :Promise.resolve();
     gameAssetsPromise=Promise.allSettled([...Object.values(imageDecodePromises),fontPromise]).then(()=>{
@@ -438,6 +444,7 @@
       // no durante los primeros frames de la partida.
       updateCanvasResolution();
       warmRendererCaches();
+      warmOnlineStartCaches(true);
       gameAssetsReady=true;
       return true;
     });
@@ -1371,7 +1378,7 @@
     return true;
   }
   function pumpControls(now){
-    if(!inGame)return;
+    if(!inGame||onlinePreparing(now))return;
     const left=keys.has('KeyA')||keys.has('ArrowLeft');
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
@@ -1819,7 +1826,7 @@
       playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
     }
-    else if(m.t==='start'){lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;netStartAt=performance.now();lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers,m.rankRound);beginGame();playSound('start');}
+    else if(m.t==='start'){lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});beginOnlineStartCountdown(m.rankRound);}
     else if(m.t==='state'){
       // V19.55 OPT1: el DataChannel P2P es no ordenado para reducir latencia.
       // Nunca dejamos que un snapshot antiguo vuelva a mover la escena atras.
@@ -1915,12 +1922,12 @@
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
-    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){resetOnlineStartCountdown();if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function beginGame(preparingOnline=false){stopMusic();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
   function queueVictory(i){
     pendingVictoryIndex=Number(i);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;
@@ -2050,6 +2057,7 @@
     send({t:'start'});
   });
   function returnToMainMenu(notifyServer=true){
+    resetOnlineStartCountdown();
     if(!sharedRoomCode)sharedRoomJoinStarted=false;
     invisibleHudUntil.fill(0);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
@@ -2656,6 +2664,98 @@
     }
   }
 
+  function buildOnlineStartTitleCache(text,fill,glow,fontSize,lineWidth){
+    const cache=document.createElement('canvas');
+    cache.width=1400;cache.height=420;
+    const c=cache.getContext('2d');
+    if(!c)return null;
+    c.clearRect(0,0,cache.width,cache.height);
+    c.textAlign='center';c.textBaseline='middle';
+    c.font=fontSize+'px Flashback,Arial,sans-serif';
+    c.lineWidth=lineWidth;
+    c.strokeStyle='rgba(0,0,0,.9)';
+    c.shadowColor=glow;c.shadowBlur=58;
+    c.fillStyle=fill;
+    c.strokeText(text,cache.width/2,cache.height/2);
+    c.fillText(text,cache.width/2,cache.height/2);
+    return cache;
+  }
+  function warmOnlineStartCaches(force=false){
+    if(force){onlineReadyRedCache=null;onlineReadyOrangeCache=null;onlineGoCache=null;}
+    if(!onlineReadyRedCache)onlineReadyRedCache=buildOnlineStartTitleCache('PREPARADOS','#ff2b24','rgba(255,35,20,.98)',126,14);
+    if(!onlineReadyOrangeCache)onlineReadyOrangeCache=buildOnlineStartTitleCache('PREPARADOS','#ff8a20','rgba(255,115,20,.98)',126,14);
+    if(!onlineGoCache)onlineGoCache=buildOnlineStartTitleCache('VAMOS!!!','#54ff63','rgba(55,255,95,.98)',178,16);
+    return !!(onlineReadyRedCache&&onlineReadyOrangeCache&&onlineGoCache);
+  }
+  function resetOnlineStartCountdown(){
+    if(onlineStartTimer){clearTimeout(onlineStartTimer);onlineStartTimer=null;}
+    onlineStartAt=0;onlineGoAt=0;onlineStartEndAt=0;onlineStartRankRound=1;
+  }
+  function onlinePreparing(now=performance.now()){return onlineGoAt>0&&now<onlineGoAt;}
+  function activateGameUi(){
+    topbar.classList.remove('hidden');
+    if(isMobile){
+      mobileControls.classList.remove('hidden');
+      if(mobileExit)mobileExit.classList.remove('hidden');
+    }
+  }
+  function launchOnlineAfterReady(){
+    onlineStartTimer=null;
+    if(!inGame||roomCode==='LOCAL'||!onlineGoAt)return;
+    activateGameUi();
+    if(isHost&&!hostPhysics)startHostPhysics(lobbyPlayers,onlineStartRankRound);
+    playSound('start');
+  }
+  function beginOnlineStartCountdown(rankRound=1){
+    resetOnlineStartCountdown();
+    const now=performance.now();
+    onlineStartAt=now;onlineGoAt=now+ONLINE_READY_MS;onlineStartEndAt=onlineGoAt+ONLINE_GO_MS;
+    onlineStartRankRound=Math.max(1,Number(rankRound)||1);
+    netStartAt=onlineGoAt;
+    prepareGameAssets().then(()=>warmOnlineStartCaches(true)).catch(()=>{});
+    warmOnlineStartCaches();
+    beginGame(true);
+    onlineStartTimer=setTimeout(launchOnlineAfterReady,ONLINE_READY_MS);
+  }
+  function drawOnlineStartAnnouncement(now){
+    if(!onlineStartAt||now<onlineStartAt||now>=onlineStartEndAt)return;
+    warmOnlineStartCaches();
+    const age=now-onlineStartAt;
+    ctx.save();
+    try{
+      ctx.translate(W/2,H*.48);
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      if(age<ONLINE_READY_MS){
+        const t=clamp(age/ONLINE_READY_MS,0,1);
+        const intro=clamp(age/240,0,1);
+        const ease=1-Math.pow(1-intro,3);
+        const pulse=1+Math.sin(age*.012)*.022;
+        const scale=(.58+.42*ease)*pulse;
+        const fadeIn=clamp(age/140,0,1);
+        ctx.scale(scale,scale);
+        if(onlineReadyRedCache){
+          ctx.globalAlpha=fadeIn*(1-t*.92);
+          ctx.drawImage(onlineReadyRedCache,-onlineReadyRedCache.width/2,-onlineReadyRedCache.height/2);
+        }
+        if(onlineReadyOrangeCache){
+          ctx.globalAlpha=fadeIn*t;
+          ctx.drawImage(onlineReadyOrangeCache,-onlineReadyOrangeCache.width/2,-onlineReadyOrangeCache.height/2);
+        }
+      }else{
+        const goAge=age-ONLINE_READY_MS;
+        const intro=clamp(goAge/180,0,1);
+        const ease=1-Math.pow(1-intro,3);
+        const remaining=ONLINE_GO_MS-goAge;
+        const fadeOut=clamp(remaining/220,0,1);
+        const kick=1+Math.sin(Math.min(1,goAge/360)*Math.PI)*.13;
+        const scale=(.34+.66*ease)*kick;
+        ctx.scale(scale,scale);
+        ctx.globalAlpha=Math.min(1,clamp(goAge/90,0,1),fadeOut);
+        if(onlineGoCache)ctx.drawImage(onlineGoCache,-onlineGoCache.width/2,-onlineGoCache.height/2);
+      }
+    }finally{ctx.restore();}
+  }
+
   function getBrutalTitleCache(){
     const text=tr('brutal');
     if(brutalTitleCache&&brutalTitleCacheText===text&&brutalTitleCacheMobile===isMobile)return brutalTitleCache;
@@ -3050,7 +3150,7 @@
     if(!useStaticPcBackground&&!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){
       ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);
     }
-    if(!state)return;
+    if(!state){drawOnlineStartAnnouncement(now);return;}
 
     const nowSec=now/1000;
     const blend=interpolationAlpha(now);
@@ -3146,6 +3246,7 @@
       ctx.fillText(tr('meteorShower'),W/2,185);
       ctx.restore();
     }
+    drawOnlineStartAnnouncement(now);
     if(perfStats){
       const r=perfStats.report;
       ctx.save();
