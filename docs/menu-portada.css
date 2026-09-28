@@ -1987,3 +1987,12 @@ html.handheld-device #menu.join-browser-open > .menu-top-tools{
   z-index:120!important;
   pointer-events:none!important;
 }
+
+
+/* V19.46 - PC: subir todo el bloque UNIRSE exactamente 2px */
+@media (min-width:901px){
+  html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-card{
+    top:-2px;
+    position:relative;
+  }
+}
