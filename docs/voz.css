@@ -56,7 +56,7 @@
     /* V19.29: micro pegado a la esquina inferior derecha,
        fuera del HUD amarillo y respetando solo la zona segura. */
     left:auto;
-    right:max(4px,calc(env(safe-area-inset-right) + 4px));
+    right:max(20px,calc(env(safe-area-inset-right) + 20px));
     transform:none;
     bottom:max(4px,calc(env(safe-area-inset-bottom) + 4px));
     width:46px;height:46px;min-width:46px;min-height:46px;
@@ -68,7 +68,7 @@
 @media (orientation:landscape) and (max-height:520px){
   #mobileControls.button-mode:not(.keyboard-mode) ~ .voice-ptt{
     left:auto;
-    right:max(3px,calc(env(safe-area-inset-right) + 3px));
+    right:max(19px,calc(env(safe-area-inset-right) + 19px));
     bottom:max(3px,calc(env(safe-area-inset-bottom) + 3px));
     width:42px;height:42px;min-width:42px;min-height:42px;
   }
