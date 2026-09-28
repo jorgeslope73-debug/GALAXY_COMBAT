@@ -1909,3 +1909,48 @@ html:not(.handheld-device) #menu.join-browser-open > #buildVersion{
   opacity:1!important;
   z-index:2147483647!important;
 }
+
+
+/* V19.38 - PC: compactar las pastillas de partidas publicas para mostrar mas */
+@media (min-width:901px){
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-rooms-list{
+    gap:5px;
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-room-row-detailed{
+    gap:5px;
+    padding:7px 10px;
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-room-head{
+    gap:7px;
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-room-status{
+    min-width:76px;
+    padding:3px 7px;
+    font-size:9px;
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-room-players{
+    gap:4px;
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-room-player{
+    min-height:26px;
+    gap:5px;
+    padding:3px 6px 3px 8px;
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-room-player-name{
+    font-size:10px;
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-room-cpu-join{
+    min-width:58px!important;
+    height:22px!important;
+    min-height:22px!important;
+    padding:3px 6px!important;
+    font-size:8px!important;
+  }
+  html:not(.handheld-device) #menu #publicRoomsDialog .public-room-join{
+    min-width:102px!important;
+    height:34px!important;
+    min-height:34px!important;
+    padding:5px 10px!important;
+    font-size:12px!important;
+  }
+}
