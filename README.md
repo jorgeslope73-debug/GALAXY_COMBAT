@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.50**
+**Versión actual: V19.46**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -119,15 +119,3 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 
 - PC V19.46: se desplaza todo el bloque UNIRSE 2 px hacia arriba. No cambian tamaños, huecos internos ni móvil.
-
-
-- Móvil V19.47: al abrir UNIRSE / PARTIDAS PUBLICAS, la ventana queda por encima de todo el menú principal con fondo opaco. INICIO, RANKING, MANUAL, REGISTRO/CUENTA, idioma y versión quedan completamente ocultos mientras la ventana está abierta. PC no cambia.
-
-
-- Móvil V19.48: al abrir UNIRSE / PARTIDAS PUBLICAS, todo el menú principal permanece visible detrás pero desenfocado, incluidos INICIO, RANKING, MANUAL, REGISTRO/CUENTA, idioma y versión. Esos controles quedan por debajo de la ventana y sin interacción mientras UNIRSE está abierto. PC no cambia.
-
-
-- Móvil V19.49: se fuerza RANKING, MANUAL, COMPARTIR JUEGO, INICIO, REGISTRO/CUENTA, idioma y versión a una capa inferior y con desenfoque directo mientras UNIRSE está abierto. PARTIDAS PUBLICAS queda en la capa máxima. PC no cambia.
-
-
-- Móvil V19.50: corrección estructural de UNIRSE. Al abrir PARTIDAS PUBLICAS en móvil, el modal se mueve fuera de launch-console (que crea un stacking context por transform) y pasa a la raíz del menú. Se usa la clase real submenu-open. RANKING, MANUAL, COMPARTIR JUEGO, INICIO, REGISTRO/CUENTA, idioma y versión quedan realmente detrás del modal y bajo el mismo desenfoque que CONTRA LA MAQUINA / ONLINE. PC no cambia.
