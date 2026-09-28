@@ -265,7 +265,11 @@
   let resizeRaf=0;
   function scheduleCanvasResolution(){
     if(resizeRaf)return;
-    resizeRaf=requestAnimationFrame(()=>{resizeRaf=0;updateCanvasResolution();});
+    resizeRaf=requestAnimationFrame(()=>{
+      resizeRaf=0;
+      updateCanvasResolution();
+      invalidateMobileVoiceGeometry();
+    });
   }
   const motionStatus=document.getElementById('motionStatus');
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
@@ -273,6 +277,23 @@
   const mobileControlMotionBtn=document.getElementById('mobileControlMotion'),mobileControlButtonsBtn=document.getElementById('mobileControlButtons');
   const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone');
   const voicePttEl=document.getElementById('voicePtt');
+  // V19.55: cache de geometria del micro movil. Evita consultar el layout DOM
+  // dos veces por frame durante toda la partida.
+  let mobileVoiceGeometry=null;
+  function invalidateMobileVoiceGeometry(){mobileVoiceGeometry=null;}
+  function readMobileVoiceGeometry(){
+    if(mobileVoiceGeometry)return mobileVoiceGeometry;
+    if(!voicePttEl||voicePttEl.classList.contains('hidden'))return null;
+    const pr=voicePttEl.getBoundingClientRect();
+    const cr=canvas.getBoundingClientRect();
+    if(!(pr.width>0&&pr.height>0&&cr.width>0&&cr.height>0))return null;
+    mobileVoiceGeometry={
+      x:((pr.left+pr.width*.5-cr.left)/cr.width)*W,
+      y:((pr.top+pr.height*.5-cr.top)/cr.height)*H,
+      radius:(pr.width/cr.width)*W*.5
+    };
+    return mobileVoiceGeometry;
+  }
   // V19.20: en movil solo existe el control por botones/tacto.
   // Se elimina la seleccion y no se solicita permiso de giroscopio.
   const mobileControlMode='buttons';
@@ -692,6 +713,7 @@
       motionTurn=0;
     }
     updateMobileControlUi();
+    invalidateMobileVoiceGeometry();
   }
   function updateMobileButtonTurn(now=performance.now()){
     const nextTarget=(mobileLeftPointers.size?1:0)-(mobileRightPointers.size?1:0);
@@ -2926,17 +2948,13 @@
     if(!isMobile||!inGame||!voice||voice.cpuMode)return;
     let x=W/2,y=H-96,radius=38;
     const buttonMode=mobileControlMode==='buttons'&&!mobileKeyboardActive;
-    // La zona tactil del micro se mueve con CSS. Su tamaño real se convierte a
-    // coordenadas logicas para que el circulo visible coincida exactamente con
-    // el tamaño de las flechas (76 px; 68 px en pantallas horizontales bajas).
-    if(voicePttEl&&!voicePttEl.classList.contains('hidden')){
-      const pr=voicePttEl.getBoundingClientRect();
-      const cr=canvas.getBoundingClientRect();
-      if(pr.width>0&&pr.height>0&&cr.width>0&&cr.height>0){
-        x=((pr.left+pr.width*.5-cr.left)/cr.width)*W;
-        y=((pr.top+pr.height*.5-cr.top)/cr.height)*H;
-        if(buttonMode)radius=(pr.width/cr.width)*W*.5;
-      }
+    // La geometria del PTT se lee del DOM solo cuando cambia el layout.
+    // El render reutiliza estos valores y no fuerza mediciones cada frame.
+    const voiceGeometry=readMobileVoiceGeometry();
+    if(voiceGeometry){
+      x=voiceGeometry.x;
+      y=voiceGeometry.y;
+      if(buttonMode)radius=voiceGeometry.radius;
     }
     const talking=!!voice.talking;
     const enabled=!!voice.enabled;
