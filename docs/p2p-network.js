@@ -8,7 +8,8 @@
       this.onEvent=onEvent||(()=>{});
       this.onPeerState=onPeerState||(()=>{});
       this.myIndex=null;this.isHost=false;this.players=[];this.peers=new Map();
-      this.pendingStateRaw=null;this.stateRaf=0;
+      this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;this.stateRaf=0;
+      this.lastStateRound=-1;this.lastStateSeq=-1;
       this.pendingBroadcastState=null;this.broadcastTimer=0;
       this.iceServers=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
     }
@@ -62,15 +63,51 @@
       pc.ondatachannel=e=>this.bindChannel(peerIndex,e.channel);
       return rec;
     }
+    stateOrderFromRaw(raw){
+      if(typeof raw!=='string')return {round:-1,seq:-1};
+      const readInt=key=>{
+        const marker='\"'+key+'\":';
+        const at=raw.indexOf(marker);
+        if(at<0)return -1;
+        let i=at+marker.length,n=0,found=false;
+        while(i<raw.length){
+          const c=raw.charCodeAt(i);
+          if(c<48||c>57)break;
+          found=true;n=n*10+(c-48);i++;
+        }
+        return found?n:-1;
+      };
+      return {round:readInt('round'),seq:readInt('seq')};
+    }
+    isNewerState(round,seq,baseRound,baseSeq){
+      if(round<0||seq<0||baseRound<0||baseSeq<0)return true;
+      return round>baseRound||(round===baseRound&&seq>baseSeq);
+    }
     flushPendingState(){
       const raw=this.pendingStateRaw;
       if(!raw)return false;
-      this.pendingStateRaw=null;
+      const queuedRound=this.pendingStateRound,queuedSeq=this.pendingStateSeq;
+      this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;
       let m;try{m=JSON.parse(raw);}catch(_){return false;}
-      if(!this.isHost&&m&&m.t==='state'){this.onState(m.state);return true;}
+      if(!this.isHost&&m&&m.t==='state'){
+        const state=m.state||{};
+        const round=Number.isInteger(Number(state.round))?Number(state.round):queuedRound;
+        const seq=Number.isInteger(Number(state.seq))?Number(state.seq):queuedSeq;
+        if(!this.isNewerState(round,seq,this.lastStateRound,this.lastStateSeq))return false;
+        if(round>=0&&seq>=0){this.lastStateRound=round;this.lastStateSeq=seq;}
+        this.onState(state);return true;
+      }
       return false;
     }
     queueState(raw){
+      const order=this.stateOrderFromRaw(raw);
+      if(order.round>=0&&order.seq>=0){
+        if(!this.isNewerState(order.round,order.seq,this.lastStateRound,this.lastStateSeq))return;
+        if(this.pendingStateRaw&&!this.isNewerState(order.round,order.seq,this.pendingStateRound,this.pendingStateSeq))return;
+        this.pendingStateRound=order.round;this.pendingStateSeq=order.seq;
+      }else{
+        this.pendingStateRound=-1;this.pendingStateSeq=-1;
+      }
       this.pendingStateRaw=raw;
       if(this.stateRaf)return;
       this.stateRaf=requestAnimationFrame(()=>{
@@ -197,7 +234,8 @@
     close(){
       if(this.stateRaf){cancelAnimationFrame(this.stateRaf);this.stateRaf=0;}
       if(this.broadcastTimer){clearTimeout(this.broadcastTimer);this.broadcastTimer=0;}
-      this.pendingStateRaw=null;this.pendingBroadcastState=null;
+      this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;
+      this.lastStateRound=-1;this.lastStateSeq=-1;this.pendingBroadcastState=null;
       for(const rec of this.peers.values()){
         try{rec.dc&&rec.dc.close();}catch(_){}
         try{rec.pc.close();}catch(_){}

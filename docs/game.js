@@ -38,6 +38,7 @@
   const playerRgb=[[90,225,255],[255,80,165],[90,255,120],[255,220,70]];
   const images={},sounds={};
   let state=null,previousState=null,myIndex=null,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
+  let lastAcceptedStateRound=-1,lastAcceptedStateSeq=-1;
   const RESUME_STORAGE_KEY='galaxyCombatResumeV1';
   const ROOM_CLIENT_ID_KEY='galaxyRoomClientIdV1';
   const TEST_ROOM_PERMIT_STORAGE='galaxyTestRoomPermitV1';
@@ -1818,8 +1819,20 @@
       playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
     }
-    else if(m.t==='start'){netStartAt=performance.now();lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers,m.rankRound);beginGame();playSound('start');}
+    else if(m.t==='start'){lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;netStartAt=performance.now();lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});if(isHost)startHostPhysics(lobbyPlayers,m.rankRound);beginGame();playSound('start');}
     else if(m.t==='state'){
+      // V19.55 OPT1: el DataChannel P2P es no ordenado para reducir latencia.
+      // Nunca dejamos que un snapshot antiguo vuelva a mover la escena atras.
+      // round permite que seq se reinicie de forma segura entre rondas.
+      const incomingRound=Number(m.round),incomingSeq=Number(m.seq);
+      if(Number.isInteger(incomingRound)&&Number.isInteger(incomingSeq)){
+        const stale=lastAcceptedStateRound>=0&&(
+          incomingRound<lastAcceptedStateRound||
+          (incomingRound===lastAcceptedStateRound&&incomingSeq<=lastAcceptedStateSeq)
+        );
+        if(stale)return;
+        lastAcceptedStateRound=incomingRound;lastAcceptedStateSeq=incomingSeq;
+      }
       const now=performance.now();
       if(impactFX)impactFX.consume(m,myIndex,now);
       updateLeaderAnnouncement(m,now);
@@ -2049,7 +2062,7 @@
     stopResumeWindow();clearResumeSession();playerToken='';
     inGame=false;setMobileKeyboardActive(false);state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
-    roomCode='';myIndex=null;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
+    roomCode='';myIndex=null;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
     mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');resetMobileTouchControls();
     roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(1);
