@@ -1675,3 +1675,152 @@ html.handheld-device #menu .cpu-setup-dialog:not(.hidden){display:flex}
   #menu #publicRoomsDialog .private-code-row input,
   #menu #publicRoomsDialog #joinByCodeDialog{min-height:34px!important;height:34px!important}
 }
+
+
+/* V19.31 - navegador UNIRSE: paneles separados y privado compacto */
+#menu #publicRoomsDialog .room-browser-card{
+  width:min(720px,96vw);
+  height:min(760px,94vh);
+  max-height:94vh;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) auto;
+  gap:14px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  overflow:hidden;
+}
+#menu #publicRoomsDialog .room-browser-top,
+#menu #publicRoomsDialog .room-browser-bottom{
+  min-height:0;
+  box-sizing:border-box;
+  border:1px solid rgba(195,132,244,.42);
+  border-radius:12px;
+  background:linear-gradient(155deg,rgba(27,10,45,.92),rgba(8,4,20,.90));
+  box-shadow:0 12px 34px rgba(0,0,0,.38),0 0 20px rgba(151,76,255,.10);
+}
+#menu #publicRoomsDialog .room-browser-top{
+  padding:16px 22px 18px;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  border-bottom:1px solid rgba(195,132,244,.42);
+}
+#menu #publicRoomsDialog .room-browser-bottom{
+  padding:14px 22px 12px;
+  border-top:1px solid rgba(195,132,244,.42);
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+}
+#menu #publicRoomsDialog #publicRoomsTitle,
+#menu #publicRoomsDialog .private-code-title{
+  display:table;
+  width:auto;
+  min-width:250px;
+  max-width:100%;
+  box-sizing:border-box;
+  margin:0 auto 12px;
+  padding:7px 16px 6px;
+  border:1px solid rgba(198,145,239,.38);
+  border-radius:999px;
+  background:rgba(24,10,40,.76);
+  color:#f2e5ff;
+  text-align:center;
+  font:400 20px/1.25 Flashback,Arial,sans-serif;
+  letter-spacing:.08em;
+  box-shadow:0 4px 14px rgba(0,0,0,.24),0 0 10px rgba(151,76,255,.12);
+}
+#menu #publicRoomsDialog .private-code-block{
+  width:100%;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+#menu #publicRoomsDialog .private-code-row{
+  width:min(100%,390px);
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 104px;
+  align-items:center;
+  gap:9px;
+}
+#menu #publicRoomsDialog .private-code-row input{
+  width:100%!important;
+  min-width:0;
+  box-sizing:border-box;
+  text-transform:uppercase;
+  text-align:center;
+  letter-spacing:.12em;
+  font-family:Flashback,Arial,sans-serif;
+}
+#menu #publicRoomsDialog #joinByCodeDialog{
+  width:104px!important;
+  min-width:104px!important;
+  height:38px!important;
+  min-height:38px!important;
+  margin:0!important;
+  padding:6px 10px!important;
+  font:400 13px/1 Flashback,Arial,sans-serif!important;
+  letter-spacing:.05em!important;
+}
+#menu #publicRoomsDialog .room-browser-bottom .room-dialog-close{
+  margin-top:10px!important;
+}
+@media (max-width:560px){
+  #menu #publicRoomsDialog .room-browser-card{
+    width:min(96vw,620px);
+    height:min(760px,94vh);
+    gap:10px;
+  }
+  #menu #publicRoomsDialog .room-browser-top{padding:12px 14px 14px}
+  #menu #publicRoomsDialog .room-browser-bottom{padding:11px 14px 10px}
+  #menu #publicRoomsDialog #publicRoomsTitle,
+  #menu #publicRoomsDialog .private-code-title{
+    min-width:0;
+    width:min(100%,290px);
+    font-size:17px;
+    margin-bottom:9px;
+  }
+  #menu #publicRoomsDialog .private-code-row{
+    width:min(100%,360px);
+    grid-template-columns:minmax(0,1fr) 94px;
+    gap:7px;
+  }
+  #menu #publicRoomsDialog #joinByCodeDialog{
+    width:94px!important;
+    min-width:94px!important;
+  }
+}
+@media (max-height:520px) and (orientation:landscape){
+  #menu #publicRoomsDialog .room-browser-card{
+    width:min(760px,96vw);
+    height:96vh;
+    max-height:96vh;
+    gap:7px;
+  }
+  #menu #publicRoomsDialog .room-browser-top{padding:7px 12px 8px}
+  #menu #publicRoomsDialog .room-browser-bottom{padding:7px 12px 6px}
+  #menu #publicRoomsDialog #publicRoomsTitle,
+  #menu #publicRoomsDialog .private-code-title{
+    width:auto;
+    min-width:220px;
+    margin-bottom:5px;
+    padding:4px 10px 3px;
+    font-size:14px;
+  }
+  #menu #publicRoomsDialog .private-code-row{width:min(100%,360px);gap:6px}
+  #menu #publicRoomsDialog .private-code-row input,
+  #menu #publicRoomsDialog #joinByCodeDialog{
+    height:32px!important;
+    min-height:32px!important;
+  }
+  #menu #publicRoomsDialog .room-browser-bottom .room-dialog-close{
+    height:30px!important;
+    min-height:30px!important;
+    margin-top:5px!important;
+  }
+}
