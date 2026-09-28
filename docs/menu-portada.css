@@ -2025,3 +2025,27 @@ html.handheld-device #menu.join-browser-open #publicRoomsDialog{
   -webkit-backdrop-filter:blur(9px)!important;
   pointer-events:auto!important;
 }
+
+
+/* V19.49 - movil: pastillas superiores realmente detras y desenfocadas */
+html.handheld-device #menu.join-browser-open > .menu-left-tools,
+html.handheld-device #menu.join-browser-open > .menu-top-tools,
+html.handheld-device #menu.join-browser-open > #buildVersion{
+  z-index:1!important;
+  filter:blur(9px)!important;
+  -webkit-filter:blur(9px)!important;
+  opacity:.45!important;
+  pointer-events:none!important;
+}
+
+html.handheld-device #menu.join-browser-open .menu-scene{
+  position:relative!important;
+  z-index:1000!important;
+}
+
+html.handheld-device #menu.join-browser-open #publicRoomsDialog{
+  z-index:2147483647!important;
+  background:rgba(2,0,8,.58)!important;
+  backdrop-filter:blur(9px)!important;
+  -webkit-backdrop-filter:blur(9px)!important;
+}
