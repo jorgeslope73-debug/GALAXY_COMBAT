@@ -1526,6 +1526,12 @@
   }
   function showPublicRoomsDialog(){
     if(joinCodeDialog&&!sharedRoomCode)joinCodeDialog.value='';
+    // V19.50: en movil sacamos UNIRSE del launch-console transformado.
+    // Asi el modal comparte la capa raiz del menu y puede quedar realmente
+    // por encima de RANKING / MANUAL / INICIO / CUENTA / IDIOMA.
+    if(isMobile&&menu&&publicRoomsDialog&&publicRoomsDialog.parentElement!==menu){
+      menu.appendChild(publicRoomsDialog);
+    }
     if(menu)menu.classList.add('submenu-open');
     if(publicRoomsDialog)publicRoomsDialog.classList.remove('hidden');
     renderPublicRooms();send({t:'public-rooms'});
