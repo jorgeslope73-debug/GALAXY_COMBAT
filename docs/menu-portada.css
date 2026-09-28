@@ -2049,3 +2049,32 @@ html.handheld-device #menu.join-browser-open #publicRoomsDialog{
   backdrop-filter:blur(9px)!important;
   -webkit-backdrop-filter:blur(9px)!important;
 }
+
+
+/* V19.50 - movil: UNIRSE sale de launch-console y domina la capa raiz del menu */
+html.handheld-device #menu.submenu-open > .menu-left-tools,
+html.handheld-device #menu.submenu-open > .menu-top-tools,
+html.handheld-device #menu.submenu-open > #buildVersion{
+  z-index:100!important;
+  pointer-events:none!important;
+}
+
+html.handheld-device #menu.submenu-open > #publicRoomsDialog{
+  position:fixed!important;
+  inset:0!important;
+  z-index:2147483647!important;
+  background:rgba(2,0,8,.58)!important;
+  backdrop-filter:blur(9px)!important;
+  -webkit-backdrop-filter:blur(9px)!important;
+  pointer-events:auto!important;
+}
+
+/* Al estar el modal en la raiz, las pastillas superiores quedan detras
+   exactamente igual que el resto del menu principal. */
+html.handheld-device #menu.submenu-open > .menu-left-tools,
+html.handheld-device #menu.submenu-open > .menu-top-tools,
+html.handheld-device #menu.submenu-open > #buildVersion{
+  filter:none!important;
+  -webkit-filter:none!important;
+  opacity:1!important;
+}
