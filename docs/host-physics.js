@@ -10,6 +10,7 @@
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
     [1500,150,160,2],[500,430,160,5],[1300,430,200,6]
   ];
+  const ASTEROID_MAX_ACTIVE=5;
   let nextEntityId=1;
   const uid=()=>nextEntityId++;
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -136,7 +137,7 @@
       this.giant=null;
       this.asteroids=[];
       this.nextPickup=1;
-      this.firstShower=rand(120,180);
+      this.firstShower=rand(150,210);
       this.showerLeft=0;
       this.nextMeteor=0;
       this.nextShower=0;
@@ -149,10 +150,106 @@
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
     resetAsteroids(){
-      this.asteroids=ASTEROID_STARTS.map(([x,y,rot,type])=>{
-        const d=dirFromRot(rot);
-        return{id:uid(),x,y,rot,type,vx:d.x*80,vy:d.y*80,r:ASTEROID_RADIUS};
+      // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
+      this.asteroids=[];
+      this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1),true);
+      this.nextAsteroidIndex=1;
+      this.nextAsteroidSpawn=rand(18,24);
+      this.asteroidRampComplete=false;
+      this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+      this.nextAsteroidPopulationChange=999999;
+    }
+    spawnAsteroidFromEdge(templateIndex,fullyRandom=false){
+      const idx=clamp(Math.round(Number(templateIndex)||0),0,ASTEROID_STARTS.length-1);
+      let [targetX,targetY,rot,type]=ASTEROID_STARTS[idx];
+      const edge=ASTEROID_RADIUS*2;
+      let start;
+      if(fullyRandom){
+        targetX=rand(W*.18,W*.82);
+        targetY=rand(H*.18,H*.82);
+        const side=randint(0,3);
+        if(side===0)start={x:-edge,y:rand(60,H-60)};
+        else if(side===1)start={x:W+edge,y:rand(60,H-60)};
+        else if(side===2)start={x:rand(60,W-60),y:-edge};
+        else start={x:rand(60,W-60),y:H+edge};
+        rot=rand(0,360);
+      }else{
+        const choices=[
+          {d:targetX,x:-edge,y:clamp(targetY+rand(-110,110),70,H-70)},
+          {d:W-targetX,x:W+edge,y:clamp(targetY+rand(-110,110),70,H-70)},
+          {d:targetY,x:clamp(targetX+rand(-150,150),70,W-70),y:-edge},
+          {d:H-targetY,x:clamp(targetX+rand(-150,150),70,W-70),y:H+edge}
+        ];
+        choices.sort((a,b)=>a.d-b.d);
+        start=choices[0];
+      }
+      const n=normalize(targetX-start.x,targetY-start.y);
+      this.asteroids.push({
+        id:uid(),x:start.x,y:start.y,rot,type,
+        vx:n.x*80,vy:n.y*80,r:ASTEROID_RADIUS,exiting:false,exitDelay:-1
       });
+    }
+    spawnProgressiveAsteroid(){
+      if(this.asteroids.length>=ASTEROID_MAX_ACTIVE)return;
+      this.spawnAsteroidFromEdge(this.nextAsteroidIndex);
+      this.nextAsteroidIndex++;
+      if(this.asteroids.length>=ASTEROID_MAX_ACTIVE){
+        this.asteroidRampComplete=true;
+        this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+        this.nextAsteroidSpawn=999999;
+        this.nextAsteroidPopulationChange=rand(22,48);
+      }else{
+        this.nextAsteroidSpawn=rand(18,24);
+      }
+    }
+    beginAsteroidExit(a){
+      if(!a||a.exiting)return;
+      const edge=ASTEROID_RADIUS*3;
+      const targets=[
+        {x:-edge,y:rand(50,H-50)},{x:W+edge,y:rand(50,H-50)},
+        {x:rand(50,W-50),y:-edge},{x:rand(50,W-50),y:H+edge}
+      ];
+      const target=targets[randint(0,targets.length-1)];
+      const n=normalize(target.x-a.x,target.y-a.y);
+      a.exiting=true;a.exitDelay=-1;a.vx=n.x*90;a.vy=n.y*90;
+    }
+    chooseAsteroidPopulation(){
+      const current=this.asteroids.length;
+      let target=randint(1,ASTEROID_MAX_ACTIVE);
+      if(target===current)target=target===ASTEROID_MAX_ACTIVE?randint(1,ASTEROID_MAX_ACTIVE-1):target+1;
+      this.asteroidTargetCount=target;
+      this.nextAsteroidPopulationChange=rand(22,48);
+      if(target<current){
+        const pool=this.asteroids.slice();
+        for(let i=pool.length-1;i>0;i--){
+          const j=randint(0,i),tmp=pool[i];pool[i]=pool[j];pool[j]=tmp;
+        }
+        const leaving=current-target;
+        for(let i=0;i<leaving;i++)pool[i].exitDelay=rand(i*2.2,i*2.2+5.5);
+        this.nextAsteroidSpawn=999999;
+      }else{
+        this.nextAsteroidSpawn=rand(4,12);
+      }
+    }
+    updateAsteroidPopulation(){
+      if(!this.asteroidRampComplete){
+        this.nextAsteroidSpawn-=DT;
+        if(this.nextAsteroidSpawn<=0)this.spawnProgressiveAsteroid();
+        return;
+      }
+      const transitioning=this.asteroids.some(a=>a.exiting||a.exitDelay>=0);
+      if(!transitioning&&this.asteroids.length<this.asteroidTargetCount){
+        this.nextAsteroidSpawn-=DT;
+        if(this.nextAsteroidSpawn<=0){
+          this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1));
+          this.nextAsteroidSpawn=this.asteroids.length<this.asteroidTargetCount?rand(4,12):999999;
+        }
+        return;
+      }
+      if(!transitioning&&this.asteroids.length===this.asteroidTargetCount){
+        this.nextAsteroidPopulationChange-=DT;
+        if(this.nextAsteroidPopulationChange<=0)this.chooseAsteroidPopulation();
+      }
     }
     makePlayer(index,name,cpu){
       return{
@@ -172,7 +269,7 @@
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
-      this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.rankReportSent=false;this.rankReportAttempts=0;
       this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
@@ -294,7 +391,7 @@
       this.started=false;this.finished=false;this.winner=null;this.seq=0;this.rankReportSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
-      this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
@@ -610,8 +707,18 @@
     }
     bulletSpeed(p){return p.cadence>=30?500:p.cadence>=20?750:p.cadence>=10?900:1000;}
     updateAsteroids(){
-      for(const a of this.asteroids){
+      this.updateAsteroidPopulation();
+      for(let i=this.asteroids.length-1;i>=0;i--){
+        const a=this.asteroids[i];
+        if(a.exitDelay>=0){
+          a.exitDelay-=DT;
+          if(a.exitDelay<=0)this.beginAsteroidExit(a);
+        }
         a.px=a.x;a.py=a.y;a.x+=a.vx*DT;a.y+=a.vy*DT;
+        if(a.exiting){
+          if(a.x<-220||a.x>W+220||a.y<-220||a.y>H+220)this.asteroids.splice(i,1);
+          continue;
+        }
         if(a.x<-190&&a.vx<0)a.vx*=-1;else if(a.x>W+190&&a.vx>0)a.vx*=-1;
         if(a.y<-190&&a.vy<0)a.vy*=-1;else if(a.y>H+190&&a.vy>0)a.vy*=-1;
       }
@@ -746,7 +853,7 @@
           this.meteors.push({id:uid(),type:randint(1,3),x:left?-40:W+40,y:rand(40,H-40),vx,vy,angle:rand(0,360)});
           this.nextMeteor+=rand(.28,.42);
         }
-        if(this.showerLeft<=0)this.nextShower=rand(120,180);
+        if(this.showerLeft<=0)this.nextShower=rand(140,200);
       }
     }
     updateMeteors(dt){
