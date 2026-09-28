@@ -1824,3 +1824,16 @@ html.handheld-device #menu .cpu-setup-dialog:not(.hidden){display:flex}
     margin-top:5px!important;
   }
 }
+
+
+/* V19.32 - UNIRSE en movil: oculta la interfaz principal que queda detras */
+html.handheld-device #menu.join-browser-open > #buildVersion,
+html.handheld-device #menu.join-browser-open > .menu-left-tools,
+html.handheld-device #menu.join-browser-open > .menu-top-tools{
+  display:none!important;
+}
+html.handheld-device #menu.join-browser-open #publicRoomsDialog{
+  background:#05010b!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
