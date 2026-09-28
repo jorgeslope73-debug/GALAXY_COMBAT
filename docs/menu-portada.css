@@ -1964,11 +1964,11 @@ html:not(.handheld-device) #menu.join-browser-open > #buildVersion{
 }
 
 
-/* V19.43 - PC: subir PARTIDA PRIVADA un poco mas (50% total) */
+/* V19.44 - PC: subir claramente PARTIDA PRIVADA dentro de UNIRSE */
 @media (min-width:901px){
   html:not(.handheld-device) #menu #publicRoomsDialog .room-browser-bottom{
-    margin-top:clamp(24px,3vh,32px);
-    transform:translateY(-50%);
+    margin-top:0;
+    transform:translateY(-90px);
   }
 }
 
