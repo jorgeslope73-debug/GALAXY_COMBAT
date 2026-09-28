@@ -1971,3 +1971,19 @@ html:not(.handheld-device) #menu.join-browser-open > #buildVersion{
     transform:translateY(-40%);
   }
 }
+
+
+/* V19.42 - movil: UNIRSE por encima de TODO el menu principal */
+html.handheld-device #menu.join-browser-open .menu-scene{
+  position:relative;
+  z-index:200!important;
+}
+html.handheld-device #menu.join-browser-open #publicRoomsDialog{
+  z-index:2147483646!important;
+}
+html.handheld-device #menu.join-browser-open > #buildVersion,
+html.handheld-device #menu.join-browser-open > .menu-left-tools,
+html.handheld-device #menu.join-browser-open > .menu-top-tools{
+  z-index:120!important;
+  pointer-events:none!important;
+}
