@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: galaxy-combat-p2p-signaling
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
