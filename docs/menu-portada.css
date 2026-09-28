@@ -1605,3 +1605,73 @@ html.handheld-device #menu .cpu-setup-dialog:not(.hidden){display:flex}
   #menu #publicRoomsDialog .public-room-players{grid-template-columns:1fr}
   #menu #publicRoomsDialog .public-room-status{min-width:72px;font-size:9px}
 }
+
+
+/* V19.30 - separacion clara entre partidas publicas y partida privada con codigo */
+#menu #publicRoomsDialog .room-browser-top{
+  border-bottom:2px solid rgba(198,145,239,.42);
+  background:linear-gradient(180deg,rgba(31,12,50,.34),rgba(17,7,29,.18));
+}
+#menu #publicRoomsDialog .room-browser-bottom{
+  border-top:2px solid rgba(198,145,239,.30);
+  background:linear-gradient(180deg,rgba(10,5,18,.84),rgba(6,3,12,.76));
+  padding-top:18px;
+}
+#menu #publicRoomsDialog #publicRoomsTitle{
+  width:min(100%,300px);
+  box-sizing:border-box;
+  text-align:center;
+}
+#menu #publicRoomsDialog .private-code-block{
+  width:min(100%,360px);
+  box-sizing:border-box;
+  align-self:center;
+  margin:0 auto;
+  padding:16px 18px 18px;
+  border:1px solid rgba(198,145,239,.42);
+  border-radius:12px;
+  background:rgba(24,10,40,.58);
+  box-shadow:0 8px 24px rgba(0,0,0,.24),0 0 14px rgba(151,76,255,.10);
+}
+#menu #publicRoomsDialog .private-code-title{
+  display:block;
+  width:min(100%,300px);
+  box-sizing:border-box;
+  margin:0 auto 14px;
+  padding:7px 12px 6px;
+  border:1px solid rgba(198,145,239,.38);
+  border-radius:999px;
+  background:rgba(24,10,40,.82);
+  color:#f2e5ff;
+  text-align:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.22),0 0 10px rgba(151,76,255,.10);
+}
+#menu #publicRoomsDialog .private-code-row{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:9px;
+  width:100%;
+}
+#menu #publicRoomsDialog .private-code-row input,
+#menu #publicRoomsDialog #joinByCodeDialog{
+  width:min(100%,300px)!important;
+  box-sizing:border-box;
+}
+#menu #publicRoomsDialog #joinByCodeDialog{
+  margin:0 auto!important;
+}
+@media (max-width:560px){
+  #menu #publicRoomsDialog .private-code-block{
+    width:100%;
+    padding:13px 12px 14px;
+  }
+}
+@media (max-height:520px) and (orientation:landscape){
+  #menu #publicRoomsDialog .room-browser-bottom{padding-top:7px}
+  #menu #publicRoomsDialog .private-code-block{padding:8px 10px 9px}
+  #menu #publicRoomsDialog .private-code-title{margin-bottom:6px;padding:5px 9px 4px;font-size:10px}
+  #menu #publicRoomsDialog .private-code-row{gap:5px}
+  #menu #publicRoomsDialog .private-code-row input,
+  #menu #publicRoomsDialog #joinByCodeDialog{min-height:34px!important;height:34px!important}
+}
