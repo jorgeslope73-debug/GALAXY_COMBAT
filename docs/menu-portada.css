@@ -1848,3 +1848,23 @@ html.handheld-device #menu.join-browser-open #publicRoomsDialog{
     transform:none;
   }
 }
+
+
+/* V19.35 - movil: las pastillas del menu quedan detras de UNIRSE */
+html.handheld-device #menu.join-browser-open > #buildVersion,
+html.handheld-device #menu.join-browser-open > .menu-left-tools,
+html.handheld-device #menu.join-browser-open > .menu-top-tools{
+  display:flex!important;
+  z-index:120!important;
+  pointer-events:none!important;
+  opacity:.45;
+}
+html.handheld-device #menu.join-browser-open > #buildVersion{
+  display:block!important;
+}
+html.handheld-device #menu.join-browser-open #publicRoomsDialog{
+  z-index:240!important;
+  background:rgba(2,0,8,.72)!important;
+  backdrop-filter:blur(6px)!important;
+  -webkit-backdrop-filter:blur(6px)!important;
+}
