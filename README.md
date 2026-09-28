@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.50**
+**Versión actual: V19.54**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -131,3 +131,15 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 
 - Móvil V19.50: corrección estructural de UNIRSE. Al abrir PARTIDAS PUBLICAS en móvil, el modal se mueve fuera de launch-console (que crea un stacking context por transform) y pasa a la raíz del menú. Se usa la clase real submenu-open. RANKING, MANUAL, COMPARTIR JUEGO, INICIO, REGISTRO/CUENTA, idioma y versión quedan realmente detrás del modal y bajo el mismo desenfoque que CONTRA LA MAQUINA / ONLINE. PC no cambia.
+
+
+- Jugabilidad V19.51: inicio más progresivo. La partida comienza con 1 de los 6 asteroides medianos actuales; los otros 5 entran desde fuera de pantalla, uno cada 18-24 s aproximadamente, hasta recuperar el máximo actual. La primera lluvia de meteoritos pequeños se retrasa de 120-180 s a 150-210 s y las siguientes pasan a 140-200 s. Se aplica tanto a CPU/local como a partidas online P2P.
+
+
+- Móvil V19.52: el botón MICRO/PTT se desplaza 16 px hacia la izquierda respecto a su posición anterior junto al borde derecho. El icono visible y su zona táctil se mueven juntos. PC no cambia.
+
+
+- Jugabilidad V19.53: los asteroides medianos tienen un máximo de 5. El inicio mantiene la entrada progresiva desde 1 hasta 5; después la población cambia aleatoriamente entre 1 y 5. Cuando toca bajar, varios asteroides salen de pantalla de forma escalonada y no se reponen inmediatamente; cuando toca subir, nuevas unidades entran desde bordes aleatorios con pausas de 4-12 s. Cada nuevo objetivo de población se decide tras periodos aleatorios de 22-48 s. Se aplica a CPU/local y online P2P.
+
+
+- Jugabilidad V19.54: el primer asteroide mediano ya no aparece en un punto fijo. Entra desde fuera de pantalla por uno de los cuatro bordes elegido al azar, con punto de entrada, objetivo interior, tipo y trayectoria variables. Se aplica igual a CPU/local y online P2P.
