@@ -136,7 +136,7 @@
       this.giant=null;
       this.asteroids=[];
       this.nextPickup=1;
-      this.firstShower=rand(120,180);
+      this.firstShower=rand(150,210);
       this.showerLeft=0;
       this.nextMeteor=0;
       this.nextShower=0;
@@ -149,10 +149,31 @@
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
     resetAsteroids(){
-      this.asteroids=ASTEROID_STARTS.map(([x,y,rot,type])=>{
-        const d=dirFromRot(rot);
-        return{id:uid(),x,y,rot,type,vx:d.x*80,vy:d.y*80,r:ASTEROID_RADIUS};
+      // V19.51: la partida empieza con un solo asteroide mediano.
+      // Los otros cinco entran progresivamente desde fuera de pantalla.
+      const [x,y,rot,type]=ASTEROID_STARTS[0],d=dirFromRot(rot);
+      this.asteroids=[{id:uid(),x,y,rot,type,vx:d.x*80,vy:d.y*80,r:ASTEROID_RADIUS}];
+      this.nextAsteroidIndex=1;
+      this.nextAsteroidSpawn=rand(18,24);
+    }
+    spawnProgressiveAsteroid(){
+      if(this.nextAsteroidIndex>=ASTEROID_STARTS.length)return;
+      const [targetX,targetY,rot,type]=ASTEROID_STARTS[this.nextAsteroidIndex];
+      const edge=ASTEROID_RADIUS*2;
+      const choices=[
+        {d:targetX,x:-edge,y:clamp(targetY+rand(-90,90),70,H-70)},
+        {d:W-targetX,x:W+edge,y:clamp(targetY+rand(-90,90),70,H-70)},
+        {d:targetY,x:clamp(targetX+rand(-120,120),70,W-70),y:-edge},
+        {d:H-targetY,x:clamp(targetX+rand(-120,120),70,W-70),y:H+edge}
+      ];
+      choices.sort((a,b)=>a.d-b.d);
+      const start=choices[0],n=normalize(targetX-start.x,targetY-start.y);
+      this.asteroids.push({
+        id:uid(),x:start.x,y:start.y,rot,type,
+        vx:n.x*80,vy:n.y*80,r:ASTEROID_RADIUS
       });
+      this.nextAsteroidIndex++;
+      this.nextAsteroidSpawn=this.nextAsteroidIndex<ASTEROID_STARTS.length?rand(18,24):999999;
     }
     makePlayer(index,name,cpu){
       return{
@@ -172,7 +193,7 @@
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
-      this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.rankReportSent=false;this.rankReportAttempts=0;
       this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
@@ -294,7 +315,7 @@
       this.started=false;this.finished=false;this.winner=null;this.seq=0;this.rankReportSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.pickups=[];this.meteors=[];this.giant=null;
-      this.nextPickup=1;this.firstShower=rand(120,180);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
@@ -610,6 +631,10 @@
     }
     bulletSpeed(p){return p.cadence>=30?500:p.cadence>=20?750:p.cadence>=10?900:1000;}
     updateAsteroids(){
+      if(this.nextAsteroidIndex<ASTEROID_STARTS.length){
+        this.nextAsteroidSpawn-=DT;
+        if(this.nextAsteroidSpawn<=0)this.spawnProgressiveAsteroid();
+      }
       for(const a of this.asteroids){
         a.px=a.x;a.py=a.y;a.x+=a.vx*DT;a.y+=a.vy*DT;
         if(a.x<-190&&a.vx<0)a.vx*=-1;else if(a.x>W+190&&a.vx>0)a.vx*=-1;
@@ -746,7 +771,7 @@
           this.meteors.push({id:uid(),type:randint(1,3),x:left?-40:W+40,y:rand(40,H-40),vx,vy,angle:rand(0,360)});
           this.nextMeteor+=rand(.28,.42);
         }
-        if(this.showerLeft<=0)this.nextShower=rand(120,180);
+        if(this.showerLeft<=0)this.nextShower=rand(140,200);
       }
     }
     updateMeteors(dt){
