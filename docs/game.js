@@ -2701,9 +2701,11 @@
   }
   function launchOnlineAfterReady(){
     onlineStartTimer=null;
-    if(!inGame||roomCode==='LOCAL'||!onlineGoAt)return;
+    if(!inGame||!onlineGoAt)return;
+    // V19.57: VAMOS es tambien la salida real en CPU local. Hasta este
+    // instante ni la IA ni la fisica local han avanzado un solo tick.
     activateGameUi();
-    if(isHost&&!hostPhysics)startHostPhysics(lobbyPlayers,onlineStartRankRound);
+    if(roomCode!=='LOCAL'&&isHost&&!hostPhysics)startHostPhysics(lobbyPlayers,onlineStartRankRound);
     playSound('start');
   }
   function beginOnlineStartCountdown(rankRound=1){
@@ -2711,7 +2713,7 @@
     const now=performance.now();
     onlineStartAt=now;onlineGoAt=now+ONLINE_READY_MS;onlineStartEndAt=onlineGoAt+ONLINE_GO_MS;
     onlineStartRankRound=Math.max(1,Number(rankRound)||1);
-    netStartAt=onlineGoAt;
+    netStartAt=roomCode==='LOCAL'?0:onlineGoAt;
     prepareGameAssets().then(()=>warmOnlineStartCaches(true)).catch(()=>{});
     warmOnlineStartCaches();
     beginGame(true);
@@ -3104,7 +3106,7 @@
     sampleDisplayRefresh(now);
     flushPendingState(false,now);
     pumpControls(now);
-    if(localCpuActive&&localCpu)localCpu.advance(now);
+    if(localCpuActive&&localCpu&&!onlinePreparing(now))localCpu.advance(now);
     if(hostPhysics&&isHost)hostPhysics.advance(now);
     // Fisica y controles siguen ejecutandose en todos los RAF. Solo el pintado
     // usa un divisor entero para conservar un frame pacing regular.
