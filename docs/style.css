@@ -244,7 +244,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     align-items:center;
     justify-content:center;
     gap:8px;
-    pointer-events:none;
+    pointer-events:auto;
   }
   #mobileControls.button-mode .mobile-turn-button{
     position:relative;
@@ -266,7 +266,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
     touch-action:none!important;
     -webkit-user-select:none!important;
     user-select:none!important;
-    pointer-events:none!important;
+    pointer-events:auto!important;
   }
   #mobileControls.button-mode .mobile-turn-button::before{
     content:"";

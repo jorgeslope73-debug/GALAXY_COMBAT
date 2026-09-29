@@ -930,14 +930,29 @@
     // En iPhone/iPad los gestos tactiles usan Touch Events nativos. Safari
     // puede perder pointerup/pointercancel durante un gesto y dejar thrust=true.
     if(isIOS&&e.pointerType==='touch')return;
+
+    // V19.69: respaldo de giro para toda la mitad izquierda. Si por capas,
+    // safe-area o el propio boton el evento no llega a #mobileTurnPad, la
+    // coordenada horizontal sigue mandando: cuarto izq.=izquierda, siguiente=der.
+    if(beginMobileTurnGesture(e.pointerId,e.clientX)){
+      try{e.target.setPointerCapture&&e.target.setPointerCapture(e.pointerId);}catch(_){}
+      e.preventDefault();
+      return;
+    }
+
     if(!beginMobileActionGesture(e.pointerId,e.target))return;
     try{e.target.setPointerCapture&&e.target.setPointerCapture(e.pointerId);}catch(_){}
     e.preventDefault();
   }
+  function mobilePointerMove(e){
+    if(isIOS&&e.pointerType==='touch')return;
+    if(moveMobileTurnGesture(e.pointerId,e.clientX)&&e.cancelable)e.preventDefault();
+  }
   function mobilePointerEnd(e){
     if(isIOS&&e.pointerType==='touch')return;
-    const handled=endMobileActionGesture(e.pointerId,e.type==='pointerup');
-    if((handled||inGame)&&e.cancelable)e.preventDefault();
+    const turned=endMobileTurnGesture(e.pointerId);
+    const acted=endMobileActionGesture(e.pointerId,e.type==='pointerup');
+    if((turned||acted||inGame)&&e.cancelable)e.preventDefault();
   }
   function mobileTouchTargetIsUi(target){
     // V19.26: las flechas de giro son botones HTML, pero forman parte del
@@ -2015,6 +2030,7 @@
   if(isMobile){
     const appEl=document.getElementById('app');
     appEl.addEventListener('pointerdown',mobilePointerDown,{passive:false});
+    appEl.addEventListener('pointermove',mobilePointerMove,{passive:false});
     appEl.addEventListener('pointerup',mobilePointerEnd,{passive:false});
     appEl.addEventListener('pointercancel',mobilePointerEnd,{passive:false});
     appEl.addEventListener('lostpointercapture',mobilePointerEnd,{passive:false});
