@@ -809,14 +809,14 @@
       }
       return true;
     }
-    incomingGuidedMissile(index,radius=FLARE_DECOY_TRIGGER){
-      const p=this.players.find(x=>x.index===Number(index)&&!x.dead);
-      if(!p)return false;
-      const r2=radius*radius;
+    incomingGuidedMissile(index){
+      const targetIndex=Number(index);
       for(const b of this.bullets){
-        if(!b.guided||b.decoyed||Number(b.target)!==Number(index))continue;
-        const dx=b.x-p.x,dy=b.y-p.y;
-        if(dx*dx+dy*dy<=r2)return true;
+        // V19.65: la CPU reacciona en cuanto OTRO jugador lanza un misil
+        // teledirigido cuyo objetivo es ella. No espera a que entre en un radio.
+        if(!b.guided||b.decoyed||Number(b.target)!==targetIndex)continue;
+        if(Number(b.owner)===targetIndex)continue;
+        return true;
       }
       return false;
     }
@@ -1314,16 +1314,15 @@
           if(!aim&&!b.decoyed&&Number.isInteger(b.target)){
             const target=this.players.find(p=>p.index===b.target&&!p.dead);
             if(target){
-              const dx=target.x-b.x,dy=target.y-b.y,distance=Math.hypot(dx,dy);
-              if(distance<=FLARE_DECOY_TRIGGER){
-                let decoy=null,best=Infinity;
-                for(const f of this.flares){
-                  if(Number(f.owner)!==Number(target.index))continue;
-                  const d2=dist2(b,f);
-                  if(d2<best){best=d2;decoy=f;}
-                }
-                if(decoy){b.flareTarget=decoy.id;b.decoyed=true;aim=decoy;}
+              // V19.65: una bengala desplegada atrae inmediatamente al misil
+              // que iba dirigido a su propietario, aunque el misil aun este lejos.
+              let decoy=null,best=Infinity;
+              for(const f of this.flares){
+                if(Number(f.owner)!==Number(target.index))continue;
+                const d2=dist2(b,f);
+                if(d2<best){best=d2;decoy=f;}
               }
+              if(decoy){b.flareTarget=decoy.id;b.decoyed=true;aim=decoy;}
               if(!aim)aim=target;
             }
           }
