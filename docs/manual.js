@@ -252,35 +252,35 @@
       pc:'PC: A / D o flechas izquierda / derecha para girar; W o flecha arriba para acelerar. CTRL o ESPACIO: toque breve = disparo normal; mantenlo pulsado unas decimas (aprox. 0,22 s) = lanzar las bengalas equipadas. Las bengalas pueden lanzarse aunque tengas 0 balas o el arma no este cargada. ESC sale de la partida.',
       mobile:'Movil: juega en horizontal y usa solo los botones tactiles. Las flechas de la mitad izquierda giran la nave. En la mitad derecha: toque rapido = disparo normal; dos toques rapidos seguidos (aprox. dentro de 0,35 s) = lanzar bengalas; mantener pulsado = acelerar. Las bengalas no necesitan bala cargada.',
       tip:'En movil no hay control por inclinacion: el giro se hace exclusivamente con los botones/flechas de la izquierda.',
-      flare:['flare','BENGALAS','Cada carga despliega tres bengalas durante 3 s. Desvian misiles, bloquean balas, pueden romper escudos o destruir naves al chocar y tambien destruyen meteoritos pequenos de la tormenta. PC: mantén disparo; movil: doble toque rapido. No necesitan municion ni arma cargada.'],
+      flare:['flare','BENGALAS','Cada carga despliega tres bengalas durante 3 s. Entre un lanzamiento y el siguiente deben pasar al menos 3 s, aunque lleves varias cargas. Desvian misiles, bloquean balas, pueden romper escudos o destruir naves al chocar y tambien destruyen meteoritos pequenos de la tormenta. PC: mantén disparo; movil: doble toque rapido. No necesitan municion ni arma cargada.'],
       hazard:'Las bengalas desplegadas tambien destruyen los meteoritos pequenos de la tormenta: el impacto consume la bengala y el meteorito.'
     },
     en: {
       pc:'PC: A / D or Left / Right arrows to turn; W or Up arrow to accelerate. CTRL or SPACE: quick tap = normal shot; hold for about 0.22 s = deploy equipped flares. Flares can be deployed with 0 ammo or while the weapon is not loaded. ESC leaves the match.',
       mobile:'Mobile: play in landscape and use touch buttons only. The arrows on the left half turn the ship. On the right half: quick tap = normal shot; two quick taps in a row (about 0.35 s) = deploy flares; hold = accelerate. Flares do not require a loaded round.',
       tip:'On mobile there is no tilt control: turning is done only with the left-side arrow buttons.',
-      flare:['flare','FLARES','Each charge deploys three flares for 3 s. They divert guided missiles, block bullets, can break shields or destroy ships on contact, and also destroy small storm meteors. PC: hold fire; mobile: quick double tap. No ammo or loaded weapon is required.'],
+      flare:['flare','FLARES','Each charge deploys three flares for 3 s. At least 3 s must pass before the same ship can deploy another charge, even if several are stored. They divert guided missiles, block bullets, can break shields or destroy ships on contact, and also destroy small storm meteors. PC: hold fire; mobile: quick double tap. No ammo or loaded weapon is required.'],
       hazard:'Deployed flares also destroy the small meteors from meteor showers: the collision consumes both the flare and the meteor.'
     },
     it: {
       pc:'PC: A / D o frecce sinistra / destra per girare; W o freccia su per accelerare. CTRL o SPAZIO: tocco breve = sparo normale; tieni premuto per circa 0,22 s = lancia le bengala equipaggiate. Le bengala funzionano anche con 0 munizioni o arma non carica. ESC esce dalla partita.',
       mobile:'Mobile: gioca in orizzontale e usa solo i pulsanti touch. Le frecce nella meta sinistra fanno girare la nave. Nella meta destra: tocco rapido = sparo normale; due tocchi rapidi consecutivi (entro circa 0,35 s) = bengala; tieni premuto = accelera. Le bengala non richiedono un colpo carico.',
       tip:'Su mobile non c e controllo tramite inclinazione: la rotazione usa esclusivamente i pulsanti/frecce a sinistra.',
-      flare:['flare','BENGALA','Ogni carica dispiega tre bengala per 3 s. Deviano i missili guidati, bloccano i proiettili, possono rompere gli scudi o distruggere navi al contatto e distruggono anche i piccoli meteoriti della pioggia. PC: tieni premuto il fuoco; mobile: doppio tocco rapido. Non servono munizioni ne arma carica.'],
+      flare:['flare','BENGALA','Ogni carica dispiega tre bengala per 3 s. Tra un lancio e il successivo devono passare almeno 3 s, anche con piu cariche disponibili. Deviano i missili guidati, bloccano i proiettili, possono rompere gli scudi o distruggere navi al contatto e distruggono anche i piccoli meteoriti della pioggia. PC: tieni premuto il fuoco; mobile: doppio tocco rapido. Non servono munizioni ne arma carica.'],
       hazard:'Le bengala dispiegate distruggono anche i piccoli meteoriti della pioggia: l impatto consuma sia la bengala sia il meteorite.'
     },
     fr: {
       pc:'PC : A / D ou fleches gauche / droite pour tourner; W ou fleche haut pour accelerer. CTRL ou ESPACE : appui bref = tir normal; maintenir environ 0,22 s = deployer les leurres equipes. Les leurres fonctionnent meme avec 0 munition ou une arme non chargee. ESC quitte la partie.',
       mobile:'Mobile : joue en paysage et utilise uniquement les boutons tactiles. Les fleches de la moitie gauche font tourner le vaisseau. A droite : touche rapide = tir normal; deux touches rapides successives (environ 0,35 s) = deployer les leurres; maintenir = accelerer. Les leurres ne demandent pas de munition chargee.',
       tip:'Sur mobile il n y a plus de controle par inclinaison : la rotation se fait uniquement avec les boutons/fleches de gauche.',
-      flare:['flare','LEURRES','Chaque charge deploie trois leurres pendant 3 s. Ils detournent les missiles guides, bloquent les tirs, peuvent briser les boucliers ou detruire un vaisseau au contact et detruisent aussi les petites meteorites de la pluie. PC : maintenir le tir; mobile : double touche rapide. Aucune munition chargee n est necessaire.'],
+      flare:['flare','LEURRES','Chaque charge deploie trois leurres pendant 3 s. Il faut attendre au moins 3 s avant de deployer une autre charge avec le meme vaisseau, meme si plusieurs charges sont disponibles. Ils detournent les missiles guides, bloquent les tirs, peuvent briser les boucliers ou detruire un vaisseau au contact et detruisent aussi les petites meteorites de la pluie. PC : maintenir le tir; mobile : double touche rapide. Aucune munition chargee n est necessaire.'],
       hazard:'Les leurres deployes detruisent aussi les petites meteorites de la pluie : la collision consomme le leurre et la meteorite.'
     },
     de: {
       pc:'PC: A / D oder Pfeil links / rechts zum Drehen; W oder Pfeil hoch zum Beschleunigen. CTRL oder LEERTASTE: kurz tippen = normal feuern; etwa 0,22 s halten = ausgeruestete Flares ausstossen. Flares funktionieren auch mit 0 Munition oder ungeladener Waffe. ESC verlaesst das Spiel.',
       mobile:'Mobil: im Querformat spielen und nur die Touch-Tasten verwenden. Die Pfeile auf der linken Haelfte drehen das Schiff. Rechts: kurz tippen = normal feuern; zweimal schnell hintereinander tippen (ca. innerhalb 0,35 s) = Flares; halten = beschleunigen. Flares brauchen keine geladene Munition.',
       tip:'Mobil gibt es keine Neigungssteuerung mehr: gedreht wird ausschliesslich mit den linken Pfeiltasten.',
-      flare:['flare','FLARES','Jede Ladung setzt drei Flares fuer 3 s aus. Sie lenken Lenkraketen ab, blockieren Schuesse, koennen Schilde brechen oder Schiffe bei Kontakt zerstoeren und zerstoeren auch kleine Meteore des Schauers. PC: Feuer halten; mobil: schneller Doppeltipp. Keine Munition oder geladene Waffe erforderlich.'],
+      flare:['flare','FLARES','Jede Ladung setzt drei Flares fuer 3 s aus. Vor der naechsten Ladung desselben Schiffs muessen mindestens 3 s vergehen, auch wenn mehrere Ladungen vorhanden sind. Sie lenken Lenkraketen ab, blockieren Schuesse, koennen Schilde brechen oder Schiffe bei Kontakt zerstoeren und zerstoeren auch kleine Meteore des Schauers. PC: Feuer halten; mobil: schneller Doppeltipp. Keine Munition oder geladene Waffe erforderlich.'],
       hazard:'Ausgesetzte Flares zerstoeren auch die kleinen Meteore des Schauers: bei der Kollision werden Flare und Meteor verbraucht.'
     }
   };

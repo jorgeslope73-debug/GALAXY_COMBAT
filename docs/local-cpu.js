@@ -687,7 +687,7 @@
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty,
         tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random(),
-        resourceTargetId:null,meteorDecision:null,flareDecision:null,nextFlareDecision:0,
+        resourceTargetId:null,meteorDecision:null,flareDecision:null,nextFlareDecision:0,nextFlareAllowed:0,
         easyNextDecision:0,easyControl:null
       };
     }
@@ -845,7 +845,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
         if(p.cpu){
           p.easyNextDecision=0;p.easyControl=null;
           p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
@@ -953,6 +953,10 @@
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
+      // V19.72: cada nave debe esperar al menos 3 segundos entre dos
+      // lanzamientos de bengalas, aunque tenga varias cargas acumuladas.
+      if(this.fxClock<(Number(p.nextFlareAllowed)||0))return false;
+      p.nextFlareAllowed=this.fxClock+3;
       p.flare=Math.max(0,(Number(p.flare)||0)-1);
       const spreads=[-24,0,24];
       for(const spread of spreads){

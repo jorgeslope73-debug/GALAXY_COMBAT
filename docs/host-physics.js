@@ -260,7 +260,7 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,
-        guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,nextFlareDecision:0,
+        guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,nextFlareDecision:0,nextFlareAllowed:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty
       };
@@ -342,7 +342,7 @@
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false});
           if(wasCpu&&!isCpu){
             this.bullets=this.bullets.filter(b=>b.owner!==index);
-            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;
+            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.nextFlareAllowed=0;
             p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.dead=false;p.respawn=0;
             p.vx=0;p.vy=0;p.lastSpawn=null;this.placeAtSpawn(p);
           }
@@ -400,7 +400,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.nextFlareAllowed=0;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
@@ -533,6 +533,10 @@
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
+      // V19.72: cooldown real por nave. Ningun control ni IA puede saltarse
+      // los 3 segundos minimos entre dos cargas de bengalas.
+      if(this.fxClock<(Number(p.nextFlareAllowed)||0))return false;
+      p.nextFlareAllowed=this.fxClock+3;
       p.flare=Math.max(0,(Number(p.flare)||0)-1);
       const spreads=[-24,0,24];
       for(const spread of spreads){
