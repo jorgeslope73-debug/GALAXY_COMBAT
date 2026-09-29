@@ -310,6 +310,7 @@
     es: {
       noticeLabel: 'IMPORTANTE',
       controlsNotice: 'IMPORTANTE: si no aceleras, la nave no avanza. El movimiento tiene inercia y deslizamiento, asi que debes ir corrigiendo la trayectoria girando la nave mientras te desplazas.',
+      onlineNotice: 'PUEDES EMPEZAR A JUGAR AUNQUE ESTES SOLO: crea una partida publica, pulsa RELLENAR CON CPU y las plazas libres se completaran con CPU. Cuando entren jugadores reales, iran sustituyendo a las CPU sin reiniciar la partida.',
       hudDiagramTitle: 'LECTURA RAPIDA DEL HUD',
       hudDiagramAlt: 'Detalle del HUD con municion, cadencia, velocidad y bajas.',
       hudDiagramCaption: 'Ejemplo de HUD del jugador con sus indicadores principales.',
@@ -328,6 +329,7 @@
     en: {
       noticeLabel: 'IMPORTANT',
       controlsNotice: 'IMPORTANT: if you do not accelerate, the ship does not move forward. Movement has inertia and sliding, so you must keep correcting your path by turning the ship while drifting.',
+      onlineNotice: 'YOU CAN START PLAYING EVEN IF YOU ARE ALONE: create a public game and press FILL WITH CPU. Empty slots are filled with CPUs, and real players replace them as they join without restarting the match.',
       hudDiagramTitle: 'QUICK HUD GUIDE',
       hudDiagramAlt: 'HUD detail showing ammo, fire rate, speed and kills.',
       hudDiagramCaption: 'Example of the player HUD and its main indicators.',
@@ -346,6 +348,7 @@
     it: {
       noticeLabel: 'IMPORTANTE',
       controlsNotice: 'IMPORTANTE: se non acceleri, la nave non avanza. Il movimento ha inerzia e scivolamento, quindi devi correggere la traiettoria ruotando la nave mentre ti muovi.',
+      onlineNotice: 'PUOI INIZIARE ANCHE SE SEI SOLO: crea una partita pubblica e usa RIEMPI CON CPU. I posti liberi vengono occupati dalle CPU e i giocatori reali le sostituiscono entrando, senza riavviare la partita.',
       hudDiagramTitle: 'GUIDA RAPIDA HUD',
       hudDiagramAlt: 'Dettaglio HUD con munizioni, cadenza, velocita e uccisioni.',
       hudDiagramCaption: 'Esempio di HUD del giocatore con i suoi indicatori principali.',
@@ -364,6 +367,7 @@
     fr: {
       noticeLabel: 'IMPORTANT',
       controlsNotice: 'IMPORTANT : si tu n acceleres pas, le vaisseau n avance pas. Le mouvement a de l inertie et du glissement, donc il faut corriger la trajectoire en faisant tourner le vaisseau pendant le deplacement.',
+      onlineNotice: 'TU PEUX COMMENCER MEME SI TU ES SEUL : cree une partie publique et utilise REMPLIR AVEC CPU. Les places libres sont occupees par des CPU, puis les vrais joueurs les remplacent en rejoignant la partie sans la redemarrer.',
       hudDiagramTitle: 'LECTURE RAPIDE DU HUD',
       hudDiagramAlt: 'Detail du HUD avec munitions, cadence, vitesse et eliminations.',
       hudDiagramCaption: 'Exemple du HUD du joueur avec ses indicateurs principaux.',
@@ -382,6 +386,7 @@
     de: {
       noticeLabel: 'WICHTIG',
       controlsNotice: 'WICHTIG: Wenn du nicht beschleunigst, bewegt sich das Schiff nicht vorwaerts. Die Bewegung hat Traegheit und Gleitverhalten, deshalb musst du die Flugbahn waehrend der Bewegung durch Drehen des Schiffs korrigieren.',
+      onlineNotice: 'DU KANNST AUCH ALLEIN SOFORT STARTEN: Erstelle ein oeffentliches Spiel und waehle MIT CPU AUFFUELLEN. Freie Plaetze werden mit CPUs besetzt und echte Spieler ersetzen sie spaeter, ohne die Partie neu zu starten.',
       hudDiagramTitle: 'HUD SCHNELLERKLARUNG',
       hudDiagramAlt: 'HUD-Detail mit Munition, Feuerrate, Geschwindigkeit und Abschuessen.',
       hudDiagramCaption: 'Beispiel fuer das Spieler-HUD mit den wichtigsten Anzeigen.',
@@ -414,6 +419,11 @@
           controls.controlVisual=guide.visual||null;
           if(Array.isArray(controls.tips)&&controls.tips.length)controls.tips[0]=guide.tip;
         }
+      }
+      const online = pack.sections.find(section => section.id === 'online');
+      if(online&&patch.onlineNotice){
+        online.noticeLabel = patch.noticeLabel || 'IMPORTANT';
+        online.notice = patch.onlineNotice;
       }
       const hud = pack.sections.find(section => section.id === 'hud');
       if(hud){
