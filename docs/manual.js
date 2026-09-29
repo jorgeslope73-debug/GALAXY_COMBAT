@@ -85,6 +85,10 @@
           'Mira tus balas antes de perseguir a un rival.',
           'Con escudo puedes embestir a una nave sin escudo y robarle munición y mejoras.',
           'Si llevas buenas mejoras, a veces conviene esquivar y conservarlas.'
+        ]},
+        {id:'thanks',title:'14. Gracias',body:[
+          'Gracias por interesarte por Galaxy Combat.',
+          'Espero que te diviertas jugando. ¡Nos vemos en combate!'
         ]}
       ]
     },
@@ -126,7 +130,8 @@
         ],tips:['If you switch from Wi-Fi to mobile data, wait a few seconds before leaving: automatic reconnection may restore the match.','On PC, V is push-to-talk; on mobile use the on-screen voice control.']},
         {id:'end',title:'11. Match end and rematch',body:['When someone reaches 5 kills, the victory screen appears. Choose PLAY AGAIN to reset the same room with the same players, or MAIN MENU to leave.','A rematch resets scores, ammo, upgrades, meteors, asteroids and spawn positions so the new round starts cleanly.']},
         {id:'pwa',title:'12. Install as an app',body:['Galaxy Combat is a PWA. On iPhone/iPad open it in Safari, tap Share and choose Add to Home Screen. On Android/Chrome use Install app or Add to Home screen.','Launching from the icon feels more like an app with less browser chrome. The game is designed for landscape orientation.','Core code uses network-first loading to avoid stale versions, while images, sounds and fonts are cached for faster startup.']},
-        {id:'tips',title:'13. Combat tips',body:['Do not always chase in a straight line: use asteroids as cover and vary your path to make shots miss.','Check your ammunition before starting a chase. An unarmed rival is vulnerable, but attacking without resources can expose you to collisions and meteors.','A shield is not only defensive: it can create a ramming opportunity against an unprotected ship.','Speed and fire-rate upgrades are powerful, but dying resets them. Sometimes avoiding a fight is the best way to preserve an advantage.']}
+        {id:'tips',title:'13. Combat tips',body:['Do not always chase in a straight line: use asteroids as cover and vary your path to make shots miss.','Check your ammunition before starting a chase. An unarmed rival is vulnerable, but attacking without resources can expose you to collisions and meteors.','A shield is not only defensive: it can create a ramming opportunity against an unprotected ship.','Speed and fire-rate upgrades are powerful, but dying resets them. Sometimes avoiding a fight is the best way to preserve an advantage.']},
+        {id:'thanks',title:'14. Thanks',body:['Thanks for taking an interest in Galaxy Combat.','I hope you have fun playing. See you in combat!']}
       ]
     },
     it: {
@@ -167,7 +172,8 @@
         ],tips:['Se passi da Wi-Fi a rete mobile, aspetta qualche secondo prima di uscire: la riconnessione automatica può recuperare la partita.','Su PC V è push-to-talk; su mobile usa il controllo vocale sullo schermo.']},
         {id:'end',title:'11. Fine partita e rivincita',body:['Quando qualcuno raggiunge 5 eliminazioni compare la vittoria. Puoi scegliere RIGIOCA per riavviare la stessa stanza o MENU PRINCIPALE per uscire.','La rivincita azzera punteggi, munizioni, potenziamenti, meteore, asteroidi e posizioni.']},
         {id:'pwa',title:'12. Installare come app',body:['Galaxy Combat è una PWA. Su iPhone/iPad apri il gioco in Safari, premi Condividi e scegli Aggiungi alla schermata Home. Su Android/Chrome usa Installa app o Aggiungi a schermata Home.','Dal suo icono si apre con meno interfaccia del browser. Il gioco è pensato per l orientamento orizzontale.','Il codice principale usa priorità alla rete per evitare versioni obsolete, mentre immagini, suoni e font vengono memorizzati in cache.']},
-        {id:'tips',title:'13. Consigli di combattimento',body:['Non inseguire sempre in linea retta: usa gli asteroidi come copertura e varia la traiettoria.','Controlla le munizioni prima di iniziare un inseguimento.','Lo scudo non è solo difensivo: può creare un opportunità di speronata contro una nave senza protezione.','Velocità e cadenza sono potenti, ma la morte le azzera: a volte evitare lo scontro è la scelta migliore.']}
+        {id:'tips',title:'13. Consigli di combattimento',body:['Non inseguire sempre in linea retta: usa gli asteroidi come copertura e varia la traiettoria.','Controlla le munizioni prima di iniziare un inseguimento.','Lo scudo non è solo difensivo: può creare un opportunità di speronata contro una nave senza protezione.','Velocità e cadenza sono potenti, ma la morte le azzera: a volte evitare lo scontro è la scelta migliore.']},
+        {id:'thanks',title:'14. Grazie',body:['Grazie per esserti interessato a Galaxy Combat.','Spero che ti diverta giocando. Ci vediamo in battaglia!']}
       ]
     },
     fr: {
@@ -208,7 +214,8 @@
         ],tips:['Si tu passes du Wi-Fi aux données mobiles, attends quelques secondes avant de quitter.','Sur PC, V est le push-to-talk; sur mobile utilise le contrôle vocal à l écran.']},
         {id:'end',title:'11. Fin de partie et revanche',body:['Quand quelqu un atteint 5 éliminations, l écran de victoire apparaît. Choisis REJOUER pour relancer la même salle ou MENU PRINCIPAL pour quitter.','La revanche réinitialise scores, munitions, améliorations, météorites, astéroïdes et positions.']},
         {id:'pwa',title:'12. Installer comme application',body:['Galaxy Combat est une PWA. Sur iPhone/iPad ouvre le jeu dans Safari, touche Partager puis Sur l écran d accueil. Sur Android/Chrome utilise Installer l application ou Ajouter à l écran d accueil.','Depuis l icône le jeu ressemble davantage à une app et utilise moins d interface navigateur. Le mode paysage est recommandé.','Le code principal privilégie le réseau pour éviter les anciennes versions; images, sons et polices restent en cache pour accélérer le démarrage.']},
-        {id:'tips',title:'13. Conseils de combat',body:['Ne poursuis pas toujours en ligne droite: utilise les astéroïdes comme couverture et varie ta trajectoire.','Vérifie tes munitions avant de poursuivre un rival.','Le bouclier peut aussi servir offensivement pour une collision contre un vaisseau non protégé.','Vitesse et cadence sont puissantes, mais la mort les réinitialise: préserver un avantage peut valoir mieux qu un duel risqué.']}
+        {id:'tips',title:'13. Conseils de combat',body:['Ne poursuis pas toujours en ligne droite: utilise les astéroïdes comme couverture et varie ta trajectoire.','Vérifie tes munitions avant de poursuivre un rival.','Le bouclier peut aussi servir offensivement pour une collision contre un vaisseau non protégé.','Vitesse et cadence sont puissantes, mais la mort les réinitialise: préserver un avantage peut valoir mieux qu un duel risqué.']},
+        {id:'thanks',title:'14. Merci',body:['Merci de t intéresser à Galaxy Combat.','J espère que tu vas bien t amuser. À bientôt au combat !']}
       ]
     },
     de: {
@@ -249,7 +256,8 @@
         ],tips:['Beim Wechsel von WLAN zu mobilen Daten einige Sekunden warten, bevor du das Spiel verlässt.','Auf PC ist V Push-to-talk; mobil nutzt du die Sprechtaste auf dem Bildschirm.']},
         {id:'end',title:'11. Spielende und Revanche',body:['Erreicht jemand 5 Abschüsse, erscheint der Sieg-Bildschirm. Wähle NOCHMAL SPIELEN für dieselbe Runde mit denselben Spielern oder HAUPTMENÜ zum Verlassen.','Die Revanche setzt Punkte, Munition, Verbesserungen, Meteore, Asteroiden und Spawnpositionen zurück.']},
         {id:'pwa',title:'12. Als App installieren',body:['Galaxy Combat ist eine PWA. Auf iPhone/iPad in Safari öffnen, Teilen tippen und Zum Home-Bildschirm wählen. Auf Android/Chrome App installieren oder Zum Startbildschirm hinzufügen verwenden.','Vom Icon gestartet wirkt das Spiel stärker wie eine App und zeigt weniger Browser-Oberfläche. Querformat ist vorgesehen.','Der Hauptcode wird bevorzugt aus dem Netz geladen, um veraltete Versionen zu vermeiden; Bilder, Sounds und Schriften werden für schnelleren Start gecacht.']},
-        {id:'tips',title:'13. Kampftipps',body:['Verfolge Gegner nicht immer geradlinig: nutze Asteroiden als Deckung und variiere deine Flugbahn.','Prüfe deine Munition, bevor du eine Verfolgung startest.','Ein Schild ist nicht nur defensiv: gegen ein ungeschütztes Schiff kann er eine Rammchance eröffnen.','Geschwindigkeit und Feuerrate sind stark, werden beim Tod aber zurückgesetzt. Manchmal ist Ausweichen besser als ein riskanter Kampf.']}
+        {id:'tips',title:'13. Kampftipps',body:['Verfolge Gegner nicht immer geradlinig: nutze Asteroiden als Deckung und variiere deine Flugbahn.','Prüfe deine Munition, bevor du eine Verfolgung startest.','Ein Schild ist nicht nur defensiv: gegen ein ungeschütztes Schiff kann er eine Rammchance eröffnen.','Geschwindigkeit und Feuerrate sind stark, werden beim Tod aber zurückgesetzt. Manchmal ist Ausweichen besser als ein riskanter Kampf.']},
+        {id:'thanks',title:'14. Danke',body:['Danke für dein Interesse an Galaxy Combat.','Ich hoffe, du hast viel Spaß beim Spielen. Wir sehen uns im Kampf!']}
       ]
     }
   };

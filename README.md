@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.82**
+**Versión actual: V19.83**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -200,3 +200,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V19.81: las bengalas chocan con el meteorito gigante. La bengala explota y desaparece, pero el meteorito gigante no recibe dano ni cambia de trayectoria. Los meteoritos pequenos de la lluvia mantienen el comportamiento actual: bengala y meteorito se destruyen mutuamente. Manual actualizado.
 
 - V19.82: manual simplificado. El ESCUDO explica que una embestida que destruye una nave sin escudo roba su munición y mejoras. Asteroides y meteoritos se reduce a esquivar peligros y disparar a los meteoritos pequeños de la lluvia. El detalle del meteorito gigante queda dentro de BENGALAS.
+
+- V19.83: el manual termina con un agradecimiento por interesarse por Galaxy Combat y un mensaje deseando que el jugador se divierta. Añadido en todos los idiomas.
