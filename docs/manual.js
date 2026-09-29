@@ -264,7 +264,7 @@
       mobile:'Movil: horizontal. Flechas de la izquierda para girar. En la derecha: un toque dispara, doble toque lanza bengalas y mantener pulsado acelera.',
       tip:'Controles simples: girar a la izquierda, girar a la derecha, disparar y acelerar.',
       flare:['flare','BENGALAS','Cada carga despliega tres bengalas durante 3 s. Entre un lanzamiento y el siguiente deben pasar al menos 3 s, aunque lleves varias cargas. Desvian misiles, bloquean balas, pueden romper escudos o destruir naves al chocar; si tu bengala destruye a un rival, esa baja se suma a tu marcador. Tambien destruyen meteoritos pequenos de la tormenta. PC: mantén disparo; movil: doble toque rapido. No necesitan municion ni arma cargada.'],
-      hazard:'Las bengalas desplegadas tambien destruyen los meteoritos pequenos de la tormenta: el impacto consume la bengala y el meteorito.'
+      hazard:'Meteorito pequeno: se destruyen los dos. Meteorito gigante: la bengala explota y desaparece, pero el gigante sigue intacto.'
     },
     en: {
       visual:{mobileTitle:'MOBILE · BUTTONS',turn:'respaldo',fire:'FIRE',oneTap:'1 TAP',bullet:'SHOT',doubleTap:'2 TAPS',flares:'FLARES',hold:'HOLD',accelerate:'ACCELERATE',pcTitle:'PC · KEYBOARD',pcTap:'TAP',pcHold:'HOLD',wait:'3 s between flares'},
@@ -272,7 +272,7 @@
       mobile:'Mobile: landscape. Use the left arrows to turn. On the right: tap to fire, double tap for flares, hold to accelerate.',
       tip:'Simple controls: turn left, turn right, fire and accelerate.',
       flare:['flare','FLARES','Each charge deploys three flares for 3 s. At least 3 s must pass before the same ship can deploy another charge, even if several are stored. They divert guided missiles, block bullets, can break shields or destroy ships on contact; if your flare destroys a rival, the kill is added to your score. They also destroy small storm meteors. PC: hold fire; mobile: quick double tap. No ammo or loaded weapon is required.'],
-      hazard:'Deployed flares also destroy the small meteors from meteor showers: the collision consumes both the flare and the meteor.'
+      hazard:'Small meteor: both are destroyed. Giant meteor: the flare explodes and disappears, but the giant meteor is unaffected.'
     },
     it: {
       visual:{mobileTitle:'MOBILE · PULSANTI',turn:'GIRA',fire:'SPARO',oneTap:'1 TOCCO',bullet:'COLPO',doubleTap:'2 TOCCHI RAPIDI',flares:'BENGALA',hold:'TIENI PREMUTO',accelerate:'ACCELERA',pcTitle:'PC · TASTIERA',pcTap:'TOCCO BREVE',pcHold:'TIENI 0,22 s',wait:'3 s tra i lanci'},
@@ -280,7 +280,7 @@
       mobile:'Mobile: gioca in orizzontale e usa solo i pulsanti touch. Le frecce nella meta sinistra fanno girare la nave. Nella meta destra: tocco rapido = sparo normale; due tocchi rapidi consecutivi (entro circa 0,35 s) = bengala; tieni premuto = accelera. Le bengala non richiedono un colpo carico.',
       tip:'Comandi semplici: gira a sinistra, gira a destra, spara e accelera.',
       flare:['flare','BENGALA','Ogni carica dispiega tre bengala per 3 s. Tra un lancio e il successivo devono passare almeno 3 s, anche con piu cariche disponibili. Deviano i missili guidati, bloccano i proiettili, possono rompere gli scudi o distruggere navi al contatto; se una tua bengala distrugge un rivale, l eliminazione viene aggiunta al tuo punteggio. Distruggono anche i piccoli meteoriti della pioggia. PC: tieni premuto il fuoco; mobile: doppio tocco rapido. Non servono munizioni ne arma carica.'],
-      hazard:'Le bengala dispiegate distruggono anche i piccoli meteoriti della pioggia: l impatto consuma sia la bengala sia il meteorite.'
+      hazard:'Meteorite piccolo: si distruggono entrambi. Meteorite gigante: la bengala esplode e scompare, ma il gigante resta intatto.'
     },
     fr: {
       visual:{mobileTitle:'MOBILE · BOUTONS',turn:'TOURNER',fire:'TIR',oneTap:'1 TOUCHE',bullet:'TIR',doubleTap:'2 TOUCHES RAPIDES',flares:'LEURRES',hold:'MAINTENIR',accelerate:'ACCELERER',pcTitle:'PC · CLAVIER',pcTap:'APPUI BREF',pcHold:'MAINTENIR 0,22 s',wait:'3 s entre les lancers'},
@@ -288,7 +288,7 @@
       mobile:'Mobile : joue en paysage et utilise uniquement les boutons tactiles. Les fleches de la moitie gauche font tourner le vaisseau. A droite : touche rapide = tir normal; deux touches rapides successives (environ 0,35 s) = deployer les leurres; maintenir = accelerer. Les leurres ne demandent pas de munition chargee.',
       tip:'Sur mobile il n y a plus de controle par inclinaison : la rotation se fait uniquement avec les boutons/fleches de gauche.',
       flare:['flare','LEURRES','Chaque charge deploie trois leurres pendant 3 s. Il faut attendre au moins 3 s avant de deployer une autre charge avec le meme vaisseau, meme si plusieurs charges sont disponibles. Ils detournent les missiles guides, bloquent les tirs, peuvent briser les boucliers ou detruire un vaisseau au contact; si ton leurre detruit un rival, l elimination est ajoutee a ton score. Ils detruisent aussi les petites meteorites de la pluie. PC : maintenir le tir; mobile : double touche rapide. Aucune munition chargee n est necessaire.'],
-      hazard:'Les leurres deployes detruisent aussi les petites meteorites de la pluie : la collision consomme le leurre et la meteorite.'
+      hazard:'Petite meteorite : les deux sont detruits. Meteorite geant : le leurre explose et disparait, mais le geant reste intact.'
     },
     de: {
       visual:{mobileTitle:'MOBIL · TASTEN',turn:'DREHEN',fire:'FEUER',oneTap:'1 TIPP',bullet:'SCHUSS',doubleTap:'2 SCHNELLE TIPPS',flares:'FLARES',hold:'HALTEN',accelerate:'BESCHLEUNIGEN',pcTitle:'PC · TASTATUR',pcTap:'KURZ DRUECKEN',pcHold:'0,22 s HALTEN',wait:'3 s zwischen Ausloesungen'},
@@ -296,7 +296,7 @@
       mobile:'Mobil: im Querformat spielen und nur die Touch-Tasten verwenden. Die Pfeile auf der linken Haelfte drehen das Schiff. Rechts: kurz tippen = normal feuern; zweimal schnell hintereinander tippen (ca. innerhalb 0,35 s) = Flares; halten = beschleunigen. Flares brauchen keine geladene Munition.',
       tip:'Mobil gibt es keine Neigungssteuerung mehr: gedreht wird ausschliesslich mit den linken Pfeiltasten.',
       flare:['flare','FLARES','Jede Ladung setzt drei Flares fuer 3 s aus. Vor der naechsten Ladung desselben Schiffs muessen mindestens 3 s vergehen, auch wenn mehrere Ladungen vorhanden sind. Sie lenken Lenkraketen ab, blockieren Schuesse, koennen Schilde brechen oder Schiffe bei Kontakt zerstoeren; zerstoert dein Flare einen Gegner, wird dir der Abschuss gutgeschrieben. Sie zerstoeren auch kleine Meteore des Schauers. PC: Feuer halten; mobil: schneller Doppeltipp. Keine Munition oder geladene Waffe erforderlich.'],
-      hazard:'Ausgesetzte Flares zerstoeren auch die kleinen Meteore des Schauers: bei der Kollision werden Flare und Meteor verbraucht.'
+      hazard:'Kleiner Meteor: beide werden zerstoert. Riesenmeteor: die Flare explodiert und verschwindet, der Riesenmeteor bleibt unbeschaedigt.'
     }
   };
 

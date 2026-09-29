@@ -1698,6 +1698,15 @@
       }
       const g=this.giant;g.px=g.x;g.py=g.y;g.x+=g.vx*dt;g.y+=g.vy*dt;
       if(g.x>-GIANT_RADIUS&&g.x<W+GIANT_RADIUS&&g.y>-GIANT_RADIUS&&g.y<H+GIANT_RADIUS)g.entered=true;
+      // V19.81: bengala contra meteorito gigante. La bengala explota y se
+      // consume; el gigante no recibe dano ni altera su trayectoria.
+      for(let f=this.flares.length-1;f>=0;f--){
+        const flare=this.flares[f];
+        if(!sweptCircles(g,GIANT_RADIUS,flare,FLARE_RADIUS,false))continue;
+        this.emitExplosionAt(flare.x,flare.y,flare.owner);
+        this.emit({t:'sound',kind:'impact'});
+        this.flares.splice(f,1);
+      }
       for(const p of this.players)if(!p.dead&&sweptCircles(g,GIANT_RADIUS,p,SHIP_RADIUS,false)){if(p.shield>0||p.protection>0){this.emitShipImpact(p,g,false);const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}
       for(const a of this.asteroids)if(circles(g,GIANT_RADIUS,a,a.r)){const n=normalize(a.x-g.x,a.y-g.y);a.vx+=n.x*25;a.vy+=n.y*25;a.x+=n.x*5;a.y+=n.y*5;}
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
