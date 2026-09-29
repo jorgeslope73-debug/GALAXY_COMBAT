@@ -57,19 +57,23 @@
           'No necesitas registrarte para jugar. Puedes entrar como invitado y empezar una partida con el nombre que quieras, siempre que no esté reservado por otra cuenta.',
           'Si te registras, tu nombre queda reservado solo para ti. En partidas online con al menos 2 jugadores humanos, cada ronda y cada revancha cuenta para el ranking de los jugadores registrados; invitados y CPU no aparecen ni reciben puntuación.',
           'Para jugar online, escribe tu nombre y espera a que aparezca SERVIDOR CONECTADO. Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.',
-          'Para entrar en una partida, pulsa UNIRSE. Elige una sala pública o escribe el código de una sala privada.',
-          'Si una partida ya está en marcha con CPUs de relleno y queda alguna plaza CPU, también puedes entrar: sustituyes una CPU sin reiniciar la partida y comienzas con 0 bajas, 5 balas y mejoras a cero.',
+          'Si creas una sala PÚBLICA tú solo, puedes pulsar RELLENAR CON CPU: las 3 plazas libres se completan con CPU en dificultad difícil y puedes empezar a jugar inmediatamente mientras esperas a que entre gente.',
+          'La sala pública sigue disponible mientras juegas con CPU. Cuando entra un jugador humano, sustituye una de esas CPU sin reiniciar la partida y empieza con 0 bajas, 5 balas y mejoras a cero.',
+          'El botón COMPARTIR SALA copia un enlace directo a tu sala. Puedes pegarlo en WhatsApp, Telegram, correo o cualquier otra app. Quien abra ese enlace entra en Galaxy Combat y el juego intenta meterle directamente en esa sala, sin tener que buscarla ni escribir el código.',
+          'Para entrar en una partida también puedes pulsar UNIRSE, elegir una sala pública o escribir el código de una sala privada.',
           'En la sala podrás ver a los jugadores, usar el chat y activar la voz. El anfitrión pulsa EMPEZAR cuando todos estén listos.',
           'La voz funciona directamente dentro de la partida. Actívala desde el menú y mantén pulsado el control para hablar.',
           'Si pierdes la conexión durante unos segundos, el juego intenta devolverte a la misma partida automáticamente.'
         ],stepsTitle:'CREAR O UNIRSE PASO A PASO',steps:[
           ['1. Escribe tu nombre','Pon tu nombre y espera a que el servidor esté conectado.'],
           ['2. Crear una partida','Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.'],
-          ['3. Sala privada','Comparte con tus amigos el código de 4 caracteres.'],
-          ['4. Unirse a una pública','Pulsa UNIRSE y elige una partida de la lista.'],
-          ['5. Unirse con código','Escribe el código de 4 caracteres para entrar en una sala privada.'],
-          ['6. Esperar en la sala','Comprueba que están todos. Puedes usar chat y voz.'],
-          ['7. Empezar','Cuando estén todos listos, el anfitrión pulsa EMPEZAR.']
+          ['3. Rellenar con CPU','Si estás solo en una sala pública, pulsa RELLENAR CON CPU. Las 3 plazas libres se ocupan con CPU difíciles y ya puedes pulsar EMPEZAR.'],
+          ['4. Compartir sala','Pulsa COMPARTIR SALA para copiar el enlace directo. Pégalo en WhatsApp, Telegram, correo o donde quieras; al abrirlo, tu amigo entra directamente en esa sala.'],
+          ['5. Seguir jugando mientras entra gente','Puedes jugar con las CPU mientras esperas. Cada jugador humano que entra sustituye una CPU sin reiniciar la partida.'],
+          ['6. Sala privada','En una sala privada también puedes compartir el enlace o el código de 4 caracteres con tus amigos.'],
+          ['7. Unirse a una pública','Pulsa UNIRSE y elige una partida de la lista.'],
+          ['8. Unirse con código','Escribe el código de 4 caracteres para entrar en una sala privada.'],
+          ['9. Empezar','El anfitrión pulsa EMPEZAR cuando quiera comenzar; con RELLENAR CON CPU puede hacerlo aunque sea el único humano.']
         ],media:[
           ['assets/manual/portada.webp','Portada principal de Galaxy Combat.','Desde aquí puedes jugar contra la CPU, crear una partida online o unirte a una sala.'],
           ['assets/manual/crear-partida.webp','Botón Crear partida.','CREAR PARTIDA abre la elección entre sala pública y privada.'],
@@ -107,19 +111,23 @@
         {id:'cpu',title:'9. Playing against the CPU',body:['Choose EASY, MEDIUM or HARD. The CPU avoids hazards and changes priorities based on its resources.','With no bullets and no shield, the CPU should not chase you: it searches for ammunition. If no ammo pickup exists, it flees and tries to keep its distance until one appears.','With a shield but no bullets, it may try to ram you only when you have no shield or spawn protection. If you are protected it keeps searching or avoiding combat. With bullets it returns to normal offensive behavior.']},
         {id:'online',title:'10. Online, rooms, chat and voice',body:[
           'To create an online game, first enter your name and wait until the server status says it is ready. Then press CREATE GAME. Choose PUBLIC so the room appears in the public list, or PRIVATE so it can only be opened with its 4-character code.',
-          'To join a game, press JOIN. You will see available public rooms with the flag of the language in which each room was created. Press JOIN on the room you want, or enter a 4-character code below for a private room.',
-          'A match already in progress can remain joinable when it uses CPU fill. If a CPU slot is free, you replace that CPU without restarting the match and enter with 0 kills, 5 bullets and no upgrades.',
+          'If you create a PUBLIC room on your own, press FILL WITH CPU: the 3 empty slots are filled with hard CPU players so you can start immediately while you wait for other people to join.',
+          'The public room remains joinable while you play with CPUs. When a human player joins, that player replaces one CPU without restarting the match and enters with 0 kills, 5 bullets and no upgrades.',
+          'SHARE ROOM copies a direct link to the room. Paste it into WhatsApp, Telegram, email or any other app. Anyone opening that link launches Galaxy Combat and the game tries to place them directly into that room without searching for it or typing the code.',
+          'You can also join normally by pressing JOIN, choosing a public room or entering the 4-character code of a private room.',
           'After joining a room you enter the lobby. There you can see connected players, use text chat and enable voice. The host presses START when enough players are ready.',
           'Voice uses WebRTC. STUN handles many direct connections and TURN can provide a fallback route when configured. With up to four players, voice uses a P2P mesh.',
           'If the WebSocket drops during a match, the server keeps your slot for about 30 seconds and automatically tries to restore the same ship, score, ammo and upgrades.'
         ],stepsTitle:'CREATE OR JOIN - STEP BY STEP',steps:[
           ['1. Enter your name','On the main screen type the name you want to use and wait until the server status shows that it is ready.'],
-          ['2. Create a game','Press CREATE GAME. Choose PUBLIC so anyone can find it in the list, or PRIVATE if you only want to share the room code.'],
-          ['3. Share a private room','A private room does not appear in the public list. Share the 4-character room code shown in the lobby with your friends.'],
-          ['4. Join a public room','Press JOIN. The public game browser opens. Choose an available room and press its JOIN button. The flag shows the language in which the room was created.'],
-          ['5. Join with a code','In the same JOIN window, enter the 4-character code in the code field and confirm. This takes you directly into a private room.'],
-          ['6. Wait in the lobby','Check that all players are present. You can use text chat and enable voice. Only the host gets the control used to start the match.'],
-          ['7. Start','When everyone is ready, the host presses START. On mobile, keep the phone in landscape; motion steering calibrates automatically as the match begins.']
+          ['2. Create a game','Press CREATE GAME and choose PUBLIC or PRIVATE.'],
+          ['3. Fill with CPU','If you are alone in a public room, press FILL WITH CPU. The 3 empty slots become hard CPUs and you can start immediately.'],
+          ['4. Share the room','Press SHARE ROOM to copy the direct link. Send it through WhatsApp, Telegram, email or any app; opening it takes your friend directly to that room.'],
+          ['5. Keep playing while people join','Play against the CPUs while you wait. Each human player who joins replaces one CPU without restarting the match.'],
+          ['6. Private room','For a private room you can also share the direct link or the 4-character code.'],
+          ['7. Join a public room','Press JOIN, choose an available public room and press JOIN.'],
+          ['8. Join with a code','Enter the 4-character code to enter a private room.'],
+          ['9. Start','The host presses START whenever ready; with CPU fill enabled the match can begin with only one human.']
         ],media:[
           ['assets/manual/portada.webp','Galaxy Combat main screen.','From here you can play the CPU, create an online game or join a room.'],
           ['assets/manual/crear-partida.webp','Create Game button.','CREATE GAME opens the choice between a public and a private room.'],
@@ -145,19 +153,23 @@
         {id:'cpu',title:'9. Giocare contro la CPU',body:['Scegli FACILE, MEDIO o DIFFICILE. La CPU evita gli ostacoli e cambia priorità in base alle risorse.','Senza munizioni e senza scudo non ti insegue: cerca munizioni. Se non ce ne sono, fugge e prova a mantenere le distanze.','Con scudo ma senza munizioni può tentare una speronata solo se tu non hai scudo né protezione. Con munizioni torna al comportamento offensivo.']},
         {id:'online',title:'10. Online, stanze, chat e voce',body:[
           'Per creare una partita online, inserisci prima il tuo nome e aspetta che lo stato del server indichi che è pronto. Poi premi CREA PARTITA. Scegli PUBBLICA per farla comparire nell elenco oppure PRIVATA per permettere l accesso solo tramite il codice di 4 caratteri.',
-          'Per entrare in una partita, premi ENTRA. Vedrai le stanze pubbliche disponibili con la bandiera della lingua in cui sono state create. Premi ENTRA sulla stanza desiderata oppure inserisci in basso il codice di 4 caratteri di una stanza privata.',
-          'Una partita già iniziata può restare accessibile se usa CPU di riempimento. Se c è un posto CPU libero, sostituisci quella CPU senza riavviare la partita ed entri con 0 eliminazioni, 5 proiettili e nessun potenziamento.',
+          'Se crei da solo una stanza PUBBLICA, usa RIEMPI CON CPU: i 3 posti liberi vengono occupati da CPU difficili e puoi iniziare subito mentre aspetti altri giocatori.',
+          'La stanza pubblica resta accessibile mentre giochi con le CPU. Quando entra un giocatore umano, sostituisce una CPU senza riavviare la partita e inizia con 0 eliminazioni, 5 proiettili e nessun potenziamento.',
+          'CONDIVIDI STANZA copia un link diretto. Puoi inviarlo con WhatsApp, Telegram, email o qualsiasi altra app. Chi apre il link avvia Galaxy Combat e il gioco prova a farlo entrare direttamente nella stanza senza cercarla né digitare il codice.',
+          'Puoi anche entrare normalmente con ENTRA, scegliendo una stanza pubblica o inserendo il codice di 4 caratteri di una stanza privata.',
           'Dopo l ingresso passerai alla lobby. Qui vedrai i giocatori connessi, potrai usare la chat e attivare la voce. L host preme INIZIA quando ci sono abbastanza giocatori.',
           'La voce usa WebRTC: STUN gestisce molte connessioni dirette e TURN può fornire una via di riserva quando configurato. Con massimo quattro giocatori si usa una mesh P2P.',
           'Se il WebSocket cade durante la partita, il server conserva il posto per circa 30 secondi e tenta di recuperare automaticamente la stessa nave, punteggio, munizioni e potenziamenti.'
         ],stepsTitle:'CREARE O ENTRARE - PASSO PER PASSO',steps:[
           ['1. Inserisci il nome','Nella schermata principale scrivi il nome con cui vuoi apparire e aspetta che il server risulti pronto.'],
-          ['2. Crea una partita','Premi CREA PARTITA. Scegli PUBBLICA per renderla visibile nell elenco oppure PRIVATA se vuoi condividere solo il codice della stanza.'],
-          ['3. Condividi una stanza privata','Una stanza privata non compare nell elenco pubblico. Condividi con gli amici il codice di 4 caratteri mostrato nella lobby.'],
-          ['4. Entra in una pubblica','Premi ENTRA. Si apre il browser delle partite pubbliche. Scegli una stanza e premi ENTRA. La bandiera indica la lingua in cui è stata creata.'],
-          ['5. Entra con codice','Nella stessa finestra, inserisci il codice di 4 caratteri nell apposito campo e conferma per entrare direttamente in una stanza privata.'],
-          ['6. Attendi nella lobby','Controlla che tutti i giocatori siano presenti. Puoi usare la chat e attivare la voce. Solo l host dispone del comando per iniziare.'],
-          ['7. Inizia','Quando tutti sono pronti, l host preme INIZIA. Su mobile usa lo schermo in orizzontale; il movimento si calibra automaticamente all avvio.']
+          ['2. Crea una partita','Premi CREA PARTITA e scegli PUBBLICA o PRIVATA.'],
+          ['3. Riempi con CPU','Se sei solo in una stanza pubblica, usa RIEMPI CON CPU: i 3 posti liberi diventano CPU difficili e puoi iniziare subito.'],
+          ['4. Condividi la stanza','Premi CONDIVIDI STANZA per copiare il link diretto e invialo con WhatsApp, Telegram, email o un altra app.'],
+          ['5. Continua a giocare mentre arrivano persone','Gioca contro le CPU mentre aspetti. Ogni giocatore umano che entra sostituisce una CPU senza riavviare la partita.'],
+          ['6. Stanza privata','In una stanza privata puoi condividere il link diretto oppure il codice di 4 caratteri.'],
+          ['7. Entra in una pubblica','Premi ENTRA e scegli una partita pubblica disponibile.'],
+          ['8. Entra con codice','Inserisci il codice di 4 caratteri per entrare in una stanza privata.'],
+          ['9. Inizia','L host preme INIZIA quando vuole; con il riempimento CPU può iniziare anche con un solo giocatore umano.']
         ],media:[
           ['assets/manual/portada.webp','Schermata principale di Galaxy Combat.','Da qui puoi giocare contro la CPU, creare una partita online o entrare in una stanza.'],
           ['assets/manual/crear-partida.webp','Pulsante Crea partita.','CREA PARTITA permette di scegliere tra stanza pubblica e privata.'],
@@ -183,19 +195,23 @@
         {id:'cpu',title:'9. Jouer contre le CPU',body:['Choisis FACILE, MOYEN ou DIFFICILE. Le CPU évite les obstacles et change de priorité selon ses ressources.','Sans munitions ni bouclier, il ne te poursuit pas: il cherche des munitions. S il n y en a pas, il fuit et garde ses distances.','Avec un bouclier mais sans munitions, il peut tenter de te percuter seulement si tu n as ni bouclier ni protection. Avec des balles il reprend son comportement offensif.']},
         {id:'online',title:'10. En ligne, salles, chat et voix',body:[
           'Pour créer une partie en ligne, saisis d abord ton nom et attends que le serveur indique qu il est prêt. Appuie ensuite sur CRÉER UNE PARTIE. Choisis PUBLIQUE pour apparaître dans la liste ou PRIVÉE pour autoriser uniquement l accès par code à 4 caractères.',
-          'Pour rejoindre une partie, appuie sur REJOINDRE. Tu verras les salles publiques disponibles avec le drapeau de la langue dans laquelle elles ont été créées. Appuie sur REJOINDRE pour la salle souhaitée ou saisis un code à 4 caractères pour une salle privée.',
-          'Une partie déjà commencée peut rester accessible si elle utilise des CPU de remplissage. S il reste une place CPU, tu la remplaces sans redémarrer la partie et tu arrives avec 0 élimination, 5 balles et aucune amélioration.',
+          'Si tu crées seul une salle PUBLIQUE, utilise REMPLIR AVEC CPU : les 3 places libres sont occupées par des CPU difficiles et tu peux commencer immédiatement en attendant d autres joueurs.',
+          'La salle publique reste accessible pendant que tu joues avec les CPU. Lorsqu un joueur humain arrive, il remplace une CPU sans redémarrer la partie et commence avec 0 élimination, 5 balles et aucune amélioration.',
+          'PARTAGER LA SALLE copie un lien direct. Tu peux l envoyer par WhatsApp, Telegram, e-mail ou toute autre application. La personne qui ouvre ce lien lance Galaxy Combat et le jeu essaie de la faire entrer directement dans cette salle sans la chercher ni saisir le code.',
+          'Tu peux aussi rejoindre normalement avec REJOINDRE, en choisissant une salle publique ou en saisissant le code à 4 caractères d une salle privée.',
           'Une fois dans la salle, tu arrives dans le lobby. Tu y vois les joueurs connectés, peux utiliser le chat texte et activer la voix. L hôte appuie sur DÉMARRER quand il y a assez de joueurs.',
           'La voix utilise WebRTC. STUN permet de nombreuses connexions directes et TURN peut servir de route de secours. Jusqu à quatre joueurs utilisent un maillage P2P.',
           'Si le WebSocket tombe pendant une partie, le serveur conserve ta place environ 30 secondes et tente de récupérer automatiquement le même vaisseau, score, munitions et améliorations.'
         ],stepsTitle:'CRÉER OU REJOINDRE - ÉTAPE PAR ÉTAPE',steps:[
           ['1. Saisis ton nom','Sur l écran principal, écris le nom que tu veux utiliser et attends que le serveur soit prêt.'],
-          ['2. Crée une partie','Appuie sur CRÉER UNE PARTIE. Choisis PUBLIQUE pour être visible dans la liste ou PRIVÉE pour partager uniquement le code de salle.'],
-          ['3. Partage une salle privée','Une salle privée n apparaît pas dans la liste publique. Envoie à tes amis le code à 4 caractères affiché dans le lobby.'],
-          ['4. Rejoins une publique','Appuie sur REJOINDRE. Le navigateur de parties publiques s ouvre. Choisis une salle et appuie sur son bouton REJOINDRE. Le drapeau indique sa langue de création.'],
-          ['5. Rejoins avec un code','Dans la même fenêtre, saisis le code à 4 caractères dans le champ prévu puis confirme pour entrer directement dans une salle privée.'],
-          ['6. Attends dans le lobby','Vérifie que tous les joueurs sont présents. Tu peux écrire dans le chat et activer la voix. Seul l hôte dispose du contrôle de démarrage.'],
-          ['7. Démarre','Quand tout le monde est prêt, l hôte appuie sur DÉMARRER. Sur mobile, reste en paysage; le mouvement se calibre automatiquement au lancement.']
+          ['2. Crée une partie','Appuie sur CRÉER UNE PARTIE et choisis PUBLIQUE ou PRIVÉE.'],
+          ['3. Remplis avec CPU','Si tu es seul dans une salle publique, utilise REMPLIR AVEC CPU : les 3 places libres deviennent des CPU difficiles et tu peux commencer immédiatement.'],
+          ['4. Partage la salle','Appuie sur PARTAGER LA SALLE pour copier le lien direct et envoie-le par WhatsApp, Telegram, e-mail ou une autre application.'],
+          ['5. Continue à jouer pendant que des joueurs arrivent','Joue contre les CPU en attendant. Chaque joueur humain qui rejoint remplace une CPU sans redémarrer la partie.'],
+          ['6. Salle privée','Dans une salle privée tu peux aussi partager le lien direct ou le code à 4 caractères.'],
+          ['7. Rejoins une publique','Appuie sur REJOINDRE et choisis une salle publique disponible.'],
+          ['8. Rejoins avec un code','Saisis le code à 4 caractères pour entrer dans une salle privée.'],
+          ['9. Démarre','L hôte appuie sur DÉMARRER quand il veut; avec le remplissage CPU la partie peut commencer avec un seul humain.']
         ],media:[
           ['assets/manual/portada.webp','Écran principal de Galaxy Combat.','Depuis cet écran, tu peux jouer contre le CPU, créer une partie en ligne ou rejoindre une salle.'],
           ['assets/manual/crear-partida.webp','Bouton Créer une partie.','CRÉER UNE PARTIE ouvre le choix entre salle publique et privée.'],
@@ -221,19 +237,23 @@
         {id:'cpu',title:'9. Gegen die CPU',body:['Wähle EINFACH, MITTEL oder SCHWER. Die CPU vermeidet Hindernisse und ändert ihre Prioritäten abhängig von ihren Ressourcen.','Ohne Munition und Schild verfolgt sie dich nicht: sie sucht Munition. Gibt es keine, flieht sie und versucht Abstand zu halten.','Mit Schild aber ohne Munition kann sie dich rammen, wenn du weder Schild noch Spawn-Schutz hast. Mit Munition kehrt sie zu ihrem offensiven Verhalten zurück.']},
         {id:'online',title:'10. Online, Räume, Chat und Sprache',body:[
           'Um ein Online-Spiel zu erstellen, gib zuerst deinen Namen ein und warte, bis der Server als bereit angezeigt wird. Drücke dann SPIEL ERSTELLEN. Wähle ÖFFENTLICH, damit der Raum in der Liste erscheint, oder PRIVAT, damit er nur mit dem 4-stelligen Code geöffnet werden kann.',
-          'Um einem Spiel beizutreten, drücke BEITRETEN. Du siehst verfügbare öffentliche Räume mit der Flagge der Sprache, in der sie erstellt wurden. Drücke BEITRETEN beim gewünschten Raum oder gib unten den 4-stelligen Code eines privaten Raums ein.',
-          'Ein bereits laufendes Spiel kann weiterhin beitretbar sein, wenn CPU-Auffüllung aktiv ist. Ist ein CPU-Platz frei, ersetzt du diese CPU ohne Neustart und steigst mit 0 Abschüssen, 5 Schüssen und ohne Verbesserungen ein.',
+          'Erstellst du allein einen ÖFFENTLICHEN Raum, kannst du MIT CPU AUFFÜLLEN wählen: Die 3 freien Plätze werden mit schweren CPUs besetzt und du kannst sofort starten, während du auf weitere Spieler wartest.',
+          'Der öffentliche Raum bleibt während des CPU-Spiels beitretbar. Kommt ein menschlicher Spieler dazu, ersetzt er eine CPU ohne Neustart und beginnt mit 0 Abschüssen, 5 Schüssen und ohne Verbesserungen.',
+          'RAUM TEILEN kopiert einen direkten Link. Du kannst ihn über WhatsApp, Telegram, E-Mail oder jede andere App senden. Wer den Link öffnet, startet Galaxy Combat und das Spiel versucht, ihn direkt in diesen Raum zu setzen, ohne Suche oder Codeeingabe.',
+          'Alternativ kannst du normal über BEITRETEN einen öffentlichen Raum auswählen oder den 4-stelligen Code eines privaten Raums eingeben.',
           'Nach dem Beitritt gelangst du in die Lobby. Dort siehst du verbundene Spieler, kannst den Textchat nutzen und Sprache aktivieren. Der Host drückt STARTEN, sobald genug Spieler bereit sind.',
           'Sprache nutzt WebRTC. STUN ermöglicht viele Direktverbindungen und TURN kann als Ausweichroute dienen. Bis zu vier Spieler nutzen ein P2P-Mesh.',
           'Fällt der WebSocket während einer Partie aus, hält der Server deinen Platz etwa 30 Sekunden frei und versucht automatisch dasselbe Schiff, Punktestand, Munition und Verbesserungen wiederherzustellen.'
         ],stepsTitle:'ERSTELLEN ODER BEITRETEN - SCHRITT FÜR SCHRITT',steps:[
           ['1. Namen eingeben','Trage auf dem Hauptbildschirm deinen Spielernamen ein und warte, bis der Server als bereit angezeigt wird.'],
-          ['2. Spiel erstellen','Drücke SPIEL ERSTELLEN. Wähle ÖFFENTLICH für die sichtbare Liste oder PRIVAT, wenn du nur den Raumcode teilen möchtest.'],
-          ['3. Privaten Raum teilen','Ein privater Raum erscheint nicht in der öffentlichen Liste. Teile den in der Lobby angezeigten 4-stelligen Code mit deinen Freunden.'],
-          ['4. Öffentlichem Raum beitreten','Drücke BEITRETEN. Wähle im Browser einen verfügbaren Raum und drücke dessen BEITRETEN-Taste. Die Flagge zeigt die Sprache, in der der Raum erstellt wurde.'],
-          ['5. Mit Code beitreten','Gib im selben Fenster den 4-stelligen Code in das Codefeld ein und bestätige, um direkt einem privaten Raum beizutreten.'],
-          ['6. In der Lobby warten','Prüfe, ob alle Spieler da sind. Du kannst chatten und Sprache aktivieren. Nur der Host besitzt die Startsteuerung.'],
-          ['7. Starten','Wenn alle bereit sind, drückt der Host STARTEN. Auf Mobilgeräten im Querformat spielen; die Bewegungssteuerung kalibriert sich beim Start automatisch.']
+          ['2. Spiel erstellen','Drücke SPIEL ERSTELLEN und wähle ÖFFENTLICH oder PRIVAT.'],
+          ['3. Mit CPU auffüllen','Bist du allein in einem öffentlichen Raum, wähle MIT CPU AUFFÜLLEN. Die 3 freien Plätze werden mit schweren CPUs besetzt und du kannst sofort starten.'],
+          ['4. Raum teilen','Drücke RAUM TEILEN, um den direkten Link zu kopieren, und sende ihn über WhatsApp, Telegram, E-Mail oder eine andere App.'],
+          ['5. Weiterspielen, während Spieler dazukommen','Spiele gegen die CPUs weiter. Jeder menschliche Spieler ersetzt beim Beitritt eine CPU, ohne die Partie neu zu starten.'],
+          ['6. Privater Raum','Bei einem privaten Raum kannst du ebenfalls den direkten Link oder den 4-stelligen Code teilen.'],
+          ['7. Öffentlichem Raum beitreten','Drücke BEITRETEN und wähle einen verfügbaren öffentlichen Raum.'],
+          ['8. Mit Code beitreten','Gib den 4-stelligen Code ein, um einem privaten Raum beizutreten.'],
+          ['9. Starten','Der Host startet jederzeit; mit CPU-Auffüllung kann die Partie auch mit nur einem Menschen beginnen.']
         ],media:[
           ['assets/manual/portada.webp','Galaxy-Combat-Hauptbildschirm.','Von hier aus kannst du gegen die CPU spielen, ein Online-Spiel erstellen oder einem Raum beitreten.'],
           ['assets/manual/crear-partida.webp','Schaltfläche Spiel erstellen.','SPIEL ERSTELLEN öffnet die Wahl zwischen öffentlichem und privatem Raum.'],
