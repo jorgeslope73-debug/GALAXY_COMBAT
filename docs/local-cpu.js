@@ -875,6 +875,43 @@
       }
       return bestIndex;
     }
+    cpuOpeningCollisionAvoidance(cpu,control){
+      if(!cpu||!cpu.cpu||cpu.dead||(cpu.difficulty||this.difficulty)!=='dificil'||this.fxClock>8)return null;
+      let threat=null,bestRisk=Infinity;
+      for(const other of this.players){
+        if(!other||other===cpu||!other.cpu||other.dead)continue;
+        const dx=wrapDelta(other.x-cpu.x,W),dy=wrapDelta(other.y-cpu.y,H);
+        const distance=Math.hypot(dx,dy);
+        if(distance<1||distance>380)continue;
+        const rvx=(Number(other.vx)||0)-(Number(cpu.vx)||0);
+        const rvy=(Number(other.vy)||0)-(Number(cpu.vy)||0);
+        const closing=-(dx*rvx+dy*rvy)/distance;
+        const previewRot=(cpu.rot+(Number(control&&control.turn)||0)*28+360)%360;
+        const heading=dirFromRot(previewRot);
+        const intent=control&&control.thrust?(heading.x*dx+heading.y*dy)/distance:0;
+        const imminent=distance<175;
+        if(!imminent&&closing<18&&intent<.45&&distance>260)continue;
+        const ttc=closing>1?distance/closing:8;
+        const risk=distance+Math.min(420,ttc*65)-Math.max(0,intent)*85;
+        if(risk<bestRisk){bestRisk=risk;threat={other,dx,dy,distance,closing};}
+      }
+      if(!threat)return null;
+      const ux=threat.dx/threat.distance,uy=threat.dy/threat.distance;
+      // Cada pareja toma un lado determinista opuesto para romper movimientos
+      // simetricos. Mezclamos salida lateral con separacion para no quedarse
+      // ambos frenados frente a frente.
+      const side=cpu.index<threat.other.index?1:-1;
+      const vx=-ux*.42+(-uy)*side;
+      const vy=-uy*.42+( ux)*side;
+      const targetRot=(Math.atan2(-vx,-vy)*180/Math.PI+360)%360;
+      const err=((targetRot-cpu.rot+540)%360)-180;
+      const veryClose=threat.distance<145;
+      return{
+        turn:clamp(err/28,-1,1),
+        thrust:veryClose?Math.abs(err)<38:Math.abs(err)<65,
+        fire:!!(control&&control.fire)
+      };
+    }
     chooseCpuControls(cpu){
       if(cpu.dead)return IDLE_CONTROL;
 
@@ -885,6 +922,8 @@
       }
 
       const base=this.chooseCpuControlsBase(cpu);
+      const traffic=this.cpuOpeningCollisionAvoidance(cpu,base);
+      if(traffic)return traffic;
       if(this.difficulty!=='facil')return base;
 
       // Degradacion solo de la IA, nunca de las fisicas:
@@ -1302,12 +1341,17 @@
       }
       for(let i=this.bullets.length-1;i>=0;i--){
         const b=this.bullets[i];let remove=b.age>3||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
-        if(!remove&&b.guided){
+        if(!remove){
           for(let f=this.flares.length-1;f>=0;f--){
             if(sweptCircles(b,BULLET_RADIUS,this.flares[f],FLARE_RADIUS,false)){
-              this.emitExplosionAt(b.x,b.y,b.owner);
+              // V19.64: cualquier proyectil queda anulado por una bengala.
+              // El misil conserva su explosion visual; la bala normal simplemente
+              // desaparece junto con la bengala alcanzada.
+              if(b.guided){
+                this.emitExplosionAt(b.x,b.y,b.owner);
+                this.emit({t:'sound',kind:'impact'});
+              }
               this.flares.splice(f,1);
-              this.emit({t:'sound',kind:'impact'});
               remove=true;break;
             }
           }
