@@ -241,6 +241,13 @@
         }
         return true;
       }catch(err){
+        // V19.76: si getUserMedia llego a abrir el microfono pero fallo un paso
+        // posterior (WebAudio/RTC), cerrar todo aqui. Antes esos recursos podian
+        // quedar vivos hasta recargar la pagina.
+        if(this.localStream){for(const t of this.localStream.getTracks()){try{t.stop();}catch(_){}}}
+        if(this.captureStream&&this.captureStream!==this.localStream){for(const t of this.captureStream.getTracks()){try{t.stop();}catch(_){}}}
+        this.localTrack=null;this.localStream=null;this.captureStream=null;
+        this.closeAudioGraph();
         this.setStatus(tr('microphoneDenied'));
         console.warn('[Galaxy Combat Voice] No se pudo abrir el microfono.',err);
         return false;
@@ -479,6 +486,10 @@
       for(const audio of this.remoteAudio.values()){
         if(!audio||!audio.srcObject)continue;
         audio.muted=false;audio.volume=1;
+        // V19.76: los gestos globales sirven solo para recuperar autoplay
+        // bloqueado. Si el audio ya esta sonando, no repetir play() en cada
+        // tecla/toque/pointerdown.
+        if(!audio.paused)continue;
         const p=audio.play();
         if(p&&typeof p.catch==='function')p.catch(()=>{});
       }

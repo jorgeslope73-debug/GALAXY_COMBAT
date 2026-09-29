@@ -145,7 +145,7 @@
   function resetLocalVisual(){
     localVisual.ready=false;localVisual.index=-1;localVisual.lastAt=0;localVisual.lastError=0;
   }
-  const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,localErrMax:0,report:{fps:0,long:0,max:0,frame:0,parse:0,localErr:0}}:null;
+  const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,localErrMax:0,report:{fps:0,long:0,max:0,frame:0,parse:0,localErr:0,heap:-1,players:0,bullets:0,flares:0,asteroids:0,meteors:0,pickups:0,impacts:0,wsBuf:0,p2pBuf:0,p2pPeers:0,queue:0}}:null;
   // Cadencia de pintado adaptativa. El antiguo umbral fijo de 10,5 ms podia
   // convertir un monitor de 100/110 Hz en ~50/55 FPS. Medimos el RAF real y
   // usamos un divisor entero estable: 60/75/100 Hz pintan cada RAF; 120/144/
@@ -175,6 +175,35 @@
     displaySampleLast=now;
   }
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
+  function collectPerfDebugSnapshot(){
+    const s=state||{};
+    let p2pBuf=0,p2pPeers=0,p2pQueued=0;
+    if(p2p&&p2p.peers&&typeof p2p.peers.values==='function'){
+      for(const rec of p2p.peers.values()){
+        const dc=rec&&rec.dc;
+        if(dc&&dc.readyState==='open'){
+          p2pPeers++;
+          p2pBuf+=Number(dc.bufferedAmount||0);
+        }
+      }
+      if(p2p.pendingStateRaw)p2pQueued++;
+      if(p2p.pendingBroadcastState)p2pQueued++;
+    }
+    const mem=performance&&performance.memory&&Number(performance.memory.usedJSHeapSize);
+    return {
+      heap:Number.isFinite(mem)?mem/(1024*1024):-1,
+      players:Array.isArray(s.players)?s.players.length:0,
+      bullets:Array.isArray(s.bullets)?s.bullets.length:0,
+      flares:Array.isArray(s.flares)?s.flares.length:0,
+      asteroids:Array.isArray(s.asteroids)?s.asteroids.length:0,
+      meteors:Array.isArray(s.meteors)?s.meteors.length:0,
+      pickups:Array.isArray(s.pickups)?s.pickups.length:0,
+      impacts:impactFX&&Array.isArray(impactFX.bursts)?impactFX.bursts.length:0,
+      wsBuf:ws&&ws.readyState===WebSocket.OPEN?Number(ws.bufferedAmount||0):0,
+      p2pBuf,p2pPeers,
+      queue:(pendingStateRaw?1:0)+p2pQueued
+    };
+  }
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const cpuButton=document.getElementById('cpu');
   const audioToggleButton=document.getElementById('enableAudio');
@@ -267,6 +296,7 @@
     }
     renderScale=canvas.width/W;
     rebuildBackgroundCache();
+    invalidateMobileVoiceLayout();
   }
   let resizeRaf=0;
   function scheduleCanvasResolution(){
@@ -279,6 +309,31 @@
   const mobileControlMotionBtn=document.getElementById('mobileControlMotion'),mobileControlButtonsBtn=document.getElementById('mobileControlButtons');
   const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone');
   const voicePttEl=document.getElementById('voicePtt');
+  // V19.76: la posicion del micro se mide solo cuando cambia el layout. Antes
+  // getBoundingClientRect() se ejecutaba en cada frame y podia forzar layout
+  // sincronico en Safari/iOS durante partidas largas.
+  const mobileVoiceLayout={dirty:true,valid:false,buttonMode:false,x:W/2,y:H-96,radius:38};
+  function invalidateMobileVoiceLayout(){mobileVoiceLayout.dirty=true;}
+  function refreshMobileVoiceLayout(buttonMode){
+    if(!isMobile||!voicePttEl||voicePttEl.classList.contains('hidden')){
+      mobileVoiceLayout.valid=false;
+      return mobileVoiceLayout;
+    }
+    if(!mobileVoiceLayout.dirty&&mobileVoiceLayout.valid&&mobileVoiceLayout.buttonMode===buttonMode)return mobileVoiceLayout;
+    const pr=voicePttEl.getBoundingClientRect();
+    const cr=canvas.getBoundingClientRect();
+    if(pr.width>0&&pr.height>0&&cr.width>0&&cr.height>0){
+      mobileVoiceLayout.x=((pr.left+pr.width*.5-cr.left)/cr.width)*W;
+      mobileVoiceLayout.y=((pr.top+pr.height*.5-cr.top)/cr.height)*H;
+      mobileVoiceLayout.radius=buttonMode?(pr.width/cr.width)*W*.5:38;
+      mobileVoiceLayout.valid=true;
+      mobileVoiceLayout.buttonMode=buttonMode;
+      mobileVoiceLayout.dirty=false;
+    }else{
+      mobileVoiceLayout.valid=false;
+    }
+    return mobileVoiceLayout;
+  }
   // V19.20: en movil solo existe el control por botones/tacto.
   // Se elimina la seleccion y no se solicita permiso de giroscopio.
   const mobileControlMode='buttons';
@@ -579,6 +634,13 @@
       src.buffer=webAudioBuffers[key];
       gain.gain.value=def?def.volume:1;
       src.connect(gain);gain.connect(fxGain);
+      // V19.76: liberar explicitamente los nodos temporales al terminar cada
+      // efecto. Evita acumular referencias internas del grafo WebAudio en
+      // partidas largas y reduce la presion sobre el recolector de basura.
+      src.onended=()=>{
+        try{src.disconnect();}catch(_){}
+        try{gain.disconnect();}catch(_){}
+      };
       src.start(0);
       return true;
     }catch(_){return false;}
@@ -706,6 +768,7 @@
       motionTurn=0;
     }
     updateMobileControlUi();
+    invalidateMobileVoiceLayout();
   }
   function updateMobileButtonTurn(now=performance.now()){
     const nextTarget=(mobileLeftPointers.size?1:0)-(mobileRightPointers.size?1:0);
@@ -1193,6 +1256,9 @@
     buildVersionEl.setAttribute('aria-label','Version del juego · '+label);
   }
   async function refreshCpuLearningControl(){
+    // V19.76: el estado de aprendizaje solo cambia fuera del combate. Evitamos
+    // fetch/AbortController/JSON/DOM cada 5 s mientras se esta jugando.
+    if(inGame)return;
     const base=apiBaseUrl();
     if(!base){
       cpuLearningControl={autoTrainingEnabled:false,localHardEnabled:false,ready:false};
@@ -2075,8 +2141,8 @@
     });
     if(screen.orientation)screen.orientation.addEventListener?.('change',()=>{motionNeutral=null;motionTurn=0;});
   }
-  window.addEventListener('resize',scheduleCanvasResolution,{passive:true});
-  window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
+  window.addEventListener('resize',()=>{invalidateMobileVoiceLayout();scheduleCanvasResolution();},{passive:true});
+  window.addEventListener('orientationchange',()=>{invalidateMobileVoiceLayout();scheduleCanvasResolution();},{passive:true});
   scheduleCanvasResolution();
   updateBuildVersionLearningState();
   refreshCpuLearningControl();
@@ -2099,6 +2165,9 @@
     stopP2P();
     stopResumeWindow();clearResumeSession();playerToken='';
     inGame=false;setMobileKeyboardActive(false);state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
+    // Recuperar el testigo de aprendizaje al volver al menu sin esperar al
+    // siguiente intervalo de 5 s.
+    refreshCpuLearningControl();
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
     roomCode='';myIndex=null;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
@@ -3106,17 +3175,12 @@
     if(!isMobile||!inGame||!voice||voice.cpuMode)return;
     let x=W/2,y=H-96,radius=38;
     const buttonMode=mobileControlMode==='buttons'&&!mobileKeyboardActive;
-    // La zona tactil del micro se mueve con CSS. Su tamaño real se convierte a
-    // coordenadas logicas para que el circulo visible coincida exactamente con
-    // el tamaño de las flechas (76 px; 68 px en pantallas horizontales bajas).
-    if(voicePttEl&&!voicePttEl.classList.contains('hidden')){
-      const pr=voicePttEl.getBoundingClientRect();
-      const cr=canvas.getBoundingClientRect();
-      if(pr.width>0&&pr.height>0&&cr.width>0&&cr.height>0){
-        x=((pr.left+pr.width*.5-cr.left)/cr.width)*W;
-        y=((pr.top+pr.height*.5-cr.top)/cr.height)*H;
-        if(buttonMode)radius=(pr.width/cr.width)*W*.5;
-      }
+    // La zona tactil del micro se mueve con CSS. V19.76 conserva sus medidas
+    // en cache y solo vuelve a leer el DOM cuando cambia resolucion/orientacion
+    // o el modo de control, en vez de hacerlo en cada frame.
+    const voiceLayout=refreshMobileVoiceLayout(buttonMode);
+    if(voiceLayout.valid){
+      x=voiceLayout.x;y=voiceLayout.y;radius=voiceLayout.radius;
     }
     const talking=!!voice.talking;
     const enabled=!!voice.enabled;
@@ -3187,7 +3251,8 @@
       perfStats.lastPaint=now;
       if(now-perfStats.windowStart>=5000){
         const seconds=(now-perfStats.windowStart)/1000;
-        perfStats.report={fps:seconds>0?perfStats.frames/seconds:0,long:perfStats.longFrames,max:perfStats.maxFrame,frame:perfStats.lastFrame,parse:perfStats.parseCount?perfStats.parseMs/perfStats.parseCount:0,localErr:perfStats.localErrMax};
+        const dbg=collectPerfDebugSnapshot();
+        perfStats.report={fps:seconds>0?perfStats.frames/seconds:0,long:perfStats.longFrames,max:perfStats.maxFrame,frame:perfStats.lastFrame,parse:perfStats.parseCount?perfStats.parseMs/perfStats.parseCount:0,localErr:perfStats.localErrMax,...dbg};
         perfStats.windowStart=now;perfStats.frames=0;perfStats.longFrames=0;perfStats.maxFrame=0;perfStats.parseMs=0;perfStats.parseCount=0;perfStats.localErrMax=0;
       }
     }
@@ -3326,10 +3391,12 @@
       ctx.setTransform(1,0,0,1,0,0);
       ctx.globalCompositeOperation='source-over';
       ctx.globalAlpha=.82;
-      ctx.fillStyle='rgba(0,0,0,.68)';ctx.fillRect(8,8,278,58);
+      ctx.fillStyle='rgba(0,0,0,.68)';ctx.fillRect(8,8,520,100);
       ctx.globalAlpha=1;ctx.fillStyle='#8dffb0';ctx.font='12px Arial,Helvetica,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
-      ctx.fillText(`FPS ${r.fps.toFixed(0)}  FRAME ${r.frame.toFixed(1)}ms  MAX ${r.max.toFixed(1)}ms`,16,16);
-      ctx.fillText(`>25ms ${r.long}/5s  JSON ${r.parse.toFixed(2)}ms  ERR ${r.localErr.toFixed(1)}px`,16,36);
+      ctx.fillText(`FPS ${r.fps.toFixed(0)}  FRAME ${r.frame.toFixed(1)}ms  MAX ${r.max.toFixed(1)}ms  >25ms ${r.long}/5s`,16,16);
+      ctx.fillText(`JSON ${r.parse.toFixed(2)}ms  ERR ${r.localErr.toFixed(1)}px  HEAP ${r.heap>=0?r.heap.toFixed(1)+' MB':'n/d'}`,16,36);
+      ctx.fillText(`OBJ P${r.players} B${r.bullets} F${r.flares} A${r.asteroids} M${r.meteors} PK${r.pickups} FX${r.impacts}`,16,56);
+      ctx.fillText(`NET WS ${Math.round(r.wsBuf/1024)} KB  P2P ${Math.round(r.p2pBuf/1024)} KB/${r.p2pPeers} peers  Q ${r.queue}`,16,76);
       ctx.restore();
     }
   }

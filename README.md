@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.75**
+**Versión actual: V19.76**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -185,3 +185,6 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V19.74 manual visual de controles: el apartado Controles incorpora una infografía clara con los botones móviles, flechas de giro y zona DISPARO. Se muestran los sprites reales de munición y bengala: DISPARO x1 → BALA, DISPARO + DISPARO rápido → BENGALAS y mantener DISPARO → ACELERAR. También se representa el equivalente de CTRL/ESPACIO en PC. El esquema mantiene la regla de 3 s entre lanzamientos de bengalas.
 
 - V19.75 manual PC: la infografía de Controles añade las teclas de giro del teclado como keycaps visuales: A / D y las flechas ← / →, enlazadas claramente con la acción GIRAR.
+
+
+- V19.76 PERF-1: optimización conservadora para sesiones largas. Se pausa la consulta periódica de aprendizaje durante el combate; el micro móvil deja de leer `getBoundingClientRect()` en cada frame y cachea su layout; los efectos WebAudio desconectan sus nodos al finalizar; la voz evita `play()` redundante en cada gesto y libera streams/contextos si falla la activación; `?debug=1` amplía el monitor con heap, objetos de juego y colas/buffers de red. Sin cambios de reglas, físicas ni cadencia de IA.
