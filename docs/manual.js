@@ -10,10 +10,10 @@
           'Si te destruyen, reapareces al poco tiempo. Pierdes tus mejoras y tienes unos segundos de protección al volver.'
         ],tips:['Muévete siempre: una nave parada es un objetivo fácil.','Las mejoras flotantes pueden cambiar una partida; vigila el centro del escenario además de a tus rivales.']},
         {id:'controls',title:'2. Controles',body:[
-          'PC: A / D o flechas izquierda / derecha para girar; W o flecha arriba para acelerar; CTRL o ESPACIO para disparar. ESC sale de la partida.',
-          'Móvil: juega en horizontal. La inclinación del teléfono controla el giro y se calibra automáticamente al empezar. Un toque rápido en la pantalla dispara; mantén pulsado un poco más para acelerar mientras sigas tocando.',
-          'Voz: actívala desde el menú. En PC mantén V para hablar. En móvil aparece un control de voz durante la partida; mantenlo pulsado para transmitir.'
-        ],tips:['En móvil, coloca el teléfono como te resulte cómodo antes de empezar.','Si se corta la conexión, el juego intenta evitar que la nave se quede girando o acelerando sola.']},
+          'PC: A / D o flechas para girar, W o flecha arriba para acelerar y CTRL o ESPACIO para disparar.',
+          'Móvil: juega en horizontal. Usa las flechas de la izquierda para girar. En la derecha: toque rápido = disparar, doble toque = bengalas y mantener pulsado = acelerar.',
+          'Voz: en PC mantén V. En móvil mantén pulsado el botón del micrófono.'
+        ],tips:['Las bengalas se lanzan manteniendo disparo en PC y con doble toque en móvil.']},
         {id:'hud',title:'3. HUD, bajas y líder',body:[
           'Cada jugador tiene un panel del mismo color que su nave. Ahí ves tus balas, velocidad y bajas.',
           'Cuando consigues una baja, el marcador aumenta. Si mueres por un peligro del escenario puedes recibir una PENALIZACIÓN -1.',
@@ -53,41 +53,34 @@
           'La CPU busca munición cuando se queda sin balas y trata de evitar peligros.',
           'Con escudo puede intentar embestirte; con munición volverá a atacarte normalmente.'
         ]},
-        {id:'online',title:'10. Online, salas, chat y voz',body:[
-          'No necesitas registrarte para jugar. Puedes entrar como invitado y empezar una partida con el nombre que quieras, siempre que no esté reservado por otra cuenta.',
-          'Si te registras, tu nombre queda reservado solo para ti. En partidas online con al menos 2 jugadores humanos, cada ronda y cada revancha cuenta para el ranking de los jugadores registrados; invitados y CPU no aparecen ni reciben puntuación.',
-          'Para jugar online, escribe tu nombre y espera a que aparezca SERVIDOR CONECTADO. Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.',
-          'Si creas una sala PÚBLICA tú solo, puedes pulsar RELLENAR CON CPU: las 3 plazas libres se completan con CPU en dificultad difícil y puedes empezar a jugar inmediatamente mientras esperas a que entre gente.',
-          'La sala pública sigue disponible mientras juegas con CPU. Cuando entra un jugador humano, sustituye una de esas CPU sin reiniciar la partida y empieza con 0 bajas, 5 balas y mejoras a cero.',
-          'El botón COMPARTIR SALA copia un enlace directo a tu sala. Puedes pegarlo en WhatsApp, Telegram, correo o cualquier otra app. Quien abra ese enlace entra en Galaxy Combat y el juego intenta meterle directamente en esa sala, sin tener que buscarla ni escribir el código.',
-          'Para entrar en una partida también puedes pulsar UNIRSE, elegir una sala pública o escribir el código de una sala privada.',
-          'En la sala podrás ver a los jugadores, usar el chat y activar la voz. El anfitrión pulsa EMPEZAR cuando todos estén listos.',
-          'La voz funciona directamente dentro de la partida. Actívala desde el menú y mantén pulsado el control para hablar.',
-          'Si pierdes la conexión durante unos segundos, el juego intenta devolverte a la misma partida automáticamente.'
-        ],stepsTitle:'CREAR O UNIRSE PASO A PASO',steps:[
-          ['1. Escribe tu nombre','Pon tu nombre y espera a que el servidor esté conectado.'],
-          ['2. Crear una partida','Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.'],
-          ['3. Rellenar con CPU','Si estás solo en una sala pública, pulsa RELLENAR CON CPU. Las 3 plazas libres se ocupan con CPU difíciles y ya puedes pulsar EMPEZAR.'],
-          ['4. Compartir sala','Pulsa COMPARTIR SALA para copiar el enlace directo. Pégalo en WhatsApp, Telegram, correo o donde quieras; al abrirlo, tu amigo entra directamente en esa sala.'],
-          ['5. Seguir jugando mientras entra gente','Puedes jugar con las CPU mientras esperas. Cada jugador humano que entra sustituye una CPU sin reiniciar la partida.'],
-          ['6. Sala privada','En una sala privada también puedes compartir el enlace o el código de 4 caracteres con tus amigos.'],
-          ['7. Unirse a una pública','Pulsa UNIRSE y elige una partida de la lista.'],
-          ['8. Unirse con código','Escribe el código de 4 caracteres para entrar en una sala privada.'],
-          ['9. Empezar','El anfitrión pulsa EMPEZAR cuando quiera comenzar; con RELLENAR CON CPU puede hacerlo aunque sea el único humano.']
+        {id:'online',title:'10. Jugar online',body:[
+          'Puedes jugar como invitado. Si te registras, reservas tu nombre y puedes puntuar en el ranking cuando haya al menos 2 jugadores humanos.',
+          'CREAR PARTIDA permite hacer una sala PÚBLICA o PRIVADA.',
+          'Si estás solo en una sala pública, usa RELLENAR CON CPU y empieza a jugar con 3 CPU mientras esperas. Cuando entra alguien, sustituye una CPU sin reiniciar la partida.',
+          'COMPARTIR SALA copia un enlace directo. Envíalo por WhatsApp, Telegram, correo o donde quieras: al abrirlo, tu amigo entra directamente en la sala.',
+          'UNIRSE permite elegir una sala pública o entrar con el código de una sala privada.',
+          'En la sala puedes usar chat y voz. El anfitrión pulsa EMPEZAR.'
+        ],stepsTitle:'ONLINE EN 6 PASOS',steps:[
+          ['1. Nombre','Escribe tu nombre.'],
+          ['2. Crear','Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.'],
+          ['3. Jugar ya','Si estás solo, usa RELLENAR CON CPU y empieza con 3 CPU.'],
+          ['4. Invitar','Pulsa COMPARTIR SALA y envía el enlace.'],
+          ['5. Entrar','Pulsa UNIRSE para elegir una sala o escribir un código.'],
+          ['6. Empezar','El anfitrión pulsa EMPEZAR.']
         ],media:[
           ['assets/manual/portada.webp','Portada principal de Galaxy Combat.','Desde aquí puedes jugar contra la CPU, crear una partida online o unirte a una sala.'],
           ['assets/manual/crear-partida.webp','Botón Crear partida.','CREAR PARTIDA abre la elección entre sala pública y privada.'],
           ['assets/manual/unirse-sala.webp','Botón Unirse.','UNIRSE abre la lista de partidas públicas y la entrada por código para salas privadas.'],
           ['assets/manual/partida.webp','Ejemplo de una partida.','Una vez iniciada la sala, cada jugador conserva su HUD, color de nave y controles.']
-        ],tips:['Si cambias de Wi-Fi a datos móviles, espera unos segundos antes de abandonar: la reconexión automática puede recuperar la partida.','En PC, V funciona como pulsar para hablar; en móvil usa el control de voz de pantalla.']},
+        ],tips:['En PC mantén V para hablar; en móvil usa el botón de micrófono.']},
         {id:'end',title:'11. Final de partida y revancha',body:[
           'Cuando alguien llega a 5 bajas termina la partida. Puedes repetir con los mismos jugadores o volver al menú.',
           'Al repetir, todos empiezan de nuevo desde cero.'
         ]},
         {id:'pwa',title:'12. Instalar como app',body:[
-          'Puedes instalar Galaxy Combat como una app. En iPhone/iPad usa Safari > Compartir > Añadir a pantalla de inicio. En Android/Chrome usa Instalar aplicación.',
-          'Desde el icono se abre con una pantalla más limpia. Juega siempre en horizontal.',
-          'El juego guarda algunos archivos para abrir más rápido y comprueba las actualizaciones cuando vuelves a entrar.'
+          'iPhone/iPad: Safari > Compartir > Añadir a pantalla de inicio.',
+          'Android/Chrome: usa Instalar aplicación o Añadir a pantalla de inicio.',
+          'Abre Galaxy Combat desde su icono y juega en horizontal.'
         ]},
         {id:'tips',title:'13. Consejos de combate',body:[
           'No persigas siempre en línea recta: usa los asteroides y cambia de dirección.',
@@ -116,8 +109,7 @@
           'SHARE ROOM copies a direct link to the room. Paste it into WhatsApp, Telegram, email or any other app. Anyone opening that link launches Galaxy Combat and the game tries to place them directly into that room without searching for it or typing the code.',
           'You can also join normally by pressing JOIN, choosing a public room or entering the 4-character code of a private room.',
           'After joining a room you enter the lobby. There you can see connected players, use text chat and enable voice. The host presses START when enough players are ready.',
-          'Voice uses WebRTC. STUN handles many direct connections and TURN can provide a fallback route when configured. With up to four players, voice uses a P2P mesh.',
-          'If the WebSocket drops during a match, the server keeps your slot for about 30 seconds and automatically tries to restore the same ship, score, ammo and upgrades.'
+          'You can use text chat and voice in the room. Hold the microphone control to talk.'
         ],stepsTitle:'CREATE OR JOIN - STEP BY STEP',steps:[
           ['1. Enter your name','On the main screen type the name you want to use and wait until the server status shows that it is ready.'],
           ['2. Create a game','Press CREATE GAME and choose PUBLIC or PRIVATE.'],
@@ -158,8 +150,7 @@
           'CONDIVIDI STANZA copia un link diretto. Puoi inviarlo con WhatsApp, Telegram, email o qualsiasi altra app. Chi apre il link avvia Galaxy Combat e il gioco prova a farlo entrare direttamente nella stanza senza cercarla né digitare il codice.',
           'Puoi anche entrare normalmente con ENTRA, scegliendo una stanza pubblica o inserendo il codice di 4 caratteri di una stanza privata.',
           'Dopo l ingresso passerai alla lobby. Qui vedrai i giocatori connessi, potrai usare la chat e attivare la voce. L host preme INIZIA quando ci sono abbastanza giocatori.',
-          'La voce usa WebRTC: STUN gestisce molte connessioni dirette e TURN può fornire una via di riserva quando configurato. Con massimo quattro giocatori si usa una mesh P2P.',
-          'Se il WebSocket cade durante la partita, il server conserva il posto per circa 30 secondi e tenta di recuperare automaticamente la stessa nave, punteggio, munizioni e potenziamenti.'
+          'Nella stanza puoi usare chat e voce. Tieni premuto il comando del microfono per parlare.'
         ],stepsTitle:'CREARE O ENTRARE - PASSO PER PASSO',steps:[
           ['1. Inserisci il nome','Nella schermata principale scrivi il nome con cui vuoi apparire e aspetta che il server risulti pronto.'],
           ['2. Crea una partita','Premi CREA PARTITA e scegli PUBBLICA o PRIVATA.'],
@@ -200,8 +191,7 @@
           'PARTAGER LA SALLE copie un lien direct. Tu peux l envoyer par WhatsApp, Telegram, e-mail ou toute autre application. La personne qui ouvre ce lien lance Galaxy Combat et le jeu essaie de la faire entrer directement dans cette salle sans la chercher ni saisir le code.',
           'Tu peux aussi rejoindre normalement avec REJOINDRE, en choisissant une salle publique ou en saisissant le code à 4 caractères d une salle privée.',
           'Une fois dans la salle, tu arrives dans le lobby. Tu y vois les joueurs connectés, peux utiliser le chat texte et activer la voix. L hôte appuie sur DÉMARRER quand il y a assez de joueurs.',
-          'La voix utilise WebRTC. STUN permet de nombreuses connexions directes et TURN peut servir de route de secours. Jusqu à quatre joueurs utilisent un maillage P2P.',
-          'Si le WebSocket tombe pendant une partie, le serveur conserve ta place environ 30 secondes et tente de récupérer automatiquement le même vaisseau, score, munitions et améliorations.'
+          'Dans la salle, tu peux utiliser le chat et la voix. Maintiens le bouton du micro pour parler.'
         ],stepsTitle:'CRÉER OU REJOINDRE - ÉTAPE PAR ÉTAPE',steps:[
           ['1. Saisis ton nom','Sur l écran principal, écris le nom que tu veux utiliser et attends que le serveur soit prêt.'],
           ['2. Crée une partie','Appuie sur CRÉER UNE PARTIE et choisis PUBLIQUE ou PRIVÉE.'],
@@ -242,8 +232,7 @@
           'RAUM TEILEN kopiert einen direkten Link. Du kannst ihn über WhatsApp, Telegram, E-Mail oder jede andere App senden. Wer den Link öffnet, startet Galaxy Combat und das Spiel versucht, ihn direkt in diesen Raum zu setzen, ohne Suche oder Codeeingabe.',
           'Alternativ kannst du normal über BEITRETEN einen öffentlichen Raum auswählen oder den 4-stelligen Code eines privaten Raums eingeben.',
           'Nach dem Beitritt gelangst du in die Lobby. Dort siehst du verbundene Spieler, kannst den Textchat nutzen und Sprache aktivieren. Der Host drückt STARTEN, sobald genug Spieler bereit sind.',
-          'Sprache nutzt WebRTC. STUN ermöglicht viele Direktverbindungen und TURN kann als Ausweichroute dienen. Bis zu vier Spieler nutzen ein P2P-Mesh.',
-          'Fällt der WebSocket während einer Partie aus, hält der Server deinen Platz etwa 30 Sekunden frei und versucht automatisch dasselbe Schiff, Punktestand, Munition und Verbesserungen wiederherzustellen.'
+          'Im Raum kannst du Chat und Sprache verwenden. Halte die Mikrofontaste gedrückt, um zu sprechen.'
         ],stepsTitle:'ERSTELLEN ODER BEITRETEN - SCHRITT FÜR SCHRITT',steps:[
           ['1. Namen eingeben','Trage auf dem Hauptbildschirm deinen Spielernamen ein und warte, bis der Server als bereit angezeigt wird.'],
           ['2. Spiel erstellen','Drücke SPIEL ERSTELLEN und wähle ÖFFENTLICH oder PRIVAT.'],
@@ -270,18 +259,18 @@
 
   const CONTROL_FLARE_GUIDE = {
     es: {
-      visual:{mobileTitle:'MOVIL · BOTONES',turn:'GIRAR',fire:'DISPARO',oneTap:'1 TOQUE',bullet:'BALA',doubleTap:'2 TOQUES RAPIDOS',flares:'BENGALAS',hold:'MANTENER',accelerate:'ACELERAR',pcTitle:'PC · TECLADO',pcTap:'TOQUE CORTO',pcHold:'MANTENER 0,22 s',wait:'3 s entre lanzamientos'},
-      pc:'PC: A / D o flechas izquierda / derecha para girar; W o flecha arriba para acelerar. CTRL o ESPACIO: toque breve = disparo normal; mantenlo pulsado unas decimas (aprox. 0,22 s) = lanzar las bengalas equipadas. Las bengalas pueden lanzarse aunque tengas 0 balas o el arma no este cargada. ESC sale de la partida.',
-      mobile:'Movil: juega en horizontal y usa solo los botones tactiles. Las flechas de la mitad izquierda giran la nave. En la mitad derecha: toque rapido = disparo normal; dos toques rapidos seguidos (aprox. dentro de 0,35 s) = lanzar bengalas; mantener pulsado = acelerar. Las bengalas no necesitan bala cargada.',
-      tip:'En movil no hay control por inclinacion: el giro se hace exclusivamente con los botones/flechas de la izquierda.',
+      visual:{mobileTitle:'MOVIL · BOTONES',turn:'GIRAR',fire:'DISPARO',oneTap:'1 TOQUE',bullet:'BALA',doubleTap:'2 TOQUES',flares:'BENGALAS',hold:'MANTENER',accelerate:'ACELERAR',pcTitle:'PC · TECLADO',pcTap:'TOQUE',pcHold:'MANTENER',wait:'3 s entre bengalas'},
+      pc:'PC: A / D o flechas para girar; W para acelerar; CTRL o ESPACIO para disparar. Mantén disparo para lanzar bengalas. ESC sale de la partida.',
+      mobile:'Movil: horizontal. Flechas de la izquierda para girar. En la derecha: un toque dispara, doble toque lanza bengalas y mantener pulsado acelera.',
+      tip:'Controles simples: girar a la izquierda, girar a la derecha, disparar y acelerar.',
       flare:['flare','BENGALAS','Cada carga despliega tres bengalas durante 3 s. Entre un lanzamiento y el siguiente deben pasar al menos 3 s, aunque lleves varias cargas. Desvian misiles, bloquean balas, pueden romper escudos o destruir naves al chocar; si tu bengala destruye a un rival, esa baja se suma a tu marcador. Tambien destruyen meteoritos pequenos de la tormenta. PC: mantén disparo; movil: doble toque rapido. No necesitan municion ni arma cargada.'],
       hazard:'Las bengalas desplegadas tambien destruyen los meteoritos pequenos de la tormenta: el impacto consume la bengala y el meteorito.'
     },
     en: {
-      visual:{mobileTitle:'MOBILE · BUTTONS',turn:'TURN',fire:'FIRE',oneTap:'1 TAP',bullet:'SHOT',doubleTap:'2 QUICK TAPS',flares:'FLARES',hold:'HOLD',accelerate:'ACCELERATE',pcTitle:'PC · KEYBOARD',pcTap:'QUICK PRESS',pcHold:'HOLD 0.22 s',wait:'3 s between deployments'},
-      pc:'PC: A / D or Left / Right arrows to turn; W or Up arrow to accelerate. CTRL or SPACE: quick tap = normal shot; hold for about 0.22 s = deploy equipped flares. Flares can be deployed with 0 ammo or while the weapon is not loaded. ESC leaves the match.',
-      mobile:'Mobile: play in landscape and use touch buttons only. The arrows on the left half turn the ship. On the right half: quick tap = normal shot; two quick taps in a row (about 0.35 s) = deploy flares; hold = accelerate. Flares do not require a loaded round.',
-      tip:'On mobile there is no tilt control: turning is done only with the left-side arrow buttons.',
+      visual:{mobileTitle:'MOBILE · BUTTONS',turn:'respaldo',fire:'FIRE',oneTap:'1 TAP',bullet:'SHOT',doubleTap:'2 TAPS',flares:'FLARES',hold:'HOLD',accelerate:'ACCELERATE',pcTitle:'PC · KEYBOARD',pcTap:'TAP',pcHold:'HOLD',wait:'3 s between flares'},
+      pc:'PC: A / D or arrow keys to turn; W to accelerate; CTRL or SPACE to fire. Hold fire to deploy flares. ESC leaves the match.',
+      mobile:'Mobile: landscape. Use the left arrows to turn. On the right: tap to fire, double tap for flares, hold to accelerate.',
+      tip:'Simple controls: turn left, turn right, fire and accelerate.',
       flare:['flare','FLARES','Each charge deploys three flares for 3 s. At least 3 s must pass before the same ship can deploy another charge, even if several are stored. They divert guided missiles, block bullets, can break shields or destroy ships on contact; if your flare destroys a rival, the kill is added to your score. They also destroy small storm meteors. PC: hold fire; mobile: quick double tap. No ammo or loaded weapon is required.'],
       hazard:'Deployed flares also destroy the small meteors from meteor showers: the collision consumes both the flare and the meteor.'
     },
@@ -289,7 +278,7 @@
       visual:{mobileTitle:'MOBILE · PULSANTI',turn:'GIRA',fire:'SPARO',oneTap:'1 TOCCO',bullet:'COLPO',doubleTap:'2 TOCCHI RAPIDI',flares:'BENGALA',hold:'TIENI PREMUTO',accelerate:'ACCELERA',pcTitle:'PC · TASTIERA',pcTap:'TOCCO BREVE',pcHold:'TIENI 0,22 s',wait:'3 s tra i lanci'},
       pc:'PC: A / D o frecce sinistra / destra per girare; W o freccia su per accelerare. CTRL o SPAZIO: tocco breve = sparo normale; tieni premuto per circa 0,22 s = lancia le bengala equipaggiate. Le bengala funzionano anche con 0 munizioni o arma non carica. ESC esce dalla partita.',
       mobile:'Mobile: gioca in orizzontale e usa solo i pulsanti touch. Le frecce nella meta sinistra fanno girare la nave. Nella meta destra: tocco rapido = sparo normale; due tocchi rapidi consecutivi (entro circa 0,35 s) = bengala; tieni premuto = accelera. Le bengala non richiedono un colpo carico.',
-      tip:'Su mobile non c e controllo tramite inclinazione: la rotazione usa esclusivamente i pulsanti/frecce a sinistra.',
+      tip:'Comandi semplici: gira a sinistra, gira a destra, spara e accelera.',
       flare:['flare','BENGALA','Ogni carica dispiega tre bengala per 3 s. Tra un lancio e il successivo devono passare almeno 3 s, anche con piu cariche disponibili. Deviano i missili guidati, bloccano i proiettili, possono rompere gli scudi o distruggere navi al contatto; se una tua bengala distrugge un rivale, l eliminazione viene aggiunta al tuo punteggio. Distruggono anche i piccoli meteoriti della pioggia. PC: tieni premuto il fuoco; mobile: doppio tocco rapido. Non servono munizioni ne arma carica.'],
       hazard:'Le bengala dispiegate distruggono anche i piccoli meteoriti della pioggia: l impatto consuma sia la bengala sia il meteorite.'
     },
