@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.66**
+**Versión actual: V19.67**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -167,3 +167,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V19.65 defensa CPU con bengalas: una CPU que tenga cargas despliega una en cuanto detecta que otro jugador ha lanzado un misil teledirigido dirigido a ella. Ya no espera a que el misil se acerque. Al aparecer las bengalas, ese misil cambia inmediatamente a una de ellas como objetivo, independientemente de la distancia.
 
 - V19.66 señalización de bengalas: se elimina el icono de bengala del HUD. El pickup flotante usa `bengalahud.png`; `bengala.png` queda para las tres bengalas desplegadas; y mientras una nave conserve una o más cargas se superpone `bengalasnave.png` sobre la nave, con una única capa visual aunque haya varias cargas.
+
+- V19.67 bengalas: las tres bengalas desplegadas se reducen progresivamente durante sus 3 s de vida (aprox. 34 px al salir hasta 5 px al final) y además se desvanecen en el último tramo. El cambio es solo visual; su física y efecto defensivo se mantienen.

@@ -2183,15 +2183,23 @@
   }
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1',flare:'bengalahud',camo:'ojo'};
   function drawDeployedFlare(f,x,y,nowSec=0){
-    const life=Number(f&&f.life)||0;
+    const life=Math.max(0,Number(f&&f.life)||0);
+    // V19.67: la bengala nace a tamaño completo y se encoge de forma continua
+    // durante sus 3 s de vida. Al final queda casi diminuta y se desvanece.
+    const remaining=clamp(life/3,0,1);
+    const shrink=Math.pow(remaining,.72);
     const pulse=.86+.14*(.5+.5*Math.sin(nowSec*18+(Number(f&&f.id)||0)));
-    const alpha=clamp(life/.28,0,1)*(.78+.22*pulse);
+    const size=(5+29*shrink)*(.96+.04*pulse);
+    const fade=clamp(life/.72,0,1);
+    const alpha=fade*(.80+.20*pulse);
     if(imageReady(images.bengala)){
-      drawImageCentered(images.bengala,x,y,34+(pulse-1)*8,Number(f&&f.a)||0,alpha);
+      drawImageCentered(images.bengala,x,y,size,Number(f&&f.a)||0,alpha);
       return;
     }
+    const scale=size/34;
     ctx.save();
     ctx.globalAlpha=alpha;ctx.translate(x,y);
+    ctx.scale(scale,scale);
     ctx.strokeStyle='#ff9d35';ctx.fillStyle='#fff1a6';ctx.lineWidth=3;
     ctx.beginPath();ctx.arc(0,0,7,0,Math.PI*2);ctx.fill();ctx.stroke();
     ctx.beginPath();ctx.moveTo(-18,0);ctx.lineTo(18,0);ctx.moveTo(0,-18);ctx.lineTo(0,18);ctx.stroke();
