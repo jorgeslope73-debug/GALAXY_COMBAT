@@ -356,7 +356,7 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
-    bengala:'assets/sprites/bengala.png',bengalahud:'assets/sprites/bengalahud.png',
+    bengala:'assets/sprites/bengala.png',bengalahud:'assets/sprites/bengalahud.png',ojo:'assets/sprites/ojo.png',
     mira1:'assets/sprites/mira1.png',coete:'assets/sprites/coete.png',navemira:'assets/sprites/navemira.png',
     rocketA:'assets/sprites/coeteA.png',rocketB:'assets/sprites/coeteB.png',rocketC:'assets/sprites/coeteC.png',rocketD:'assets/sprites/coeteD.png',
     navemiraA:'assets/sprites/navemiraA.png',navemiraB:'assets/sprites/navemiraB.png',navemiraC:'assets/sprites/navemiraC.png',navemiraD:'assets/sprites/navemiraD.png',
@@ -383,7 +383,7 @@
     // Estos sprites aparecen desde el primer frame. Antes los asteroides tenian
     // prioridad baja y podian terminar de descargarse/decodificarse ya jugando.
     const critical=k==='bg'||k==='giant'||k.startsWith('ship')||k.startsWith('pant')||
-      k.startsWith('asteroid')||k.startsWith('rocket')||k.startsWith('navemira')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed'||k==='bengala'||k==='bengalahud';
+      k.startsWith('asteroid')||k.startsWith('rocket')||k.startsWith('navemira')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed'||k==='bengala'||k==='bengalahud'||k==='ojo';
     if('fetchPriority' in im)im.fetchPriority=critical?'high':'auto';
     imageDecodePromises[k]=new Promise(resolve=>{
       im.onerror=()=>{reportImageFailure(im);resolve(false);};
@@ -2181,7 +2181,7 @@
     if(!imageReady(im))return false;
     return drawImageCentered(im,x,y,78,0,alpha);
   }
-  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1',flare:'bengala'};
+  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1',flare:'bengala',camo:'ojo'};
   function drawDeployedFlare(f,x,y,nowSec=0){
     const life=Number(f&&f.life)||0;
     const pulse=.86+.14*(.5+.5*Math.sin(nowSec*18+(Number(f&&f.id)||0)));
