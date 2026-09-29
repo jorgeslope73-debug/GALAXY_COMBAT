@@ -804,7 +804,7 @@
           id:uid(),owner:p.index,
           x:p.x+d.x*30,y:p.y+d.y*30,px:p.x,py:p.y,
           vx:p.vx+d.x*speed,vy:p.vy+d.y*speed,
-          life:FLARE_LIFE_SECONDS,angle:rand(0,360)
+          life:FLARE_LIFE_SECONDS,ownerSafe:.35,angle:rand(0,360)
         });
       }
       return true;
@@ -852,6 +852,7 @@
         f.vx*=.992;f.vy*=.992;
         f.angle=(f.angle+260*dt)%360;
         f.life-=dt;
+        f.ownerSafe=Math.max(0,(Number(f.ownerSafe)||0)-dt);
         if(f.life<=0||f.x<-100||f.x>W+100||f.y<-100||f.y>H+100)this.flares.splice(i,1);
       }
     }
@@ -1400,10 +1401,14 @@
       this.nextPickup-=dt;
       if(this.nextPickup<=0){
         let type;
-        if(Math.random()<.50&&!this.pickups.some(pk=>pk.type==='mira'))type='mira';
+        const flarePresent=this.pickups.some(pk=>pk.type==='flare');
+        // V19.68 prueba de bengalas: si no hay una flotando, tiene ~35% de
+        // probabilidad de ser el siguiente pickup para facilitar las pruebas.
+        if(!flarePresent&&Math.random()<.35)type='flare';
+        else if(Math.random()<.50&&!this.pickups.some(pk=>pk.type==='mira'))type='mira';
         else{
-          const roll=randint(1,31);
-          if(roll<=7)type='ammo3';else if(roll<=16)type='ammo1';else if(roll<=19)type='cadence';else if(roll<=22)type='speed';else if(roll<=25)type='shield';else if(roll<=28)type='camo';else type=this.pickups.some(pk=>pk.type==='flare')?'ammo1':'flare';
+          const roll=randint(1,28);
+          if(roll<=7)type='ammo3';else if(roll<=16)type='ammo1';else if(roll<=19)type='cadence';else if(roll<=22)type='speed';else if(roll<=25)type='shield';else type='camo';
         }
         this.pickups.push({id:uid(),type,x:rand(100,W-100),y:rand(100,H-100),phase:rand(0,Math.PI*2)});
         if(this.pickups.length>5)this.pickups.shift();
@@ -1509,6 +1514,29 @@
     shipCollisions(){
       for(const p of this.players){
         if(p.dead)continue;
+
+        // V19.68: las bengalas desplegadas son tambien obstaculos para las naves.
+        // La propia nave tiene 0,35 s de gracia al soltarlas para no chocarse
+        // instantaneamente con ellas en el punto de salida.
+        for(let f=this.flares.length-1;f>=0;f--){
+          const flare=this.flares[f];
+          if(Number(flare.owner)===Number(p.index)&&(Number(flare.ownerSafe)||0)>0)continue;
+          if(!sweptCircles(p,SHIP_RADIUS,flare,FLARE_RADIUS,false))continue;
+          this.flares.splice(f,1);
+          if(p.shield>0||p.protection>0){
+            this.emitShipImpact(p,flare,false);
+            if(p.shield>0)p.shield=0;
+            const n=normalize(p.x-flare.x,p.y-flare.y);
+            p.vx=n.x*150;p.vy=n.y*150;
+            p.x+=n.x*7;p.y+=n.y*7;
+            this.emit({t:'sound',kind:'impact'});
+          }else{
+            this.destroyShip(p,null);
+          }
+          if(p.dead)break;
+        }
+        if(p.dead)continue;
+
         for(const a of this.asteroids)if(sweptCircles(p,SHIP_RADIUS,a,a.r,false)){if(p.shield>0){this.emitShipImpact(p,a,false);const n=normalize(p.x-a.x,p.y-a.y),dot=p.vx*n.x+p.vy*n.y;if(dot<0){p.vx-=1.85*dot*n.x;p.vy-=1.85*dot*n.y;}p.x+=n.x*5;p.y+=n.y*5;}else this.destroyShip(p,null);}
       }
       for(let i=0;i<this.players.length;i++)for(let j=i+1;j<this.players.length;j++){
