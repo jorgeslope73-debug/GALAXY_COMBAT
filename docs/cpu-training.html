@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Galaxy Combat · Entrenamiento CPU</title>
 <script src="config.js"></script>
-<script src="local-cpu.js?v=V19.12"></script>
+<script src="local-cpu.js?v=V19.70"></script>
 <style>
 :root{color-scheme:dark;--bg:#060813;--panel:#101526;--line:#283451;--text:#eef6ff;--muted:#92a4bf;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#16243e 0,#070914 42%,#03050a 100%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
@@ -86,7 +86,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
           <option value="15" selected>x15</option>
           <option value="30">x30</option>
         </select>
-        <span id="status" class="ok">ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA</span>
+        <span id="status" class="ok">ENTRENANDO · 4 CPU · METEORITOS + BENGALAS</span>
       </div>
     </section>
 
@@ -150,7 +150,7 @@ function updateLearningControlUi(){
     $('pause').textContent='CONTINUAR SESIÓN';
   }else if(sim&&!busy){
     running=true;
-    $('status').textContent='ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA';
+    $('status').textContent='ENTRENANDO · 4 CPU · METEORITOS + BENGALAS';
     $('status').className='ok';
     $('pause').textContent='PAUSAR SESIÓN';
   }
@@ -236,7 +236,7 @@ async function finishMatch(winner){
     }
     running=autoTrainingEnabled&&!manualPaused;
     if(running){
-      $('status').textContent=d.learned?'ENTRENANDO · 4 CPU · ESQUIVA METEORITOS ACTIVA':'ENTRENANDO · ÚLTIMA SIN APRENDIZAJE';
+      $('status').textContent=d.learned?'ENTRENANDO · 4 CPU · METEORITOS + BENGALAS':'ENTRENANDO · ÚLTIMA SIN APRENDIZAJE';
       $('status').className=d.learned?'ok':'bad';
     }else updateLearningControlUi();
   }catch(e){

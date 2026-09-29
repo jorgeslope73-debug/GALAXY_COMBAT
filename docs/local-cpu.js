@@ -7,6 +7,7 @@
   const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,BRUTAL_SHOT_DISTANCE=850;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
+  const FLARE_CPU_EVAL_SECONDS=1.15,FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
     [1500,150,160,2],[500,430,160,5],[1300,430,200,6]
@@ -149,6 +150,7 @@
       this.learningEnabled=true;
       this.learningByCpu=new Map();
       this.meteorLearningByCpu=new Map();
+      this.flareLearningByCpu=new Map();
       this.humanLearning=new Map();
       this.humanMeteorLearning=new Map();
       this.humanMeteorDecision=null;
@@ -224,6 +226,153 @@
       if(!d)return;
       this.recordMeteorLearning(cpu,d.context,d.action,reward);
       cpu.meteorDecision=null;
+    }
+    flareLearningContext(cpu,threat){
+      const kind=threat&&['g','b','p'].includes(threat.kind)?threat.kind:'p';
+      const distance=Math.max(0,Number(threat&&threat.distance)||9999);
+      const band=distance<220?0:(distance<600?1:2);
+      const shield=cpu&&cpu.shield>0?1:0;
+      const enemy=threat&&threat.enemyShield?1:0;
+      return 'flare-'+kind+'-d'+band+'-s'+shield+'-e'+enemy;
+    }
+    recordFlareLearning(cpu,context,action,reward){
+      if(!this.learningEnabled||this.difficulty!=='dificil'||!cpu||!cpu.cpu||!context||!action)return;
+      let map=this.flareLearningByCpu.get(cpu.index);
+      if(!map){map=new Map();this.flareLearningByCpu.set(cpu.index,map);}
+      const key=context+'|'+action;
+      const item=map.get(key)||{context,action,uses:0,total:0};
+      item.uses=Math.min(50,item.uses+1);
+      item.total=clamp(item.total+clamp(Number(reward)||0,-2,2),-100,100);
+      map.set(key,item);
+    }
+    settleFlareDecision(cpu,reward){
+      const d=cpu&&cpu.flareDecision;
+      if(!d)return;
+      this.recordFlareLearning(cpu,d.context,d.action,reward);
+      cpu.flareDecision=null;
+    }
+    findCpuFlareThreat(cpu){
+      if(!cpu||cpu.dead||cpu.protection>0)return null;
+      let best=null,bestScore=Infinity;
+      const consider=(threat,score)=>{if(threat&&score<bestScore){best=threat;bestScore=score;}};
+
+      // Misiles dirigidos: no se gasta la bengala cuando aun estan demasiado lejos.
+      for(const b of this.bullets){
+        if(!b.guided||b.decoyed||Number(b.target)!==Number(cpu.index)||Number(b.owner)===Number(cpu.index))continue;
+        const distance=Math.hypot(b.x-cpu.x,b.y-cpu.y);
+        if(distance>1150)continue;
+        consider({kind:'g',projectileId:b.id,distance,enemyShield:false,critical:distance<460},Math.max(0,distance-260)/700);
+      }
+
+      // Balas en trayectoria de impacto. Se calcula el punto de maxima aproximacion
+      // durante el siguiente segundo para evitar reaccionar a proyectiles que pasan lejos.
+      for(const b of this.bullets){
+        if(Number(b.owner)===Number(cpu.index))continue;
+        if(b.guided&&!b.decoyed&&Number(b.target)===Number(cpu.index))continue;
+        const rx=b.x-cpu.x,ry=b.y-cpu.y,distance=Math.hypot(rx,ry);
+        if(distance>660)continue;
+        const forward=dirFromRot(cpu.rot),approachSide=distance>1?(forward.x*rx+forward.y*ry)/distance:1;
+        // La bengala sale hacia atras: una bala que llega claramente de frente
+        // no se considera interceptable y se conserva el recurso.
+        if(approachSide>-.05)continue;
+        const rvx=(Number(b.vx)||0)-(Number(cpu.vx)||0),rvy=(Number(b.vy)||0)-(Number(cpu.vy)||0);
+        const vv=rvx*rvx+rvy*rvy;if(vv<1)continue;
+        const dot=rx*rvx+ry*rvy,ttc=-dot/vv;
+        if(ttc<0||ttc>1.05)continue;
+        const cx=rx+rvx*ttc,cy=ry+rvy*ttc,closest=Math.hypot(cx,cy);
+        if(closest>62)continue;
+        const critical=ttc<.34&&closest<46;
+        consider({kind:'b',projectileId:b.id,distance,ttc,closest,enemyShield:false,critical},ttc*.9+closest/130);
+      }
+
+      // Perseguidor por detras: la nube sale hacia atras, por lo que solo se usa
+      // ofensivamente cuando existe una posibilidad real de que el rival la atraviese.
+      const forward=dirFromRot(cpu.rot);
+      for(const rival of this.players){
+        if(rival.index===cpu.index||rival.dead||rival.camo>0||rival.protection>0)continue;
+        const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
+        const enemyShield=!!(rival.shield>0);
+        const limit=enemyShield?360:245;
+        if(distance<=1||distance>limit)continue;
+        const rear=(forward.x*dx+forward.y*dy)/distance;
+        if(rear>-.16)continue;
+        const rvx=(Number(rival.vx)||0)-(Number(cpu.vx)||0),rvy=(Number(rival.vy)||0)-(Number(cpu.vy)||0);
+        const closing=-(dx*rvx+dy*rvy)/distance;
+        if(closing<-35)continue;
+        const critical=distance<(enemyShield?190:135);
+        consider({kind:'p',rivalIndex:rival.index,distance,closing,enemyShield,critical},.55+distance/620-(enemyShield?.28:0));
+      }
+      return best;
+    }
+    updateCpuFlareDecision(cpu){
+      const d=cpu&&cpu.flareDecision;
+      if(!d)return;
+      const age=this.fxClock-d.started;
+      if(age<.55)return;
+      const used=d.action==='flare_use';
+      if(d.kind==='g'){
+        const b=this.bullets.find(x=>x.id===d.projectileId)||null;
+        const active=!!(b&&b.guided&&!b.decoyed&&Number(b.target)===Number(cpu.index));
+        if(!active){this.settleFlareDecision(cpu,used?1.35:.28);return;}
+        if(age>=FLARE_CPU_EVAL_SECONDS)this.settleFlareDecision(cpu,used?-.35:-.72);
+        return;
+      }
+      if(d.kind==='b'){
+        const b=this.bullets.find(x=>x.id===d.projectileId)||null;
+        if(!b){this.settleFlareDecision(cpu,used?.95:.24);return;}
+        const rx=b.x-cpu.x,ry=b.y-cpu.y,distance=Math.hypot(rx,ry);
+        const rvx=(Number(b.vx)||0)-(Number(cpu.vx)||0),rvy=(Number(b.vy)||0)-(Number(cpu.vy)||0);
+        const vv=rvx*rvx+rvy*rvy,ttc=vv>1?-(rx*rvx+ry*rvy)/vv:Infinity;
+        const cx=Number.isFinite(ttc)?rx+rvx*Math.max(0,Math.min(1.05,ttc)):rx;
+        const cy=Number.isFinite(ttc)?ry+rvy*Math.max(0,Math.min(1.05,ttc)):ry;
+        const closest=Math.hypot(cx,cy);
+        const stillThreatening=distance<700&&ttc>=0&&ttc<=1.05&&closest<68;
+        if(!stillThreatening){this.settleFlareDecision(cpu,used?.42:.38);return;}
+        if(age>=FLARE_CPU_EVAL_SECONDS)this.settleFlareDecision(cpu,used?-.22:-.42);
+        return;
+      }
+      const rival=this.players.find(p=>p.index===d.rivalIndex&&!p.dead)||null;
+      if(!rival){this.settleFlareDecision(cpu,used?.70:.25);return;}
+      const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
+      if(d.enemyShield&&rival.shield<=0&&rival.protection<=0){this.settleFlareDecision(cpu,used?1.55:.32);return;}
+      const forward=dirFromRot(cpu.rot),rear=distance>1?(forward.x*dx+forward.y*dy)/distance:1;
+      const rvx=(Number(rival.vx)||0)-(Number(cpu.vx)||0),rvy=(Number(rival.vy)||0)-(Number(cpu.vy)||0);
+      const closing=distance>1?-(dx*rvx+dy*rvy)/distance:0;
+      if(distance>d.distance+90||rear>-.05||closing<-35){this.settleFlareDecision(cpu,used?.58:.34);return;}
+      if(age>=1.35)this.settleFlareDecision(cpu,used?-.20:-.30);
+    }
+    smartCpuFlare(cpu){
+      if(!cpu||cpu.dead)return false;
+      this.updateCpuFlareDecision(cpu);
+      if(cpu.flareDecision||(Number(cpu.flare)||0)<=0||this.fxClock<(Number(cpu.nextFlareDecision)||0))return false;
+      const threat=this.findCpuFlareThreat(cpu);
+      if(!threat)return false;
+      const context=this.flareLearningContext(cpu,threat);
+      let action='flare_keep';
+      if(threat.critical)action='flare_use';
+      else if(threat.kind==='g')action=threat.distance<(cpu.shield>0?650:900)?'flare_use':'flare_keep';
+      else if(threat.kind==='b')action=Number(threat.ttc)<(cpu.shield>0?.38:.72)?'flare_use':'flare_keep';
+      else if(threat.kind==='p')action=threat.enemyShield?(threat.distance<300?'flare_use':'flare_keep'):(threat.distance<175?'flare_use':'flare_keep');
+      if((Number(cpu.flare)||0)>1&&action==='flare_keep'&&threat.kind==='g'&&threat.distance<1050)action='flare_use';
+
+      if(this.difficulty==='dificil'&&!threat.critical){
+        const learned=!!(this.brain&&Array.isArray(this.brain.strategies)&&this.brain.strategies.some(e=>e&&e.context===context&&(e.action==='flare_use'||e.action==='flare_keep')));
+        if(learned)action=this.chooseBrainAction(context,['flare_use','flare_keep'],this.trainingMode?.24:.08);
+        else if(this.trainingMode&&Math.random()<.18)action=Math.random()<.5?'flare_use':'flare_keep';
+      }
+      if(this.difficulty==='facil'&&!threat.critical&&Math.random()<.55)action='flare_keep';
+
+      cpu.flareDecision={
+        context,action,kind:threat.kind,projectileId:threat.projectileId,
+        rivalIndex:threat.rivalIndex,distance:threat.distance,enemyShield:!!threat.enemyShield,
+        started:this.fxClock
+      };
+      cpu.nextFlareDecision=this.fxClock+(action==='flare_use'?FLARE_CPU_USE_COOLDOWN:FLARE_CPU_KEEP_COOLDOWN);
+      if(action==='flare_use'){
+        if(this.deployFlares(cpu))return true;
+        cpu.flareDecision=null;
+      }
+      return false;
     }
     recordHumanLearning(context,action){
       if(!this.learningEnabled||this.trainingMode||this.difficulty!=='dificil'||!context||!action)return;
@@ -372,7 +521,7 @@
     }
     buildLearningDeltas(){
       if(!this.learningEnabled||this.difficulty!=='dificil')return [];
-      const general=[],meteor=[],humanGeneral=[],humanMeteor=[];
+      const general=[],meteor=[],flare=[],humanGeneral=[],humanMeteor=[];
       const human=this.players.find(p=>!p.cpu);
       for(const cpu of this.players.filter(p=>p.cpu)){
         const won=this.winner===cpu.index;
@@ -386,6 +535,11 @@
         if(meteorMap)for(const item of meteorMap.values()){
           const avg=item.uses?item.total/item.uses:0;
           meteor.push({context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+clamp(avg,-2,2).toFixed(3)});
+        }
+        const flareMap=this.flareLearningByCpu.get(cpu.index);
+        if(flareMap)for(const item of flareMap.values()){
+          const avg=item.uses?item.total/item.uses:0;
+          flare.push({context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+clamp(avg,-2,2).toFixed(3)});
         }
       }
 
@@ -416,8 +570,9 @@
 
       // Reparto fijo: el aprendizaje humano complementa al existente y nunca
       // desplaza por completo lo aprendido por las CPU.
-      return humanMeteor.slice(0,4)
-        .concat(meteor.slice(0,6),humanGeneral.slice(0,6),general.slice(0,8))
+      flare.sort((a,b)=>b.uses-a.uses||Math.abs(b.reward)-Math.abs(a.reward));
+      return flare.slice(0,6)
+        .concat(humanMeteor.slice(0,4),meteor.slice(0,5),humanGeneral.slice(0,4),general.slice(0,5))
         .slice(0,24);
     }
     resetAsteroids(){
@@ -532,7 +687,7 @@
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty,
         tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random(),
-        resourceTargetId:null,meteorDecision:null,
+        resourceTargetId:null,meteorDecision:null,flareDecision:null,nextFlareDecision:0,
         easyNextDecision:0,easyControl:null
       };
     }
@@ -543,6 +698,7 @@
       this.brain=this.difficulty==='dificil'&&brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
       this.meteorLearningByCpu.clear();
+      this.flareLearningByCpu.clear();
       this.humanLearning.clear();
       this.humanMeteorLearning.clear();
       this.humanMeteorDecision=null;
@@ -592,6 +748,7 @@
       this.brain=brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
       this.meteorLearningByCpu.clear();
+      this.flareLearningByCpu.clear();
       this.humanLearning.clear();
       this.humanMeteorLearning.clear();
       this.humanMeteorDecision=null;
@@ -675,7 +832,7 @@
       // cualquier envio duplicado.
       this.flushLearning();
       this.started=false;this.finished=false;this.winner=null;this.seq=0;
-      this.learningByCpu.clear();this.meteorLearningByCpu.clear();
+      this.learningByCpu.clear();this.meteorLearningByCpu.clear();this.flareLearningByCpu.clear();
       this.humanLearning.clear();this.humanMeteorLearning.clear();this.humanMeteorDecision=null;this.nextHumanObserve=0;
       this.learningSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
@@ -688,7 +845,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;
         if(p.cpu){
           p.easyNextDecision=0;p.easyControl=null;
           p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
@@ -737,6 +894,7 @@
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
+      if(victim.cpu&&victim.flareDecision)this.settleFlareDecision(victim,victim.flareDecision.action==='flare_use'?-.95:-1.55);
       if(!victim.cpu)this.humanMeteorDecision=null;
       // Estrellarse, autodestruirse o morir por disparo/misil resta una baja.
       // La puntuacion nunca baja de cero; el cliente ya muestra PENALIZACION -1.
@@ -791,7 +949,7 @@
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
       p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;
-      if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.easyNextDecision=0;p.easyControl=null;}
+      if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.easyNextDecision=0;p.easyControl=null;}
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
@@ -824,7 +982,7 @@
       let fireNow=!!(c&&c.fire);
       if(!p)return fireNow;
       if(p.cpu){
-        if(p.flare&&this.incomingGuidedMissile(p.index))this.deployFlares(p);
+        this.smartCpuFlare(p);
         return fireNow;
       }
       if(p.flareGesture){

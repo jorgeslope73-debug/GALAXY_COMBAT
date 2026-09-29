@@ -7,6 +7,7 @@
   const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,BRUTAL_SHOT_DISTANCE=850;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
+  const FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
     [1500,150,160,2],[500,430,160,5],[1300,430,200,6]
@@ -259,7 +260,7 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,
-        guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,
+        guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,nextFlareDecision:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty
       };
@@ -341,7 +342,7 @@
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false});
           if(wasCpu&&!isCpu){
             this.bullets=this.bullets.filter(b=>b.owner!==index);
-            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
+            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;
             p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.dead=false;p.respawn=0;
             p.vx=0;p.vy=0;p.lastSpawn=null;this.placeAtSpawn(p);
           }
@@ -399,7 +400,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
@@ -528,7 +529,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
@@ -557,11 +558,66 @@
       }
       return false;
     }
+    findCpuFlareThreat(cpu){
+      if(!cpu||cpu.dead||cpu.protection>0)return null;
+      let best=null,bestScore=Infinity;
+      const consider=(threat,score)=>{if(threat&&score<bestScore){best=threat;bestScore=score;}};
+      for(const b of this.bullets){
+        if(!b.guided||b.decoyed||Number(b.target)!==Number(cpu.index)||Number(b.owner)===Number(cpu.index))continue;
+        const distance=Math.hypot(b.x-cpu.x,b.y-cpu.y);
+        if(distance>1150)continue;
+        consider({kind:'g',distance,critical:distance<460},Math.max(0,distance-260)/700);
+      }
+      for(const b of this.bullets){
+        if(Number(b.owner)===Number(cpu.index))continue;
+        if(b.guided&&!b.decoyed&&Number(b.target)===Number(cpu.index))continue;
+        const rx=b.x-cpu.x,ry=b.y-cpu.y,distance=Math.hypot(rx,ry);
+        if(distance>660)continue;
+        const forward=dirFromRot(cpu.rot),approachSide=distance>1?(forward.x*rx+forward.y*ry)/distance:1;
+        // La bengala sale hacia atras: una bala que llega claramente de frente
+        // no se considera interceptable y se conserva el recurso.
+        if(approachSide>-.05)continue;
+        const rvx=(Number(b.vx)||0)-(Number(cpu.vx)||0),rvy=(Number(b.vy)||0)-(Number(cpu.vy)||0);
+        const vv=rvx*rvx+rvy*rvy;if(vv<1)continue;
+        const ttc=-(rx*rvx+ry*rvy)/vv;
+        if(ttc<0||ttc>1.05)continue;
+        const cx=rx+rvx*ttc,cy=ry+rvy*ttc,closest=Math.hypot(cx,cy);
+        if(closest>62)continue;
+        consider({kind:'b',distance,ttc,closest,critical:ttc<.34&&closest<46},ttc*.9+closest/130);
+      }
+      const forward=dirFromRot(cpu.rot);
+      for(const rival of this.players){
+        if(rival.index===cpu.index||rival.dead||rival.camo>0||rival.protection>0)continue;
+        const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
+        const enemyShield=!!(rival.shield>0),limit=enemyShield?360:245;
+        if(distance<=1||distance>limit)continue;
+        const rear=(forward.x*dx+forward.y*dy)/distance;
+        if(rear>-.16)continue;
+        const rvx=(Number(rival.vx)||0)-(Number(cpu.vx)||0),rvy=(Number(rival.vy)||0)-(Number(cpu.vy)||0);
+        const closing=-(dx*rvx+dy*rvy)/distance;
+        if(closing<-35)continue;
+        consider({kind:'p',distance,closing,enemyShield,critical:distance<(enemyShield?190:135)},.55+distance/620-(enemyShield?.28:0));
+      }
+      return best;
+    }
+    smartCpuFlare(cpu){
+      if(!cpu||cpu.dead||(Number(cpu.flare)||0)<=0||this.fxClock<(Number(cpu.nextFlareDecision)||0))return false;
+      const threat=this.findCpuFlareThreat(cpu);
+      if(!threat)return false;
+      let use=!!threat.critical;
+      if(!use&&threat.kind==='g')use=threat.distance<(cpu.shield>0?650:900);
+      else if(!use&&threat.kind==='b')use=Number(threat.ttc)<(cpu.shield>0?.38:.72);
+      else if(!use&&threat.kind==='p')use=threat.enemyShield?threat.distance<300:threat.distance<175;
+      if((Number(cpu.flare)||0)>1&&threat.kind==='g'&&threat.distance<1050)use=true;
+      if(cpu.difficulty==='facil'&&!threat.critical&&Math.random()<.55)use=false;
+      cpu.nextFlareDecision=this.fxClock+(use?FLARE_CPU_USE_COOLDOWN:FLARE_CPU_KEEP_COOLDOWN);
+      return use?this.deployFlares(cpu):false;
+    }
     resolveFireWithFlare(p,c,dt){
       let fireNow=!!(c&&c.fire);
       if(!p)return fireNow;
       if(p.cpu){
-        if(p.flare&&this.incomingGuidedMissile(p.index))this.deployFlares(p);
+        this.smartCpuFlare(p);
         return fireNow;
       }
       if(p.flareGesture){
