@@ -476,6 +476,7 @@
         +'<div class="manual-action-example thrust"><div class="manual-action-input">'+fireKey+'<span class="manual-hold-mark">'+escapeHtml(v.hold)+'</span></div><span class="manual-action-arrow">→</span><div class="manual-action-result manual-action-text"><strong>'+escapeHtml(v.accelerate)+'</strong></div></div>'
       +'</div>'
       +'<div class="manual-pc-demo"><strong>'+escapeHtml(v.pcTitle)+'</strong>'
+        +'<div><span class="manual-keycap">A</span><span class="manual-key-or">/</span><span class="manual-keycap">D</span><span class="manual-key-or">·</span><span class="manual-keycap" aria-label="izquierda">←</span><span class="manual-key-or">/</span><span class="manual-keycap" aria-label="derecha">→</span><span class="manual-action-arrow">→</span><b>'+escapeHtml(v.turn)+'</b></div>'
         +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcTap)+'</span><span class="manual-action-arrow">→</span><img src="'+bullet+'" alt=""><b>'+escapeHtml(v.bullet)+'</b></div>'
         +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcHold)+'</span><span class="manual-action-arrow">→</span><img src="'+flare+'" alt=""><b>'+escapeHtml(v.flares)+'</b></div>'
       +'</div>'
