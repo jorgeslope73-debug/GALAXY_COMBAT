@@ -86,7 +86,7 @@
     if(roomMini&&roomMini.textContent===tr('reconnecting'))roomMini.textContent='';
   }
   const NET_FRAME_MS=1000/30;
-  const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
+  const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),flares:new Map(),meteors:new Map()};
   const localizedTargetOwners=[-1,-1,-1,-1];
   const localizaSpriteKeys=['localizaA','localizaB','localizaC','localizaD'];
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
@@ -356,6 +356,7 @@
     bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
+    bengala:'assets/sprites/bengala.png',bengalahud:'assets/sprites/bengalahud.png',
     mira1:'assets/sprites/mira1.png',coete:'assets/sprites/coete.png',navemira:'assets/sprites/navemira.png',
     rocketA:'assets/sprites/coeteA.png',rocketB:'assets/sprites/coeteB.png',rocketC:'assets/sprites/coeteC.png',rocketD:'assets/sprites/coeteD.png',
     navemiraA:'assets/sprites/navemiraA.png',navemiraB:'assets/sprites/navemiraB.png',navemiraC:'assets/sprites/navemiraC.png',navemiraD:'assets/sprites/navemiraD.png',
@@ -382,7 +383,7 @@
     // Estos sprites aparecen desde el primer frame. Antes los asteroides tenian
     // prioridad baja y podian terminar de descargarse/decodificarse ya jugando.
     const critical=k==='bg'||k==='giant'||k.startsWith('ship')||k.startsWith('pant')||
-      k.startsWith('asteroid')||k.startsWith('rocket')||k.startsWith('navemira')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed';
+      k.startsWith('asteroid')||k.startsWith('rocket')||k.startsWith('navemira')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed'||k==='bengala'||k==='bengalahud';
     if('fetchPriority' in im)im.fetchPriority=critical?'high':'auto';
     imageDecodePromises[k]=new Promise(resolve=>{
       im.onerror=()=>{reportImageFailure(im);resolve(false);};
@@ -1434,11 +1435,12 @@
   }
   function resetLeaderAnnouncement(){lastUniqueLeader=null;leaderAnnouncement=null;}
   function rebuildPreviousLookup(snapshot){
-    previousLookup.players.clear();previousLookup.asteroids.clear();previousLookup.pickups.clear();previousLookup.meteors.clear();
+    previousLookup.players.clear();previousLookup.asteroids.clear();previousLookup.pickups.clear();previousLookup.flares.clear();previousLookup.meteors.clear();
     if(!snapshot)return;
     for(const p of snapshot.players||[])previousLookup.players.set(p.i,p);
     for(const a of snapshot.asteroids||[])previousLookup.asteroids.set(a.id,a);
     for(const p of snapshot.pickups||[])previousLookup.pickups.set(p.id,p);
+    for(const f of snapshot.flares||[])previousLookup.flares.set(f.id,f);
     for(const m of snapshot.meteors||[])previousLookup.meteors.set(m.id,m);
   }
   function syncVoicePlayers(players,force=false){
@@ -2179,7 +2181,22 @@
     if(!imageReady(im))return false;
     return drawImageCentered(im,x,y,78,0,alpha);
   }
-  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1'};
+  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed',mira:'mira1',flare:'bengala'};
+  function drawDeployedFlare(f,x,y,nowSec=0){
+    const life=Number(f&&f.life)||0;
+    const pulse=.86+.14*(.5+.5*Math.sin(nowSec*18+(Number(f&&f.id)||0)));
+    const alpha=clamp(life/.28,0,1)*(.78+.22*pulse);
+    if(imageReady(images.bengala)){
+      drawImageCentered(images.bengala,x,y,34+(pulse-1)*8,Number(f&&f.a)||0,alpha);
+      return;
+    }
+    ctx.save();
+    ctx.globalAlpha=alpha;ctx.translate(x,y);
+    ctx.strokeStyle='#ff9d35';ctx.fillStyle='#fff1a6';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(0,0,7,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-18,0);ctx.lineTo(18,0);ctx.moveTo(0,-18);ctx.lineTo(0,18);ctx.stroke();
+    ctx.restore();
+  }
   function pickupExpiryAlpha(pk,nowSec){
     const raw=pk&&pk.expiresIn;
     // null significa que esta mejora NO esta pendiente de desaparecer.
@@ -2478,6 +2495,16 @@
       const nameX=rightHud?px+panelW-4*hudScale:px+4*hudScale;
       ctx.font=HUD_NAME_FONT;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
       const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=HUD_VALUE_FONT;ctx.fillText(hudAmmoText(p),tx,py+15*hudScale);ctx.fillText(hudSpeedText(p),tx,py+80*hudScale);
+      if(p.flare===true){
+        const flareSize=31*hudScale;
+        const flareX=px+panelW-22*hudScale;
+        const flareY=py+27*hudScale;
+        if(imageReady(images.bengalahud))drawImageCentered(images.bengalahud,flareX,flareY,flareSize,0,1);
+        else{
+          ctx.save();ctx.translate(flareX,flareY);ctx.strokeStyle='#ff9d35';ctx.fillStyle='#fff1a6';ctx.lineWidth=2.5*hudScale;
+          ctx.beginPath();ctx.arc(0,0,7*hudScale,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
+        }
+      }
       if(cpuAmmoFlash&&huntCpuBonus>0){
         const age=Math.max(0,now-huntFxStart);
         const t=clamp(age/2200,0,1);
@@ -3202,6 +3229,12 @@
     for(const pk of state.pickups){
       const old=previousLookup.pickups.get(pk.id);
       drawPickup(pk,old?lerp(old.x,pk.x,blend):pk.x,old?lerp(old.y,pk.y,blend):pk.y,nowSec);
+    }
+    for(const f of state.flares||[]){
+      const old=previousLookup.flares.get(f.id);
+      const x=old?lerp(old.x,f.x,blend):f.x;
+      const y=old?lerp(old.y,f.y,blend):f.y;
+      drawDeployedFlare(f,x,y,nowSec);
     }
     for(const m of state.meteors){
       const old=previousLookup.meteors.get(m.id);

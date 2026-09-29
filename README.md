@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.59**
+**Versión actual: V19.60**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -153,3 +153,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V19.58 avisos: `ROBO DE ARMAMENTO` mantiene carácter privado (solo lo ve quien roba) y se anida debajo de `LLUVIA DE METEORITOS`, entrando además en la pila de avisos centrales para no solaparse con BRUTAL, A POR... o FANTASMA.
 
 - V19.59 aprendizaje: el servidor contabiliza por separado las rondas `LOCAL DIFÍCIL` que realmente envían deltas válidos al Brain. `cpu-brain.html` muestra `Partidas LOCAL DIFÍCIL aprendidas`. El contador empieza en 0 al desplegar esta versión; no reconstruye partidas locales anteriores.
+
+- V19.60 bengalas: nuevo pickup no acumulativo `flare` (`bengala.png`) con indicador HUD `bengalahud.png`. Con bengala equipada, toque corto de disparo conserva el disparo normal y mantener disparo 0,22 s despliega tres señuelos durante 2,2 s. Los misiles teledirigidos dirigidos al portador se desvían a una bengala al entrar en radio cercano y explotan al alcanzarla. CPU local y CPU online pueden recogerla y la usan automáticamente ante un misil entrante.
