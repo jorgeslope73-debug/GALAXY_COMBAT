@@ -115,6 +115,9 @@
       this.onEvent=typeof onEvent==='function'?onEvent:()=>{};
       this.players=[];
       this.controls=new Map();
+      // V19.79 PERF-2: reutilizamos esta lista para no crear arrays temporales
+      // de CPU en cada tick de la simulacion.
+      this.cpuScratch=[];
       this.started=false;
       this.finished=false;
       this.winner=null;
@@ -688,7 +691,7 @@
         difficulty:this.difficulty,
         tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random(),
         resourceTargetId:null,meteorDecision:null,flareDecision:null,nextFlareDecision:0,nextFlareAllowed:0,
-        easyNextDecision:0,easyControl:null
+        easyNextDecision:0,easyControl:null,aiControl:null
       };
     }
     start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null,learningEnabled=true){
@@ -785,7 +788,9 @@
     setControl(turn,thrust,fire){
       const p=this.players[0];
       if(!p)return false;
-      this.controls.set(0,{turn:clamp(Number(turn)||0,-1,1),thrust:!!thrust,fire:!!fire});
+      let c=this.controls.get(0);
+      if(!c){c={turn:0,thrust:false,fire:false};this.controls.set(0,c);}
+      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;
       p.lastControlAt=Date.now();
       return true;
     }
@@ -845,7 +850,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;p.aiControl=null;
         if(p.cpu){
           p.easyNextDecision=0;p.easyControl=null;
           p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
@@ -948,7 +953,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.aiControl=null;
       if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.easyNextDecision=0;p.easyControl=null;}
     }
     deployFlares(p){
@@ -1367,8 +1372,14 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
-      const human=this.trainingMode?null:(this.players.find(p=>!p.cpu)||null);
-      const cpuPlayers=this.trainingMode?[]:this.players.filter(p=>p.cpu);
+      let human=null;
+      const cpuPlayers=this.cpuScratch;cpuPlayers.length=0;
+      if(!this.trainingMode){
+        for(const p of this.players){
+          if(p.cpu)cpuPlayers.push(p);
+          else if(!human)human=p;
+        }
+      }
       const huntScore=SCORE_TO_WIN-1;
       const shouldHunt=!!(!this.trainingMode&&cpuPlayers.length&&human&&!this.finished&&human.kills>=huntScore&&human.kills<SCORE_TO_WIN);
       if(shouldHunt&&!this.huntThresholdActive){
@@ -1387,13 +1398,20 @@
       let fxWrite=0;
       for(const e of this.fxEvents)if(this.fxClock-e.at<=.8)this.fxEvents[fxWrite++]=e;
       this.fxEvents.length=fxWrite;
+      const controlNow=Date.now();
       for(const p of this.players){
         p.protection=p.protection-dt>1e-9?p.protection-dt:0;
         p.shield=Math.max(0,p.shield-dt);p.camo=Math.max(0,p.camo-dt);p.reload=Math.max(0,p.reload-dt);
         if(p.dead){p.thrust=false;p.respawn-=dt;if(p.respawn<=0)this.respawnPlayer(p);continue;}
         p.px=p.x;p.py=p.y;
         const stored=this.controls.get(p.index)||IDLE_CONTROL;
-        const c=p.cpu?this.chooseCpuControls(p):((Date.now()-(p.lastControlAt||0)<=300)?stored:IDLE_CONTROL);
+        let c;
+        if(p.cpu){
+          // Estrategia CPU a 30 Hz. La simulacion, colisiones, comprobacion
+          // final de disparo y reaccion de bengalas siguen ejecutandose a 60 Hz.
+          if(!p.aiControl||(this.tickCount&1)===0)p.aiControl=this.chooseCpuControls(p);
+          c=p.aiControl||IDLE_CONTROL;
+        }else c=(controlNow-(p.lastControlAt||0)<=300)?stored:IDLE_CONTROL;
         if(!p.cpu)this.observeHumanLearning(p,c);
         p.thrust=!!c.thrust;
         p.rot=(p.rot+c.turn*240*dt+360)%360;

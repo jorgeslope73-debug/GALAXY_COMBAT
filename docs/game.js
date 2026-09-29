@@ -1208,16 +1208,25 @@
     lastFallbackStateSentAt=now;
     try{ws.send(JSON.stringify({t:'fallback-state',to:[...fallbackPeers],state:m}));return true;}catch(_){return false;}
   }
-  function sendHostFallbackEvent(m){
-    if(!fallbackPeers.size||!ws||ws.readyState!==WebSocket.OPEN)return false;
-    try{ws.send(JSON.stringify({t:'fallback-event',to:[...fallbackPeers],event:m}));return true;}catch(_){return false;}
+  function sendHostFallbackEvent(m,forceReliable=false){
+    // V19.79: los estados continuos siguen usando el camino P2P descartable,
+    // pero los cambios finales de fase (especialmente VICTORY) se duplican por
+    // WebSocket fiable. Un array "to" vacio hace que el servidor lo entregue a
+    // todos los clientes de la sala; el resto de eventos solo va a peers fallback.
+    if((!forceReliable&&!fallbackPeers.size)||!ws||ws.readyState!==WebSocket.OPEN)return false;
+    const to=forceReliable?[]:[...fallbackPeers];
+    try{ws.send(JSON.stringify({t:'fallback-event',to,event:m}));return true;}catch(_){return false;}
   }
   function startHostPhysics(players,rankRound=1){
     if(!isHost||typeof window.GalaxyHostPhysics!=='function')return false;
     hostPhysics=new window.GalaxyHostPhysics({
       code:roomCode,rankRound,rankHostToken:playerToken,
       onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);sendHostFallbackState(m);},
-      onEvent:m=>{handle(m);if(p2p)p2p.broadcastEvent(m);sendHostFallbackEvent(m);}
+      onEvent:m=>{
+        handle(m);
+        if(p2p)p2p.broadcastEvent(m);
+        sendHostFallbackEvent(m,m&&m.t==='victory');
+      }
     });
     return hostPhysics.start(players||lobbyPlayers);
   }
@@ -2024,15 +2033,20 @@
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function beginGame(preparingOnline=false){stopMusic();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
   function queueVictory(i){
-    pendingVictoryIndex=Number(i);
+    const winnerIndex=Number(i);
+    if(!inGame||!Number.isInteger(winnerIndex)||winnerIndex<0||winnerIndex>3)return;
+    // El mismo VICTORY puede llegar por P2P y por el respaldo fiable WebSocket.
+    // Si ya esta programado, no reiniciamos el temporizador.
+    if(pendingVictoryIndex===winnerIndex&&victoryShowTimer)return;
+    pendingVictoryIndex=winnerIndex;
     clearTimeout(victoryShowTimer);victoryShowTimer=null;
     maybeScheduleVictory();
   }
   function maybeScheduleVictory(){
-    if(pendingVictoryIndex===null||!inGame||victoryShowTimer||!state||!Array.isArray(state.players))return;
-    const winner=state.players.find(p=>Number(p.i)===Number(pendingVictoryIndex));
-    const target=Math.max(1,Number(state.scoreToWin)||5);
-    if(!winner||Number(winner.k)<target)return;
+    // V19.79: VICTORY es un evento autoritativo del host. No esperamos a que el
+    // ultimo snapshot descartable contenga tambien el 5/5: en movil ese paquete
+    // podia perderse y dejar la pantalla de ganador esperando indefinidamente.
+    if(pendingVictoryIndex===null||!inGame||victoryShowTimer)return;
     const now=performance.now();
     // Si la baja ganadora es nuestra, el HUD mantiene 4/5 durante dos segundos.
     // Esperamos a que el contador cambie realmente a 5/5 y dejamos ver el pop
@@ -2055,7 +2069,8 @@
     topbar.classList.add('hidden');mobileControls.classList.add('hidden');
     if(mobileExit)mobileExit.classList.add('hidden');
     resetMobileTouchControls();
-    const p=state&&state.players.find(x=>x.i===i);
+    const p=(state&&Array.isArray(state.players)&&state.players.find(x=>Number(x.i)===Number(i)))||
+      (Array.isArray(lobbyPlayers)&&lobbyPlayers.find(x=>Number(x.i)===Number(i)))||null;
     const victoryText=document.getElementById('victoryText');
     victoryText.textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});
     victory.style.setProperty('--winner-color',playerColors[Number(i)]||'#d8a7ff');

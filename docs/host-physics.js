@@ -120,6 +120,9 @@
       this.rankReportAttempts=0;
       this.players=[];
       this.controls=new Map();
+      // V19.79 PERF-2: array temporal reutilizable. Evita crear un filter()
+      // nuevo 60 veces por segundo para localizar las CPU de la sala.
+      this.cpuScratch=[];
       this.started=false;
       this.finished=false;
       this.winner=null;
@@ -262,7 +265,7 @@
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,
         guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,nextFlareDecision:0,nextFlareAllowed:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
-        difficulty:this.difficulty
+        difficulty:this.difficulty,aiControl:null
       };
     }
     start(playerList=[]){
@@ -294,7 +297,11 @@
     setControl(index,turn,thrust,fire){
       const i=Number(index),p=this.players.find(x=>x.index===i);
       if(!p)return false;
-      this.controls.set(i,{turn:clamp(Number(turn)||0,-1,1),thrust:!!thrust,fire:!!fire});
+      // Reutiliza el objeto de control: los controles llegan ~30 veces/s y no
+      // necesitan generar un objeto nuevo en cada paquete.
+      let c=this.controls.get(i);
+      if(!c){c={turn:0,thrust:false,fire:false};this.controls.set(i,c);}
+      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;
       p.lastControlAt=Date.now();
       return true;
     }
@@ -338,7 +345,7 @@
         const wasCpu=!!p.cpu;
         const nextName=safeName(item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu?'CPU':'JUGADOR '+(index+1));
         if(wasCpu!==isCpu||p.name!==nextName){
-          p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;
+          p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;p.aiControl=null;
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false});
           if(wasCpu&&!isCpu){
             this.bullets=this.bullets.filter(b=>b.owner!==index);
@@ -402,7 +409,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.nextFlareAllowed=0;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.aiControl=null;
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
         this.placeAtSpawn(p);p.dead=false;
       }
@@ -529,7 +536,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.aiControl=null;
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
@@ -825,11 +832,11 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
-      const cpuPlayers=this.players.filter(p=>p.cpu);
+      const cpuPlayers=this.cpuScratch;cpuPlayers.length=0;
       let huntedHuman=null;
       for(const p of this.players){
-        if(p.cpu||p.dead)continue;
-        if(p.kills>=SCORE_TO_WIN-1&&p.kills<SCORE_TO_WIN){huntedHuman=p;break;}
+        if(p.cpu){cpuPlayers.push(p);continue;}
+        if(!p.dead&&!huntedHuman&&p.kills>=SCORE_TO_WIN-1&&p.kills<SCORE_TO_WIN)huntedHuman=p;
       }
       const shouldHunt=!!(huntedHuman&&cpuPlayers.length);
       if(shouldHunt&&!this.huntThresholdActive){
@@ -843,13 +850,20 @@
       let fxWrite=0;
       for(const e of this.fxEvents)if(this.fxClock-e.at<=.8)this.fxEvents[fxWrite++]=e;
       this.fxEvents.length=fxWrite;
+      const controlNow=Date.now();
       for(const p of this.players){
         p.protection=p.protection-dt>1e-9?p.protection-dt:0;
         p.shield=Math.max(0,p.shield-dt);p.camo=Math.max(0,p.camo-dt);p.reload=Math.max(0,p.reload-dt);
         if(p.dead){p.thrust=false;p.respawn-=dt;if(p.respawn<=0)this.respawnPlayer(p);continue;}
         p.px=p.x;p.py=p.y;
         const stored=this.controls.get(p.index)||IDLE_CONTROL;
-        const c=p.cpu?this.chooseCpuControls(p):((Date.now()-(p.lastControlAt||0)<=300)?stored:IDLE_CONTROL);
+        let c;
+        if(p.cpu){
+          // V19.79 PERF-2: la estrategia se decide a 30 Hz, pero movimiento,
+          // colisiones, disparo final, bengalas y fisica continúan a 60 Hz.
+          if(!p.aiControl||(this.tickCount&1)===0)p.aiControl=this.chooseCpuControls(p);
+          c=p.aiControl||IDLE_CONTROL;
+        }else c=(controlNow-(p.lastControlAt||0)<=300)?stored:IDLE_CONTROL;
         p.thrust=!!c.thrust;
         p.rot=(p.rot+c.turn*240*dt+360)%360;
         const d=dirFromRot(p.rot);

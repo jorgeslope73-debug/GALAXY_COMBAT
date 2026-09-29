@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.78**
+**Versión actual: V19.79**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -192,3 +192,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V19.77: manual actualizado. Invisibilidad usa el icono real `assets/sprites/ojo.png` y la explicación de Modo Fantasma aclara que su indicador se muestra tanto en PC como en móvil.
 
 - V19.78: manual online ampliado. Explica cómo crear una sala pública, rellenar las 3 plazas libres con CPU difíciles para empezar de inmediato, mantener la sala abierta para que los humanos sustituyan CPU en marcha y usar Compartir sala para copiar un enlace directo que entra automáticamente en la sala. Textos actualizados en todos los idiomas del manual.
+
+- V19.79 PERF-2: físicas, colisiones, disparos y bengalas continúan a 60 Hz, mientras la decisión estratégica de las CPU se recalcula a 30 Hz y se reutiliza en el tick intermedio. Se eliminan asignaciones frecuentes reutilizando listas CPU y objetos de control. La victoria online se refuerza por WebSocket fiable y ya no depende de recibir el último snapshot 5/5, corrigiendo la ventana de ganador en móvil cuando vence un jugador del PC.
