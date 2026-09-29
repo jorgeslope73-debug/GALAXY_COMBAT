@@ -2495,7 +2495,7 @@
       const nameX=rightHud?px+panelW-4*hudScale:px+4*hudScale;
       ctx.font=HUD_NAME_FONT;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
       const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=HUD_VALUE_FONT;ctx.fillText(hudAmmoText(p),tx,py+15*hudScale);ctx.fillText(hudSpeedText(p),tx,py+80*hudScale);
-      if(p.flare===true){
+      if((Number(p.flare)||0)>0){
         const flareSize=31*hudScale;
         const flareX=px+panelW-22*hudScale;
         const flareY=py+27*hudScale;

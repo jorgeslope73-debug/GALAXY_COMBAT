@@ -259,7 +259,7 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,
-        guided:false,guidedTarget:-1,flare:false,flareHold:0,flareGesture:false,
+        guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         difficulty:this.difficulty
       };
@@ -341,7 +341,7 @@
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false});
           if(wasCpu&&!isCpu){
             this.bullets=this.bullets.filter(b=>b.owner!==index);
-            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=false;p.flareHold=0;p.flareGesture=false;
+            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
             p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.dead=false;p.respawn=0;
             p.vx=0;p.vy=0;p.lastSpawn=null;this.placeAtSpawn(p);
           }
@@ -399,7 +399,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=false;p.flareHold=0;p.flareGesture=false;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
@@ -497,7 +497,7 @@
         this.emit({t:'weapon-theft',index:attacker.index,name:attacker.name,ammo:stolenAmmo});
       }
 
-      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.flare=false;victim.flareHold=0;victim.flareGesture=false;
+      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.flareHold=0;victim.flareGesture=false;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
       if(attacker&&attacker!==victim){
         attacker.kills++;
@@ -528,11 +528,11 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flare=false;p.flareHold=0;p.flareGesture=false;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;
     }
     deployFlares(p){
-      if(!p||p.dead||!p.flare)return false;
-      p.flare=false;
+      if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
+      p.flare=Math.max(0,(Number(p.flare)||0)-1);
       const spreads=[-24,0,24];
       for(const spread of spreads){
         const d=dirFromRot((p.rot+180+spread+360)%360);
@@ -674,7 +674,7 @@
       }else if(rivalDangerous){
         let bestD2=Infinity;
         for(const pk of this.pickups){
-          if(pk.type!=='shield'&&!pk.type.startsWith('ammo')&&!(pk.type==='flare'&&!cpu.flare))continue;
+          if(pk.type!=='shield'&&!pk.type.startsWith('ammo')&&!(pk.type==='flare'))continue;
           const d2=dist2(cpu,pk);if(d2<bestD2){bestD2=d2;seekPickup=pk;}
         }
         if(!seekPickup){desiredX=cpu.x-dx;desiredY=cpu.y-dy;}
@@ -689,7 +689,7 @@
             else if(pk.type==='cadence')value=cpu.cadence>=20?100:35;
             else if(pk.type==='speed')value=cpu.speed<2?55:10;
             else if(pk.type==='shield')value=cpu.shield<=0?95:20;
-            else if(pk.type==='flare')value=cpu.flare?0:80;
+            else if(pk.type==='flare')value=80;
             const score=value-Math.sqrt(dist2(cpu,pk))*.06;
             if(score>bestScore){bestScore=score;seekPickup=pk;}
           }
@@ -927,7 +927,7 @@
               }
               p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
             }
-            else if(pk.type==='flare')p.flare=true;
+            else if(pk.type==='flare')p.flare=(Number(p.flare)||0)+1;
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
             else if(pk.type==='shield')p.shield=10;
             else if(pk.type==='camo')p.camo=10;
@@ -1016,7 +1016,7 @@
         t:'state',seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
-        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),mira:!!p.guided,mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:!!p.flare,dead:p.dead,respawn:round3(p.respawn)})),
+        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),mira:!!p.guided,mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),dead:p.dead,respawn:round3(p.respawn)})),
         asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type})),
         bullets:this.bullets.map(b=>({id:b.id,o:b.owner,x:round1(b.x),y:round1(b.y),vx:round1(b.vx),vy:round1(b.vy),g:!!b.guided,gt:(!b.decoyed&&Number.isInteger(b.target))?b.target:-1})),
         flares:this.flares.map(f=>({id:f.id,o:f.owner,x:round1(f.x),y:round1(f.y),a:round1(f.angle),life:round2(Math.max(0,f.life))})),
