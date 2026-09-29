@@ -1696,6 +1696,7 @@
           const flare=this.flares[f];
           if(Number(flare.owner)===Number(p.index)&&(Number(flare.ownerSafe)||0)>0)continue;
           if(!sweptCircles(p,SHIP_RADIUS,flare,FLARE_RADIUS,false))continue;
+          const flareOwner=this.players.find(q=>Number(q.index)===Number(flare.owner))||null;
           this.flares.splice(f,1);
           if(p.shield>0||p.protection>0){
             this.emitShipImpact(p,flare,false);
@@ -1705,7 +1706,10 @@
             p.x+=n.x*7;p.y+=n.y*7;
             this.emit({t:'sound',kind:'impact'});
           }else{
-            this.destroyShip(p,null);
+            // V19.73: una baja causada por una bengala pertenece a quien la
+            // lanzo. La propia bengala nunca puede conceder una baja a su dueño.
+            const attacker=flareOwner&&flareOwner!==p?flareOwner:null;
+            this.destroyShip(p,attacker);
           }
           if(p.dead)break;
         }

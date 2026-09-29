@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.72**
+**Versión actual: V19.73**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -179,3 +179,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V19.71 bengalas/móvil/manual: el móvil reconoce explícitamente dos toques rápidos de disparo (ventana aproximada de 0,35 s) para lanzar bengalas, sin depender de la munición ni de que el arma esté cargada. El manual elimina la antigua explicación de inclinación y aclara controles PC/móvil, disparo normal y bengalas. Las bengalas desplegadas también destruyen los meteoritos pequeños de la tormenta; ambos se consumen al impactar.
 
 - V19.72 cooldown de bengalas: una misma nave debe esperar un mínimo real de 3,0 s entre dos lanzamientos de cargas de bengalas, aunque tenga varias acumuladas. La restricción se aplica en la física LOCAL/CPU y online, por lo que no puede saltarse desde PC, móvil ni IA. El intervalo se conserva si la nave muere y reaparece; se reinicia al comenzar una ronda nueva.
+
+- V19.73 bajas con bengalas: si una nave enemiga muere al colisionar con una bengala desplegada, la baja se acredita al propietario de esa bengala y suma en su marcador. En online cuenta también para alcanzar la victoria y para el resultado de la ronda/ranking. Una colisión con la propia bengala nunca concede una baja al mismo jugador.
