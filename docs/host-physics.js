@@ -1068,6 +1068,17 @@
         }
         for(let k=this.pickups.length-1;k>=0;k--)if(circles(m,SMALL_METEOR_RADIUS,this.pickups[k],PICKUP_RADIUS))this.pickups.splice(k,1);
         let removed=false;
+        // V19.71: bengala + meteorito pequeno de tormenta destruye ambos.
+        for(let f=this.flares.length-1;f>=0;f--){
+          const flare=this.flares[f];
+          if(!sweptCircles(m,SMALL_METEOR_RADIUS,flare,FLARE_RADIUS,false))continue;
+          this.emitExplosionAt(m.x,m.y,flare.owner);
+          this.emit({t:'sound',kind:'impact'});
+          this.flares.splice(f,1);
+          this.meteors.splice(i,1);
+          removed=true;break;
+        }
+        if(removed)continue;
         for(const p of this.players){
           if(!p.dead&&sweptCircles(m,SMALL_METEOR_RADIUS,p,SHIP_RADIUS,false)){
             if(p.shield>0){this.emitShipImpact(p,m,false);const n=normalize(m.x-p.x,m.y-p.y),dot=m.vx*n.x+m.vy*n.y;m.vx-=2*dot*n.x;m.vy-=2*dot*n.y;}

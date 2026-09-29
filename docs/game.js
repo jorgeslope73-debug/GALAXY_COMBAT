@@ -304,7 +304,12 @@
   let mobileFire=false,mobileThrust=false;
   const MOBILE_HOLD_MS=190;
   const MOBILE_FIRE_PULSE_MS=120;
-  let mobileFireTimer=null;
+  // V19.71: el segundo toque rapido se reconoce de forma explicita como
+  // lanzamiento de bengalas. Antes dependia de que dos pulsos de 120 ms se
+  // solaparan por casualidad, por eso en movil a veces no salian.
+  const MOBILE_FLARE_DOUBLE_TAP_MS=360;
+  const MOBILE_FLARE_PULSE_MS=300;
+  let mobileFireTimer=null,lastMobileFireTapAt=0;
   const touchGestures=new Map();
   const mobileTouchRoles=new Map();
 
@@ -861,14 +866,21 @@
       mobileControls.classList.toggle('thrusting',mobileThrust);
     }
   }
+  function localPlayerHasFlare(){
+    const p=state&&Array.isArray(state.players)?state.players.find(x=>Number(x.i)===Number(myIndex)):null;
+    return !!(p&&Number(p.flare)>0);
+  }
   function triggerMobileFire(){
+    const now=performance.now();
+    const doubleTap=localPlayerHasFlare()&&lastMobileFireTapAt>0&&now-lastMobileFireTapAt<=MOBILE_FLARE_DOUBLE_TAP_MS;
+    lastMobileFireTapAt=doubleTap?0:now;
     mobileFire=true;
     clearTimeout(mobileFireTimer);
     mobileFireTimer=setTimeout(()=>{
       mobileFireTimer=null;
       mobileFire=false;
       refreshTouchControls();
-    },MOBILE_FIRE_PULSE_MS);
+    },doubleTap?MOBILE_FLARE_PULSE_MS:MOBILE_FIRE_PULSE_MS);
     refreshTouchControls();
   }
   function resetMobileTouchControls(){
@@ -880,7 +892,7 @@
     mobileLeftPointers.clear();mobileRightPointers.clear();
     mobileButtonTurn=0;mobileTurnTarget=0;mobileTurnStartedAt=0;
     updateMobileButtonTurn();
-    clearTimeout(mobileFireTimer);mobileFireTimer=null;
+    clearTimeout(mobileFireTimer);mobileFireTimer=null;lastMobileFireTapAt=0;
     mobileFire=false;mobileThrust=false;
     if(mobileControls){
       mobileControls.classList.remove('firing','thrusting');

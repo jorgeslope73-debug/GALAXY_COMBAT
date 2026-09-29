@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.69**
+**Versión actual: V19.71**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -173,3 +173,7 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V19.68 colisión/prueba de bengalas: una nave que impacta contra una bengala desplegada la consume. Si lleva escudo, el escudo se rompe (queda a 0) y la nave rebota; sin escudo ni protección de respawn, la nave es destruida. La nave propietaria tiene 0,35 s de gracia al soltarlas para evitar autocolisión inmediata. Para facilitar pruebas, cuando no hay una bengala flotando, hay aproximadamente un 35% de probabilidad de que el siguiente pickup sea una bengala.
 
 - V19.69 controles móviles: las flechas izquierda/derecha son áreas táctiles reales y se añade un respaldo por coordenada para toda la mitad izquierda de la pantalla. Tocar encima, directamente sobre las flechas o por debajo de ellas mantiene el mismo reparto: cuarto izquierdo gira a la izquierda y cuarto siguiente gira a la derecha. La mitad derecha sigue reservada a disparo/acelerador.
+
+- V19.70 aprendizaje táctico de bengalas: la CPU valora misiles dirigidos, balas en trayectoria y perseguidores antes de gastar una carga. LOCAL DIFÍCIL y entrenamiento guardan decisiones USAR BENGALA / CONSERVAR; las CPU online usan la misma detección táctica con reglas seguras. CPU Brain muestra el aprendizaje de bengalas.
+
+- V19.71 bengalas/móvil/manual: el móvil reconoce explícitamente dos toques rápidos de disparo (ventana aproximada de 0,35 s) para lanzar bengalas, sin depender de la munición ni de que el arma esté cargada. El manual elimina la antigua explicación de inclinación y aclara controles PC/móvil, disparo normal y bengalas. Las bengalas desplegadas también destruyen los meteoritos pequeños de la tormenta; ambos se consumen al impactar.
