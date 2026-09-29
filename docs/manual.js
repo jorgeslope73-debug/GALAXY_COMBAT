@@ -249,6 +249,7 @@
 
   const CONTROL_FLARE_GUIDE = {
     es: {
+      visual:{mobileTitle:'MOVIL · BOTONES',turn:'GIRAR',fire:'DISPARO',oneTap:'1 TOQUE',bullet:'BALA',doubleTap:'2 TOQUES RAPIDOS',flares:'BENGALAS',hold:'MANTENER',accelerate:'ACELERAR',pcTitle:'PC · TECLADO',pcTap:'TOQUE CORTO',pcHold:'MANTENER 0,22 s',wait:'3 s entre lanzamientos'},
       pc:'PC: A / D o flechas izquierda / derecha para girar; W o flecha arriba para acelerar. CTRL o ESPACIO: toque breve = disparo normal; mantenlo pulsado unas decimas (aprox. 0,22 s) = lanzar las bengalas equipadas. Las bengalas pueden lanzarse aunque tengas 0 balas o el arma no este cargada. ESC sale de la partida.',
       mobile:'Movil: juega en horizontal y usa solo los botones tactiles. Las flechas de la mitad izquierda giran la nave. En la mitad derecha: toque rapido = disparo normal; dos toques rapidos seguidos (aprox. dentro de 0,35 s) = lanzar bengalas; mantener pulsado = acelerar. Las bengalas no necesitan bala cargada.',
       tip:'En movil no hay control por inclinacion: el giro se hace exclusivamente con los botones/flechas de la izquierda.',
@@ -256,6 +257,7 @@
       hazard:'Las bengalas desplegadas tambien destruyen los meteoritos pequenos de la tormenta: el impacto consume la bengala y el meteorito.'
     },
     en: {
+      visual:{mobileTitle:'MOBILE · BUTTONS',turn:'TURN',fire:'FIRE',oneTap:'1 TAP',bullet:'SHOT',doubleTap:'2 QUICK TAPS',flares:'FLARES',hold:'HOLD',accelerate:'ACCELERATE',pcTitle:'PC · KEYBOARD',pcTap:'QUICK PRESS',pcHold:'HOLD 0.22 s',wait:'3 s between deployments'},
       pc:'PC: A / D or Left / Right arrows to turn; W or Up arrow to accelerate. CTRL or SPACE: quick tap = normal shot; hold for about 0.22 s = deploy equipped flares. Flares can be deployed with 0 ammo or while the weapon is not loaded. ESC leaves the match.',
       mobile:'Mobile: play in landscape and use touch buttons only. The arrows on the left half turn the ship. On the right half: quick tap = normal shot; two quick taps in a row (about 0.35 s) = deploy flares; hold = accelerate. Flares do not require a loaded round.',
       tip:'On mobile there is no tilt control: turning is done only with the left-side arrow buttons.',
@@ -263,6 +265,7 @@
       hazard:'Deployed flares also destroy the small meteors from meteor showers: the collision consumes both the flare and the meteor.'
     },
     it: {
+      visual:{mobileTitle:'MOBILE · PULSANTI',turn:'GIRA',fire:'SPARO',oneTap:'1 TOCCO',bullet:'COLPO',doubleTap:'2 TOCCHI RAPIDI',flares:'BENGALA',hold:'TIENI PREMUTO',accelerate:'ACCELERA',pcTitle:'PC · TASTIERA',pcTap:'TOCCO BREVE',pcHold:'TIENI 0,22 s',wait:'3 s tra i lanci'},
       pc:'PC: A / D o frecce sinistra / destra per girare; W o freccia su per accelerare. CTRL o SPAZIO: tocco breve = sparo normale; tieni premuto per circa 0,22 s = lancia le bengala equipaggiate. Le bengala funzionano anche con 0 munizioni o arma non carica. ESC esce dalla partita.',
       mobile:'Mobile: gioca in orizzontale e usa solo i pulsanti touch. Le frecce nella meta sinistra fanno girare la nave. Nella meta destra: tocco rapido = sparo normale; due tocchi rapidi consecutivi (entro circa 0,35 s) = bengala; tieni premuto = accelera. Le bengala non richiedono un colpo carico.',
       tip:'Su mobile non c e controllo tramite inclinazione: la rotazione usa esclusivamente i pulsanti/frecce a sinistra.',
@@ -270,6 +273,7 @@
       hazard:'Le bengala dispiegate distruggono anche i piccoli meteoriti della pioggia: l impatto consuma sia la bengala sia il meteorite.'
     },
     fr: {
+      visual:{mobileTitle:'MOBILE · BOUTONS',turn:'TOURNER',fire:'TIR',oneTap:'1 TOUCHE',bullet:'TIR',doubleTap:'2 TOUCHES RAPIDES',flares:'LEURRES',hold:'MAINTENIR',accelerate:'ACCELERER',pcTitle:'PC · CLAVIER',pcTap:'APPUI BREF',pcHold:'MAINTENIR 0,22 s',wait:'3 s entre les lancers'},
       pc:'PC : A / D ou fleches gauche / droite pour tourner; W ou fleche haut pour accelerer. CTRL ou ESPACE : appui bref = tir normal; maintenir environ 0,22 s = deployer les leurres equipes. Les leurres fonctionnent meme avec 0 munition ou une arme non chargee. ESC quitte la partie.',
       mobile:'Mobile : joue en paysage et utilise uniquement les boutons tactiles. Les fleches de la moitie gauche font tourner le vaisseau. A droite : touche rapide = tir normal; deux touches rapides successives (environ 0,35 s) = deployer les leurres; maintenir = accelerer. Les leurres ne demandent pas de munition chargee.',
       tip:'Sur mobile il n y a plus de controle par inclinaison : la rotation se fait uniquement avec les boutons/fleches de gauche.',
@@ -277,6 +281,7 @@
       hazard:'Les leurres deployes detruisent aussi les petites meteorites de la pluie : la collision consomme le leurre et la meteorite.'
     },
     de: {
+      visual:{mobileTitle:'MOBIL · TASTEN',turn:'DREHEN',fire:'FEUER',oneTap:'1 TIPP',bullet:'SCHUSS',doubleTap:'2 SCHNELLE TIPPS',flares:'FLARES',hold:'HALTEN',accelerate:'BESCHLEUNIGEN',pcTitle:'PC · TASTATUR',pcTap:'KURZ DRUECKEN',pcHold:'0,22 s HALTEN',wait:'3 s zwischen Ausloesungen'},
       pc:'PC: A / D oder Pfeil links / rechts zum Drehen; W oder Pfeil hoch zum Beschleunigen. CTRL oder LEERTASTE: kurz tippen = normal feuern; etwa 0,22 s halten = ausgeruestete Flares ausstossen. Flares funktionieren auch mit 0 Munition oder ungeladener Waffe. ESC verlaesst das Spiel.',
       mobile:'Mobil: im Querformat spielen und nur die Touch-Tasten verwenden. Die Pfeile auf der linken Haelfte drehen das Schiff. Rechts: kurz tippen = normal feuern; zweimal schnell hintereinander tippen (ca. innerhalb 0,35 s) = Flares; halten = beschleunigen. Flares brauchen keine geladene Munition.',
       tip:'Mobil gibt es keine Neigungssteuerung mehr: gedreht wird ausschliesslich mit den linken Pfeiltasten.',
@@ -390,6 +395,7 @@
         if(guide){
           controls.body[0]=guide.pc;
           controls.body[1]=guide.mobile;
+          controls.controlVisual=guide.visual||null;
           if(Array.isArray(controls.tips)&&controls.tips.length)controls.tips[0]=guide.tip;
         }
       }
@@ -452,6 +458,30 @@
     if(kind==='shield')return '<span class="manual-vector-icon manual-shield-icon" aria-hidden="true"></span>';
     return '<span class="manual-vector-icon manual-eye-icon" aria-hidden="true"><i></i></span>';
   }
+  function renderControlVisual(section){
+    const v=section&&section.controlVisual;
+    if(!v)return '';
+    const bullet='assets/sprites/municion1.png';
+    const flare='assets/sprites/bengalahud.png';
+    const fireKey='<span class="manual-demo-fire">'+escapeHtml(v.fire)+'</span>';
+    return '<div class="manual-control-visual">'
+      +'<div class="manual-control-visual-title">'+escapeHtml(v.mobileTitle)+'</div>'
+      +'<div class="manual-phone-demo">'
+        +'<div class="manual-phone-turn"><div class="manual-demo-arrows"><span>◀</span><span>▶</span></div><b>'+escapeHtml(v.turn)+'</b></div>'
+        +'<div class="manual-phone-fire">'+fireKey+'<small>'+escapeHtml(v.hold)+' = '+escapeHtml(v.accelerate)+'</small></div>'
+      +'</div>'
+      +'<div class="manual-action-examples">'
+        +'<div class="manual-action-example shot"><div class="manual-action-input">'+fireKey+'<span class="manual-action-count">×1</span></div><span class="manual-action-arrow">→</span><div class="manual-action-result"><img src="'+bullet+'" alt=""><strong>'+escapeHtml(v.bullet)+'</strong><small>'+escapeHtml(v.oneTap)+'</small></div></div>'
+        +'<div class="manual-action-example flare"><div class="manual-action-input">'+fireKey+'<span class="manual-action-plus">+</span>'+fireKey+'</div><span class="manual-action-arrow">→</span><div class="manual-action-result"><img src="'+flare+'" alt=""><strong>'+escapeHtml(v.flares)+'</strong><small>'+escapeHtml(v.doubleTap)+'</small><em>'+escapeHtml(v.wait)+'</em></div></div>'
+        +'<div class="manual-action-example thrust"><div class="manual-action-input">'+fireKey+'<span class="manual-hold-mark">'+escapeHtml(v.hold)+'</span></div><span class="manual-action-arrow">→</span><div class="manual-action-result manual-action-text"><strong>'+escapeHtml(v.accelerate)+'</strong></div></div>'
+      +'</div>'
+      +'<div class="manual-pc-demo"><strong>'+escapeHtml(v.pcTitle)+'</strong>'
+        +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcTap)+'</span><span class="manual-action-arrow">→</span><img src="'+bullet+'" alt=""><b>'+escapeHtml(v.bullet)+'</b></div>'
+        +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcHold)+'</span><span class="manual-action-arrow">→</span><img src="'+flare+'" alt=""><b>'+escapeHtml(v.flares)+'</b></div>'
+      +'</div>'
+    +'</div>';
+  }
+
   function renderButton(){
     const copy=DATA[language()];
     if(!copy)return;
@@ -474,6 +504,7 @@
     ).join('');
     contentEl.innerHTML=copy.sections.map(section=>{
       const body=section.body.map(p=>'<p>'+escapeHtml(p)+'</p>').join('');
+      const controlVisual=renderControlVisual(section);
       const notice=section.notice?'<div class="manual-alert"><strong>'+escapeHtml(section.noticeLabel||'IMPORTANT')+'</strong><p>'+escapeHtml(section.notice)+'</p></div>':'';
       const tips=section.tips&&section.tips.length?'<div class="manual-tips">'+section.tips.map(t=>'<div><span aria-hidden="true">✦</span><p>'+escapeHtml(t)+'</p></div>').join('')+'</div>':'';
       const pickups=section.pickups?'<div class="manual-pickup-grid">'+section.pickups.map(([kind,name,desc])=>'<article class="manual-pickup"><div class="manual-pickup-icon">'+pickupIcon(kind)+'</div><div><h4>'+escapeHtml(name)+'</h4><p>'+escapeHtml(desc)+'</p></div></article>').join('')+'</div>':'';
@@ -481,7 +512,7 @@
       const media=section.media&&section.media.length?'<div class="manual-media-grid">'+section.media.map(([src,alt,caption])=>'<figure class="manual-media"><img src="'+escapeHtml(src)+'" alt="'+escapeHtml(alt)+'" loading="lazy"><figcaption>'+escapeHtml(caption)+'</figcaption></figure>').join('')+'</div>':'';
       const diagram=section.diagram?'<div class="manual-diagram"><h4>'+escapeHtml(section.diagram.title||'')+'</h4><div class="manual-diagram-layout"><figure class="manual-diagram-figure"><img src="'+escapeHtml(section.diagram.src)+'" alt="'+escapeHtml(section.diagram.alt||'')+'" loading="lazy"><figcaption>'+escapeHtml(section.diagram.caption||'')+'</figcaption></figure><div class="manual-diagram-items">'+(section.diagram.items||[]).map(([name,desc,icon])=>'<article class="manual-diagram-item"><div class="manual-diagram-item-head">'+(icon?'<img class="manual-diagram-item-icon" src="'+escapeHtml(icon)+'" alt="" loading="lazy">':'')+'<h5>'+escapeHtml(name)+'</h5></div><p>'+escapeHtml(desc)+'</p></article>').join('')+'</div></div></div>':'';
       const weaponStates=section.weaponStates&&section.weaponStates.length?'<div class="manual-weapon-states"><h4>'+escapeHtml(section.weaponStateTitle||'')+'</h4><div class="manual-weapon-state-grid">'+section.weaponStates.map(([src,name,desc],idx)=>'<article class="manual-weapon-state '+(idx===1?'ready':'not-ready')+'"><div class="manual-weapon-state-image"><img src="'+escapeHtml(src)+'" alt="'+escapeHtml(name)+'" loading="lazy"></div><div><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></div></article>').join('')+'</div></div>':'';
-      return '<section id="manual-'+section.id+'" class="manual-section" data-section="'+section.id+'"><h3>'+escapeHtml(stripFlashbackText(section.title))+'</h3>'+body+notice+diagram+weaponStates+steps+media+pickups+tips+'</section>';
+      return '<section id="manual-'+section.id+'" class="manual-section" data-section="'+section.id+'"><h3>'+escapeHtml(stripFlashbackText(section.title))+'</h3>'+body+controlVisual+notice+diagram+weaponStates+steps+media+pickups+tips+'</section>';
     }).join('');
     bindNav();
   }
