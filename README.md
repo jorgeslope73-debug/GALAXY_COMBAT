@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.48**
+**Versión actual: V20.49**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -255,6 +255,7 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 - V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
 
+- V20.49: el meteorito gigante asteroidegrande_270.png aumenta un 20% de tamano visual, de 270 a 324 px. Su radio fisico general pasa de 135 a 162 px y el radio visual roca-roca/polvo usa 324*0,485 para mantener el contacto coherente con el sprite. No cambian su velocidad, frecuencia de aparicion, trayectoria ni la cantidad de meteoritos.
 - V20.48: estabilizacion defensiva de las colisiones de rocas. Se validan posiciones, radios, masas y velocidades antes de resolver impactos para impedir propagacion de NaN/Infinity; los centros coincidentes usan una normal determinista; solo se limitan velocidades patologicas (180 px/s en medianos y 90 px/s en gigante), muy por encima de sus velocidades normales. La separacion extra baja de 1,5 a 0,35 px para conservar contacto visual. El polvo local descarta estados o particulas no finitos antes de dibujar en Canvas, evitando excepciones de render durante transiciones/reconexion. No se modifican tamaños, cantidad, cadencia, rotacion ni comportamiento normal.
 - V20.47: los asteroides medianos reciben una rotacion visual muy leve y continua, inspirada en la pantalla de inicio. Cada roca gira en un sentido aleatorio entre aproximadamente 2 y 7 grados por segundo. La rotacion se sincroniza en el estado online/local y se interpola visualmente, sin modificar trayectorias, velocidad lineal, colisiones, tamanos, polvo ni frecuencia de aparicion.
 - V20.46: los asteroides medianos normales aumentan un 20% respecto a V20.45, de 100 a 120 px. La variante asteroide6.png (type 5 / asteroide6.png en assets) queda algo mas pequena, a 112 px, y con menor probabilidad de aparicion, manteniendo intactos el numero total de rocas y los tiempos de entrada/salida. Los radios fisicos y visuales se adaptan al nuevo tamano. En cada choque mediano-mediano o mediano-gigante nace en el punto de contacto una nube breve de 4-8 particulas/piedrecitas grises semitransparentes, sin trafico P2P adicional.
