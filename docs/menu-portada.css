@@ -43,6 +43,34 @@
   -webkit-user-select: none;
   z-index: -1;
 }
+/* V20.5: escena decorativa autonoma del menu. Vive sobre INTRO y siempre
+   por debajo de todos los controles. No recibe eventos ni participa en juego. */
+#menu .menu-decor-canvas {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  pointer-events:none;
+  z-index:0;
+  opacity:.82;
+}
+#menu .menu-body {
+  position:relative;
+  z-index:1;
+}
+@media (orientation:landscape) and (pointer:coarse) {
+  html.handheld-device #menu .menu-decor-canvas {
+    position:fixed;
+    inset:0;
+    width:100vw;
+    height:100%;
+    opacity:.72;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  #menu .menu-decor-canvas { opacity:.48; }
+}
 #menu .menu-sr-only {
   position: absolute;
   width: 1px;
