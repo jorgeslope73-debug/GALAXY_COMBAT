@@ -1068,7 +1068,17 @@
                 // V20.11: el atacante suma su baja, pero la victima no pierde
                 // un punto por haber sido abatida por otro jugador.
                 this.destroyShip(p,attacker);
-              }else this.emitShipImpact(p,b,false);
+              }else{
+                this.emitShipImpact(p,b,false);
+                if(b.guided){
+                  // V20.23: un misil guiado consume por completo un escudo activo.
+                  // La nave sobrevive a ese impacto; las balas normales no rompen
+                  // el escudo y la proteccion de aparicion sigue teniendo prioridad.
+                  p.shield=0;
+                  this.emitExplosionAt(b.x,b.y,b.owner);
+                  this.emit({t:'sound',kind:'impact'});
+                }
+              }
               remove=true;break;
             }
           }

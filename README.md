@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.22**
+**Versión actual: V20.23**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -252,3 +252,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V20.21: variacion organica de las particulas LocalFX de tobera. El tamano medio de salida se reduce respecto a V20.20, con motas pequenas, particulas medias y algunas mayores elegidas aleatoriamente. Todas se encogen progresivamente hasta casi cero y mantienen la misma vida aleatoria de 0,42-0,76 s. Cada particula elige al nacer una gama amarillo->oscuro->negro o rojo->oscuro->negro. Sin cambios en cantidad maxima, fisica, red ni jugabilidad.
 
 - V20.22: el misil guiado aumenta su vida maxima de 3 a 4 segundos. Las balas normales siguen caducando a los 3 segundos. No cambia la velocidad del misil, su capacidad de giro, dano, colisiones ni datos P2P.
+
+- V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
