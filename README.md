@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.46**
+**Versión actual: V20.47**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -255,6 +255,7 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 - V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
 
+- V20.47: los asteroides medianos reciben una rotacion visual muy leve y continua, inspirada en la pantalla de inicio. Cada roca gira en un sentido aleatorio entre aproximadamente 2 y 7 grados por segundo. La rotacion se sincroniza en el estado online/local y se interpola visualmente, sin modificar trayectorias, velocidad lineal, colisiones, tamanos, polvo ni frecuencia de aparicion.
 - V20.46: los asteroides medianos normales aumentan un 20% respecto a V20.45, de 100 a 120 px. La variante asteroide6.png (type 5 / asteroide6.png en assets) queda algo mas pequena, a 112 px, y con menor probabilidad de aparicion, manteniendo intactos el numero total de rocas y los tiempos de entrada/salida. Los radios fisicos y visuales se adaptan al nuevo tamano. En cada choque mediano-mediano o mediano-gigante nace en el punto de contacto una nube breve de 4-8 particulas/piedrecitas grises semitransparentes, sin trafico P2P adicional.
 - V20.45: los asteroides medianos aumentan ligeramente su tamaño visual de 90 a 100 px. El radio de contacto roca-roca y la deteccion local del polvo de colision se ajustan al nuevo tamaño para mantener el contacto visual realista de V20.44. El asteroide de 60 px, el gigante de 270 px, la cantidad y la cadencia de aparicion no cambian.
 - V20.44: se ajusta el contacto visual de las rocas para que el rebote ocurra cuando los sprites llegan realmente a tocarse, usando el mismo radio del 48,5% del tamano dibujado que la pantalla de inicio. Se corrige especialmente el asteroide de 60 px, que antes usaba el mismo radio fisico de 45 px que los de 90 px. Se anade polvo/piedrecitas locales en choques mediano-mediano y mediano-gigante con el mismo comportamiento visual de la portada. No cambian cantidad, sucesion, tamanos ni frecuencia de aparicion.
