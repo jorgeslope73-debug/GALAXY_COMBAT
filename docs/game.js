@@ -230,6 +230,11 @@
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const cpuButton=document.getElementById('cpu');
   const audioToggleButton=document.getElementById('enableAudio');
+  const joystickToggleButton=document.getElementById('enableJoystick');
+  const JOYSTICK_STORAGE_KEY='galaxyCombatJoystickV1';
+  let joystickEnabled=false;
+  let joystickIndex=-1;
+  let joystickConnected=false;
   const serverButtons=['create','join'].map(id=>document.getElementById(id));
   if(cpuButton)cpuButton.disabled=false;
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
@@ -1148,6 +1153,74 @@
     audioUnlocked=successCount>0;
     return audioUnlocked;
   }
+  function loadJoystickPreference(){
+    try{joystickEnabled=localStorage.getItem(JOYSTICK_STORAGE_KEY)==='1';}catch(_){joystickEnabled=false;}
+  }
+  function saveJoystickPreference(){
+    try{localStorage.setItem(JOYSTICK_STORAGE_KEY,joystickEnabled?'1':'0');}catch(_){}
+  }
+  function findJoystick(){
+    if(!joystickEnabled||typeof navigator.getGamepads!=='function'){
+      joystickIndex=-1;joystickConnected=false;return null;
+    }
+    const pads=navigator.getGamepads();
+    let pad=null;
+    if(Number.isInteger(joystickIndex)&&joystickIndex>=0)pad=pads[joystickIndex]||null;
+    if(!pad||pad.connected===false){
+      pad=null;
+      for(let i=0;i<pads.length;i++){
+        const candidate=pads[i];
+        if(!candidate||candidate.connected===false)continue;
+        // Preferimos el mapeo estandar, pero aceptamos mandos que no lo declaran.
+        if(candidate.mapping==='standard'){pad=candidate;break;}
+        if(!pad)pad=candidate;
+      }
+      joystickIndex=pad?pad.index:-1;
+    }
+    joystickConnected=!!pad;
+    return pad;
+  }
+  function joystickControls(){
+    const pad=findJoystick();
+    if(!pad)return {active:false,turn:0,thrust:false,fire:false};
+    const dead=.18;
+    const axisX=Number(pad.axes&&pad.axes.length>0?pad.axes[0]:0)||0;
+    const axisY=Number(pad.axes&&pad.axes.length>1?pad.axes[1]:0)||0;
+    const dpadLeft=!!(pad.buttons&&pad.buttons[14]&&pad.buttons[14].pressed);
+    const dpadRight=!!(pad.buttons&&pad.buttons[15]&&pad.buttons[15].pressed);
+    const dpadUp=!!(pad.buttons&&pad.buttons[12]&&pad.buttons[12].pressed);
+    let turn=0;
+    if(dpadLeft||dpadRight)turn=(dpadLeft?1:0)-(dpadRight?1:0);
+    else if(Math.abs(axisX)>dead){
+      const normalized=(Math.abs(axisX)-dead)/(1-dead);
+      // Gamepad: izquierda=-1. Fisica Galaxy: izquierda=+1.
+      turn=-Math.sign(axisX)*Math.min(1,normalized);
+    }
+    // Empujar el stick hacia delante (arriba) acelera. D-pad arriba tambien.
+    const thrust=dpadUp||axisY<-.28;
+    // Mapeo estandar: A/Cross (0) o gatillo derecho RT/R2 (7) disparan.
+    const buttonA=!!(pad.buttons&&pad.buttons[0]&&pad.buttons[0].pressed);
+    const rightTrigger=!!(pad.buttons&&pad.buttons[7]&&(pad.buttons[7].pressed||Number(pad.buttons[7].value)>.28));
+    return {active:true,turn,thrust,fire:buttonA||rightTrigger};
+  }
+  function updateJoystickButton(){
+    if(!joystickToggleButton)return;
+    findJoystick();
+    joystickToggleButton.classList.toggle('active',joystickEnabled);
+    joystickToggleButton.setAttribute('aria-pressed',joystickEnabled?'true':'false');
+    if(!joystickEnabled)joystickToggleButton.textContent='JOYSTICK';
+    else joystickToggleButton.textContent=joystickConnected?'JOYSTICK ACTIVO':'JOYSTICK · CONECTA MANDO';
+    joystickToggleButton.title=joystickEnabled
+      ?'Stick izquierdo: izquierda/derecha gira, arriba acelera. A/Cross o RT/R2 dispara.'
+      :'Activar control con mando estandar';
+  }
+  function toggleJoystick(){
+    joystickEnabled=!joystickEnabled;
+    if(!joystickEnabled){joystickIndex=-1;joystickConnected=false;}
+    saveJoystickPreference();
+    updateJoystickButton();
+  }
+
   function updateAudioButton(){
     if(!audioToggleButton)return;
     audioToggleButton.classList.toggle('active',gameAudioEnabled);
@@ -1951,16 +2024,20 @@
     const left=keys.has('KeyA')||keys.has('ArrowLeft');
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
-    const rawTurn=isMobile
+    const pad=joystickControls();
+    const baseTurn=isMobile
       ?(mobileKeyboardActive?keyboardTurn:progressiveMobileTurn(now))
       :keyboardTurn;
+    // Si el joystick esta activado y realmente mueve el stick/D-pad, toma el
+    // giro; teclado y controles tactiles siguen disponibles simultaneamente.
+    const rawTurn=pad.active&&Math.abs(pad.turn)>.01?pad.turn:baseTurn;
     // El sensor tiene un poco de ruido incluso con el telefono quieto. Redondear
     // a pasos de 1/64 evita JSON/WebSocket innecesarios sin alterar el tacto.
     const turn=Math.round(rawTurn*64)/64;
     const touchThrust=isMobile&&!mobileKeyboardActive?mobileThrust:false;
     const touchFire=isMobile&&!mobileKeyboardActive?mobileFire:false;
-    const thrust=touchThrust||keys.has('KeyW')||keys.has('ArrowUp');
-    const fire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
+    const thrust=touchThrust||keys.has('KeyW')||keys.has('ArrowUp')||(pad.active&&pad.thrust);
+    const fire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight')||(pad.active&&pad.fire);
     if(Math.abs(rawTurn-lastControlTurn)>0.001){
       lastControlTurnChangedAt=now;
       lastControlTurn=rawTurn;
@@ -2560,7 +2637,21 @@
   menu.addEventListener('click',unlockAudioFromUserGesture);
   menu.addEventListener('keydown',unlockAudioFromUserGesture);
   updateAudioButton();
+  loadJoystickPreference();
+  updateJoystickButton();
   if(audioToggleButton)audioToggleButton.addEventListener('click',toggleGameAudio);
+  if(joystickToggleButton)joystickToggleButton.addEventListener('click',toggleJoystick);
+  window.addEventListener('gamepadconnected',e=>{
+    if(!joystickEnabled)return;
+    joystickIndex=Number.isInteger(e.gamepad&&e.gamepad.index)?e.gamepad.index:-1;
+    joystickConnected=true;
+    updateJoystickButton();
+  });
+  window.addEventListener('gamepaddisconnected',e=>{
+    if(Number(e.gamepad&&e.gamepad.index)===joystickIndex)joystickIndex=-1;
+    joystickConnected=false;
+    updateJoystickButton();
+  });
 
   if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
   if(shareRoomBtn)shareRoomBtn.addEventListener('click',shareCurrentRoom);
@@ -3854,6 +3945,11 @@
     const now=Number.isFinite(rafNow)?rafNow:performance.now();
     sampleDisplayRefresh(now);
     flushPendingState(false,now);
+    if(joystickEnabled&&joystickToggleButton&&!inGame){
+      const before=joystickConnected;
+      findJoystick();
+      if(before!==joystickConnected)updateJoystickButton();
+    }
     pumpControls(now);
     if(localCpuActive&&localCpu&&!onlinePreparing(now))localCpu.advance(now);
     if(hostPhysics&&isHost)hostPhysics.advance(now);
