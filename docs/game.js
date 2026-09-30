@@ -4143,7 +4143,10 @@
       const old=previousLookup.asteroids.get(a.id);
       const x=old?lerp(old.x,a.x,blend):a.x;
       const y=old?lerp(old.y,a.y,blend):a.y;
-      drawImageCentered(images[ASTEROID_IMAGE_KEYS[a.type]]||images.asteroid1,x,y,asteroidDrawSize(a));
+      const angle=old&&Number.isFinite(Number(old.a))
+        ?lerpAngle(Number(old.a)||0,Number(a.a)||0,blend)
+        :(Number(a.a)||0);
+      drawImageCentered(images[ASTEROID_IMAGE_KEYS[a.type]]||images.asteroid1,x,y,asteroidDrawSize(a),angle);
     }
     for(const pk of state.pickups){
       const old=previousLookup.pickups.get(pk.id);
