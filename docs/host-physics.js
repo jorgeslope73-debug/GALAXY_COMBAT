@@ -567,7 +567,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=Math.max(.5,p.cadence/8);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
@@ -916,10 +916,15 @@
           const projectileSpeed=guided?500:this.bulletSpeed(p);
           this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false});
           if(guided){p.guided=false;p.guidedTarget=-1;}
-          p.bullets--;p.reload=Math.max(.5,p.cadence/8);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
+          p.bullets--;p.reload=this.reloadTime(p);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
         }
       }
       this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.shipCollisions();
+    }
+    reloadTime(p){
+      // V20.15: la recarga global usa la misma espera reducida que antes
+      // tenia solo el modo FACIL. No altera la velocidad del proyectil.
+      return Math.max(.5,p.cadence/8)*.5;
     }
     bulletSpeed(p){return p.cadence>=30?500:p.cadence>=20?750:p.cadence>=10?900:1000;}
     updateAsteroids(){
@@ -1112,17 +1117,17 @@
             if(pk.type==='ammo3'){
               const hadBullets=p.bullets>0;
               p.bullets+=6;
-              if(!hadBullets)p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));
+              if(!hadBullets)p.reload=Math.max(p.reload,this.reloadTime(p));
             }else if(pk.type==='ammo1'){
               const hadBullets=p.bullets>0;
               p.bullets+=1;
-              if(!hadBullets)p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));
+              if(!hadBullets)p.reload=Math.max(p.reload,this.reloadTime(p));
             }
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
             else if(pk.type==='mira'){
               if(p.bullets<=0){
                 p.bullets=1;
-                p.reload=Math.max(p.reload,Math.max(.5,p.cadence/8));
+                p.reload=Math.max(p.reload,this.reloadTime(p));
               }
               p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
             }
