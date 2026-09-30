@@ -255,18 +255,25 @@
   // No forman parte del estado, fisicas, colisiones ni mensajes P2P.
   const ENGINE_FX_MAX=isMobile?96:192;
   const ENGINE_FX_INTERVAL=isMobile?55:38;
-  // V20.20: paleta de combustion compartida por todas las naves.
-  // Se precalcula como colores fijos para no crear gradientes ni strings RGB
-  // nuevos en cada frame. La tobera nace en rojo muy intenso y se enfria
-  // progresivamente hasta rojo oscuro y negro al final del rastro.
-  const ENGINE_FIRE_COLORS=[
-    '#ff2a16','#ff1b0d','#ff0d08','#f00000',
-    '#dc0000','#c60000','#b00000','#990000',
-    '#820000','#6b0000','#550000','#410000',
-    '#300000','#210000','#120000','#050505'
+  // V20.21: cada particula elige una de dos gamas de combustion:
+  // amarillo -> naranja/oscuro -> negro, o rojo intenso -> rojo oscuro -> negro.
+  // Las paletas son fijas para evitar gradientes/strings nuevos cada frame.
+  const ENGINE_FIRE_PALETTES=[
+    [
+      '#fff3a0','#ffe56a','#ffd33d','#ffb52a',
+      '#ff9220','#e9681b','#c94b19','#9f3518',
+      '#792818','#571e16','#3b1713','#26110f',
+      '#170d0c','#0e0908','#080606','#050505'
+    ],
+    [
+      '#ff2a16','#ff1b0d','#ff0d08','#f00000',
+      '#dc0000','#c60000','#b00000','#990000',
+      '#820000','#6b0000','#550000','#410000',
+      '#300000','#210000','#120000','#050505'
+    ]
   ];
   const engineParticles=Array.from({length:ENGINE_FX_MAX},()=>({
-    life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0,owner:0
+    life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0,owner:0,palette:0
   }));
   const engineEmitAt=[0,0,0,0];
   const engineTrailHidden=[false,false,false,false];
@@ -331,7 +338,15 @@
     particle.vy=(Number(vy)||0)*.18+backY*exhaust+sideY*(Math.random()-.5)*16;
     particle.maxLife=.42+Math.random()*.34;
     particle.life=particle.maxLife;
-    particle.size=(isMobile?3.2:2.8)+Math.random()*(isMobile?4.4:4.0);
+
+    // Algo mas pequenas de salida que antes, pero con variedad organica:
+    // la mayoria son medias, algunas son motas pequenas y unas pocas mayores.
+    const sizeRoll=Math.random();
+    const baseSize=(isMobile?2.35:1.95)+Math.random()*(isMobile?3.15:2.85);
+    particle.size=baseSize*(sizeRoll<.20?.64:(sizeRoll>.86?1.24:1));
+
+    // La gama se decide una sola vez al nacer: amarillo-negro o rojo-negro.
+    particle.palette=Math.random()<.5?0:1;
   }
   function drawEngineParticles(now){
     if(!engineFxLastAt){engineFxLastAt=now;return;}
@@ -367,14 +382,16 @@
       const t=particle.life/particle.maxLife;
       const age=1-t;
       if(age<.62)continue;
-      const radius=Math.max(.7,particle.size*(.30+.70*t));
+      // Se encoge continuamente hasta casi desaparecer.
+      const radius=Math.max(.28,particle.size*(.10+.90*t));
+      const palette=ENGINE_FIRE_PALETTES[particle.palette]||ENGINE_FIRE_PALETTES[0];
       const colorIndex=Math.min(
-        ENGINE_FIRE_COLORS.length-1,
-        Math.max(0,Math.floor(age*(ENGINE_FIRE_COLORS.length-1)))
+        palette.length-1,
+        Math.max(0,Math.floor(age*(palette.length-1)))
       );
       const tailFade=Math.max(0,1-(age-.62)/.38);
       ctx.globalAlpha=.38*tailFade;
-      ctx.fillStyle=ENGINE_FIRE_COLORS[colorIndex];
+      ctx.fillStyle=palette[colorIndex];
       ctx.beginPath();
       ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
       ctx.fill();
@@ -388,13 +405,15 @@
       const t=particle.life/particle.maxLife;
       const age=1-t;
       if(age>=.62)continue;
-      const radius=Math.max(.7,particle.size*(.30+.70*t));
+      // Mismo encogimiento desde el nacimiento hasta el final de vida.
+      const radius=Math.max(.28,particle.size*(.10+.90*t));
+      const palette=ENGINE_FIRE_PALETTES[particle.palette]||ENGINE_FIRE_PALETTES[0];
       const colorIndex=Math.min(
-        ENGINE_FIRE_COLORS.length-1,
-        Math.max(0,Math.floor(age*(ENGINE_FIRE_COLORS.length-1)))
+        palette.length-1,
+        Math.max(0,Math.floor(age*(palette.length-1)))
       );
       ctx.globalAlpha=.82*(1-age*.55);
-      ctx.fillStyle=ENGINE_FIRE_COLORS[colorIndex];
+      ctx.fillStyle=palette[colorIndex];
       ctx.beginPath();
       ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
       ctx.fill();
