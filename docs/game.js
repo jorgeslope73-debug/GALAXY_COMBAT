@@ -1165,32 +1165,10 @@
       stopMusic();
     }
   }
-  // ImpactFX llama a este hook cuando llega el evento visual de desintegracion.
-  // Asi el sonido no depende de que llegue ademas un mensaje de audio separado.
-  window.GalaxyPlayDisintegrateSound=()=>{playSparkleSound();};
-
   function playSound(k){
     if(!gameAudioEnabled)return;
-    if(k==='sparkle'){
-      if(playSparkleSound())return;
-      // Si WebAudio esta temporalmente suspendido, intentamos reanudarlo y
-      // reproducir el tintineo en cuanto vuelva a estar activo.
-      if(useWebAudio&&audioCtx){
-        try{
-          const resumed=audioCtx.resume();
-          if(resumed&&resumed.then)resumed.then(()=>{playSparkleSound();}).catch(()=>{});
-        }catch(_){}
-        return;
-      }
-      // Fallback para navegadores sin WebAudio: laser corto y muy suave.
-      const pool=soundPools.laser;if(!pool||!pool.items.length)return;
-      const a=pool.items[pool.next++%pool.items.length];
-      try{
-        a.currentTime=0;a.playbackRate=1.8;a.volume=.20*gameVolume;
-        const promise=a.play();if(promise&&promise.catch)promise.catch(()=>{});
-      }catch(_){}
-      return;
-    }
+    // V20.34: la desintegracion del cohete es deliberadamente muda.
+    if(k==='sparkle')return;
     if(useWebAudio){
       ensureAudioContext();
       if(playWebEffect(k))return;
