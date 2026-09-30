@@ -1044,6 +1044,44 @@
     }catch(_){return false;}
   }
 
+  function playSparkleSound(){
+    if(!useWebAudio||!gameAudioEnabled)return false;
+    const ctx=ensureAudioContext();
+    if(!ctx||ctx.state!=='running'||!fxGain)return false;
+    try{
+      // V20.29: chispitas sintetizadas, suaves y agudas, sin golpe grave.
+      const now=ctx.currentTime;
+      const bus=ctx.createGain();
+      bus.gain.setValueAtTime(.0001,now);
+      bus.gain.exponentialRampToValueAtTime(.09,now+.006);
+      bus.gain.exponentialRampToValueAtTime(.0001,now+.30);
+      bus.connect(fxGain);
+      const freqs=[2300,2950,3720,4550,5250];
+      const delays=[0,.028,.061,.095,.132];
+      let ended=0;
+      for(let i=0;i<freqs.length;i++){
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+        const start=now+delays[i];
+        const stop=start+.11+i*.008;
+        osc.type=i%2?'sine':'triangle';
+        osc.frequency.setValueAtTime(freqs[i],start);
+        osc.frequency.exponentialRampToValueAtTime(freqs[i]*1.1,stop);
+        gain.gain.setValueAtTime(.0001,start);
+        gain.gain.exponentialRampToValueAtTime(.047-i*.004,start+.004);
+        gain.gain.exponentialRampToValueAtTime(.0001,stop);
+        osc.connect(gain);gain.connect(bus);
+        osc.onended=()=>{
+          try{osc.disconnect();gain.disconnect();}catch(_){}
+          ended++;
+          if(ended===freqs.length)try{bus.disconnect();}catch(_){}
+        };
+        osc.start(start);osc.stop(stop+.01);
+      }
+      return true;
+    }catch(_){return false;}
+  }
+
   function playWebMusic(){
     if(!useWebAudio||!gameAudioEnabled||!menu||menu.classList.contains('hidden'))return false;
     const ctx=ensureAudioContext();
@@ -1109,6 +1147,17 @@
   }
   function playSound(k){
     if(!gameAudioEnabled)return;
+    if(k==='sparkle'){
+      if(playSparkleSound())return;
+      // Fallback para navegadores sin WebAudio: un laser muy suave y agudo.
+      const pool=soundPools.laser;if(!pool||!pool.items.length)return;
+      const a=pool.items[pool.next++%pool.items.length];
+      try{
+        a.currentTime=0;a.playbackRate=1.8;a.volume=.14*gameVolume;
+        const promise=a.play();if(promise&&promise.catch)promise.catch(()=>{});
+      }catch(_){}
+      return;
+    }
     if(useWebAudio){
       ensureAudioContext();
       if(playWebEffect(k))return;
@@ -1118,6 +1167,7 @@
     const pool=soundPools[k];if(!pool||!pool.items.length)return;
     const a=pool.items[pool.next++%pool.items.length];
     try{
+      a.playbackRate=1;a.volume=(soundDefs[k]?soundDefs[k].volume:1)*gameVolume;
       a.currentTime=0;
       const promise=a.play();
       if(promise&&promise.catch)promise.catch(err=>console.warn('[Galaxy Combat] Efecto de audio bloqueado:',k,err&&err.name?err.name:err));
