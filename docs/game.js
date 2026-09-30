@@ -2778,6 +2778,52 @@
     const elapsed=Math.max(0,3-secondsLeft);
     return .35+.65*(.5+.5*Math.cos(elapsed*Math.PI*4));
   }
+  const SPAWN_MATERIALIZE_SECONDS=1.15;
+  function spawnMaterializeProgress(secondsLeft){
+    const left=Math.max(0,Number(secondsLeft)||0);
+    return clamp(1-left/SPAWN_MATERIALIZE_SECONDS,0,1);
+  }
+  function drawSpawnMaterializeFx(x,y,index,secondsLeft,now){
+    const t=spawnMaterializeProgress(secondsLeft);
+    if(t>=1)return;
+    const ease=1-Math.pow(1-t,3);
+    const [rr,gg,bb]=playerRgb[Math.max(0,Math.min(3,Number(index)||0))]||playerRgb[0];
+    const pulse=.5+.5*Math.sin(now*.035);
+    ctx.save();
+    try{
+      ctx.translate(x,y);
+      ctx.globalCompositeOperation='lighter';
+      // Halo exterior que se cierra sobre el punto exacto de aparicion.
+      const outer=118-58*ease;
+      ctx.globalAlpha=.22+.46*(1-t);
+      ctx.strokeStyle=`rgba(${rr},${gg},${bb},.95)`;
+      ctx.lineWidth=5;
+      ctx.beginPath();ctx.arc(0,0,outer,0,Math.PI*2);ctx.stroke();
+      // Segundo anillo en sentido contrario para que el punto se localice de un vistazo.
+      const inner=30+40*ease;
+      ctx.globalAlpha=.35+.35*pulse;
+      ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,0,inner,0,Math.PI*2);ctx.stroke();
+      // Cuatro trazos radiales convergentes, baratos de dibujar y muy visibles.
+      ctx.globalAlpha=.75*(1-.55*t);
+      ctx.lineWidth=4;
+      const rayOuter=155-72*ease,rayInner=82-28*ease;
+      for(let i=0;i<4;i++){
+        const a=i*Math.PI/2+now*.0025;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a)*rayOuter,Math.sin(a)*rayOuter);
+        ctx.lineTo(Math.cos(a)*rayInner,Math.sin(a)*rayInner);
+        ctx.stroke();
+      }
+      // Destello central final: marca claramente el instante en que la nave queda activa.
+      if(t>.68){
+        const f=(t-.68)/.32;
+        ctx.globalAlpha=(1-f)*.72;
+        ctx.fillStyle=`rgba(${rr},${gg},${bb},.9)`;
+        ctx.beginPath();ctx.arc(0,0,14+38*f,0,Math.PI*2);ctx.fill();
+      }
+    }finally{ctx.restore();}
+  }
   function lerp(a,b,t){return a+(b-a)*t;}
   function lerpAngle(a,b,t){
     const delta=((b-a+540)%360)-180;
@@ -2983,6 +3029,8 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
+    const spawnFxLeft=Math.max(0,Number(p.spawnFx)||0);
+    if(spawnFxLeft>0)drawSpawnMaterializeFx(x,y,p.i,spawnFxLeft,now);
     const localizedOwner=localizedTargetOwners[Number(p.i)];
     const localized=Number.isInteger(localizedOwner)&&localizedOwner>=0;
     let alpha=1;
@@ -3016,7 +3064,8 @@
     // La propulsion visual depende del acelerador, no de la velocidad.
     // Para la nave local usamos el control de este mismo frame para que el PNG
     // cambie al instante al pulsar/soltar, incluso mientras sigue por inercia.
-    const thrusting=Number(p.i)===Number(myIndex)?!!lastControlThrust:p.thrust===true;
+    const materializing=spawnFxLeft>0;
+    const thrusting=!materializing&&(Number(p.i)===Number(myIndex)?!!lastControlThrust:p.thrust===true);
     if(thrusting){
       const visualVx=local&&localVisual.ready?localVisual.vx:p.vx;
       const visualVy=local&&localVisual.ready?localVisual.vy:p.vy;
@@ -3031,7 +3080,14 @@
     // La fisica usa rot=0 arriba, 90 izquierda, 180 abajo y 270 derecha.
     // Canvas gira en el sentido visual contrario a esa convencion, por eso
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
-    drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
+    let shipSize=SHIP_DRAW_SIZE;
+    if(materializing){
+      const mt=spawnMaterializeProgress(spawnFxLeft);
+      const me=1-Math.pow(1-mt,3);
+      shipSize*=.28+.72*me;
+      alpha*=.18+.82*me;
+    }
+    drawImageCentered(im,x,y,shipSize,-r,alpha);
     // V19.66: la bengala equipada se indica sobre la propia nave, igual que
     // la capa de MIRA/misil. Solo se dibuja una vez aunque haya varias cargas.
     if((Number(p.flare)||0)>0&&imageReady(images.bengalasnave)){
