@@ -290,7 +290,7 @@
   // contra asteroides. Se calcula solo en cada cliente: cero datos P2P.
   const ROCK_FX_MAX=isMobile?48:96;
   // V20.44: mismos radios visuales de contacto que la fisica de roca.
-  const GIANT_LOCAL_RADIUS=270*.485;
+  const GIANT_LOCAL_RADIUS=324*.485;
   const asteroidDrawSize=a=>Number(a&&a.type)===5?112:120;
   const asteroidLocalRadius=a=>asteroidDrawSize(a)*.485;
   const rockParticles=Array.from({length:ROCK_FX_MAX},()=>({
@@ -4180,7 +4180,7 @@
     }
     if(state.giant){
       const old=prev.giant;
-      drawImageCentered(images.giant,old?lerp(old.x,state.giant.x,blend):state.giant.x,old?lerp(old.y,state.giant.y,blend):state.giant.y,270,0,1);
+      drawImageCentered(images.giant,old?lerp(old.x,state.giant.x,blend):state.giant.x,old?lerp(old.y,state.giant.y,blend):state.giant.y,324,0,1);
     }
     detectRockCollisionDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
