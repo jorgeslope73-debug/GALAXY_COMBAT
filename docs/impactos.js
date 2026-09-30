@@ -96,11 +96,14 @@
         const angle = TAU * (i + random() * 0.65) / count;
         const particle=burst.particles[i];
         particle.dx=Math.cos(angle);particle.dy=Math.sin(angle);
-        particle.distance=kind === 'explosion' ? 16 + random() * 18 : kind === 'disintegrate' ? 20 + random() * 34 : 9 + random() * 12;
-        particle.size=kind === 'disintegrate' ? 1.25 + random() * 1.15 : 1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
-        particle.hot=random() > (kind === 'disintegrate' ? 0.46 : 0.45);
+        particle.distance=kind === 'explosion' ? 16 + random() * 18 : kind === 'disintegrate' ? 8 + random() * 14 : 9 + random() * 12;
+        particle.size=kind === 'disintegrate' ? 1.15 + random() * 1.0 : 1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
+        particle.hot=random() > (kind === 'disintegrate' ? 0.38 : 0.45);
       }
       this.bursts.push(burst);
+      if(kind==='disintegrate'&&typeof globalThis!=='undefined'&&typeof globalThis.GalaxyPlayDisintegrateSound==='function'){
+        try{globalThis.GalaxyPlayDisintegrateSound();}catch(_){}
+      }
     }
 
     consume(snapshot, localIndex, now = clock()) {
@@ -210,15 +213,18 @@
           }
           for (let pi=0;pi<burst.particleCount;pi++) {
             const p=burst.particles[pi];
-            const distance = (disintegrate ? 1.2 : 3) + p.distance * eased;
-            const x = burst.x + p.dx * distance, y = burst.y + p.dy * distance;
+            const distance = (disintegrate ? .8 : 3) + p.distance * eased;
+            const emberLift=disintegrate ? Math.sin(t*Math.PI)*6 : 0;
+            const emberDrift=disintegrate ? Math.sin((pi+1)*1.73+t*5.2)*2.2*t : 0;
+            const x = burst.x + p.dx * distance + emberDrift;
+            const y = burst.y + p.dy * distance - emberLift;
             if(disintegrate){
-              // V20.28: efecto tipo fuegos artificiales mas visible: mas puntos,
-              // mayor tamano, mas dispersion y una persistencia claramente mayor.
-              const sparkle=p.hot && ((pi + Math.floor((now-burst.born)/22)) % 3 === 0);
-              ctx.globalAlpha = fade * (sparkle ? 1 : 0.92);
-              ctx.fillStyle = sparkle ? '#fff9df' : (p.hot ? '#ffe3a0' : '#ff9448');
-              const size = Math.max(1.15,Math.min(2.4,p.size*(1-t*0.22)));
+              // V20.33: menos fuegos artificiales y mas ascuas de fuego:
+              // recorrido corto, tonos naranja/rojo y destellos blancos puntuales.
+              const sparkle=p.hot && ((pi + Math.floor((now-burst.born)/28)) % 4 === 0);
+              ctx.globalAlpha = fade * (sparkle ? 1 : 0.9);
+              ctx.fillStyle = sparkle ? '#fff2c7' : (p.hot ? '#ffb24f' : '#ff642e');
+              const size = Math.max(1.0,Math.min(2.15,p.size*(1-t*0.3)));
               ctx.fillRect(x-size*.5,y-size*.5,size,size);
             }else{
               ctx.globalAlpha = fade;
