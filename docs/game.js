@@ -255,6 +255,16 @@
   // No forman parte del estado, fisicas, colisiones ni mensajes P2P.
   const ENGINE_FX_MAX=isMobile?96:192;
   const ENGINE_FX_INTERVAL=isMobile?55:38;
+  // V20.19: paleta de combustion compartida por todas las naves.
+  // Se precalcula como colores fijos para no crear gradientes ni strings RGB
+  // nuevos en cada frame. De cerca: casi blanco/amarillo; al alejarse:
+  // amarillo -> naranja -> marron oscuro -> negro.
+  const ENGINE_FIRE_COLORS=[
+    '#fffdf2','#fff9cc','#fff3a0','#ffe66c',
+    '#ffd447','#ffb72f','#ff9425','#f2701f',
+    '#d94e1b','#ad3518','#7d2717','#541d14',
+    '#341611','#20110e','#100d0c','#050505'
+  ];
   const engineParticles=Array.from({length:ENGINE_FX_MAX},()=>({
     life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0,owner:0
   }));
@@ -336,8 +346,7 @@
     const dt=Math.min(.05,Math.max(0,elapsed/1000));
     if(dt<=0)return;
 
-    ctx.save();
-    ctx.globalCompositeOperation='lighter';
+    // Primero avanzamos todas las particulas una sola vez.
     for(const particle of engineParticles){
       if(particle.life<=0)continue;
       particle.life-=dt;
@@ -346,15 +355,51 @@
       particle.y+=particle.vy*dt;
       particle.vx*=Math.pow(.72,dt);
       particle.vy*=Math.pow(.72,dt);
+    }
 
+    ctx.save();
+
+    // Cola fria: se dibuja en source-over para que los tonos marron/negro
+    // sigan siendo visibles. Con 'lighter' el negro desapareceria.
+    ctx.globalCompositeOperation='source-over';
+    for(const particle of engineParticles){
+      if(particle.life<=0)continue;
       const t=particle.life/particle.maxLife;
+      const age=1-t;
+      if(age<.62)continue;
       const radius=Math.max(.7,particle.size*(.30+.70*t));
-      ctx.globalAlpha=Math.min(.72,t*.72);
-      ctx.fillStyle=playerColors[particle.owner]||'#ffffff';
+      const colorIndex=Math.min(
+        ENGINE_FIRE_COLORS.length-1,
+        Math.max(0,Math.floor(age*(ENGINE_FIRE_COLORS.length-1)))
+      );
+      const tailFade=Math.max(0,1-(age-.62)/.38);
+      ctx.globalAlpha=.38*tailFade;
+      ctx.fillStyle=ENGINE_FIRE_COLORS[colorIndex];
       ctx.beginPath();
       ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
       ctx.fill();
     }
+
+    // Zona caliente: casi blanco junto a la tobera, amarillo y despues naranja.
+    // 'lighter' conserva el brillo del efecto actual sin modificar su geometria.
+    ctx.globalCompositeOperation='lighter';
+    for(const particle of engineParticles){
+      if(particle.life<=0)continue;
+      const t=particle.life/particle.maxLife;
+      const age=1-t;
+      if(age>=.62)continue;
+      const radius=Math.max(.7,particle.size*(.30+.70*t));
+      const colorIndex=Math.min(
+        ENGINE_FIRE_COLORS.length-1,
+        Math.max(0,Math.floor(age*(ENGINE_FIRE_COLORS.length-1)))
+      );
+      ctx.globalAlpha=.82*(1-age*.55);
+      ctx.fillStyle=ENGINE_FIRE_COLORS[colorIndex];
+      ctx.beginPath();
+      ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 
