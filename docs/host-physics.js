@@ -415,7 +415,9 @@
         this.update(DT);
         this.accumulator-=STEP_MS;
         this.tickCount++;
-        if((this.tickCount&1)===0||this.finished)publishState=true;
+        // V20.16 PERF: publicar estado cada 3 ticks = 20 snapshots/s.
+        // La simulacion sigue ejecutando todos los ticks a 60 Hz.
+        if((this.tickCount%3)===0||this.finished)publishState=true;
         steps++;
         if(this.finished)break;
       }
