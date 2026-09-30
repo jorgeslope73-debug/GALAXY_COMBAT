@@ -289,13 +289,18 @@
   // V20.3 LocalFX: pequeñas rocas grises en choques del meteorito gigante
   // contra asteroides. Se calcula solo en cada cliente: cero datos P2P.
   const ROCK_FX_MAX=isMobile?48:96;
-  const GIANT_LOCAL_RADIUS=135,ASTEROID_LOCAL_RADIUS=45;
+  // V20.44: mismos radios visuales de contacto que la fisica de roca.
+  const GIANT_LOCAL_RADIUS=270*.485;
+  const asteroidLocalRadius=a=>(Number(a&&a.type)===5?60:90)*.485;
   const rockParticles=Array.from({length:ROCK_FX_MAX},()=>({
     life:0,maxLife:2,x:0,y:0,vx:0,vy:0,size:0,rot:0,spin:0
   }));
   const giantRockContacts=new Set();
   const giantRockNextContacts=new Set();
+  const asteroidRockContacts=new Set();
+  const asteroidRockNextContacts=new Set();
   const giantRockLastBurst=new Map();
+  const asteroidRockLastBurst=new Map();
   let rockFxCursor=0,rockFxLastAt=0;
 
   // V20.4 LocalFX: fogonazo y estela de particulas del cohete guiado.
@@ -430,27 +435,55 @@
   }
 
   function emitRockDebris(x,y,nx,ny,now){
-    const amount=isMobile?(3+Math.floor(Math.random()*3)):(4+Math.floor(Math.random()*3));
+    // V20.44: misma sensacion de polvo/piedrecitas que la portada.
+    const amount=isMobile?3:5;
     const tx=-ny,ty=nx;
     for(let i=0;i<amount;i++){
       const particle=rockParticles[rockFxCursor];
       rockFxCursor=(rockFxCursor+1)%ROCK_FX_MAX;
-      const spread=(Math.random()-.5)*1.35;
-      const speed=28+Math.random()*62;
+      const spread=(Math.random()*2.3)-1.15;
+      const speed=24+Math.random()*46;
       const dirX=nx+tx*spread,dirY=ny+ty*spread;
       const len=Math.hypot(dirX,dirY)||1;
-      particle.life=particle.maxLife=2;
+      particle.life=particle.maxLife=1.2+Math.random()*.8;
       particle.x=x+(Math.random()-.5)*8;
       particle.y=y+(Math.random()-.5)*8;
       particle.vx=dirX/len*speed;
       particle.vy=dirY/len*speed;
-      particle.size=(isMobile?2.5:2.2)+Math.random()*(isMobile?3.8:4.6);
+      particle.size=2.5+Math.random()*3;
       particle.rot=Math.random()*Math.PI*2;
-      particle.spin=(Math.random()-.5)*5;
+      particle.spin=(Math.random()-.5)*8;
     }
   }
 
-  function detectGiantAsteroidDebris(now,giant,asteroids){
+  function detectRockCollisionDebris(now,giant,asteroids){
+    const rocks=Array.isArray(asteroids)?asteroids:[];
+
+    // Mediano contra mediano.
+    asteroidRockNextContacts.clear();
+    for(let i=0;i<rocks.length;i++){
+      const a=rocks[i];
+      if(!a)continue;
+      for(let j=i+1;j<rocks.length;j++){
+        const b=rocks[j];
+        if(!b)continue;
+        const ar=asteroidLocalRadius(a),br=asteroidLocalRadius(b);
+        const dx=Number(b.x)-Number(a.x),dy=Number(b.y)-Number(a.y);
+        const rr=ar+br,d2=dx*dx+dy*dy;
+        if(d2>rr*rr)continue;
+        const key=Number(a.id)<Number(b.id)?a.id+'-'+b.id:b.id+'-'+a.id;
+        asteroidRockNextContacts.add(key);
+        if(asteroidRockContacts.has(key))continue;
+        const last=Number(asteroidRockLastBurst.get(key))||0;
+        if(now-last<700)continue;
+        asteroidRockLastBurst.set(key,now);
+        const d=Math.sqrt(d2)||1,nx=dx/d,ny=dy/d;
+        emitRockDebris(Number(a.x)+nx*ar,Number(a.y)+ny*ar,-nx,-ny,now);
+      }
+    }
+    asteroidRockContacts.clear();
+    for(const key of asteroidRockNextContacts)asteroidRockContacts.add(key);
+
     const nextContacts=giantRockNextContacts;
     nextContacts.clear();
     if(!giant||!Array.isArray(asteroids)){
@@ -460,14 +493,14 @@
     const gx=Number(giant.x),gy=Number(giant.y);
     if(!Number.isFinite(gx)||!Number.isFinite(gy))return;
 
-    const rr=GIANT_LOCAL_RADIUS+ASTEROID_LOCAL_RADIUS;
-    const rr2=rr*rr;
     for(const asteroid of asteroids){
       if(!asteroid)continue;
       const ax=Number(asteroid.x),ay=Number(asteroid.y);
       if(!Number.isFinite(ax)||!Number.isFinite(ay))continue;
+      const ar=asteroidLocalRadius(asteroid);
+      const rr=GIANT_LOCAL_RADIUS+ar;
       const dx=ax-gx,dy=ay-gy,d2=dx*dx+dy*dy;
-      if(d2>rr2)continue;
+      if(d2>rr*rr)continue;
 
       const key=String(asteroid.id);
       nextContacts.add(key);
@@ -491,6 +524,9 @@
     // Limpieza muy barata de marcas antiguas.
     if(giantRockLastBurst.size>24){
       for(const [key,t] of giantRockLastBurst)if(now-t>5000)giantRockLastBurst.delete(key);
+    }
+    if(asteroidRockLastBurst.size>32){
+      for(const [key,t] of asteroidRockLastBurst)if(now-t>5000)asteroidRockLastBurst.delete(key);
     }
   }
 
@@ -516,8 +552,8 @@
 
       particle.x+=particle.vx*dt;
       particle.y+=particle.vy*dt;
-      particle.vx*=Math.pow(.58,dt);
-      particle.vy*=Math.pow(.58,dt);
+      particle.vx*=Math.pow(.48,dt);
+      particle.vy*=Math.pow(.48,dt);
       particle.rot+=particle.spin*dt;
 
       const t=particle.life/particle.maxLife;
@@ -4127,7 +4163,7 @@
       const old=prev.giant;
       drawImageCentered(images.giant,old?lerp(old.x,state.giant.x,blend):state.giant.x,old?lerp(old.y,state.giant.y,blend):state.giant.y,270,0,1);
     }
-    detectGiantAsteroidDebris(now,state.giant,state.asteroids);
+    detectRockCollisionDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
 
     // Las balas ya traen velocidad: una extrapolacion muy corta evita el efecto
