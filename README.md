@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.32**
+**Versión actual: V20.33**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -255,6 +255,7 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 - V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
 
+- V20.33: la desintegracion del cohete/impacto contra meteorito pasa de un look de fuegos artificiales a ascuas: menor dispersion, recorrido mas corto, tonos naranja-rojo y una ligera elevacion/deriva. El sonido de chispas queda ligado tambien al propio evento visual de desintegracion y gana un crujido filtrado audible, con antirrebote para evitar dobles sonidos. No cambia fisica ni daño.
 - V20.32: las bengalas muestran una ondulacion mas marcada desde el mismo instante de salida, manteniendo el abanico izquierda-centro-derecha y la inercia. La oscilacion crece de forma suave durante su trayectoria y sigue haciendose mas erratica en el tramo final, sin cambios bruscos, sin alterar duracion, velocidad media, colisiones ni funcion de señuelo.
 - V20.31: el sonido de desintegracion del cohete gana presencia y volumen manteniendo el caracter suave de chispitas, y reintenta Web Audio si el contexto esta temporalmente suspendido. Ademas, el misil guiado empieza a frenar suavemente desde los 3,2 s y llega aproximadamente al 45% de su velocidad original justo antes de desintegrarse a los 4 s; mantiene la ondulacion final, la duracion total, dano y colisiones.
 - V20.30: las tres bengalas conservan la salida en abanico izquierda-centro-derecha y la inercia existente, pero cada una recibe una deriva suave diferente. Durante el ultimo 40% de su vida aumenta progresivamente una ondulacion erratica basada en varias ondas combinadas, sin saltos ni cambios bruscos de velocidad. No cambia duracion, colisiones, dano ni comportamiento de señuelo.
