@@ -1455,10 +1455,11 @@
     }
     reloadTime(p){
       const base=Math.max(.5,p.cadence/8);
-      // V19.85: en FACIL solo reducimos el tiempo de espera de carga de la CPU
-      // a la mitad. La cadencia numerica y bulletSpeed() permanecen intactas,
-      // por lo que las mejoras siguen aumentando la velocidad de la bala igual.
-      return this.difficulty==='facil'&&p&&p.cpu?base*.5:base;
+      // V20.2: en FACIL todas las naves cargan en la mitad de tiempo,
+      // incluida la nave del jugador. Solo cambia la espera de recarga:
+      // p.cadence y bulletSpeed() siguen intactas, por lo que las mejoras
+      // mantienen exactamente su aumento actual de velocidad de bala.
+      return this.difficulty==='facil'?base*.5:base;
     }
     bulletSpeed(p){return p.cadence>=30?500:p.cadence>=20?750:p.cadence>=10?900:1000;}
     updateAsteroids(){
