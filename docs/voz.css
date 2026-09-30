@@ -3,7 +3,7 @@
   margin:8px auto 0;min-height:38px;
   font-family:'Flashback',Arial,sans-serif;
 }
-#enableVoice,#enableAudio{
+#enableVoice,#enableAudio,#enableJoystick{
   width:auto!important;min-width:0!important;max-width:max-content!important;
   flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
   height:30px!important;min-height:30px!important;padding:0 9px!important;border-radius:4px!important;
@@ -13,7 +13,7 @@
   font-family:'Flashback',Arial,sans-serif!important;font-size:10px!important;letter-spacing:.055em!important;
   cursor:pointer!important;box-shadow:0 0 8px rgba(0,0,0,.32)!important;white-space:nowrap!important;
 }
-#enableVoice:hover:not(.active),#enableAudio:hover:not(.active){
+#enableVoice:hover:not(.active),#enableAudio:hover:not(.active),#enableJoystick:hover:not(.active){
   background:#3a3a3f!important;border-color:rgba(190,190,198,.68)!important;
 }
 #enableVoice.active{
@@ -22,11 +22,17 @@
   color:#f4eaff!important;
   box-shadow:0 0 20px rgba(178,103,255,.42)!important;
 }
-#enableAudio.active{
+#enableAudio.active,#enableJoystick.active{
   background:rgba(24,105,70,.88)!important;
   border-color:#8dffb0!important;
   color:#eafff0!important;
   box-shadow:0 0 18px rgba(80,255,130,.28)!important;
+}
+/* V20.37: AUDIO y JOYSTICK tienen exactamente el mismo ancho visual. */
+#enableAudio,#enableJoystick{
+  width:112px!important;
+  min-width:112px!important;
+  max-width:112px!important;
 }
 .voice-status{font-size:10px;letter-spacing:.055em;color:rgba(232,218,255,.78)}
 .voice-hint,.voice-talker{
@@ -142,7 +148,8 @@
     min-height:28px;
   }
   #menu #enableVoice,
-  #menu #enableAudio{
+  #menu #enableAudio,
+  #menu #enableJoystick{
     width:auto!important;
     min-width:76px!important;
     max-width:none!important;
@@ -165,5 +172,25 @@
     background:linear-gradient(180deg,rgba(45,132,173,.96),rgba(17,73,103,.96))!important;
     box-shadow:0 0 14px rgba(90,225,255,.28)!important;
     color:#fff!important;
+  }
+  /* JOYSTICK conserva gris/verde tambien en movil/tablet. */
+  #menu #enableJoystick{
+    width:92px!important;
+    min-width:92px!important;
+    max-width:92px!important;
+    border-color:rgba(150,150,158,.58)!important;
+    background:#303034!important;
+    color:#ededf0!important;
+  }
+  #menu #enableJoystick.active{
+    border-color:#8dffb0!important;
+    background:rgba(24,105,70,.92)!important;
+    color:#eafff0!important;
+    box-shadow:0 0 14px rgba(80,255,130,.24)!important;
+  }
+  #menu #enableAudio{
+    width:92px!important;
+    min-width:92px!important;
+    max-width:92px!important;
   }
 }
