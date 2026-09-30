@@ -1588,7 +1588,7 @@
             const hitX=(a.x+b.x)*.5,hitY=(a.y+b.y)*.5;
             const fxOwner=a.guided?Number(a.owner):Number(b.owner);
             this.emitRocketDisintegrateAt(hitX,hitY,Number.isInteger(fxOwner)?fxOwner:0);
-            this.emit({t:'sound',kind:'impact'});
+            this.emit({t:'sound',kind:'sparkle'});
             break;
           }
         }
@@ -1614,7 +1614,7 @@
           // El misil agotado no desaparece sin mas: detona y deja el mismo
           // efecto de particulas de explosion, que se desvanece localmente.
           this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-          this.emit({t:'sound',kind:'impact'});
+          this.emit({t:'sound',kind:'sparkle'});
         }
         if(!remove){
           for(let f=this.flares.length-1;f>=0;f--){
@@ -1624,7 +1624,7 @@
               // desaparece junto con la bengala alcanzada.
               if(b.guided){
                 this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-                this.emit({t:'sound',kind:'impact'});
+                this.emit({t:'sound',kind:'sparkle'});
               }
               this.flares.splice(f,1);
               remove=true;break;
@@ -1642,7 +1642,7 @@
               if(p.shield<=0){
                 const brutal=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
                 if(brutal)this.emit({t:'brutal',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index});
-                if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
+                if(b.guided){this.emitRocketDisintegrateAt(b.x,b.y,b.owner);this.emit({t:'sound',kind:'sparkle'});}
                 // V20.11: el atacante suma su baja, pero la victima no pierde
                 // un punto por haber sido abatida por otro jugador.
                 this.destroyShip(p,attacker);
@@ -1665,20 +1665,20 @@
           if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){
             if(b.guided){
               this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-              this.emit({t:'sound',kind:'impact'});
+              this.emit({t:'sound',kind:'sparkle'});
             }
             remove=true;break;
           }
         }
         if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){
           if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-          remove=true;this.emit({t:'sound',kind:'impact'});
+          remove=true;this.emit({t:'sound',kind:b.guided?'sparkle':'impact'});
         }
         if(!remove)for(let m=this.meteors.length-1;m>=0;m--){
           const meteor=this.meteors[m];
           if(sweptCircles(b,BULLET_RADIUS,meteor,SMALL_METEOR_RADIUS,false)){
             if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-            this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;
+            this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:b.guided?'sparkle':'impact'});break;
           }
         }
         if(!remove)for(let p=this.pickups.length-1;p>=0;p--)if(sweptCircles(b,BULLET_RADIUS,this.pickups[p],PICKUP_RADIUS,false)){this.pickups.splice(p,1);remove=true;break;}
