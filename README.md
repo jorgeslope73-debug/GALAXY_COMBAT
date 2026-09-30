@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.16**
+**Versión actual: V20.17**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -240,3 +240,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V20.15: la espera de recarga de cada bala pasa a ser la mitad de la anterior en todo el juego: humano y CPU, modos facil/medio/dificil y partidas online. Se conserva la progresion actual de cadencia y velocidad de bala. El segundo de aviso de las CPU cuando la cupula se pone verde sigue intacto y comienza una vez la bala ya esta cargada.
 
 - V20.16: segunda optimizacion anti-microtirones. La fisica sigue a 60 Hz y los controles a 30 Hz, pero los snapshots visuales pasan de 30 a 20 por segundo para reducir aproximadamente un tercio la creacion/parseo de objetos de estado. La interpolacion mantiene el movimiento continuo. WebAudio reutiliza un GainNode por tipo de efecto y un callback compartido, evitando crear un Gain y una funcion nueva en cada disparo/impacto. Los avisos centrales dejan de crear arrays temporales por frame.
+
+- V20.17: optimizacion especifica de red. Los eventos FX de impactos/explosiones del host se eliminan del estado online cuando superan 2 segundos de antiguedad. Antes podian acumularse hasta 32 y seguir repitiendose en todos los snapshots aunque su efecto visual real solo dura 260-420 ms. La compactacion se hace in-place, reduciendo bytes enviados y trabajo de JSON.stringify/JSON.parse sin cambiar fisica, controles, interpolacion ni aspecto.

@@ -1264,6 +1264,19 @@
       }
     }
     publicState(){
+      // V20.17 PERF ONLINE: los impactos/explosiones duran 260-420 ms en
+      // pantalla. Mantenerlos indefinidamente hasta el tope de 32 hacia que
+      // eventos ya invisibles siguieran viajando en todos los snapshots P2P.
+      // Conservamos 2 s de margen para jitter/retrasos y compactamos in-place
+      // para no crear otro array temporal.
+      if(this.fxEvents.length){
+        let write=0;
+        for(let read=0;read<this.fxEvents.length;read++){
+          const e=this.fxEvents[read];
+          if(e&&this.fxClock-Number(e.at)<=2)this.fxEvents[write++]=e;
+        }
+        if(write!==this.fxEvents.length)this.fxEvents.length=write;
+      }
       return{
         t:'state',seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
