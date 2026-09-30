@@ -152,6 +152,7 @@
   // 165 Hz cada 2; frecuencias aun mayores usan el divisor mas cercano a 75 FPS.
   let displaySampleLast=0,displaySampleTotal=0,displaySampleCount=0;
   let renderDivisor=1,renderCadenceTick=0,measuredRefreshHz=60;
+  let renderDivisorCandidate=1,renderDivisorCandidateWins=0;
   function sampleDisplayRefresh(now){
     if(displaySampleLast){
       const dt=now-displaySampleLast;
@@ -161,12 +162,26 @@
           const hz=1000/(displaySampleTotal/displaySampleCount);
           if(Number.isFinite(hz)&&hz>=40&&hz<=360){
             measuredRefreshHz=hz;
-            // Divisor entero para conservar un frame pacing regular SIN caer
-            // por debajo de ~60 FPS. Ejemplos: 120 -> 60, 144 -> 72,
-            // 165 -> 82,5, 180 -> 60, 200 -> 66,7 y 240 -> 60.
-            // En monitores por debajo de 120 Hz pintamos cada RAF.
-            const next=hz>=118?Math.max(2,Math.floor(hz/60)):1;
-            renderDivisor=Math.max(1,next);
+            // V20.14: histeresis para que un monitor VRR/120 Hz no cambie
+            // continuamente entre pintar cada RAF y cada 2 RAF.
+            let next=renderDivisor;
+            if(renderDivisor===1){
+              if(hz>=116)next=Math.max(2,Math.floor(hz/60));
+            }else{
+              if(hz<=110)next=1;
+              else next=Math.max(2,Math.floor(hz/60));
+            }
+            next=Math.max(1,next);
+            if(next===renderDivisor){
+              renderDivisorCandidate=next;renderDivisorCandidateWins=0;
+            }else if(next===renderDivisorCandidate){
+              renderDivisorCandidateWins++;
+              if(renderDivisorCandidateWins>=6){
+                renderDivisor=next;renderCadenceTick=0;renderDivisorCandidateWins=0;
+              }
+            }else{
+              renderDivisorCandidate=next;renderDivisorCandidateWins=1;
+            }
           }
           displaySampleTotal=0;displaySampleCount=0;
         }
@@ -247,6 +262,7 @@
     life:0,maxLife:2,x:0,y:0,vx:0,vy:0,size:0,rot:0,spin:0
   }));
   const giantRockContacts=new Set();
+  const giantRockNextContacts=new Set();
   const giantRockLastBurst=new Map();
   let rockFxCursor=0,rockFxLastAt=0;
 
@@ -258,6 +274,7 @@
     life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0
   }));
   const rocketSeen=new Set();
+  const rocketActiveScratch=new Set();
   const rocketEmitAt=new Map();
   let rocketFxCursor=0,rocketFxLastAt=0;
 
@@ -355,7 +372,8 @@
   }
 
   function detectGiantAsteroidDebris(now,giant,asteroids){
-    const nextContacts=new Set();
+    const nextContacts=giantRockNextContacts;
+    nextContacts.clear();
     if(!giant||!Array.isArray(asteroids)){
       giantRockContacts.clear();
       return;
@@ -462,7 +480,8 @@
   }
 
   function updateRocketLocalFx(now,bullets,age){
-    const active=new Set();
+    const active=rocketActiveScratch;
+    active.clear();
     for(const b of (Array.isArray(bullets)?bullets:[])){
       if(!b||b.g!==true)continue;
       const id=String(b.id);
@@ -488,7 +507,7 @@
     }
 
     // Cuando un cohete deja de existir, eliminamos solo sus marcas de control.
-    for(const id of [...rocketSeen]){
+    for(const id of rocketSeen){
       if(active.has(id))continue;
       rocketSeen.delete(id);
       rocketEmitAt.delete(id);
