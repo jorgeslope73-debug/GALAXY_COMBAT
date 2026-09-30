@@ -8,6 +8,7 @@
   const SPAWN_PROTECTION_SECONDS=3,BRUTAL_SHOT_DISTANCE=850;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
   const FLARE_CPU_EVAL_SECONDS=1.15,FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
+  const CPU_ARMED_WARNING_SECONDS=1;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
     [1500,150,160,2],[500,430,160,5],[1300,430,200,6]
@@ -688,6 +689,7 @@
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,
         guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
+        cpuFireDelay:cpu?CPU_ARMED_WARNING_SECONDS:0,
         difficulty:this.difficulty,
         tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random(),
         resourceTargetId:null,meteorDecision:null,flareDecision:null,nextFlareDecision:0,nextFlareAllowed:0,
@@ -850,7 +852,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
         p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;p.aiControl=null;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
         if(p.cpu){
           p.easyNextDecision=0;p.easyControl=null;
           p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
@@ -953,7 +955,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.aiControl=null;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
       if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.easyNextDecision=0;p.easyControl=null;}
     }
     deployFlares(p){
@@ -1403,6 +1405,12 @@
         p.protection=p.protection-dt>1e-9?p.protection-dt:0;
         p.shield=Math.max(0,p.shield-dt);p.camo=Math.max(0,p.camo-dt);p.reload=Math.max(0,p.reload-dt);
         if(p.dead){p.thrust=false;p.respawn-=dt;if(p.respawn<=0)this.respawnPlayer(p);continue;}
+        if(p.cpu){
+          // V20.10: la CPU queda visualmente ARMADA durante 1 segundo antes
+          // de poder soltar la bala. Movimiento, giro y punteria siguen activos.
+          if(p.bullets>0&&p.reload<=0)p.cpuFireDelay=Math.max(0,(Number(p.cpuFireDelay)||0)-dt);
+          else p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;
+        }
         p.px=p.x;p.py=p.y;
         const stored=this.controls.get(p.index)||IDLE_CONTROL;
         let c;
@@ -1443,12 +1451,12 @@
             if(dot>=Math.cos(fireAngle*Math.PI/180)){fireNow=true;break;}
           }
         }
-        if(fireNow&&p.bullets>0&&p.reload<=0){
+        if(fireNow&&p.bullets>0&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
           const guided=!!p.guided,guidedTarget=guided?p.guidedTarget:-1;
           const projectileSpeed=guided?500:this.bulletSpeed(p);
           this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false});
           if(guided){p.guided=false;p.guidedTarget=-1;}
-          p.bullets--;p.reload=this.reloadTime(p);this.emit({t:'sound',kind:'laser'});
+          p.bullets--;p.reload=this.reloadTime(p);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
         }
       }
       this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.shipCollisions();
