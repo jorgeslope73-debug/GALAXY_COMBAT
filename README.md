@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.39**
+**Versión actual: V20.40**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -255,6 +255,7 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 - V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
 
+- V20.40: JOYSTICK queda reservado exclusivamente a PC. En movil y tablet el boton no aparece en el menu y el control por mando queda forzado a desactivado aunque el navegador detecte un gamepad. Los controles tactiles y de teclado movil permanecen sin cambios.
 - V20.39: JOYSTICK pasa a estar desactivado por defecto en cada carga o recarga del juego, aunque se hubiera usado en la sesion anterior. El jugador debe activarlo expresamente desde el boton del menu. El resto de controles y mapeos se mantienen sin cambios.
 - V20.38: con JOYSTICK activado, la linea de ayuda inferior sustituye automaticamente las teclas por los controles del mando: STICK IZQ. para girar, L1/L2 para acelerar, A/RT para disparar y R1 para hablar con el micro activo. Al desactivar JOYSTICK vuelven los controles de teclado. R1 sustituye a L1 como PTT y L1/L2 pasan a acelerar; se conservan stick arriba y D-pad arriba como alternativas de aceleracion.
 - V20.37: el boton JOYSTICK adopta el mismo tamaño y lenguaje visual que AUDIO: gris cuando esta desactivado y verde cuando esta activo. Con JOYSTICK activo, el micro indica LB/L1 como pulsar-para-hablar; tras activar el micro, mantener LB/L1 transmite voz y soltarlo corta la transmision. La tecla V y el PTT tactil siguen funcionando como alternativas.
