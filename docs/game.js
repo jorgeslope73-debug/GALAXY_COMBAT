@@ -239,6 +239,17 @@
   const engineTrailHidden=[false,false,false,false];
   let engineFxCursor=0,engineFxLastAt=0;
 
+  // V20.3 LocalFX: pequeñas rocas grises en choques del meteorito gigante
+  // contra asteroides. Se calcula solo en cada cliente: cero datos P2P.
+  const ROCK_FX_MAX=isMobile?48:96;
+  const GIANT_LOCAL_RADIUS=135,ASTEROID_LOCAL_RADIUS=45;
+  const rockParticles=Array.from({length:ROCK_FX_MAX},()=>({
+    life:0,maxLife:2,x:0,y:0,vx:0,vy:0,size:0,rot:0,spin:0
+  }));
+  const giantRockContacts=new Set();
+  const giantRockLastBurst=new Map();
+  let rockFxCursor=0,rockFxLastAt=0;
+
   function clearEngineTrailOwner(owner){
     for(const particle of engineParticles){
       if(particle.life>0&&particle.owner===owner)particle.life=0;
@@ -307,6 +318,116 @@
       ctx.beginPath();
       ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
       ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function emitRockDebris(x,y,nx,ny,now){
+    const amount=isMobile?(3+Math.floor(Math.random()*3)):(4+Math.floor(Math.random()*3));
+    const tx=-ny,ty=nx;
+    for(let i=0;i<amount;i++){
+      const particle=rockParticles[rockFxCursor];
+      rockFxCursor=(rockFxCursor+1)%ROCK_FX_MAX;
+      const spread=(Math.random()-.5)*1.35;
+      const speed=28+Math.random()*62;
+      const dirX=nx+tx*spread,dirY=ny+ty*spread;
+      const len=Math.hypot(dirX,dirY)||1;
+      particle.life=particle.maxLife=2;
+      particle.x=x+(Math.random()-.5)*8;
+      particle.y=y+(Math.random()-.5)*8;
+      particle.vx=dirX/len*speed;
+      particle.vy=dirY/len*speed;
+      particle.size=(isMobile?2.5:2.2)+Math.random()*(isMobile?3.8:4.6);
+      particle.rot=Math.random()*Math.PI*2;
+      particle.spin=(Math.random()-.5)*5;
+    }
+  }
+
+  function detectGiantAsteroidDebris(now,giant,asteroids){
+    const nextContacts=new Set();
+    if(!giant||!Array.isArray(asteroids)){
+      giantRockContacts.clear();
+      return;
+    }
+    const gx=Number(giant.x),gy=Number(giant.y);
+    if(!Number.isFinite(gx)||!Number.isFinite(gy))return;
+
+    const rr=GIANT_LOCAL_RADIUS+ASTEROID_LOCAL_RADIUS;
+    const rr2=rr*rr;
+    for(const asteroid of asteroids){
+      if(!asteroid)continue;
+      const ax=Number(asteroid.x),ay=Number(asteroid.y);
+      if(!Number.isFinite(ax)||!Number.isFinite(ay))continue;
+      const dx=ax-gx,dy=ay-gy,d2=dx*dx+dy*dy;
+      if(d2>rr2)continue;
+
+      const key=String(asteroid.id);
+      nextContacts.add(key);
+      if(giantRockContacts.has(key))continue;
+
+      const last=Number(giantRockLastBurst.get(key))||0;
+      if(now-last<700)continue;
+      giantRockLastBurst.set(key,now);
+
+      const d=Math.sqrt(d2)||1;
+      const nx=dx/d,ny=dy/d;
+      // Punto aproximado de contacto sobre el borde del meteorito gigante.
+      const hitX=gx+nx*GIANT_LOCAL_RADIUS;
+      const hitY=gy+ny*GIANT_LOCAL_RADIUS;
+      emitRockDebris(hitX,hitY,nx,ny,now);
+    }
+
+    giantRockContacts.clear();
+    for(const key of nextContacts)giantRockContacts.add(key);
+
+    // Limpieza muy barata de marcas antiguas.
+    if(giantRockLastBurst.size>24){
+      for(const [key,t] of giantRockLastBurst)if(now-t>5000)giantRockLastBurst.delete(key);
+    }
+  }
+
+  function drawRockDebris(now){
+    if(!rockFxLastAt){rockFxLastAt=now;return;}
+    const elapsed=now-rockFxLastAt;
+    rockFxLastAt=now;
+    if(elapsed>300){
+      for(const particle of rockParticles)particle.life=0;
+      return;
+    }
+    const dt=Math.min(.05,Math.max(0,elapsed/1000));
+    if(dt<=0)return;
+
+    ctx.save();
+    ctx.fillStyle='#8a8d92';
+    ctx.strokeStyle='rgba(35,38,42,.55)';
+    ctx.lineWidth=1;
+    for(const particle of rockParticles){
+      if(particle.life<=0)continue;
+      particle.life-=dt;
+      if(particle.life<=0)continue;
+
+      particle.x+=particle.vx*dt;
+      particle.y+=particle.vy*dt;
+      particle.vx*=Math.pow(.58,dt);
+      particle.vy*=Math.pow(.58,dt);
+      particle.rot+=particle.spin*dt;
+
+      const t=particle.life/particle.maxLife;
+      const size=Math.max(.5,particle.size*(.35+.65*t));
+      ctx.globalAlpha=Math.min(.86,t*.86);
+      ctx.save();
+      ctx.translate(particle.x,particle.y);
+      ctx.rotate(particle.rot);
+      ctx.beginPath();
+      ctx.moveTo(-size*.9,-size*.45);
+      ctx.lineTo(size*.35,-size);
+      ctx.lineTo(size,size*.15);
+      ctx.lineTo(size*.15,size*.8);
+      ctx.lineTo(-size*.8,size*.45);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -3457,6 +3578,8 @@
       const old=prev.giant;
       drawImageCentered(images.giant,old?lerp(old.x,state.giant.x,blend):state.giant.x,old?lerp(old.y,state.giant.y,blend):state.giant.y,270,0,1);
     }
+    detectGiantAsteroidDebris(now,state.giant,state.asteroids);
+    drawRockDebris(now);
 
     // Las balas ya traen velocidad: una extrapolacion muy corta evita el efecto
     // de avance a saltos sin alterar nunca la posicion autoritativa del servidor.
