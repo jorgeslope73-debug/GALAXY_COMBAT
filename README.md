@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V19.85**
+**Versión actual: V20.0**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -44,7 +44,9 @@ La física de las partidas online se ejecuta en el navegador del anfitrión. El 
 
 - BRUTAL: el rótulo se dibuja en una capa baja, por detrás de meteoritos, asteroides, naves, balas y mejoras, para no ocultar la acción ni la posición del jugador.
 
-- Salas online: un usuario normal solo puede estar en 1 sala activa a la vez: o crea una sala o se une a una. La restricción se aplica también por IP pública tanto a registrados como a invitados, por lo que desde la misma conexión no se puede crear con una cuenta y entrar después desde otro navegador, otra cuenta o como invitado. Si el servidor no puede obtener una IP válida, conserva la protección por cuenta o por identificador local del navegador para no bloquear el juego. El MODO TEST activado desde la página privada de entrenamiento autoriza durante 8 horas a los navegadores que salgan por la misma IP pública. El límite elegido (2–10) se aplica al total de participaciones de prueba simultáneas, tanto creando salas como uniéndose a ellas. El token del navegador administrador sigue funcionando como respaldo si cambia de red.\n\n- Voz móvil V19.15: además del PTT táctil nativo, iPhone/iPad usan una ruta WebAudio dedicada: el micrófono permanece negociado y el PTT abre/cierra una ganancia de audio en vez de activar/desactivar la pista WebRTC. El audio remoto se reproduce por WebAudio en móvil y por HTMLAudio como respaldo. La voz usa ahora la configuración ICE del backend (`/rtc-config`), incluido TURN si está configurado en Render, y reintenta automáticamente un peer de voz si falla.
+- Salas online V20.0: un usuario normal solo puede estar en 1 participación activa a la vez. La protección usa la cuenta registrada y un identificador persistente de la instalación/navegador, no la IP pública. Por eso dos ordenadores o móviles distintos conectados a la misma Wi-Fi pueden jugar entre ellos y, si cumplen las reglas normales, puntuar en ranking. La misma cuenta no puede participar dos veces simultáneamente y una misma instalación/navegador tampoco puede abrir otra cuenta o invitado a la vez. Los clientes antiguos que no envíen identificador conservan temporalmente la IP como respaldo seguro. El MODO TEST activado desde la página privada de entrenamiento mantiene su permiso especial para probar varias participaciones desde el entorno del administrador y queda excluido siempre del ranking. El enlace COMPARTIR SALA también envía el identificador correctamente.
+
+- Voz móvil V19.15: además del PTT táctil nativo, iPhone/iPad usan una ruta WebAudio dedicada: el micrófono permanece negociado y el PTT abre/cierra una ganancia de audio en vez de activar/desactivar la pista WebRTC. El audio remoto se reproduce por WebAudio en móvil y por HTMLAudio como respaldo. La voz usa ahora la configuración ICE del backend (`/rtc-config`), incluido TURN si está configurado en Render, y reintenta automáticamente un peer de voz si falla.
 
 - Móvil V19.17: los botones ROTACIÓN, BOTONES, AUDIO y MICRO comparten el mismo tamaño, forma de pastilla, borde y estado activo. `ACTIVAR VOZ` pasa a `ACTIVAR MICRO`. En partida, el control de micrófono se mantiene centrado bajo las dos flechas, ahora con el mismo diámetro y lenguaje visual que ellas; si el micro aún no está habilitado, el primer toque sirve para activarlo y después el mismo control funciona como PTT.
 

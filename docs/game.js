@@ -1141,7 +1141,14 @@
     sharedRoomJoinStarted=true;
     closeRoomDialogs();
     statusEl.textContent='ENTRANDO EN LA SALA '+sharedRoomCode+'...';
-    send({t:'join',name:sinTildes(campoNombre.value),code:sharedRoomCode,authToken:authToken()});
+    send({
+      t:'join',
+      name:sinTildes(campoNombre.value),
+      code:sharedRoomCode,
+      authToken:authToken(),
+      clientId:roomClientId(),
+      testRoomToken:testRoomPermitToken()
+    });
     return true;
   }
 

@@ -89,12 +89,12 @@ function activeRoomParticipations(participantKey){
   }
   return count;
 }
-function activeIpParticipations(ipKey){
-  if(!ipKey)return 0;
+function activeDeviceParticipations(deviceKey){
+  if(!deviceKey)return 0;
   let count=0;
   for(const room of rooms.values()){
     for(const p of (room&&Array.isArray(room.players)?room.players:[])){
-      if(p&&p.ipKey===ipKey)count++;
+      if(p&&p.deviceKey===deviceKey)count++;
     }
   }
   return count;
@@ -104,34 +104,88 @@ function normalIpKey(ws){
   const ip=String(meta.ip||'').trim();
   return ip&&ip!=='unknown'&&!ip.startsWith('unknown-')?('ip:'+ip):'';
 }
+function normalDeviceKey(msg,ws){
+  const clientId=safeClientId(msg&&msg.clientId);
+  if(clientId)return 'client:'+clientId;
+
+  // Compatibilidad con clientes antiguos que aun no envian clientId:
+  // solo en ese caso usamos la IP como respaldo conservador. Los clientes
+  // V20 normales nunca se bloquean entre si por compartir Wi-Fi/IP publica.
+  const ipKey=normalIpKey(ws);
+  if(ipKey)return 'legacy-'+ipKey;
+
+  const meta=connectionMeta.get(ws)||{};
+  const connectionId=String(meta.connectionId||'').trim();
+  return connectionId?('connection:'+connectionId):'';
+}
 function roomCreationIdentity(identity,msg,ws){
   const admin=testRoomPermit(msg&&msg.testRoomToken,ws);
   if(admin){
     const sessionKey=String(admin.permit.sessionKey||admin.key);
     return{
       creatorKey:'test:'+sessionKey,
+      deviceKey:'',
       ipKey:'',
       roomLimit:Math.max(1,Math.min(TEST_ROOM_PERMIT_MAX,Number(admin.permit.maxRooms)||1)),
       testMode:true
     };
   }
 
+  const deviceKey=normalDeviceKey(msg,ws);
   const ipKey=normalIpKey(ws);
+
   if(identity&&identity.registered&&identity.userId){
-    // La cuenta sigue identificando al usuario, pero ademas se aplica la IP:
-    // una segunda pestaña/navegador en la misma conexion no puede entrar como
-    // otro jugador usando otra cuenta o como invitado.
-    return{creatorKey:'user:'+String(identity.userId),ipKey,roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
+    // La cuenta impide usar el mismo usuario en dos participaciones simultaneas.
+    // deviceKey impide abrir otra cuenta/invitado desde la misma instalacion.
+    // La IP ya NO bloquea: dos equipos distintos en la misma Wi-Fi pueden jugar.
+    return{
+      creatorKey:'user:'+String(identity.userId),
+      deviceKey,
+      ipKey,
+      roomLimit:NORMAL_HOST_ROOM_LIMIT,
+      testMode:false
+    };
   }
 
-  // Invitados: la IP publica es la identidad principal. Si el proxy no
-  // facilita una IP valida, mantenemos el clientId como respaldo para no
-  // perjudicar el funcionamiento del juego.
-  if(ipKey)return{creatorKey:ipKey,ipKey,roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
+  // Invitados: la instalacion/navegador persistente es la identidad principal.
+  // Si llega un cliente antiguo sin clientId, normalDeviceKey usa IP como respaldo.
+  if(deviceKey)return{creatorKey:deviceKey,deviceKey,ipKey,roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
 
-  const clientId=safeClientId(msg&&msg.clientId);
-  if(clientId)return{creatorKey:'client:'+clientId,ipKey:'',roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
-  return{creatorKey:'connection:unknown',ipKey:'',roomLimit:NORMAL_HOST_ROOM_LIMIT,testMode:false};
+  return{
+    creatorKey:'connection:'+randomBytes(16).toString('hex'),
+    deviceKey:'',
+    ipKey,
+    roomLimit:NORMAL_HOST_ROOM_LIMIT,
+    testMode:false
+  };
+}
+
+function rankEligibility(room){
+  if(!room)return{eligible:false,reason:'ROOM_NOT_FOUND'};
+  if(room.testMode)return{eligible:false,reason:'TEST_MODE'};
+
+  const humans=Array.isArray(room.players)?room.players:[];
+  if(humans.length<2)return{eligible:false,reason:'NOT_ENOUGH_HUMANS'};
+
+  // Defensa adicional: aunque una futura ruta de union olvidara validar el
+  // dispositivo o la cuenta, una partida duplicada no podria modificar ranking.
+  const seenDevices=new Set();
+  const seenUsers=new Set();
+  for(const p of humans){
+    const deviceKey=String(p&&p.deviceKey||'');
+    if(deviceKey){
+      if(seenDevices.has(deviceKey))return{eligible:false,reason:'SAME_DEVICE'};
+      seenDevices.add(deviceKey);
+    }
+    if(p&&p.registered&&p.userId){
+      const userKey=String(p.userId);
+      if(seenUsers.has(userKey))return{eligible:false,reason:'SAME_ACCOUNT'};
+      seenUsers.add(userKey);
+    }
+  }
+
+  if(!humans.some(p=>p&&p.registered&&p.userId))return{eligible:false,reason:'NO_REGISTERED_PLAYERS'};
+  return{eligible:true,reason:''};
 }
 
 async function hashPassword(password,saltHex=''){
@@ -378,7 +432,7 @@ function expireDisconnectedPlayers(wss){
 }
 
 async function recordRankedMatch(room,winner){
-  if(!db||!room||room.rankRecorded||!room.rankEligible||!room.rankMatchId)return false;
+  if(!db||!room||room.testMode||room.rankRecorded||!room.rankEligible||!room.rankMatchId)return false;
   room.rankRecorded=true;
   try{
     if(!await ensureDatabase()){room.rankRecorded=false;return false;}
@@ -864,10 +918,10 @@ async function authApi(req,res,url){
     const winner=room.players.find(p=>p.i===winnerIndex)||null;
     const syntheticWinner=!winner&&room.cpuFill&&Number.isInteger(winnerIndex)&&winnerIndex>=0&&winnerIndex<MAX_PLAYERS;
     if(!winner&&!syntheticWinner){sendJson(res,400,{ok:false,code:'BAD_WINNER'});return true;}
-    const registeredHumans=room.players.filter(p=>p.registered&&p.userId);
-    room.rankEligible=room.players.length>=2&&registeredHumans.length>0;
+    const rankCheck=rankEligibility(room);
+    room.rankEligible=rankCheck.eligible;
     if(!room.rankEligible){
-      sendJson(res,200,{ok:true,ranked:false,reason:room.players.length<2?'NOT_ENOUGH_HUMANS':'NO_REGISTERED_PLAYERS'});return true;
+      sendJson(res,200,{ok:true,ranked:false,reason:rankCheck.reason||'NOT_ELIGIBLE'});return true;
     }
     const recorded=await recordRankedMatch(room,winner);
     sendJson(res,200,{ok:true,ranked:!!recorded});return true;
@@ -903,7 +957,10 @@ const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false});
 
 wss.on('connection',(ws,req)=>{
   const detectedIp=requestIp(req);
-  connectionMeta.set(ws,{ip:detectedIp==='unknown'?('unknown-'+randomBytes(8).toString('hex')):detectedIp});
+  connectionMeta.set(ws,{
+    ip:detectedIp==='unknown'?('unknown-'+randomBytes(8).toString('hex')):detectedIp,
+    connectionId:randomBytes(16).toString('hex')
+  });
   send(ws,{t:'hello',p2p:true,accounts:!!db});
   send(ws,{t:'public-rooms',rooms:publicRooms()});
 
@@ -922,7 +979,7 @@ wss.on('connection',(ws,req)=>{
         }
       }else if(
         activeRoomParticipations(creator.creatorKey)>=1||
-        activeIpParticipations(creator.ipKey)>=1
+        activeDeviceParticipations(creator.deviceKey)>=1
       ){
         send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});
         return;
@@ -932,7 +989,7 @@ wss.on('connection',(ws,req)=>{
         return;
       }
       const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
-      const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
+      const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,deviceKey:creator.deviceKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
       broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false});publicUpdate(wss);return;
@@ -953,7 +1010,7 @@ wss.on('connection',(ws,req)=>{
         }
       }else if(
         activeRoomParticipations(participant.creatorKey)>=1||
-        activeIpParticipations(participant.ipKey)>=1
+        activeDeviceParticipations(participant.deviceKey)>=1
       ){
         send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});
         return;
@@ -981,7 +1038,7 @@ wss.on('connection',(ws,req)=>{
       }
       if(i<0){send(ws,{t:'error',message:'Sala llena.'});return;}
 
-      const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:participant.creatorKey,ipKey:participant.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
+      const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:participant.creatorKey,deviceKey:participant.deviceKey,ipKey:participant.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);info.set(ws,{code:r.code,i});
       const players=roster(r);
       send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin});
@@ -1024,7 +1081,8 @@ wss.on('connection',(ws,req)=>{
             ON CONFLICT(day) DO UPDATE SET online_matches=galaxy_analytics_daily.online_matches+1`);
         }catch(err){console.error('[Galaxy Combat P2P] Error contando partida online:',err&&err.message||err);}
       }
-      r.rankEligible=r.players.length>=2&&r.players.some(p=>p.registered&&p.userId);
+      const rankCheck=rankEligibility(r);
+      r.rankEligible=rankCheck.eligible;
       broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible,rankRound:r.rankRound});publicUpdate(wss);return;
     }
 
@@ -1032,7 +1090,8 @@ wss.on('connection',(ws,req)=>{
       r.rankRecorded=false;
       r.rankMatchId=randomBytes(24).toString('hex');
       r.rankRound=Math.max(1,Number(r.rankRound)||1)+1;
-      r.rankEligible=r.players.length>=2&&r.players.some(p=>p.registered&&p.userId);
+      const rankCheck=rankEligibility(r);
+      r.rankEligible=rankCheck.eligible;
       send(ws,{t:'rank-round',rankRound:r.rankRound,rankEligible:r.rankEligible});
       return;
     }
