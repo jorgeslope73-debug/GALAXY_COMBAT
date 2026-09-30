@@ -991,6 +991,23 @@
               b.vx=n.x*speed;b.vy=n.y*speed;
             }
           }
+
+          // V20.24: durante el ultimo segundo el misil empieza a fallar.
+          // Oscila lateralmente de forma determinista y cada vez mas visible,
+          // conservando exactamente su modulo de velocidad.
+          if(b.age>=3){
+            const speed=Math.hypot(b.vx,b.vy)||500;
+            const burnout=clamp((b.age-3)/1,0,1);
+            const phase=(b.age-3)*16+(Number(b.id)||0)*.73;
+            const turn=Math.sin(phase)*(2.8*burnout)*dt;
+            const cs=Math.cos(turn),sn=Math.sin(turn);
+            const vx=b.vx,vy=b.vy;
+            b.vx=(vx*cs-vy*sn);
+            b.vy=(vx*sn+vy*cs);
+            const corrected=Math.hypot(b.vx,b.vy)||1;
+            b.vx=b.vx/corrected*speed;
+            b.vy=b.vy/corrected*speed;
+          }
         }
         b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;
       }
@@ -1038,7 +1055,14 @@
         // V20.22: la bala normal mantiene 3 s. El misil guiado dura 4 s,
         // sin cambiar velocidad, giro, dano ni comportamiento de colision.
         const projectileLife=b.guided?4:3;
-        let remove=b.age>projectileLife||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
+        const expired=b.age>projectileLife;
+        let remove=expired||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
+        if(expired&&b.guided){
+          // El misil agotado no desaparece sin mas: detona y deja el mismo
+          // efecto de particulas de explosion, que se desvanece localmente.
+          this.emitExplosionAt(b.x,b.y,b.owner);
+          this.emit({t:'sound',kind:'impact'});
+        }
         if(!remove){
           for(let f=this.flares.length-1;f>=0;f--){
             if(sweptCircles(b,BULLET_RADIUS,this.flares[f],FLARE_RADIUS,false)){
