@@ -227,6 +227,90 @@
   const NAVEMIRA_IMAGE_KEYS=['navemiraA','navemiraB','navemiraC','navemiraD'];
   const ASTEROID_IMAGE_KEYS=['','asteroid1','asteroid2','asteroid3','asteroid4','asteroid5','asteroid6'];
   const METEOR_DRAW_SIZES=[0,22,27,31];
+
+  // V20.1 LocalFX: particulas de propulsion 100% locales.
+  // No forman parte del estado, fisicas, colisiones ni mensajes P2P.
+  const ENGINE_FX_MAX=isMobile?96:192;
+  const ENGINE_FX_INTERVAL=isMobile?55:38;
+  const engineParticles=Array.from({length:ENGINE_FX_MAX},()=>({
+    life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0,owner:0
+  }));
+  const engineEmitAt=[0,0,0,0];
+  const engineTrailHidden=[false,false,false,false];
+  let engineFxCursor=0,engineFxLastAt=0;
+
+  function clearEngineTrailOwner(owner){
+    for(const particle of engineParticles){
+      if(particle.life>0&&particle.owner===owner)particle.life=0;
+    }
+  }
+  function suppressEngineTrail(owner,on){
+    owner=Math.max(0,Math.min(3,Number(owner)||0));
+    if(on){
+      if(!engineTrailHidden[owner]){
+        engineTrailHidden[owner]=true;
+        clearEngineTrailOwner(owner);
+      }
+    }else engineTrailHidden[owner]=false;
+  }
+  function emitEngineParticle(player,x,y,rot,now,vx,vy){
+    const owner=Math.max(0,Math.min(3,Number(player&&player.i)||0));
+    if(engineTrailHidden[owner]||now-engineEmitAt[owner]<ENGINE_FX_INTERVAL)return;
+    engineEmitAt[owner]=now;
+
+    const rr=rot*Math.PI/180;
+    // Frente = (-sin,-cos); por tanto la parte trasera apunta a (sin,cos).
+    const backX=Math.sin(rr),backY=Math.cos(rr);
+    const sideX=Math.cos(rr),sideY=-Math.sin(rr);
+    const jitter=(Math.random()-.5)*10;
+    const exhaust=45+Math.random()*45;
+    const particle=engineParticles[engineFxCursor];
+    engineFxCursor=(engineFxCursor+1)%ENGINE_FX_MAX;
+
+    particle.owner=owner;
+    particle.x=x+backX*(SHIP_DRAW_SIZE*.43)+sideX*jitter;
+    particle.y=y+backY*(SHIP_DRAW_SIZE*.43)+sideY*jitter;
+    particle.vx=(Number(vx)||0)*.18+backX*exhaust+sideX*(Math.random()-.5)*16;
+    particle.vy=(Number(vy)||0)*.18+backY*exhaust+sideY*(Math.random()-.5)*16;
+    particle.maxLife=.42+Math.random()*.34;
+    particle.life=particle.maxLife;
+    particle.size=(isMobile?3.2:2.8)+Math.random()*(isMobile?4.4:4.0);
+  }
+  function drawEngineParticles(now){
+    if(!engineFxLastAt){engineFxLastAt=now;return;}
+    const elapsed=now-engineFxLastAt;
+    engineFxLastAt=now;
+
+    // Si hemos estado en menu/segundo plano, descartamos el rastro antiguo.
+    if(elapsed>250){
+      for(const particle of engineParticles)particle.life=0;
+      return;
+    }
+    const dt=Math.min(.05,Math.max(0,elapsed/1000));
+    if(dt<=0)return;
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(const particle of engineParticles){
+      if(particle.life<=0)continue;
+      particle.life-=dt;
+      if(particle.life<=0)continue;
+      particle.x+=particle.vx*dt;
+      particle.y+=particle.vy*dt;
+      particle.vx*=Math.pow(.72,dt);
+      particle.vy*=Math.pow(.72,dt);
+
+      const t=particle.life/particle.maxLife;
+      const radius=Math.max(.7,particle.size*(.30+.70*t));
+      ctx.globalAlpha=Math.min(.72,t*.72);
+      ctx.fillStyle=playerColors[particle.owner]||'#ffffff';
+      ctx.beginPath();
+      ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   // Cache de textos del HUD: evita crear cientos de strings por segundo.
   const hudValueCache=[0,1,2,3].map(()=>({ammoValue:null,ammoText:'',speedValue:null,speedText:'',killValue:null,scoreToWin:null,killText:''}));
   function hudAmmoText(p){
@@ -2522,12 +2606,15 @@
     if(p.camo>0&&!local){
       const revealAlpha=ghostRevealAlpha(p,now);
       if(revealAlpha<=0){
+        // Un efecto puramente visual nunca debe delatar la posicion de FANTASMA.
+        suppressEngineTrail(p.i,true);
         if(localized)drawLocalizaMarker(x,y,localizedOwner,.92);
         return;
       }
+      suppressEngineTrail(p.i,false);
       // Revelacion encadenada: aparece y desaparece suavemente.
       alpha=.78*revealAlpha;
-    }
+    }else suppressEngineTrail(p.i,false);
     if(p.camo>0&&local){alpha=.42;if(p.camo<=3)alpha=(Math.floor(now/160)%2===0)?.55:.22;}
     if(p.prot>0)alpha*=spawnProtectionAlpha(p.prot);
     if(p.shield>0){
@@ -2547,6 +2634,11 @@
     // Para la nave local usamos el control de este mismo frame para que el PNG
     // cambie al instante al pulsar/soltar, incluso mientras sigue por inercia.
     const thrusting=Number(p.i)===Number(myIndex)?!!lastControlThrust:p.thrust===true;
+    if(thrusting){
+      const visualVx=local&&localVisual.ready?localVisual.vx:p.vx;
+      const visualVy=local&&localVisual.ready?localVisual.vy:p.vy;
+      emitEngineParticle(p,x,y,r,now,visualVx,visualVy);
+    }
     const armed=p.armed===true;
     const selected=images[thrusting?(armed?variants.af:variants.a):(armed?variants.f:variants.base)];
     const normal=images[thrusting?variants.a:variants.base]||images[variants.base];
@@ -3383,6 +3475,9 @@
       }
       ctx.strokeStyle=b.g?'#ff3b48':'#50ff78';ctx.lineWidth=b.g?4:3;ctx.beginPath();ctx.moveTo(x-b.vx/sp*(b.g?15:12),y-b.vy/sp*(b.g?15:12));ctx.lineTo(x,y);ctx.stroke();
     }
+    // El rastro se calcula y pinta solo en esta maquina. Las nuevas particulas
+    // se emiten al dibujar las naves y apareceran desde el siguiente frame.
+    drawEngineParticles(now);
     for(const p of state.players){
       const old=previousLookup.players.get(p.i);
       drawShip(p,old,blend,now);

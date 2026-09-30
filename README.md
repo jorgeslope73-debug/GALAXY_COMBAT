@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.0**
+**Versión actual: V20.1**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -208,3 +208,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V19.84: el apartado ONLINE del manual destaca que se puede crear una partida pública y empezar a jugar inmediatamente aunque no haya entrado nadie, rellenando las plazas libres con CPU; los jugadores reales sustituyen esas CPU cuando se unen, sin reiniciar la partida.
 
 - V19.85: en modo FACIL las CPU esperan la mitad de tiempo para volver a cargar entre disparos. Solo cambia el tiempo de recarga; las mejoras de CADENCIA siguen aumentando la velocidad de la bala exactamente igual que antes. MEDIO, DIFICIL, online y el jugador humano no cambian.
+
+- V20.1: primer sistema LocalFX. Las naves generan un pequeno rastro flotante de particulas al acelerar, calculado y renderizado exclusivamente en cada cliente, sin anadir ningun dato P2P ni modificar fisicas, colisiones o IA. Usa un pool reutilizable limitado (96 movil / 192 PC) y menor frecuencia en movil. Las naves rivales en FANTASMA no generan rastro mientras estan ocultas, para no revelar su posicion.
