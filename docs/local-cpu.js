@@ -1577,7 +1577,11 @@
       }
 
       for(let i=this.bullets.length-1;i>=0;i--){
-        const b=this.bullets[i];let remove=b.age>3||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
+        const b=this.bullets[i];
+        // V20.22: la bala normal mantiene 3 s. El misil guiado dura 4 s,
+        // sin cambiar velocidad, giro, dano ni comportamiento de colision.
+        const projectileLife=b.guided?4:3;
+        let remove=b.age>projectileLife||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
         if(!remove){
           for(let f=this.flares.length-1;f>=0;f--){
             if(sweptCircles(b,BULLET_RADIUS,this.flares[f],FLARE_RADIUS,false)){
