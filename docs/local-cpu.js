@@ -986,7 +986,15 @@
           id:uid(),owner:p.index,
           x:p.x+d.x*30,y:p.y+d.y*30,px:p.x,py:p.y,
           vx:p.vx+d.x*speed,vy:p.vy+d.y*speed,
-          life:FLARE_LIFE_SECONDS,ownerSafe:.35,angle:rand(0,360)
+          life:FLARE_LIFE_SECONDS,ownerSafe:.35,angle:rand(0,360),
+          // V20.30: cada bengala conserva el abanico de salida pero recibe
+          // una firma de movimiento propia. Se usa despues para una deriva
+          // suave y una ondulacion mas erratica al final, sin jitter aleatorio.
+          wobblePhase:rand(0,Math.PI*2),
+          wobbleRate:rand(2.15,3.35),
+          wobbleAmp:rand(7.5,11.5),
+          wobbleMix:rand(.65,1.35),
+          driftBias:rand(-2.2,2.2)
         });
       }
       return true;
@@ -1030,6 +1038,32 @@
       for(let i=this.flares.length-1;i>=0;i--){
         const f=this.flares[i];
         f.px=f.x;f.py=f.y;
+
+        // V20.30: la inercia original se mantiene. Solo giramos suavemente el
+        // vector de velocidad; su modulo no recibe acelerones ni frenazos.
+        const age=Math.max(0,FLARE_LIFE_SECONDS-Math.max(0,Number(f.life)||0));
+        const progress=clamp(age/FLARE_LIFE_SECONDS,0,1);
+        let late=clamp((progress-.60)/.40,0,1);
+        late=late*late*(3-2*late); // smoothstep: la ondulacion final entra suave.
+        const phase=(Number(f.wobblePhase)||0)+age*(Number(f.wobbleRate)||2.7);
+        const amp=Number(f.wobbleAmp)||9;
+        const mix=Number(f.wobbleMix)||1;
+        const wave1=Math.sin(phase);
+        const wave2=Math.sin(phase*1.73+mix*2.15);
+        const wave3=Math.sin(phase*.67+mix*4.1);
+        // Desde el inicio hay una deriva leve. Al final se mezclan dos ondas
+        // adicionales para un movimiento mas impredecible pero continuo.
+        const turnRate=(Number(f.driftBias)||0)
+          +wave1*amp*(.28+.22*progress)
+          +(wave2*.72+wave3*.34)*amp*late;
+        const turn=turnRate*(Math.PI/180)*dt;
+        if(Math.abs(turn)>1e-8){
+          const cs=Math.cos(turn),sn=Math.sin(turn);
+          const vx=f.vx,vy=f.vy;
+          f.vx=vx*cs-vy*sn;
+          f.vy=vx*sn+vy*cs;
+        }
+
         f.x+=f.vx*dt;f.y+=f.vy*dt;
         f.vx*=.992;f.vy*=.992;
         f.angle=(f.angle+260*dt)%360;
