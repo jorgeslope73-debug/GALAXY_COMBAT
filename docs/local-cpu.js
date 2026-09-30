@@ -4,7 +4,7 @@
   const DRAG_PER_TICK=Math.pow(0.35,DT);
   const IDLE_CONTROL=Object.freeze({turn:0,thrust:false,fire:false});
   const SCORE_TO_WIN=5;
-  const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,SMALL_METEOR_RADIUS=14;
+  const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,MISSILE_HIT_RADIUS=12,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,BRUTAL_SHOT_DISTANCE=850;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
   const FLARE_CPU_EVAL_SECONDS=1.15,FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
@@ -1536,6 +1536,38 @@
         }
         b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;
       }
+      // V20.12: intercepcion entre proyectiles. Solo colisiona si al menos
+      // uno de los dos es misil guiado. Bala-bala sigue atravesandose.
+      // Proyectiles del mismo propietario no se destruyen entre si.
+      if(this.bullets.length>1){
+        const destroyedProjectiles=new Set();
+        for(let i=0;i<this.bullets.length;i++){
+          const a=this.bullets[i];
+          if(!a||destroyedProjectiles.has(a))continue;
+          for(let j=i+1;j<this.bullets.length;j++){
+            const b=this.bullets[j];
+            if(!b||destroyedProjectiles.has(b))continue;
+            if(Number(a.owner)===Number(b.owner))continue;
+            if(!a.guided&&!b.guided)continue;
+
+            const ar=a.guided?MISSILE_HIT_RADIUS:BULLET_RADIUS;
+            const br=b.guided?MISSILE_HIT_RADIUS:BULLET_RADIUS;
+            if(!sweptCircles(a,ar,b,br,false))continue;
+
+            destroyedProjectiles.add(a);
+            destroyedProjectiles.add(b);
+            const hitX=(a.x+b.x)*.5,hitY=(a.y+b.y)*.5;
+            const fxOwner=a.guided?Number(a.owner):Number(b.owner);
+            this.emitExplosionAt(hitX,hitY,Number.isInteger(fxOwner)?fxOwner:0);
+            this.emit({t:'sound',kind:'impact'});
+            break;
+          }
+        }
+        if(destroyedProjectiles.size){
+          this.bullets=this.bullets.filter(b=>!destroyedProjectiles.has(b));
+        }
+      }
+
       for(let i=this.bullets.length-1;i>=0;i--){
         const b=this.bullets[i];let remove=b.age>3||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
         if(!remove){
