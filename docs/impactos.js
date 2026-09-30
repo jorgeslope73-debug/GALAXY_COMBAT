@@ -8,7 +8,7 @@
   const TAU = Math.PI * 2;
   const MAX_BURSTS = 32;
   const MAX_SEEN = 256;
-  const durationFor = kind => kind === 'explosion' ? 420 : 260;
+  const durationFor = kind => kind === 'explosion' ? 420 : kind === 'disintegrate' ? 360 : 260;
   const clock = () => typeof performance !== 'undefined' ? performance.now() : Date.now();
   let glowSpriteCanvas=null;
   function getGlowSprite(){
@@ -31,7 +31,7 @@
 
   function makeParticle(){return {dx:0,dy:0,distance:0,size:0,hot:false};}
   function makeBurst(){
-    const particles=new Array(12);
+    const particles=new Array(30);
     for(let i=0;i<particles.length;i++)particles[i]=makeParticle();
     return {x:0,y:0,kind:'hit',duration:0,born:0,particles,particleCount:0,key:''};
   }
@@ -72,7 +72,7 @@
       if (event.hidden && event.i !== localIndex) return;
       if (!Number.isFinite(event.x) || !Number.isFinite(event.y)) return;
       if (Math.abs(event.x) > 10000 || Math.abs(event.y) > 10000) return;
-      const kind = event.kind === 'explosion' ? 'explosion' : 'hit';
+      const kind = event.kind === 'explosion' ? 'explosion' : event.kind === 'disintegrate' ? 'disintegrate' : 'hit';
       const duration = durationFor(kind);
       const age = Number.isFinite(event.age) ? Math.max(0, event.age) : 0;
       if (age >= duration) return;
@@ -83,7 +83,7 @@
         return (seed >>> 0) / 4294967296;
       };
       // Particle shapes are generated once per burst, reusing a fixed object pool.
-      const count = kind === 'explosion' ? 12 : 7;
+      const count = kind === 'explosion' ? 12 : kind === 'disintegrate' ? 28 : 7;
       let burst=this.freeBursts.pop();
       if(!burst){
         // If every slot is in use, recycle the oldest visual effect rather than
@@ -96,9 +96,9 @@
         const angle = TAU * (i + random() * 0.65) / count;
         const particle=burst.particles[i];
         particle.dx=Math.cos(angle);particle.dy=Math.sin(angle);
-        particle.distance=kind === 'explosion' ? 16 + random() * 18 : 9 + random() * 12;
-        particle.size=1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
-        particle.hot=random() > 0.45;
+        particle.distance=kind === 'explosion' ? 16 + random() * 18 : kind === 'disintegrate' ? 11 + random() * 22 : 9 + random() * 12;
+        particle.size=kind === 'disintegrate' ? 0.65 + random() * 1.05 : 1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
+        particle.hot=random() > (kind === 'disintegrate' ? 0.58 : 0.45);
       }
       this.bursts.push(burst);
     }
@@ -131,7 +131,7 @@
           const event=snapshot.fx[idx];
           if (!event || !Number.isSafeInteger(event.id) || event.id < 1) continue;
           if (!Number.isInteger(event.i) || event.i < 0 || event.i > 3) continue;
-          if (event.kind !== 'explosion' && event.kind !== 'hit') continue;
+          if (event.kind !== 'explosion' && event.kind !== 'hit' && event.kind !== 'disintegrate') continue;
           // Record only still-visible explosion events. If one was lost/delayed,
           // the state transition fallback below will recreate the death burst.
           if (event.kind === 'explosion') {
@@ -184,34 +184,52 @@
           const t = Math.max(0, Math.min(1, (now - burst.born) / burst.duration));
           const fade = (1 - t) * (1 - t);
           const large = burst.kind === 'explosion';
+          const disintegrate = burst.kind === 'disintegrate';
           const eased = 1 - Math.pow(1 - t, 2);
           const radius = (large ? 9 : 5) + eased * (large ? 20 : 11);
           const glowSprite=getGlowSprite();
-          ctx.globalAlpha=fade;
-          if(glowSprite){
-            ctx.drawImage(glowSprite,burst.x-radius,burst.y-radius,radius*2,radius*2);
-          }else{
-            const glow=ctx.createRadialGradient(burst.x,burst.y,0,burst.x,burst.y,radius);
-            glow.addColorStop(0,'rgba(255,250,215,0.95)');
-            glow.addColorStop(0.28,'rgba(255,201,85,0.8)');
-            glow.addColorStop(0.62,'rgba(255,94,32,0.38)');
-            glow.addColorStop(1,'rgba(235,45,12,0)');
-            ctx.fillStyle=glow;ctx.beginPath();ctx.arc(burst.x,burst.y,radius,0,TAU);ctx.fill();
-          }
 
-          ctx.lineWidth = large ? 1.8 : 1.2;
-          ctx.strokeStyle = '#ffc56c'; ctx.globalAlpha = fade * 0.65;
-          ctx.beginPath(); ctx.arc(burst.x, burst.y, (large ? 4 : 2) + eased * (large ? 26 : 15), 0, TAU); ctx.stroke();
+          // V20.26: el cohete no genera bola de fuego ni onda circular.
+          // Se rompe en muchas microparticulas que se separan muy rapido.
+          if(!disintegrate){
+            ctx.globalAlpha=fade;
+            if(glowSprite){
+              ctx.drawImage(glowSprite,burst.x-radius,burst.y-radius,radius*2,radius*2);
+            }else{
+              const glow=ctx.createRadialGradient(burst.x,burst.y,0,burst.x,burst.y,radius);
+              glow.addColorStop(0,'rgba(255,250,215,0.95)');
+              glow.addColorStop(0.28,'rgba(255,201,85,0.8)');
+              glow.addColorStop(0.62,'rgba(255,94,32,0.38)');
+              glow.addColorStop(1,'rgba(235,45,12,0)');
+              ctx.fillStyle=glow;ctx.beginPath();ctx.arc(burst.x,burst.y,radius,0,TAU);ctx.fill();
+            }
+
+            ctx.lineWidth = large ? 1.8 : 1.2;
+            ctx.strokeStyle = '#ffc56c'; ctx.globalAlpha = fade * 0.65;
+            ctx.beginPath(); ctx.arc(burst.x, burst.y, (large ? 4 : 2) + eased * (large ? 26 : 15), 0, TAU); ctx.stroke();
+          }
           for (let pi=0;pi<burst.particleCount;pi++) {
             const p=burst.particles[pi];
-            const distance = 3 + p.distance * eased;
+            const distance = (disintegrate ? 1.2 : 3) + p.distance * eased;
             const x = burst.x + p.dx * distance, y = burst.y + p.dy * distance;
-            ctx.globalAlpha = fade;
-            ctx.strokeStyle = p.hot ? '#ffe6a1' : '#ff963f';
-            ctx.lineWidth = p.size * (1 - t * 0.65);
-            ctx.beginPath(); ctx.moveTo(x - p.dx * (large ? 5 : 3), y - p.dy * (large ? 5 : 3)); ctx.lineTo(x, y); ctx.stroke();
+            if(disintegrate){
+              ctx.globalAlpha = fade * 0.98;
+              ctx.fillStyle = p.hot ? '#ffe9b5' : '#ff8b43';
+              const size = Math.max(0.45,p.size*(1-t*0.72));
+              ctx.fillRect(x-size*.5,y-size*.5,size,size);
+            }else{
+              ctx.globalAlpha = fade;
+              ctx.strokeStyle = p.hot ? '#ffe6a1' : '#ff963f';
+              ctx.lineWidth = p.size * (1 - t * 0.65);
+              ctx.beginPath(); ctx.moveTo(x - p.dx * (large ? 5 : 3), y - p.dy * (large ? 5 : 3)); ctx.lineTo(x, y); ctx.stroke();
+            }
           }
-          if (t < 0.24) {
+          // Solo un microdestello inicial, sin explosion redonda.
+          if (disintegrate && t < 0.12) {
+            ctx.globalAlpha=(1-t/.12)*.62;
+            ctx.fillStyle='#fff3d2';
+            ctx.beginPath();ctx.arc(burst.x,burst.y,2.4*(1-t/.12),0,TAU);ctx.fill();
+          } else if (!disintegrate && t < 0.24) {
             ctx.globalAlpha = (1 - t / 0.24) * 0.8;
             ctx.fillStyle = '#fff8e2'; ctx.beginPath();
             ctx.arc(burst.x, burst.y, (large ? 5 : 3) * (1 - t), 0, TAU); ctx.fill();
