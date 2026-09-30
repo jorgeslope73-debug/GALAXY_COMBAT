@@ -235,6 +235,7 @@
   let joystickEnabled=false;
   let joystickIndex=-1;
   let joystickConnected=false;
+  let joystickVoiceHeld=false;
   const serverButtons=['create','join'].map(id=>document.getElementById(id));
   if(cpuButton)cpuButton.disabled=false;
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
@@ -1182,7 +1183,7 @@
   }
   function joystickControls(){
     const pad=findJoystick();
-    if(!pad)return {active:false,turn:0,thrust:false,fire:false};
+    if(!pad)return {active:false,turn:0,thrust:false,fire:false,ptt:false};
     const dead=.18;
     const axisX=Number(pad.axes&&pad.axes.length>0?pad.axes[0]:0)||0;
     const axisY=Number(pad.axes&&pad.axes.length>1?pad.axes[1]:0)||0;
@@ -1201,7 +1202,10 @@
     // Mapeo estandar: A/Cross (0) o gatillo derecho RT/R2 (7) disparan.
     const buttonA=!!(pad.buttons&&pad.buttons[0]&&pad.buttons[0].pressed);
     const rightTrigger=!!(pad.buttons&&pad.buttons[7]&&(pad.buttons[7].pressed||Number(pad.buttons[7].value)>.28));
-    return {active:true,turn,thrust,fire:buttonA||rightTrigger};
+    // V20.37: LB/L1 (boton 4 del mapeo estandar) queda reservado para
+    // pulsar-y-hablar cuando el micro ya esta activado.
+    const ptt=!!(pad.buttons&&pad.buttons[4]&&(pad.buttons[4].pressed||Number(pad.buttons[4].value)>.5));
+    return {active:true,turn,thrust,fire:buttonA||rightTrigger,ptt};
   }
   function updateJoystickButton(){
     if(!joystickToggleButton)return;
@@ -1214,11 +1218,22 @@
       ?'Stick izquierdo: izquierda/derecha gira, arriba acelera. A/Cross o RT/R2 dispara.'
       :'Activar control con mando estandar';
   }
+  function notifyJoystickVoiceUi(){
+    try{window.dispatchEvent(new CustomEvent('galaxy-joystickchange',{detail:{enabled:joystickEnabled,connected:joystickConnected}}));}catch(_){}
+  }
+  window.GalaxyJoystickEnabled=()=>!!joystickEnabled;
   function toggleJoystick(){
     joystickEnabled=!joystickEnabled;
-    if(!joystickEnabled){joystickIndex=-1;joystickConnected=false;}
+    if(!joystickEnabled){
+      joystickIndex=-1;joystickConnected=false;
+      if(joystickVoiceHeld){
+        joystickVoiceHeld=false;
+        if(voice&&!voice.keyVDown&&!voice.pttTouchActive)voice.setTalking(false);
+      }
+    }
     saveJoystickPreference();
     updateJoystickButton();
+    notifyJoystickVoiceUi();
   }
 
   function updateAudioButton(){
@@ -2025,6 +2040,18 @@
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
     const pad=joystickControls();
+
+    // V20.37: LB/L1 funciona como PTT si JOYSTICK y MICRO estan activos.
+    // No activa el micro por si solo: primero se pulsa ACTIVAR MICRO en el menu.
+    const nextJoystickVoice=!!(joystickEnabled&&pad.active&&pad.ptt&&voice&&voice.enabled&&!voice.cpuMode);
+    if(nextJoystickVoice!==joystickVoiceHeld){
+      joystickVoiceHeld=nextJoystickVoice;
+      if(voice){
+        if(joystickVoiceHeld)voice.setTalking(true);
+        else if(!voice.keyVDown&&!voice.pttTouchActive)voice.setTalking(false);
+      }
+    }
+
     const baseTurn=isMobile
       ?(mobileKeyboardActive?keyboardTurn:progressiveMobileTurn(now))
       :keyboardTurn;
@@ -2639,6 +2666,7 @@
   updateAudioButton();
   loadJoystickPreference();
   updateJoystickButton();
+  notifyJoystickVoiceUi();
   if(audioToggleButton)audioToggleButton.addEventListener('click',toggleGameAudio);
   if(joystickToggleButton)joystickToggleButton.addEventListener('click',toggleJoystick);
   window.addEventListener('gamepadconnected',e=>{
@@ -2646,11 +2674,17 @@
     joystickIndex=Number.isInteger(e.gamepad&&e.gamepad.index)?e.gamepad.index:-1;
     joystickConnected=true;
     updateJoystickButton();
+    notifyJoystickVoiceUi();
   });
   window.addEventListener('gamepaddisconnected',e=>{
     if(Number(e.gamepad&&e.gamepad.index)===joystickIndex)joystickIndex=-1;
     joystickConnected=false;
     updateJoystickButton();
+    if(joystickVoiceHeld){
+      joystickVoiceHeld=false;
+      if(voice&&!voice.keyVDown&&!voice.pttTouchActive)voice.setTalking(false);
+    }
+    notifyJoystickVoiceUi();
   });
 
   if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
