@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.28**
+**Versión actual: V20.29**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -255,6 +255,7 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 - V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
 
+- V20.29: la desintegracion del cohete usa un sonido propio, mas suave y tipo chispitas, sintetizado directamente con Web Audio mediante una breve secuencia de tonos agudos. Las explosiones reales de naves mantienen el sonido de impacto fuerte. No se anaden archivos de audio y no cambia la fisica.
 - V20.28: la desintegracion del cohete se hace mucho mas visible: unas 42 particulas, tamano aproximado de 1,1 a 2,4 px, mayor apertura radial y duracion de unos 0,68 s. Mantiene el estilo de fuegos artificiales, sin bola de fuego grande ni onda expansiva, y no cambia fisica, dano, guiado ni sonido.
 - V20.27: la desintegracion del cohete guiado adopta un look mas tipo fuegos artificiales: unas 34 microparticulas casi de 1 pixel, mayor dispersion radial y destellos puntuales, con un destello central minimo. Sigue sin bola de fuego grande ni onda expansiva, y no cambia fisica, dano, guiado ni sonido.
 - V20.26: el cohete guiado se desintegra visualmente en unas 28 microparticulas muy pequenas y rapidas, sin bola de fuego grande ni onda expansiva. Se aplica al agotarse y a sus impactos contra proyectiles, bengalas, escudos, asteroides y meteoritos; si destruye una nave, la explosion de la nave se mantiene y el cohete aporta su propia desintegracion. No cambia fisica, dano, guiado ni sonido.
