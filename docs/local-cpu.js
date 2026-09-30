@@ -116,6 +116,7 @@
       this.onEvent=typeof onEvent==='function'?onEvent:()=>{};
       this.players=[];
       this.controls=new Map();
+      this.destroyedProjectileScratch=new Set();
       // V19.79 PERF-2: reutilizamos esta lista para no crear arrays temporales
       // de CPU en cada tick de la simulacion.
       this.cpuScratch=[];
@@ -1540,7 +1541,8 @@
       // uno de los dos es misil guiado. Bala-bala sigue atravesandose.
       // Proyectiles del mismo propietario no se destruyen entre si.
       if(this.bullets.length>1){
-        const destroyedProjectiles=new Set();
+        const destroyedProjectiles=this.destroyedProjectileScratch;
+        destroyedProjectiles.clear();
         for(let i=0;i<this.bullets.length;i++){
           const a=this.bullets[i];
           if(!a||destroyedProjectiles.has(a))continue;
@@ -1564,7 +1566,13 @@
           }
         }
         if(destroyedProjectiles.size){
-          this.bullets=this.bullets.filter(b=>!destroyedProjectiles.has(b));
+          let write=0;
+          for(let read=0;read<this.bullets.length;read++){
+            const projectile=this.bullets[read];
+            if(!destroyedProjectiles.has(projectile))this.bullets[write++]=projectile;
+          }
+          this.bullets.length=write;
+          destroyedProjectiles.clear();
         }
       }
 
