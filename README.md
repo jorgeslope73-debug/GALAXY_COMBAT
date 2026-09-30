@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.40**
+**Versión actual: V20.42**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -255,6 +255,8 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 - V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
 
+- V20.42: la IA conserva su decision aprendida sobre si usar o guardar bengalas, pero frente a un misil guiado ya no las lanza de forma instantanea. Cuando decide usarlas, programa una reaccion aleatoria de 1,0 a 2,0 segundos y solo las despliega si el misil sigue siendo una amenaza. El retraso se aplica tanto a CPU local como a CPU de relleno online; no cambia el aprendizaje persistente ni la logica de evasion frente a balas o perseguidores.
+- V20.41: mejora de actualizacion PWA/testigo de version para recargar una sola vez cuando entra un service worker nuevo y comprobar actualizaciones al volver a la pestaña.
 - V20.40: JOYSTICK queda reservado exclusivamente a PC. En movil y tablet el boton no aparece en el menu y el control por mando queda forzado a desactivado aunque el navegador detecte un gamepad. Los controles tactiles y de teclado movil permanecen sin cambios.
 - V20.39: JOYSTICK pasa a estar desactivado por defecto en cada carga o recarga del juego, aunque se hubiera usado en la sesion anterior. El jugador debe activarlo expresamente desde el boton del menu. El resto de controles y mapeos se mantienen sin cambios.
 - V20.38: con JOYSTICK activado, la linea de ayuda inferior sustituye automaticamente las teclas por los controles del mando: STICK IZQ. para girar, L1/L2 para acelerar, A/RT para disparar y R1 para hablar con el micro activo. Al desactivar JOYSTICK vuelven los controles de teclado. R1 sustituye a L1 como PTT y L1/L2 pasan a acelerar; se conservan stick arriba y D-pad arriba como alternativas de aceleracion.
