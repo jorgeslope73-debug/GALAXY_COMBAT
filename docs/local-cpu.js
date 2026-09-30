@@ -991,10 +991,10 @@
           // una firma de movimiento propia. Se usa despues para una deriva
           // suave y una ondulacion mas erratica al final, sin jitter aleatorio.
           wobblePhase:rand(0,Math.PI*2),
-          wobbleRate:rand(2.35,3.65),
-          wobbleAmp:rand(11.5,16.5),
-          wobbleMix:rand(.65,1.35),
-          driftBias:rand(-3.2,3.2)
+          wobbleRate:rand(2.8,4.4),
+          wobbleAmp:rand(17,24),
+          wobbleMix:rand(.55,1.45),
+          driftBias:rand(-4.5,4.5)
         });
       }
       return true;
@@ -1051,13 +1051,13 @@
         const wave1=Math.sin(phase);
         const wave2=Math.sin(phase*1.73+mix*2.15);
         const wave3=Math.sin(phase*.67+mix*4.1);
-        // V20.32: ondulacion visible desde la salida. La primera onda ya
-        // tiene presencia clara desde el primer instante y crece suavemente;
-        // al final se suman otras dos para volverla mas erratica sin jitter.
+        // V20.34: ondulacion bastante mas visible desde la salida, pero
+        // continua. La segunda onda participa antes y el tramo final sigue
+        // mezclando frecuencias para que ninguna bengala repita la misma curva.
         const turnRate=(Number(f.driftBias)||0)
-          +wave1*amp*(.52+.22*progress)
-          +(wave2*.56)*amp*(.16+.24*progress)
-          +(wave2*.72+wave3*.34)*amp*late;
+          +wave1*amp*(.72+.28*progress)
+          +(wave2*.72)*amp*(.24+.30*progress)
+          +(wave2*.78+wave3*.44)*amp*late;
         const turn=turnRate*(Math.PI/180)*dt;
         if(Math.abs(turn)>1e-8){
           const cs=Math.cos(turn),sn=Math.sin(turn);
