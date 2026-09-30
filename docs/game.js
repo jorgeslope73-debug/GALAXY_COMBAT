@@ -436,6 +436,8 @@
   }
 
   function emitRockDebris(x,y,nx,ny,now){
+    // V20.48: un estado transitorio nunca debe mandar NaN/Infinity a Canvas.
+    if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(nx)||!Number.isFinite(ny))return;
     // V20.46: nube corta de polvo/piedrecitas grises semitransparentes.
     // Todas nacen practicamente en el punto real de contacto.
     const amount=isMobile?(4+Math.floor(Math.random()*2)):(6+Math.floor(Math.random()*3));
@@ -470,17 +472,21 @@
         const b=rocks[j];
         if(!b)continue;
         const ar=asteroidLocalRadius(a),br=asteroidLocalRadius(b);
-        const dx=Number(b.x)-Number(a.x),dy=Number(b.y)-Number(a.y);
+        const ax=Number(a.x),ay=Number(a.y),bx=Number(b.x),by=Number(b.y);
+        if(!Number.isFinite(ax)||!Number.isFinite(ay)||!Number.isFinite(bx)||!Number.isFinite(by))continue;
+        const dx=bx-ax,dy=by-ay;
         const rr=ar+br,d2=dx*dx+dy*dy;
-        if(d2>rr*rr)continue;
+        if(!Number.isFinite(d2)||d2>rr*rr)continue;
         const key=Number(a.id)<Number(b.id)?a.id+'-'+b.id:b.id+'-'+a.id;
         asteroidRockNextContacts.add(key);
         if(asteroidRockContacts.has(key))continue;
         const last=Number(asteroidRockLastBurst.get(key))||0;
         if(now-last<700)continue;
         asteroidRockLastBurst.set(key,now);
-        const d=Math.sqrt(d2)||1,nx=dx/d,ny=dy/d;
-        emitRockDebris(Number(a.x)+nx*ar,Number(a.y)+ny*ar,-nx,-ny,now);
+        const d=Math.sqrt(Math.max(0,d2));
+        if(!(d>1e-6))continue;
+        const nx=dx/d,ny=dy/d;
+        emitRockDebris(ax+nx*ar,ay+ny*ar,-nx,-ny,now);
       }
     }
     asteroidRockContacts.clear();
@@ -502,7 +508,7 @@
       const ar=asteroidLocalRadius(asteroid);
       const rr=GIANT_LOCAL_RADIUS+ar;
       const dx=ax-gx,dy=ay-gy,d2=dx*dx+dy*dy;
-      if(d2>rr*rr)continue;
+      if(!Number.isFinite(d2)||d2>rr*rr)continue;
 
       const key=String(asteroid.id);
       nextContacts.add(key);
@@ -512,7 +518,8 @@
       if(now-last<700)continue;
       giantRockLastBurst.set(key,now);
 
-      const d=Math.sqrt(d2)||1;
+      const d=Math.sqrt(Math.max(0,d2));
+      if(!(d>1e-6))continue;
       const nx=dx/d,ny=dy/d;
       // Punto aproximado de contacto sobre el borde del meteorito gigante.
       const hitX=gx+nx*GIANT_LOCAL_RADIUS;
@@ -551,6 +558,12 @@
       if(particle.life<=0)continue;
       particle.life-=dt;
       if(particle.life<=0)continue;
+      if(!Number.isFinite(particle.x)||!Number.isFinite(particle.y)||
+         !Number.isFinite(particle.vx)||!Number.isFinite(particle.vy)||
+         !Number.isFinite(particle.size)){
+        particle.life=0;
+        continue;
+      }
 
       particle.x+=particle.vx*dt;
       particle.y+=particle.vy*dt;
