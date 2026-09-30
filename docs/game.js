@@ -1049,26 +1049,28 @@
     const ctx=ensureAudioContext();
     if(!ctx||ctx.state!=='running'||!fxGain)return false;
     try{
-      // V20.29: chispitas sintetizadas, suaves y agudas, sin golpe grave.
+      // V20.31: chispitas claramente audibles pero sin golpe grave.
+      // La V20.29 quedaba demasiado baja porque bus y osciladores atenuaban
+      // a la vez. Aqui subimos presencia y alargamos ligeramente el tintineo.
       const now=ctx.currentTime;
       const bus=ctx.createGain();
       bus.gain.setValueAtTime(.0001,now);
-      bus.gain.exponentialRampToValueAtTime(.09,now+.006);
-      bus.gain.exponentialRampToValueAtTime(.0001,now+.30);
+      bus.gain.exponentialRampToValueAtTime(.42,now+.008);
+      bus.gain.exponentialRampToValueAtTime(.0001,now+.38);
       bus.connect(fxGain);
-      const freqs=[2300,2950,3720,4550,5250];
-      const delays=[0,.028,.061,.095,.132];
+      const freqs=[1750,2250,2860,3520,4300,5100];
+      const delays=[0,.026,.055,.086,.121,.158];
       let ended=0;
       for(let i=0;i<freqs.length;i++){
         const osc=ctx.createOscillator();
         const gain=ctx.createGain();
         const start=now+delays[i];
-        const stop=start+.11+i*.008;
-        osc.type=i%2?'sine':'triangle';
+        const stop=start+.13+i*.01;
+        osc.type=i%3===0?'triangle':'sine';
         osc.frequency.setValueAtTime(freqs[i],start);
-        osc.frequency.exponentialRampToValueAtTime(freqs[i]*1.1,stop);
+        osc.frequency.exponentialRampToValueAtTime(freqs[i]*1.08,stop);
         gain.gain.setValueAtTime(.0001,start);
-        gain.gain.exponentialRampToValueAtTime(.047-i*.004,start+.004);
+        gain.gain.exponentialRampToValueAtTime(.14-i*.009,start+.004);
         gain.gain.exponentialRampToValueAtTime(.0001,stop);
         osc.connect(gain);gain.connect(bus);
         osc.onended=()=>{
@@ -1149,11 +1151,20 @@
     if(!gameAudioEnabled)return;
     if(k==='sparkle'){
       if(playSparkleSound())return;
-      // Fallback para navegadores sin WebAudio: un laser muy suave y agudo.
+      // Si WebAudio esta temporalmente suspendido, intentamos reanudarlo y
+      // reproducir el tintineo en cuanto vuelva a estar activo.
+      if(useWebAudio&&audioCtx){
+        try{
+          const resumed=audioCtx.resume();
+          if(resumed&&resumed.then)resumed.then(()=>{playSparkleSound();}).catch(()=>{});
+        }catch(_){}
+        return;
+      }
+      // Fallback para navegadores sin WebAudio: laser corto y muy suave.
       const pool=soundPools.laser;if(!pool||!pool.items.length)return;
       const a=pool.items[pool.next++%pool.items.length];
       try{
-        a.currentTime=0;a.playbackRate=1.8;a.volume=.14*gameVolume;
+        a.currentTime=0;a.playbackRate=1.8;a.volume=.20*gameVolume;
         const promise=a.play();if(promise&&promise.catch)promise.catch(()=>{});
       }catch(_){}
       return;
