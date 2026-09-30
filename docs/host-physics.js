@@ -8,6 +8,7 @@
   const SPAWN_PROTECTION_SECONDS=3,SPAWN_MATERIALIZE_SECONDS=1.15,BRUTAL_SHOT_DISTANCE=850;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
   const FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
+  const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
@@ -265,7 +266,7 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,spawnFx:SPAWN_MATERIALIZE_SECONDS,spawnAnchorX:0,spawnAnchorY:0,
-        guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,nextFlareDecision:0,nextFlareAllowed:0,
+        guided:false,guidedTarget:-1,flare:0,flareHold:0,flareGesture:false,flarePending:null,nextFlareDecision:0,nextFlareAllowed:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         cpuFireDelay:cpu?CPU_ARMED_WARNING_SECONDS:0,
         difficulty:this.difficulty,aiControl:null
@@ -439,7 +440,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.nextFlareAllowed=0;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
@@ -525,6 +526,7 @@
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
+      if(victim.cpu)victim.flarePending=null;
       // V20.11: solo penalizan las muertes provocadas por el propio jugador,
       // por el entorno/choque o por una colision fisica marcada expresamente.
       // Ser abatido por la bala, misil o bengala de OTRO jugador no resta puntos.
@@ -578,7 +580,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.flarePending=null;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
@@ -662,7 +664,27 @@
       return best;
     }
     smartCpuFlare(cpu){
-      if(!cpu||cpu.dead||(Number(cpu.flare)||0)<=0||this.fxClock<(Number(cpu.nextFlareDecision)||0))return false;
+      if(!cpu||cpu.dead)return false;
+
+      // V20.42: la CPU no responde instantaneamente a un misil guiado.
+      // Una vez decide usar bengala, espera entre 1 y 2 segundos antes de soltarla.
+      if(cpu.flarePending){
+        const pending=cpu.flarePending;
+        const b=this.bullets.find(x=>x.id===pending.projectileId)||null;
+        const active=!!(b&&b.guided&&!b.decoyed&&Number(b.target)===Number(cpu.index));
+        if(!active){cpu.flarePending=null;cpu.nextFlareDecision=this.fxClock+FLARE_CPU_KEEP_COOLDOWN;return false;}
+        if(this.fxClock<Number(pending.executeAt))return false;
+        if((Number(cpu.flare)||0)<=0)return false;
+        if(this.fxClock<(Number(cpu.nextFlareAllowed)||0)){
+          pending.executeAt=Math.max(this.fxClock+.05,Number(cpu.nextFlareAllowed)||0);
+          return false;
+        }
+        cpu.flarePending=null;
+        cpu.nextFlareDecision=this.fxClock+FLARE_CPU_USE_COOLDOWN;
+        return this.deployFlares(cpu);
+      }
+
+      if((Number(cpu.flare)||0)<=0||this.fxClock<(Number(cpu.nextFlareDecision)||0))return false;
       const threat=this.findCpuFlareThreat(cpu);
       if(!threat)return false;
       let use=!!threat.critical;
@@ -671,6 +693,16 @@
       else if(!use&&threat.kind==='p')use=threat.enemyShield?threat.distance<300:threat.distance<175;
       if((Number(cpu.flare)||0)>1&&threat.kind==='g'&&threat.distance<1050)use=true;
       if(cpu.difficulty==='facil'&&!threat.critical&&Math.random()<.55)use=false;
+
+      if(use&&threat.kind==='g'){
+        cpu.flarePending={
+          projectileId:threat.projectileId,
+          executeAt:this.fxClock+rand(FLARE_CPU_MISSILE_REACTION_MIN,FLARE_CPU_MISSILE_REACTION_MAX)
+        };
+        cpu.nextFlareDecision=cpu.flarePending.executeAt;
+        return false;
+      }
+
       cpu.nextFlareDecision=this.fxClock+(use?FLARE_CPU_USE_COOLDOWN:FLARE_CPU_KEEP_COOLDOWN);
       return use?this.deployFlares(cpu):false;
     }
