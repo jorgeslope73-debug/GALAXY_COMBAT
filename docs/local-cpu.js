@@ -4,7 +4,7 @@
   const DRAG_PER_TICK=Math.pow(0.35,DT);
   const IDLE_CONTROL=Object.freeze({turn:0,thrust:false,fire:false});
   const SCORE_TO_WIN=5;
-  const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,MISSILE_HIT_RADIUS=12,SMALL_METEOR_RADIUS=14;
+  const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=162,PICKUP_RADIUS=22,BULLET_RADIUS=4,MISSILE_HIT_RADIUS=12,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,SPAWN_MATERIALIZE_SECONDS=1.15,BRUTAL_SHOT_DISTANCE=850;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
   const FLARE_CPU_EVAL_SECONDS=1.15,FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
@@ -58,7 +58,7 @@
   // 48,5% del tamano dibujado. Esto evita rebotar antes de que los sprites se toquen.
   const asteroidDrawSize=a=>Number(a&&a.type)===5?112:120;
   const asteroidRockRadius=a=>asteroidDrawSize(a)*.485;
-  const GIANT_ROCK_RADIUS=270*.485;
+  const GIANT_ROCK_RADIUS=324*.485;
   // V20.46: asteroide6.png (type 5) es una variante algo mas pequena y rara.
   // Conservamos exactamente el mismo numero total de asteroides y los mismos
   // tiempos de entrada; solo cambia la distribucion visual de variantes.
