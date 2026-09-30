@@ -1579,11 +1579,11 @@
             }
           }
 
-          // V20.24: durante el ultimo segundo el misil empieza a fallar.
-          // Oscila lateralmente de forma determinista y cada vez mas visible,
-          // conservando exactamente su modulo de velocidad.
+          // V20.31: durante el ultimo segundo el misil empieza a fallar.
+          // Conserva la ondulacion erratica de V20.24 y, a partir de 3,2 s,
+          // pierde velocidad suavemente hasta llegar aprox. al 45% al final.
           if(b.age>=3){
-            const speed=Math.hypot(b.vx,b.vy)||500;
+            const currentSpeed=Math.hypot(b.vx,b.vy)||500;
             const burnout=clamp((b.age-3)/1,0,1);
             const phase=(b.age-3)*16+(Number(b.id)||0)*.73;
             const turn=Math.sin(phase)*(2.8*burnout)*dt;
@@ -1592,8 +1592,15 @@
             b.vx=(vx*cs-vy*sn);
             b.vy=(vx*sn+vy*cs);
             const corrected=Math.hypot(b.vx,b.vy)||1;
-            b.vx=b.vx/corrected*speed;
-            b.vy=b.vy/corrected*speed;
+
+            // Frenada solo en los ultimos 0,8 s. smoothstep evita cualquier
+            // salto de velocidad al entrar en la fase de agotamiento.
+            let slow=clamp((b.age-3.2)/.8,0,1);
+            slow=slow*slow*(3-2*slow);
+            const targetSpeed=500*(1-.55*slow);
+            const finalSpeed=b.age<3.2?currentSpeed:targetSpeed;
+            b.vx=b.vx/corrected*finalSpeed;
+            b.vy=b.vy/corrected*finalSpeed;
           }
         }
         b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;
