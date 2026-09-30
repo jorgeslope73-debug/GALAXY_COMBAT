@@ -291,7 +291,9 @@
   const ROCK_FX_MAX=isMobile?48:96;
   // V20.44: mismos radios visuales de contacto que la fisica de roca.
   const GIANT_LOCAL_RADIUS=324*.485;
-  const asteroidDrawSize=a=>Number(a&&a.type)===5?112:120;
+  // V20.50: los tipos 1-5 mantienen sus texturas/colores originales a 120 px.
+  // El tipo 6 (dos.png) se dibuja a la mitad: 60 px.
+  const asteroidDrawSize=a=>Number(a&&a.type)===6?60:120;
   const asteroidLocalRadius=a=>asteroidDrawSize(a)*.485;
   const rockParticles=Array.from({length:ROCK_FX_MAX},()=>({
     life:0,maxLife:2,x:0,y:0,vx:0,vy:0,size:0,rot:0,spin:0
