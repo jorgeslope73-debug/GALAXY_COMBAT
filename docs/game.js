@@ -231,6 +231,7 @@
   const cpuButton=document.getElementById('cpu');
   const audioToggleButton=document.getElementById('enableAudio');
   const joystickToggleButton=document.getElementById('enableJoystick');
+  const controlHelpEl=document.getElementById('controlHelp');
   const JOYSTICK_STORAGE_KEY='galaxyCombatJoystickV1';
   let joystickEnabled=false;
   let joystickIndex=-1;
@@ -1197,31 +1198,55 @@
       // Gamepad: izquierda=-1. Fisica Galaxy: izquierda=+1.
       turn=-Math.sign(axisX)*Math.min(1,normalized);
     }
-    // Empujar el stick hacia delante (arriba) acelera. D-pad arriba tambien.
-    const thrust=dpadUp||axisY<-.28;
-    // Mapeo estandar: A/Cross (0) o gatillo derecho RT/R2 (7) disparan.
+    // V20.38: L1/LB y L2/LT aceleran. Conservamos stick hacia delante y
+    // D-pad arriba como alternativas para no quitar ningun control existente.
+    const leftBumper=!!(pad.buttons&&pad.buttons[4]&&(pad.buttons[4].pressed||Number(pad.buttons[4].value)>.5));
+    const leftTrigger=!!(pad.buttons&&pad.buttons[6]&&(pad.buttons[6].pressed||Number(pad.buttons[6].value)>.28));
+    const thrust=dpadUp||axisY<-.28||leftBumper||leftTrigger;
+    // A/Cross o gatillo derecho RT/R2 disparan.
     const buttonA=!!(pad.buttons&&pad.buttons[0]&&pad.buttons[0].pressed);
     const rightTrigger=!!(pad.buttons&&pad.buttons[7]&&(pad.buttons[7].pressed||Number(pad.buttons[7].value)>.28));
-    // V20.37: LB/L1 (boton 4 del mapeo estandar) queda reservado para
-    // pulsar-y-hablar cuando el micro ya esta activado.
-    const ptt=!!(pad.buttons&&pad.buttons[4]&&(pad.buttons[4].pressed||Number(pad.buttons[4].value)>.5));
+    // R1/RB (boton 5) queda reservado para pulsar-y-hablar con el micro activo.
+    const ptt=!!(pad.buttons&&pad.buttons[5]&&(pad.buttons[5].pressed||Number(pad.buttons[5].value)>.5));
     return {active:true,turn,thrust,fire:buttonA||rightTrigger,ptt};
+  }
+  function updateControlHelp(){
+    if(!controlHelpEl)return;
+    if(joystickEnabled){
+      controlHelpEl.innerHTML=
+        '<span><span>'+tr('rotateControl')+'</span> <b>STICK IZQ.</b></span>'+
+        '<i aria-hidden="true"></i>'+
+        '<span><span>'+tr('accelerate')+'</span> <b>L1 / L2</b></span>'+
+        '<i aria-hidden="true"></i>'+
+        '<span><span>'+tr('fire')+'</span> <b>A / RT</b></span>'+
+        '<i aria-hidden="true"></i>'+
+        '<span><span>'+tr('talk')+'</span> <b>R1</b></span>';
+    }else{
+      controlHelpEl.innerHTML=
+        '<span><span>'+tr('rotateControl')+'</span> <b>A / D</b> <span>'+tr('orArrows')+'</span></span>'+
+        '<i aria-hidden="true"></i>'+
+        '<span><span>'+tr('accelerate')+'</span> <b>'+tr('keyThrustCombo')+'</b></span>'+
+        '<i aria-hidden="true"></i>'+
+        '<span><span>'+tr('fire')+'</span> <b>'+tr('keyFireCombo')+'</b></span>';
+    }
   }
   function updateJoystickButton(){
     if(!joystickToggleButton)return;
     findJoystick();
     joystickToggleButton.classList.toggle('active',joystickEnabled);
     joystickToggleButton.setAttribute('aria-pressed',joystickEnabled?'true':'false');
-    if(!joystickEnabled)joystickToggleButton.textContent='JOYSTICK';
-    else joystickToggleButton.textContent=joystickConnected?'JOYSTICK ACTIVO':'JOYSTICK · CONECTA MANDO';
+    // El estado se comunica por color para mantener exactamente el mismo ancho que AUDIO.
+    joystickToggleButton.textContent='JOYSTICK';
     joystickToggleButton.title=joystickEnabled
-      ?'Stick izquierdo: izquierda/derecha gira, arriba acelera. A/Cross o RT/R2 dispara.'
+      ?(joystickConnected?'Joystick activo: L1/L2 acelera, A/RT dispara y R1 habla.':'Joystick activo: conecta un mando. L1/L2 acelera, A/RT dispara y R1 habla.')
       :'Activar control con mando estandar';
+    updateControlHelp();
   }
   function notifyJoystickVoiceUi(){
     try{window.dispatchEvent(new CustomEvent('galaxy-joystickchange',{detail:{enabled:joystickEnabled,connected:joystickConnected}}));}catch(_){}
   }
   window.GalaxyJoystickEnabled=()=>!!joystickEnabled;
+  window.addEventListener('galaxy-languagechange',updateControlHelp);
   function toggleJoystick(){
     joystickEnabled=!joystickEnabled;
     if(!joystickEnabled){
@@ -2041,7 +2066,7 @@
     const keyboardTurn=(left?1:0)-(right?1:0);
     const pad=joystickControls();
 
-    // V20.37: LB/L1 funciona como PTT si JOYSTICK y MICRO estan activos.
+    // V20.38: R1/RB funciona como PTT si JOYSTICK y MICRO estan activos.
     // No activa el micro por si solo: primero se pulsa ACTIVAR MICRO en el menu.
     const nextJoystickVoice=!!(joystickEnabled&&pad.active&&pad.ptt&&voice&&voice.enabled&&!voice.cpuMode);
     if(nextJoystickVoice!==joystickVoiceHeld){
