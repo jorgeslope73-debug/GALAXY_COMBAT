@@ -8,7 +8,7 @@
   const TAU = Math.PI * 2;
   const MAX_BURSTS = 32;
   const MAX_SEEN = 256;
-  const durationFor = kind => kind === 'explosion' ? 420 : kind === 'disintegrate' ? 380 : 260;
+  const durationFor = kind => kind === 'explosion' ? 420 : kind === 'disintegrate' ? 680 : 260;
   const clock = () => typeof performance !== 'undefined' ? performance.now() : Date.now();
   let glowSpriteCanvas=null;
   function getGlowSprite(){
@@ -31,7 +31,7 @@
 
   function makeParticle(){return {dx:0,dy:0,distance:0,size:0,hot:false};}
   function makeBurst(){
-    const particles=new Array(36);
+    const particles=new Array(48);
     for(let i=0;i<particles.length;i++)particles[i]=makeParticle();
     return {x:0,y:0,kind:'hit',duration:0,born:0,particles,particleCount:0,key:''};
   }
@@ -83,7 +83,7 @@
         return (seed >>> 0) / 4294967296;
       };
       // Particle shapes are generated once per burst, reusing a fixed object pool.
-      const count = kind === 'explosion' ? 12 : kind === 'disintegrate' ? 34 : 7;
+      const count = kind === 'explosion' ? 12 : kind === 'disintegrate' ? 42 : 7;
       let burst=this.freeBursts.pop();
       if(!burst){
         // If every slot is in use, recycle the oldest visual effect rather than
@@ -96,9 +96,9 @@
         const angle = TAU * (i + random() * 0.65) / count;
         const particle=burst.particles[i];
         particle.dx=Math.cos(angle);particle.dy=Math.sin(angle);
-        particle.distance=kind === 'explosion' ? 16 + random() * 18 : kind === 'disintegrate' ? 14 + random() * 26 : 9 + random() * 12;
-        particle.size=kind === 'disintegrate' ? 0.45 + random() * 0.85 : 1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
-        particle.hot=random() > (kind === 'disintegrate' ? 0.5 : 0.45);
+        particle.distance=kind === 'explosion' ? 16 + random() * 18 : kind === 'disintegrate' ? 20 + random() * 34 : 9 + random() * 12;
+        particle.size=kind === 'disintegrate' ? 1.25 + random() * 1.15 : 1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
+        particle.hot=random() > (kind === 'disintegrate' ? 0.46 : 0.45);
       }
       this.bursts.push(burst);
     }
@@ -182,7 +182,7 @@
         ctx.lineCap = 'round';
         for (const burst of this.bursts) {
           const t = Math.max(0, Math.min(1, (now - burst.born) / burst.duration));
-          const fade = (1 - t) * (1 - t);
+          const fade = burst.kind === 'disintegrate' ? Math.pow(1-t,1.15) : (1 - t) * (1 - t);
           const large = burst.kind === 'explosion';
           const disintegrate = burst.kind === 'disintegrate';
           const eased = 1 - Math.pow(1 - t, 2);
@@ -213,12 +213,12 @@
             const distance = (disintegrate ? 1.2 : 3) + p.distance * eased;
             const x = burst.x + p.dx * distance, y = burst.y + p.dy * distance;
             if(disintegrate){
-              // V20.27: efecto tipo fuegos artificiales, con muchos puntos
-              // diminutos (casi 1 px), dispersion radial rapida y algun destello.
+              // V20.28: efecto tipo fuegos artificiales mas visible: mas puntos,
+              // mayor tamano, mas dispersion y una persistencia claramente mayor.
               const sparkle=p.hot && ((pi + Math.floor((now-burst.born)/22)) % 3 === 0);
               ctx.globalAlpha = fade * (sparkle ? 1 : 0.92);
               ctx.fillStyle = sparkle ? '#fff9df' : (p.hot ? '#ffe3a0' : '#ff9448');
-              const size = Math.max(0.82,Math.min(1.28,p.size*(1-t*0.28)));
+              const size = Math.max(1.15,Math.min(2.4,p.size*(1-t*0.22)));
               ctx.fillRect(x-size*.5,y-size*.5,size,size);
             }else{
               ctx.globalAlpha = fade;
@@ -228,10 +228,10 @@
             }
           }
           // Destello central minimo: evita que parezca una explosion redonda.
-          if (disintegrate && t < 0.08) {
-            ctx.globalAlpha=(1-t/.08)*.45;
+          if (disintegrate && t < 0.11) {
+            ctx.globalAlpha=(1-t/.11)*.55;
             ctx.fillStyle='#fff7e0';
-            ctx.beginPath();ctx.arc(burst.x,burst.y,1.55*(1-t/.08),0,TAU);ctx.fill();
+            ctx.beginPath();ctx.arc(burst.x,burst.y,2.2*(1-t/.11),0,TAU);ctx.fill();
           } else if (!disintegrate && t < 0.24) {
             ctx.globalAlpha = (1 - t / 0.24) * 0.8;
             ctx.fillStyle = '#fff8e2'; ctx.beginPath();
