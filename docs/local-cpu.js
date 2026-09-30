@@ -8,6 +8,7 @@
   const SPAWN_PROTECTION_SECONDS=3,SPAWN_MATERIALIZE_SECONDS=1.15,BRUTAL_SHOT_DISTANCE=850;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
   const FLARE_CPU_EVAL_SECONDS=1.15,FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
+  const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
@@ -349,6 +350,36 @@
     smartCpuFlare(cpu){
       if(!cpu||cpu.dead)return false;
       this.updateCpuFlareDecision(cpu);
+
+      // V20.42: si la IA ya decidio usar una bengala contra un misil guiado,
+      // conserva ESA decision aprendida pero tarda entre 1 y 2 s en ejecutarla.
+      // La espera es solo de reaccion humana; no vuelve a elegir otra accion.
+      if(cpu.flarePending){
+        const pending=cpu.flarePending;
+        const b=this.bullets.find(x=>x.id===pending.projectileId)||null;
+        const active=!!(b&&b.guided&&!b.decoyed&&Number(b.target)===Number(cpu.index));
+        if(!active){
+          cpu.flarePending=null;
+          cpu.nextFlareDecision=this.fxClock+FLARE_CPU_KEEP_COOLDOWN;
+          return false;
+        }
+        if(this.fxClock<Number(pending.executeAt))return false;
+        if((Number(cpu.flare)||0)<=0)return false;
+        if(this.fxClock<(Number(cpu.nextFlareAllowed)||0)){
+          pending.executeAt=Math.max(this.fxClock+.05,Number(cpu.nextFlareAllowed)||0);
+          return false;
+        }
+        cpu.flarePending=null;
+        cpu.flareDecision={
+          context:pending.context,action:'flare_use',kind:'g',projectileId:pending.projectileId,
+          rivalIndex:undefined,distance:pending.distance,enemyShield:false,started:this.fxClock
+        };
+        cpu.nextFlareDecision=this.fxClock+FLARE_CPU_USE_COOLDOWN;
+        if(this.deployFlares(cpu))return true;
+        cpu.flareDecision=null;
+        return false;
+      }
+
       if(cpu.flareDecision||(Number(cpu.flare)||0)<=0||this.fxClock<(Number(cpu.nextFlareDecision)||0))return false;
       const threat=this.findCpuFlareThreat(cpu);
       if(!threat)return false;
@@ -366,6 +397,18 @@
         else if(this.trainingMode&&Math.random()<.18)action=Math.random()<.5?'flare_use':'flare_keep';
       }
       if(this.difficulty==='facil'&&!threat.critical&&Math.random()<.55)action='flare_keep';
+
+      // Contra misil guiado, la eleccion aprendida se guarda y se ejecuta tras
+      // una reaccion aleatoria de 1-2 s. No se modifica el aprendizaje guardado.
+      if(action==='flare_use'&&threat.kind==='g'){
+        const reaction=rand(FLARE_CPU_MISSILE_REACTION_MIN,FLARE_CPU_MISSILE_REACTION_MAX);
+        cpu.flarePending={
+          context,projectileId:threat.projectileId,distance:threat.distance,
+          executeAt:this.fxClock+reaction
+        };
+        cpu.nextFlareDecision=cpu.flarePending.executeAt;
+        return false;
+      }
 
       cpu.flareDecision={
         context,action,kind:threat.kind,projectileId:threat.projectileId,
@@ -693,7 +736,7 @@
         cpuFireDelay:cpu?CPU_ARMED_WARNING_SECONDS:0,
         difficulty:this.difficulty,
         tactic:'scatter',tacticUntil:0,tacticTurn:(Math.random()<.5?-1:1),tacticSeed:Math.random(),
-        resourceTargetId:null,meteorDecision:null,flareDecision:null,nextFlareDecision:0,nextFlareAllowed:0,
+        resourceTargetId:null,meteorDecision:null,flareDecision:null,flarePending:null,nextFlareDecision:0,nextFlareAllowed:0,
         easyNextDecision:0,easyControl:null,aiControl:null
       };
     }
@@ -855,7 +898,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
         if(p.cpu){
           p.easyNextDecision=0;p.easyControl=null;
           p.tacticSeed=Math.random();p.tacticTurn=Math.random()<.5?-1:1;
@@ -914,6 +957,7 @@
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
       if(victim.cpu&&victim.flareDecision)this.settleFlareDecision(victim,victim.flareDecision.action==='flare_use'?-.95:-1.55);
+      if(victim.cpu)victim.flarePending=null;
       if(!victim.cpu)this.humanMeteorDecision=null;
       // V20.11: solo penalizan las muertes provocadas por el propio jugador,
       // por el entorno/choque o por una colision fisica marcada expresamente.
@@ -969,7 +1013,7 @@
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
       p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.flareHold=0;p.flareGesture=false;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
-      if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.nextFlareDecision=0;p.easyNextDecision=0;p.easyControl=null;}
+      if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.flarePending=null;p.nextFlareDecision=0;p.easyNextDecision=0;p.easyControl=null;}
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
