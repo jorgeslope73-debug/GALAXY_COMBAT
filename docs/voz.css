@@ -194,3 +194,10 @@
     max-width:92px!important;
   }
 }
+
+
+/* V20.40: JOYSTICK es exclusivo de PC. En movil/tablet no existe en el menu. */
+html.handheld-device #menu #enableJoystick{display:none!important}
+@media (pointer:coarse){
+  #menu #enableJoystick{display:none!important}
+}
