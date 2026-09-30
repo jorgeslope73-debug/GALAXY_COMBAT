@@ -1044,40 +1044,58 @@
     }catch(_){return false;}
   }
 
+  let lastSparkleAt=0;
   function playSparkleSound(){
     if(!useWebAudio||!gameAudioEnabled)return false;
     const ctx=ensureAudioContext();
     if(!ctx||ctx.state!=='running'||!fxGain)return false;
+    const nowMs=performance.now();
+    if(nowMs-lastSparkleAt<75)return true;
+    lastSparkleAt=nowMs;
     try{
-      // V20.31: chispitas claramente audibles pero sin golpe grave.
-      // La V20.29 quedaba demasiado baja porque bus y osciladores atenuaban
-      // a la vez. Aqui subimos presencia y alargamos ligeramente el tintineo.
+      // V20.33: ascuas/chispas mas presentes. Mezclamos pequenos tonos
+      // metalicos con un soplo filtrado de ruido para que se oiga incluso
+      // con musica y otros efectos, sin parecer una explosion.
       const now=ctx.currentTime;
       const bus=ctx.createGain();
       bus.gain.setValueAtTime(.0001,now);
-      bus.gain.exponentialRampToValueAtTime(.42,now+.008);
-      bus.gain.exponentialRampToValueAtTime(.0001,now+.38);
+      bus.gain.exponentialRampToValueAtTime(.62,now+.006);
+      bus.gain.exponentialRampToValueAtTime(.0001,now+.46);
       bus.connect(fxGain);
-      const freqs=[1750,2250,2860,3520,4300,5100];
-      const delays=[0,.026,.055,.086,.121,.158];
-      let ended=0;
+
+      // Crujido/ascua: ruido muy corto filtrado en agudos.
+      const frames=Math.max(1,Math.floor(ctx.sampleRate*.24));
+      const buffer=ctx.createBuffer(1,frames,ctx.sampleRate);
+      const data=buffer.getChannelData(0);
+      for(let i=0;i<frames;i++){
+        const env=1-i/frames;
+        const gate=((i*17)%97)<18?1:.22;
+        data[i]=(Math.random()*2-1)*env*gate;
+      }
+      const noise=ctx.createBufferSource();
+      const hp=ctx.createBiquadFilter();
+      const ng=ctx.createGain();
+      noise.buffer=buffer;
+      hp.type='highpass';hp.frequency.value=1700;hp.Q.value=.7;
+      ng.gain.setValueAtTime(.18,now);
+      ng.gain.exponentialRampToValueAtTime(.0001,now+.24);
+      noise.connect(hp);hp.connect(ng);ng.connect(bus);
+      noise.start(now);noise.stop(now+.245);
+
+      const freqs=[1650,2140,2780,3460,4250];
+      const delays=[0,.035,.078,.126,.182];
       for(let i=0;i<freqs.length;i++){
         const osc=ctx.createOscillator();
         const gain=ctx.createGain();
         const start=now+delays[i];
-        const stop=start+.13+i*.01;
-        osc.type=i%3===0?'triangle':'sine';
+        const stop=start+.12+i*.012;
+        osc.type=i%2?'sine':'triangle';
         osc.frequency.setValueAtTime(freqs[i],start);
-        osc.frequency.exponentialRampToValueAtTime(freqs[i]*1.08,stop);
+        osc.frequency.exponentialRampToValueAtTime(freqs[i]*1.07,stop);
         gain.gain.setValueAtTime(.0001,start);
-        gain.gain.exponentialRampToValueAtTime(.14-i*.009,start+.004);
+        gain.gain.exponentialRampToValueAtTime(.12-i*.012,start+.004);
         gain.gain.exponentialRampToValueAtTime(.0001,stop);
         osc.connect(gain);gain.connect(bus);
-        osc.onended=()=>{
-          try{osc.disconnect();gain.disconnect();}catch(_){}
-          ended++;
-          if(ended===freqs.length)try{bus.disconnect();}catch(_){}
-        };
         osc.start(start);osc.stop(stop+.01);
       }
       return true;
@@ -1147,6 +1165,10 @@
       stopMusic();
     }
   }
+  // ImpactFX llama a este hook cuando llega el evento visual de desintegracion.
+  // Asi el sonido no depende de que llegue ademas un mensaje de audio separado.
+  window.GalaxyPlayDisintegrateSound=()=>{playSparkleSound();};
+
   function playSound(k){
     if(!gameAudioEnabled)return;
     if(k==='sparkle'){
