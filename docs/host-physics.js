@@ -1111,7 +1111,7 @@
                   // el escudo y la proteccion de aparicion sigue teniendo prioridad.
                   p.shield=0;
                   this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-                  this.emit({t:'sound',kind:'impact'});
+                  this.emit({t:'sound',kind:'sparkle'});
                 }
               }
               remove=true;break;
