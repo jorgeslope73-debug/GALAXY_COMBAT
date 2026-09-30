@@ -255,15 +255,15 @@
   // No forman parte del estado, fisicas, colisiones ni mensajes P2P.
   const ENGINE_FX_MAX=isMobile?96:192;
   const ENGINE_FX_INTERVAL=isMobile?55:38;
-  // V20.19: paleta de combustion compartida por todas las naves.
+  // V20.20: paleta de combustion compartida por todas las naves.
   // Se precalcula como colores fijos para no crear gradientes ni strings RGB
-  // nuevos en cada frame. De cerca: casi blanco/amarillo; al alejarse:
-  // amarillo -> naranja -> marron oscuro -> negro.
+  // nuevos en cada frame. La tobera nace en rojo muy intenso y se enfria
+  // progresivamente hasta rojo oscuro y negro al final del rastro.
   const ENGINE_FIRE_COLORS=[
-    '#fffdf2','#fff9cc','#fff3a0','#ffe66c',
-    '#ffd447','#ffb72f','#ff9425','#f2701f',
-    '#d94e1b','#ad3518','#7d2717','#541d14',
-    '#341611','#20110e','#100d0c','#050505'
+    '#ff2a16','#ff1b0d','#ff0d08','#f00000',
+    '#dc0000','#c60000','#b00000','#990000',
+    '#820000','#6b0000','#550000','#410000',
+    '#300000','#210000','#120000','#050505'
   ];
   const engineParticles=Array.from({length:ENGINE_FX_MAX},()=>({
     life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0,owner:0
@@ -359,8 +359,8 @@
 
     ctx.save();
 
-    // Cola fria: se dibuja en source-over para que los tonos marron/negro
-    // sigan siendo visibles. Con 'lighter' el negro desapareceria.
+    // Cola fria: rojo muy oscuro hasta negro, dibujada en source-over para
+    // que los tonos oscuros sigan siendo visibles. Con 'lighter' desaparecerian.
     ctx.globalCompositeOperation='source-over';
     for(const particle of engineParticles){
       if(particle.life<=0)continue;
@@ -380,8 +380,8 @@
       ctx.fill();
     }
 
-    // Zona caliente: casi blanco junto a la tobera, amarillo y despues naranja.
-    // 'lighter' conserva el brillo del efecto actual sin modificar su geometria.
+    // Zona caliente: rojo muy intenso junto a la tobera, perdiendo brillo y
+    // saturacion al alejarse. 'lighter' conserva el resplandor inicial.
     ctx.globalCompositeOperation='lighter';
     for(const particle of engineParticles){
       if(particle.life<=0)continue;

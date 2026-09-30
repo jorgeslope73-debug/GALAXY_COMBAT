@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.19**
+**Versión actual: V20.20**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -246,3 +246,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V20.18: suavizado visual continuo de naves remotas online. Cada jugador remoto mantiene una pose visual local independiente que sigue la velocidad autoritativa recibida, extrapola como maximo 120 ms entre snapshots y se reconcilia suavemente al llegar el siguiente paquete. El giro remoto se suaviza usando la variacion angular de los dos ultimos estados. Si hay respawn, teletransporte o un error de posicion superior a 120 px, manda inmediatamente el estado del host. No cambia fisica, colisiones, controles, IA, P2P ni puntuacion; solo el dibujo de las naves rivales.
 
 - V20.19: las particulas LocalFX de propulsion usan la misma paleta de combustion en todas las naves: nacen casi blancas/amarillas junto a la tobera, pasan por amarillo y naranja y terminan en marron muy oscuro/negro al final del rastro. Se conserva exactamente el numero, vida, tamanos y movimiento de las particulas. La paleta esta precalculada y la cola oscura se dibuja en source-over para no aumentar datos P2P ni crear gradientes Canvas por particula.
+
+- V20.20: las particulas LocalFX de las toberas cambian su paleta de combustion a rojo intenso -> rojo oscuro -> negro. Se eliminan los tonos blanco/amarillo/naranja de la V20.19. Se mantienen exactamente la cantidad, vida, tamanos y movimiento de las particulas, sin cambios en fisica, jugabilidad ni datos P2P.
