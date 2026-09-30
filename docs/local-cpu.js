@@ -712,6 +712,9 @@
       const n=normalize(targetX-start.x,targetY-start.y);
       this.asteroids.push({
         id:uid(),x:start.x,y:start.y,rot,type,
+        // V20.47: rotacion muy leve, similar a la portada pero mas discreta.
+        // Cada roca conserva su sentido y velocidad durante toda su vida.
+        spin:(Math.random()<.5?-1:1)*rand(2,7),
         vx:n.x*80,vy:n.y*80,r:(type===5?112:120)*.485,exiting:false,exitDelay:-1
       });
     }
@@ -1623,6 +1626,8 @@
           if(a.exitDelay<=0)this.beginAsteroidExit(a);
         }
         a.px=a.x;a.py=a.y;a.x+=a.vx*DT;a.y+=a.vy*DT;
+        a.rot=(Number(a.rot)||0)+(Number(a.spin)||0)*DT;
+        if(a.rot>=360||a.rot<0)a.rot=(a.rot%360+360)%360;
         if(a.exiting){
           if(a.x<-220||a.x>W+220||a.y<-220||a.y>H+220)this.asteroids.splice(i,1);
           continue;
@@ -2012,7 +2017,7 @@
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
         players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),dead:p.dead,respawn:round3(p.respawn)})),
-        asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type})),
+        asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type,a:round1(Number(a.rot)||0)})),
         bullets:this.bullets.map(b=>({id:b.id,o:b.owner,x:round1(b.x),y:round1(b.y),vx:round1(b.vx),vy:round1(b.vy),g:!!b.guided,gt:(!b.decoyed&&Number.isInteger(b.target))?b.target:-1})),
         flares:this.flares.map(f=>({id:f.id,o:f.owner,x:round1(f.x),y:round1(f.y),a:round1(f.angle),life:round2(Math.max(0,f.life))})),
         pickups:this.pickups.map((p,idx)=>({id:p.id,type:p.type,x:round1(p.x),y:round1(p.y+Math.cos(p.phase)*3),expiresIn:(idx===0&&this.pickups.length>=5)?round2(Math.max(0,this.nextPickup)):null})),
