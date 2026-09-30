@@ -291,7 +291,8 @@
   const ROCK_FX_MAX=isMobile?48:96;
   // V20.44: mismos radios visuales de contacto que la fisica de roca.
   const GIANT_LOCAL_RADIUS=270*.485;
-  const asteroidLocalRadius=a=>(Number(a&&a.type)===5?60:100)*.485;
+  const asteroidDrawSize=a=>Number(a&&a.type)===5?112:120;
+  const asteroidLocalRadius=a=>asteroidDrawSize(a)*.485;
   const rockParticles=Array.from({length:ROCK_FX_MAX},()=>({
     life:0,maxLife:2,x:0,y:0,vx:0,vy:0,size:0,rot:0,spin:0
   }));
@@ -435,24 +436,25 @@
   }
 
   function emitRockDebris(x,y,nx,ny,now){
-    // V20.44: misma sensacion de polvo/piedrecitas que la portada.
-    const amount=isMobile?3:5;
+    // V20.46: nube corta de polvo/piedrecitas grises semitransparentes.
+    // Todas nacen practicamente en el punto real de contacto.
+    const amount=isMobile?(4+Math.floor(Math.random()*2)):(6+Math.floor(Math.random()*3));
     const tx=-ny,ty=nx;
     for(let i=0;i<amount;i++){
       const particle=rockParticles[rockFxCursor];
       rockFxCursor=(rockFxCursor+1)%ROCK_FX_MAX;
-      const spread=(Math.random()*2.3)-1.15;
-      const speed=24+Math.random()*46;
+      const spread=(Math.random()*2.2)-1.1;
+      const speed=20+Math.random()*44;
       const dirX=nx+tx*spread,dirY=ny+ty*spread;
       const len=Math.hypot(dirX,dirY)||1;
-      particle.life=particle.maxLife=1.2+Math.random()*.8;
-      particle.x=x+(Math.random()-.5)*8;
-      particle.y=y+(Math.random()-.5)*8;
+      particle.life=particle.maxLife=.9+Math.random()*.85;
+      particle.x=x+(Math.random()-.5)*4;
+      particle.y=y+(Math.random()-.5)*4;
       particle.vx=dirX/len*speed;
       particle.vy=dirY/len*speed;
-      particle.size=2.5+Math.random()*3;
+      particle.size=2+Math.random()*3.4;
       particle.rot=Math.random()*Math.PI*2;
-      particle.spin=(Math.random()-.5)*8;
+      particle.spin=(Math.random()-.5)*7;
     }
   }
 
@@ -542,9 +544,9 @@
     if(dt<=0)return;
 
     ctx.save();
-    ctx.fillStyle='#8a8d92';
-    ctx.strokeStyle='rgba(35,38,42,.55)';
-    ctx.lineWidth=1;
+    ctx.fillStyle='rgba(150,153,158,.72)';
+    ctx.strokeStyle='rgba(55,58,62,.22)';
+    ctx.lineWidth=.8;
     for(const particle of rockParticles){
       if(particle.life<=0)continue;
       particle.life-=dt;
@@ -558,7 +560,8 @@
 
       const t=particle.life/particle.maxLife;
       const size=Math.max(.5,particle.size*(.35+.65*t));
-      ctx.globalAlpha=Math.min(.86,t*.86);
+      // Semitransparente desde que nace y desaparece suavemente.
+      ctx.globalAlpha=Math.min(.58,t*.58);
       ctx.save();
       ctx.translate(particle.x,particle.y);
       ctx.rotate(particle.rot);
@@ -4140,7 +4143,7 @@
       const old=previousLookup.asteroids.get(a.id);
       const x=old?lerp(old.x,a.x,blend):a.x;
       const y=old?lerp(old.y,a.y,blend):a.y;
-      drawImageCentered(images[ASTEROID_IMAGE_KEYS[a.type]]||images.asteroid1,x,y,a.type===5?60:100);
+      drawImageCentered(images[ASTEROID_IMAGE_KEYS[a.type]]||images.asteroid1,x,y,asteroidDrawSize(a));
     }
     for(const pk of state.pickups){
       const old=previousLookup.pickups.get(pk.id);
