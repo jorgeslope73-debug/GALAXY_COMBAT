@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.25**
+**Versión actual: V20.26**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -255,5 +255,6 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 - V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
 
+- V20.26: el cohete guiado se desintegra visualmente en unas 28 microparticulas muy pequenas y rapidas, sin bola de fuego grande ni onda expansiva. Se aplica al agotarse y a sus impactos contra proyectiles, bengalas, escudos, asteroides y meteoritos; si destruye una nave, la explosion de la nave se mantiene y el cohete aporta su propia desintegracion. No cambia fisica, dano, guiado ni sonido.
 - V20.25: nueva materializacion de aparicion al comenzar la partida y tras cada muerte. Durante ~1,15 s la nave queda fija y sin control, con anillos/rayos de localizacion y entrada por escala; al terminar se habilita el control y empiezan completos los 3 s de inmunidad existentes. Se aplica tanto a partidas online/P2P como al modo CPU local sin nuevos assets.
 - V20.24: el misil guiado entra en fase de agotamiento durante su ultimo segundo de vida (de 3 a 4 s): mantiene su velocidad base pero aplica una oscilacion lateral progresiva y determinista. Al llegar a los 4 s detona en su posicion y genera el efecto de explosion con particulas que se desvanecen, en lugar de desaparecer instantaneamente. No cambia dano, guiado previo, colisiones ni vida de las balas normales.
