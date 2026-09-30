@@ -291,7 +291,7 @@
   const ROCK_FX_MAX=isMobile?48:96;
   // V20.44: mismos radios visuales de contacto que la fisica de roca.
   const GIANT_LOCAL_RADIUS=270*.485;
-  const asteroidLocalRadius=a=>(Number(a&&a.type)===5?60:90)*.485;
+  const asteroidLocalRadius=a=>(Number(a&&a.type)===5?60:100)*.485;
   const rockParticles=Array.from({length:ROCK_FX_MAX},()=>({
     life:0,maxLife:2,x:0,y:0,vx:0,vy:0,size:0,rot:0,spin:0
   }));
@@ -4140,7 +4140,7 @@
       const old=previousLookup.asteroids.get(a.id);
       const x=old?lerp(old.x,a.x,blend):a.x;
       const y=old?lerp(old.y,a.y,blend):a.y;
-      drawImageCentered(images[ASTEROID_IMAGE_KEYS[a.type]]||images.asteroid1,x,y,a.type===5?60:90);
+      drawImageCentered(images[ASTEROID_IMAGE_KEYS[a.type]]||images.asteroid1,x,y,a.type===5?60:100);
     }
     for(const pk of state.pickups){
       const old=previousLookup.pickups.get(pk.id);
