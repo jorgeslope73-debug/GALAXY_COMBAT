@@ -1588,7 +1588,11 @@
             const currentSpeed=Math.hypot(b.vx,b.vy)||500;
             const burnout=clamp((b.age-3)/1,0,1);
             const phase=(b.age-3)*16+(Number(b.id)||0)*.73;
-            const turn=Math.sin(phase)*(2.8*burnout)*dt;
+            // V20.35: un poco mas de serpenteo al final. Se suma una segunda
+            // onda mas lenta para que la trayectoria sea mas organica sin jitter.
+            const waveMain=Math.sin(phase)*3.6;
+            const waveSlow=Math.sin(phase*.58+(Number(b.id)||0)*.31)*1.05;
+            const turn=(waveMain+waveSlow*Math.pow(burnout,1.25))*burnout*dt;
             const cs=Math.cos(turn),sn=Math.sin(turn);
             const vx=b.vx,vy=b.vy;
             b.vx=(vx*cs-vy*sn);
