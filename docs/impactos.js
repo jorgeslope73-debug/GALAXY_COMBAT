@@ -83,7 +83,7 @@
         return (seed >>> 0) / 4294967296;
       };
       // Particle shapes are generated once per burst, reusing a fixed object pool.
-      const count = kind === 'explosion' ? 12 : kind === 'disintegrate' ? 42 : 7;
+      const count = kind === 'explosion' ? 12 : kind === 'disintegrate' ? 46 : 7;
       let burst=this.freeBursts.pop();
       if(!burst){
         // If every slot is in use, recycle the oldest visual effect rather than
@@ -96,14 +96,12 @@
         const angle = TAU * (i + random() * 0.65) / count;
         const particle=burst.particles[i];
         particle.dx=Math.cos(angle);particle.dy=Math.sin(angle);
-        particle.distance=kind === 'explosion' ? 16 + random() * 18 : kind === 'disintegrate' ? 8 + random() * 14 : 9 + random() * 12;
-        particle.size=kind === 'disintegrate' ? 1.15 + random() * 1.0 : 1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
+        particle.distance=kind === 'explosion' ? 16 + random() * 18 : kind === 'disintegrate' ? 6 + random() * 13 : 9 + random() * 12;
+        particle.size=kind === 'disintegrate' ? 1.0 + Math.pow(random(),1.35) * 3.5 : 1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
         particle.hot=random() > (kind === 'disintegrate' ? 0.38 : 0.45);
+        particle.colorIndex=kind === 'disintegrate' ? Math.floor(random()*9) : 0;
       }
       this.bursts.push(burst);
-      if(kind==='disintegrate'&&typeof globalThis!=='undefined'&&typeof globalThis.GalaxyPlayDisintegrateSound==='function'){
-        try{globalThis.GalaxyPlayDisintegrateSound();}catch(_){}
-      }
     }
 
     consume(snapshot, localIndex, now = clock()) {
@@ -219,12 +217,15 @@
             const x = burst.x + p.dx * distance + emberDrift;
             const y = burst.y + p.dy * distance - emberLift;
             if(disintegrate){
-              // V20.33: menos fuegos artificiales y mas ascuas de fuego:
-              // recorrido corto, tonos naranja/rojo y destellos blancos puntuales.
-              const sparkle=p.hot && ((pi + Math.floor((now-burst.born)/28)) % 4 === 0);
-              ctx.globalAlpha = fade * (sparkle ? 1 : 0.9);
-              ctx.fillStyle = sparkle ? '#fff2c7' : (p.hot ? '#ffb24f' : '#ff642e');
-              const size = Math.max(1.0,Math.min(2.15,p.size*(1-t*0.3)));
+              // V20.34: fragmentos multicolor de muchos tamanos. Siguen
+              // agrupados cerca del punto de desintegracion, pero mezclan
+              // particulas pequenas, medianas y algunas grandes.
+              const colors=['#fff7cf','#ffd84d','#ff9a3d','#ff5f57','#ff4fc8','#b866ff','#62dfff','#67ffb2','#b9ff59'];
+              const color=colors[(Number(p.colorIndex)||0)%colors.length];
+              const twinkle=((pi + Math.floor((now-burst.born)/34)) % 5 === 0);
+              ctx.globalAlpha = fade * (twinkle ? 1 : 0.92);
+              ctx.fillStyle = twinkle ? '#ffffff' : color;
+              const size = Math.max(.9,Math.min(4.5,p.size*(1-t*0.25)));
               ctx.fillRect(x-size*.5,y-size*.5,size,size);
             }else{
               ctx.globalAlpha = fade;
