@@ -513,8 +513,9 @@
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
-      // Estrellarse, autodestruirse o morir por disparo/misil resta una baja.
-      // La puntuacion nunca baja de cero; el cliente ya muestra PENALIZACION -1.
+      // V20.11: solo penalizan las muertes provocadas por el propio jugador,
+      // por el entorno/choque o por una colision fisica marcada expresamente.
+      // Ser abatido por la bala, misil o bengala de OTRO jugador no resta puntos.
       if(!attacker||attacker===victim||scorePenalty)victim.kills=Math.max(0,victim.kills-1);
 
       // ROBO DE ARMAMENTO solo ocurre por EMBESTIDA: un jugador con
@@ -1013,7 +1014,9 @@
               if(p.shield<=0){
                 const brutal=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
                 if(brutal)this.emit({t:'brutal',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index});
-                this.destroyShip(p,attacker,false,true);
+                // V20.11: el atacante suma su baja, pero la victima no pierde
+                // un punto por haber sido abatida por otro jugador.
+                this.destroyShip(p,attacker);
               }else this.emitShipImpact(p,b,false);
               remove=true;break;
             }

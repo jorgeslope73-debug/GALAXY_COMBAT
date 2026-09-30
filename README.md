@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.10**
+**Versión actual: V20.11**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -228,3 +228,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V20.9: correccion definitiva de la proporcion de los meteoritos decorativos de portada. El fallo estaba en el backing canvas: el ancho podia quedar limitado a 1500 px mientras la altura conservaba otro escalado, y CSS estiraba ese buffer a 16:9, achatando todo el contenido. Ahora ancho y alto se reducen con el mismo factor y conservan exactamente la proporcion del rectangulo visible; el transform del mundo sigue siendo uniforme.
 
 - V20.10: margen visual antes del disparo CPU. Al terminar la recarga de una CPU, la nave pasa inmediatamente al PNG armado/cupula verde, pero esa CPU debe permanecer 1 segundo en ese estado antes de poder disparar. El jugador humano no recibe este retraso adicional. Se aplica a CPU local, CPU de relleno online y entrenamiento. No cambia la velocidad de las balas ni los tiempos de recarga existentes.
+
+- V20.11: ajuste de puntuacion y colisiones decorativas. Ser abatido por la bala, misil o bengala de otro jugador ya no resta una baja/punto a la victima; el atacante sigue sumando su baja. La penalizacion -1 se conserva para muertes por entorno/choque, autodestruccion y colisiones fisicas entre naves. En la portada, el radio de colision de los meteoritos decorativos pasa de 0.41 a 0.485 del tamaño dibujado y el rebote intercambia correctamente la componente normal de velocidad, separando ademas 1.5 px extra para evitar solapamiento visual.

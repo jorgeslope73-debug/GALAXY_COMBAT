@@ -14,7 +14,7 @@
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const METEOR_COUNT=reducedMotion?2:(isMobile?3:5);
   const PARTICLE_MAX=isMobile?42:72;
-  const VERSION='V20.9';
+  const VERSION='V20.11';
 
   const rand=(a,b)=>a+Math.random()*(b-a);
 
@@ -79,7 +79,9 @@
     obj.sprite=giantChance?'giant':meteorSprites[Math.floor(rand(0,meteorSprites.length))];
     obj.rot=rand(0,360);
     obj.spin=rand(-13,13);
-    obj.radius=obj.size*.41;
+    // V20.11: el sprite ocupa casi todo su cuadro. Con .41 los meteoritos
+    // se solapaban visualmente antes de que sus circulos detectasen contacto.
+    obj.radius=obj.size*.485;
 
     const speed=rand(22,52)*(giantChance?.72:1);
     let tx,ty;
@@ -138,13 +140,17 @@
         const bv=b.vx*nx+b.vy*ny;
         const rel=av-bv;
         if(rel>0){
-          a.vx-=rel*nx*.48;a.vy-=rel*ny*.48;
-          b.vx+=rel*nx*.48;b.vy+=rel*ny*.48;
+          // Rebote elastico simple entre dos masas iguales: intercambia la
+          // componente normal y deja de mantenerlas avanzando una contra otra.
+          a.vx+=(bv-av)*nx;a.vy+=(bv-av)*ny;
+          b.vx+=(av-bv)*nx;b.vy+=(av-bv)*ny;
         }
 
-        const overlap=rr-d;
-        a.x-=nx*overlap*.5;a.y-=ny*overlap*.5;
-        b.x+=nx*overlap*.5;b.y+=ny*overlap*.5;
+        // Separamos hasta el punto de contacto mas un margen minimo para que
+        // nunca quede un frame con ambas imagenes montadas visualmente.
+        const separation=Math.max(0,rr-d)+1.5;
+        a.x-=nx*separation*.5;a.y-=ny*separation*.5;
+        b.x+=nx*separation*.5;b.y+=ny*separation*.5;
       }
     }
 
@@ -168,7 +174,7 @@
     }
   }
 
-  // V20.9: mismo criterio de dibujo que durante la partida.
+  // V20.11: mismo criterio de dibujo que durante la partida.
   // Estos PNG estan preparados para mostrarse dentro de un cuadro cuadrado;
   // usar la proporcion del lienzo completo del PNG achataba visualmente la roca.
   function drawMeteorSprite(im,x,y,size,rotDeg=0){
@@ -228,7 +234,7 @@
     const rect=canvas.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
 
-    // V20.9: el backing canvas debe tener EXACTAMENTE la misma proporcion
+    // V20.11: el backing canvas debe tener EXACTAMENTE la misma proporcion
     // que el rectangulo CSS visible. Antes limitabamos solo el ancho a 1500
     // pero dejabamos la altura calculada por separado; eso podia crear, por
     // ejemplo, un buffer 1500x1350 mostrado en una caja 16:9, achatando todos
