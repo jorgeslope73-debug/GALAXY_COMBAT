@@ -1465,11 +1465,9 @@
     }
     reloadTime(p){
       const base=Math.max(.5,p.cadence/8);
-      // V20.2: en FACIL todas las naves cargan en la mitad de tiempo,
-      // incluida la nave del jugador. Solo cambia la espera de recarga:
-      // p.cadence y bulletSpeed() siguen intactas, por lo que las mejoras
-      // mantienen exactamente su aumento actual de velocidad de bala.
-      return this.difficulty==='facil'?base*.5:base;
+      // V20.15: la recarga a mitad de tiempo se aplica ya a TODOS los modos,
+      // humano y CPU. p.cadence y bulletSpeed() permanecen intactos.
+      return base*.5;
     }
     bulletSpeed(p){return p.cadence>=30?500:p.cadence>=20?750:p.cadence>=10?900:1000;}
     updateAsteroids(){
