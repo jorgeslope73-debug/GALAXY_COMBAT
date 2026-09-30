@@ -296,7 +296,10 @@
     stop(){this.started=false;this.lastNow=0;this.accumulator=0;}
     setControl(index,turn,thrust,fire){
       const i=Number(index),p=this.players.find(x=>x.index===i);
-      if(!p)return false;
+      // V20.8: una plaza CPU nunca acepta controles externos. Cuando el roster
+      // confirme el relevo se crea una entidad humana nueva y desde ese momento
+      // sus controles si son validos. Evita cualquier solapamiento CPU/humano.
+      if(!p||p.cpu)return false;
       // Reutiliza el objeto de control: los controles llegan ~30 veces/s y no
       // necesitan generar un objeto nuevo en cada paquete.
       let c=this.controls.get(i);
@@ -344,15 +347,39 @@
         }
         const wasCpu=!!p.cpu;
         const nextName=safeName(item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu?'CPU':'JUGADOR '+(index+1));
+        if(wasCpu&&!isCpu){
+          // V20.8: relevo atomico CPU -> HUMANO.
+          // No reutilizamos el objeto de la CPU: desaparece por completo junto
+          // con su IA, decisiones temporales y cualquier control residual.
+          this.bullets=this.bullets.filter(b=>Number(b.owner)!==index);
+          this.flares=this.flares.filter(flare=>Number(flare.owner)!==index);
+          this.controls.delete(index);
+
+          const human=this.makePlayer(index,nextName,false);
+          human.difficulty=this.difficulty;
+          human.aiControl=null;
+          human.lastControlAt=0;
+          this.placeAtSpawn(human);
+
+          const slot=this.players.indexOf(p);
+          if(slot>=0)this.players[slot]=human;
+          else this.players.push(human);
+          this.controls.set(index,{turn:0,thrust:false,fire:false});
+
+          // Si la CPU sustituida era objetivo de una decision de caza de IA,
+          // se recalculara en el siguiente tick usando ya la entidad humana.
+          if(Number(this.huntTargetIndex)===index){
+            this.huntTargetIndex=-1;
+            this.huntUntil=0;
+            this.huntStartsAt=0;
+            this.huntThresholdActive=false;
+          }
+          changed=true;
+          continue;
+        }
         if(wasCpu!==isCpu||p.name!==nextName){
           p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;p.aiControl=null;
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false});
-          if(wasCpu&&!isCpu){
-            this.bullets=this.bullets.filter(b=>b.owner!==index);
-            p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.flare=0;p.flareHold=0;p.flareGesture=false;p.nextFlareDecision=0;p.nextFlareAllowed=0;
-            p.shield=0;p.camo=0;p.protection=SPAWN_PROTECTION_SECONDS;p.dead=false;p.respawn=0;
-            p.vx=0;p.vy=0;p.lastSpawn=null;this.placeAtSpawn(p);
-          }
           changed=true;
         }
       }
