@@ -56,7 +56,7 @@
   const normalize=(x,y)=>{const l=Math.hypot(x,y)||1;return{x:x/l,y:y/l};};
   // V20.44: para roca contra roca usamos el mismo radio visual de la portada:
   // 48,5% del tamano dibujado. Esto evita rebotar antes de que los sprites se toquen.
-  const asteroidRockRadius=a=>(Number(a&&a.type)===5?60:90)*.485;
+  const asteroidRockRadius=a=>(Number(a&&a.type)===5?60:100)*.485;
   const GIANT_ROCK_RADIUS=270*.485;
   // V20.43: colision de roca inspirada en la portada. Resuelve el impulso
   // solo sobre la normal del choque y corrige todo el solapamiento en el mismo
