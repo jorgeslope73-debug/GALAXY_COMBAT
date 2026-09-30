@@ -72,23 +72,43 @@
   // tick. La masa permite que el gigante apenas se desvie frente al mediano.
   const resolveRockCollision=(a,ar,b,br,massA=1,massB=1)=>{
     if(!a||!b)return false;
-    let dx=b.x-a.x,dy=b.y-a.y;
+
+    const ax=Number(a.x),ay=Number(a.y),bx=Number(b.x),by=Number(b.y);
+    ar=Number(ar);br=Number(br);massA=Number(massA);massB=Number(massB);
+    // V20.48: nunca dejamos que un dato corrupto/temporal propague NaN a toda
+    // la simulacion. Una roca invalida simplemente no resuelve este contacto.
+    if(!Number.isFinite(ax)||!Number.isFinite(ay)||!Number.isFinite(bx)||!Number.isFinite(by)||
+       !Number.isFinite(ar)||!Number.isFinite(br)||ar<=0||br<=0||
+       !Number.isFinite(massA)||!Number.isFinite(massB)||massA<=0||massB<=0)return false;
+
+    let dx=bx-ax,dy=by-ay;
     const rr=ar+br,d2=dx*dx+dy*dy;
-    if(d2>rr*rr)return false;
-    let d=Math.sqrt(d2);
+    if(!Number.isFinite(d2)||d2>rr*rr)return false;
+
+    let d=Math.sqrt(Math.max(0,d2));
     let nx,ny;
-    if(d>1e-6){nx=dx/d;ny=dy/d;}
-    else{
+    if(d>1e-6){
+      nx=dx/d;ny=dy/d;
+    }else{
+      // Centros coincidentes: primero intentamos la velocidad relativa y, si
+      // tambien es cero, elegimos una direccion determinista por id.
       const rvx=(Number(a.vx)||0)-(Number(b.vx)||0);
       const rvy=(Number(a.vy)||0)-(Number(b.vy)||0);
-      const rl=Math.hypot(rvx,rvy)||1;
-      nx=rvx/rl;ny=rvy/rl;d=0;
+      const rl=Math.hypot(rvx,rvy);
+      if(Number.isFinite(rl)&&rl>1e-6){
+        nx=rvx/rl;ny=rvy/rl;
+      }else{
+        const seed=((Number(a.id)||1)*31+(Number(b.id)||2)*17)%360;
+        const rad=seed*Math.PI/180;
+        nx=Math.cos(rad);ny=Math.sin(rad);
+      }
+      d=0;
     }
 
-    const avx=Number(a.vx)||0,avy=Number(a.vy)||0;
-    const bvx=Number(b.vx)||0,bvy=Number(b.vy)||0;
+    let avx=Number(a.vx)||0,avy=Number(a.vy)||0;
+    let bvx=Number(b.vx)||0,bvy=Number(b.vy)||0;
     const closing=(avx-bvx)*nx+(avy-bvy)*ny;
-    if(closing>0){
+    if(Number.isFinite(closing)&&closing>0){
       const invA=1/Math.max(.01,massA),invB=1/Math.max(.01,massB);
       const impulse=(2*closing)/(invA+invB);
       a.vx=avx-impulse*invA*nx;a.vy=avy-impulse*invA*ny;
@@ -96,14 +116,26 @@
     }
 
     const overlap=Math.max(0,rr-d);
-    if(overlap>0){
+    if(Number.isFinite(overlap)&&overlap>0){
       const invA=1/Math.max(.01,massA),invB=1/Math.max(.01,massB);
       const invSum=invA+invB;
-      const separation=overlap+1.5;
+      // El +0.35 mantiene contacto visual sin abrir un hueco perceptible.
+      const separation=overlap+.35;
       const moveA=separation*(invA/invSum),moveB=separation*(invB/invSum);
-      a.x-=nx*moveA;a.y-=ny*moveA;
-      b.x+=nx*moveB;b.y+=ny*moveB;
+      a.x=ax-nx*moveA;a.y=ay-ny*moveA;
+      b.x=bx+nx*moveB;b.y=by+ny*moveB;
     }
+
+    // Fail-safe: un contacto multiple nunca debe disparar velocidades enormes.
+    // En condiciones normales (80 px/s medianos, 42-52 gigante) no interviene.
+    const capSpeed=(o,max)=>{
+      let vx=Number(o.vx)||0,vy=Number(o.vy)||0;
+      if(!Number.isFinite(vx)||!Number.isFinite(vy)){o.vx=0;o.vy=0;return;}
+      const sp=Math.hypot(vx,vy);
+      if(sp>max&&sp>0){o.vx=vx/sp*max;o.vy=vy/sp*max;}
+    };
+    capSpeed(a,massA>=5?90:180);
+    capSpeed(b,massB>=5?90:180);
     return true;
   };
   const round1=v=>Math.round(v*10)/10,round2=v=>Math.round(v*100)/100,round3=v=>Math.round(v*1000)/1000;
