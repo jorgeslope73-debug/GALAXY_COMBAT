@@ -512,6 +512,15 @@
       });
       if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
     }
+    emitRocketDisintegrateAt(x,y,ownerIndex=0){
+      if(!Number.isFinite(x)||!Number.isFinite(y))return;
+      const i=Number.isInteger(ownerIndex)&&ownerIndex>=0&&ownerIndex<4?ownerIndex:0;
+      this.fxEvents.push({
+        id:++this.fxSeq,i,x:+x.toFixed(1),y:+y.toFixed(1),
+        kind:'disintegrate',hidden:false,at:this.fxClock
+      });
+      if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
+    }
     destroyShip(victim,attacker=null,weaponTheft=false,scorePenalty=false){
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
@@ -1035,7 +1044,7 @@
             destroyedProjectiles.add(b);
             const hitX=(a.x+b.x)*.5,hitY=(a.y+b.y)*.5;
             const fxOwner=a.guided?Number(a.owner):Number(b.owner);
-            this.emitExplosionAt(hitX,hitY,Number.isInteger(fxOwner)?fxOwner:0);
+            this.emitRocketDisintegrateAt(hitX,hitY,Number.isInteger(fxOwner)?fxOwner:0);
             this.emit({t:'sound',kind:'impact'});
             break;
           }
@@ -1061,7 +1070,7 @@
         if(expired&&b.guided){
           // El misil agotado no desaparece sin mas: detona y deja el mismo
           // efecto de particulas de explosion, que se desvanece localmente.
-          this.emitExplosionAt(b.x,b.y,b.owner);
+          this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
           this.emit({t:'sound',kind:'impact'});
         }
         if(!remove){
@@ -1071,7 +1080,7 @@
               // El misil conserva su explosion visual; la bala normal simplemente
               // desaparece junto con la bengala alcanzada.
               if(b.guided){
-                this.emitExplosionAt(b.x,b.y,b.owner);
+                this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
                 this.emit({t:'sound',kind:'impact'});
               }
               this.flares.splice(f,1);
@@ -1090,6 +1099,7 @@
               if(p.shield<=0){
                 const brutal=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
                 if(brutal)this.emit({t:'brutal',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index});
+                if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
                 // V20.11: el atacante suma su baja, pero la victima no pierde
                 // un punto por haber sido abatida por otro jugador.
                 this.destroyShip(p,attacker);
@@ -1100,7 +1110,7 @@
                   // La nave sobrevive a ese impacto; las balas normales no rompen
                   // el escudo y la proteccion de aparicion sigue teniendo prioridad.
                   p.shield=0;
-                  this.emitExplosionAt(b.x,b.y,b.owner);
+                  this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
                   this.emit({t:'sound',kind:'impact'});
                 }
               }
@@ -1111,20 +1121,20 @@
         if(!remove)for(const a of this.asteroids){
           if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){
             if(b.guided){
-              this.emitExplosionAt(b.x,b.y,b.owner);
+              this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
               this.emit({t:'sound',kind:'impact'});
             }
             remove=true;break;
           }
         }
         if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){
-          if(b.guided)this.emitExplosionAt(b.x,b.y,b.owner);
+          if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
           remove=true;this.emit({t:'sound',kind:'impact'});
         }
         if(!remove)for(let m=this.meteors.length-1;m>=0;m--){
           const meteor=this.meteors[m];
           if(sweptCircles(b,BULLET_RADIUS,meteor,SMALL_METEOR_RADIUS,false)){
-            if(b.guided)this.emitExplosionAt(b.x,b.y,b.owner);
+            if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
             this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:'impact'});break;
           }
         }
