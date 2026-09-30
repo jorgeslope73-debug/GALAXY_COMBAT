@@ -56,8 +56,17 @@
   const normalize=(x,y)=>{const l=Math.hypot(x,y)||1;return{x:x/l,y:y/l};};
   // V20.44: para roca contra roca usamos el mismo radio visual de la portada:
   // 48,5% del tamano dibujado. Esto evita rebotar antes de que los sprites se toquen.
-  const asteroidRockRadius=a=>(Number(a&&a.type)===5?60:100)*.485;
+  const asteroidDrawSize=a=>Number(a&&a.type)===5?112:120;
+  const asteroidRockRadius=a=>asteroidDrawSize(a)*.485;
   const GIANT_ROCK_RADIUS=270*.485;
+  // V20.46: asteroide6.png (type 5) es una variante algo mas pequena y rara.
+  // Conservamos exactamente el mismo numero total de asteroides y los mismos
+  // tiempos de entrada; solo cambia la distribucion visual de variantes.
+  const randomAsteroidTemplateIndex=()=>{
+    // Type 5 recibe aprox. la mitad de peso que el resto.
+    const bag=[0,0,1,1,2,2,3,3,4,5,5];
+    return bag[randint(0,bag.length-1)];
+  };
   // V20.43: colision de roca inspirada en la portada. Resuelve el impulso
   // solo sobre la normal del choque y corrige todo el solapamiento en el mismo
   // tick. La masa permite que el gigante apenas se desvie frente al mediano.
@@ -204,7 +213,7 @@
     resetAsteroids(){
       // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
       this.asteroids=[];
-      this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1),true);
+      this.spawnAsteroidFromEdge(randomAsteroidTemplateIndex(),true);
       this.nextAsteroidIndex=1;
       this.nextAsteroidSpawn=rand(18,24);
       this.asteroidRampComplete=false;
@@ -238,12 +247,12 @@
       const n=normalize(targetX-start.x,targetY-start.y);
       this.asteroids.push({
         id:uid(),x:start.x,y:start.y,rot,type,
-        vx:n.x*80,vy:n.y*80,r:ASTEROID_RADIUS,exiting:false,exitDelay:-1
+        vx:n.x*80,vy:n.y*80,r:(type===5?112:120)*.485,exiting:false,exitDelay:-1
       });
     }
     spawnProgressiveAsteroid(){
       if(this.asteroids.length>=ASTEROID_MAX_ACTIVE)return;
-      this.spawnAsteroidFromEdge(this.nextAsteroidIndex);
+      this.spawnAsteroidFromEdge(randomAsteroidTemplateIndex());
       this.nextAsteroidIndex++;
       if(this.asteroids.length>=ASTEROID_MAX_ACTIVE){
         this.asteroidRampComplete=true;
@@ -293,7 +302,7 @@
       if(!transitioning&&this.asteroids.length<this.asteroidTargetCount){
         this.nextAsteroidSpawn-=DT;
         if(this.nextAsteroidSpawn<=0){
-          this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1));
+          this.spawnAsteroidFromEdge(randomAsteroidTemplateIndex());
           this.nextAsteroidSpawn=this.asteroids.length<this.asteroidTargetCount?rand(4,12):999999;
         }
         return;
