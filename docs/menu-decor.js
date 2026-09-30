@@ -14,7 +14,7 @@
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const METEOR_COUNT=reducedMotion?2:(isMobile?3:5);
   const PARTICLE_MAX=isMobile?42:72;
-  const VERSION='V20.11';
+  const VERSION='V20.13';
 
   const rand=(a,b)=>a+Math.random()*(b-a);
 
@@ -79,7 +79,7 @@
     obj.sprite=giantChance?'giant':meteorSprites[Math.floor(rand(0,meteorSprites.length))];
     obj.rot=rand(0,360);
     obj.spin=rand(-13,13);
-    // V20.11: el sprite ocupa casi todo su cuadro. Con .41 los meteoritos
+    // V20.13: el sprite ocupa casi todo su cuadro. Con .41 los meteoritos
     // se solapaban visualmente antes de que sus circulos detectasen contacto.
     obj.radius=obj.size*.485;
 
@@ -174,7 +174,7 @@
     }
   }
 
-  // V20.11: mismo criterio de dibujo que durante la partida.
+  // V20.13: mismo criterio de dibujo que durante la partida.
   // Estos PNG estan preparados para mostrarse dentro de un cuadro cuadrado;
   // usar la proporcion del lienzo completo del PNG achataba visualmente la roca.
   function drawMeteorSprite(im,x,y,size,rotDeg=0){
@@ -234,7 +234,7 @@
     const rect=canvas.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
 
-    // V20.11: el backing canvas debe tener EXACTAMENTE la misma proporcion
+    // V20.13: el backing canvas debe tener EXACTAMENTE la misma proporcion
     // que el rectangulo CSS visible. Antes limitabamos solo el ancho a 1500
     // pero dejabamos la altura calculada por separado; eso podia crear, por
     // ejemplo, un buffer 1500x1350 mostrado en una caja 16:9, achatando todos

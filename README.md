@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.12**
+**Versión actual: V20.13**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -232,3 +232,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V20.11: ajuste de puntuacion y colisiones decorativas. Ser abatido por la bala, misil o bengala de otro jugador ya no resta una baja/punto a la victima; el atacante sigue sumando su baja. La penalizacion -1 se conserva para muertes por entorno/choque, autodestruccion y colisiones fisicas entre naves. En la portada, el radio de colision de los meteoritos decorativos pasa de 0.41 a 0.485 del tamaño dibujado y el rebote intercambia correctamente la componente normal de velocidad, separando ademas 1.5 px extra para evitar solapamiento visual.
 
 - V20.12: los misiles guiados pueden ser interceptados por proyectiles rivales. Una bala contra un misil destruye ambos y genera una explosion visual/sonido de impacto; misil contra misil destruye ambos. Bala contra bala sigue sin colisionar y los proyectiles del mismo jugador no se destruyen entre si. La comprobacion usa colision continua para reducir fallos cuando los proyectiles se cruzan a alta velocidad.
+
+- V20.13: pantalla de carga de graficos de portada en el primer acceso del dispositivo/navegador. Precarga y decodifica INTRO y los seis sprites de meteoritos decorativos antes de descubrir el menu, con barra de progreso y fundido. Guarda una marca local para no volver a bloquear el menu en siguientes visitas. Incluye timeout de seguridad de 8 s para que un recurso fallido nunca impida entrar.

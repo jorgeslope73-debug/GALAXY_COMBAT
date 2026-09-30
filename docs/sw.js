@@ -1,4 +1,4 @@
-const VERSION = 'V20.12';
+const VERSION = 'V20.13';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
@@ -9,6 +9,7 @@ const SHELL_FILES = [
   './style.css',
   './menu-portada.css',
   './menu-decor.js',
+  './menu-loader.js',
   './voz.css',
   './config.js',
   './i18n.js',
