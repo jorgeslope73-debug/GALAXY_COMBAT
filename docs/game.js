@@ -142,8 +142,16 @@
   // velocidad visual, especialmente visibles cuando las naves van rapido.
   let smoothedStateInterval=NET_FRAME_MS;
   const localVisual={ready:false,index:-1,x:0,y:0,r:0,vx:0,vy:0,lastAt:0,lastError:0};
+  const remoteVisuals=Array.from({length:4},()=>({
+    ready:false,x:0,y:0,r:0,vx:0,vy:0,lastAt:0
+  }));
   function resetLocalVisual(){
     localVisual.ready=false;localVisual.index=-1;localVisual.lastAt=0;localVisual.lastError=0;
+  }
+  function resetRemoteVisuals(){
+    for(const v of remoteVisuals){
+      v.ready=false;v.x=0;v.y=0;v.r=0;v.vx=0;v.vy=0;v.lastAt=0;
+    }
   }
   const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,localErrMax:0,report:{fps:0,long:0,max:0,frame:0,parse:0,localErr:0,heap:-1,players:0,bullets:0,flares:0,asteroids:0,meteors:0,pickups:0,impacts:0,wsBuf:0,p2pBuf:0,p2pPeers:0,queue:0}}:null;
   // Cadencia de pintado adaptativa. El antiguo umbral fijo de 10,5 ms podia
@@ -2224,7 +2232,7 @@
     if(m.t==='created'||m.t==='joined'){
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
-      state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
+      state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
       cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
@@ -2359,12 +2367,12 @@
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
-    else if(m.t==='restarted'){resetOnlineStartCountdown();if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){resetOnlineStartCountdown();if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(preparingOnline=false){stopMusic();updateMobileControlUi();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
+  function beginGame(preparingOnline=false){stopMusic();updateMobileControlUi();resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
   function queueVictory(i){
     const winnerIndex=Number(i);
     if(!inGame||!Number.isInteger(winnerIndex)||winnerIndex<0||winnerIndex>3)return;
@@ -2512,7 +2520,7 @@
     if(voice)voice.clearSession();
     stopP2P();
     stopResumeWindow();clearResumeSession();playerToken='';
-    inGame=false;setMobileKeyboardActive(false);state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
+    inGame=false;setMobileKeyboardActive(false);state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     // Recuperar el testigo de aprendizaje al volver al menu sin esperar al
     // siguiente intervalo de 5 s.
     refreshCpuLearningControl();
@@ -2835,10 +2843,79 @@
         }
       }
       x=localVisual.x;y=localVisual.y;r=localVisual.r;
-    }else if(previous&&!previous.dead){
-      x=lerpWrapped(previous.x,p.x,W,blend);
-      y=lerpWrapped(previous.y,p.y,H,blend);
-      r=lerpAngle(previous.r,p.r,blend);
+    }else{
+      const remoteIndex=Number(p.i);
+      const onlineRemote=!localCpuActive&&roomCode&&roomCode!=='LOCAL'&&
+        Number.isInteger(remoteIndex)&&remoteIndex>=0&&remoteIndex<remoteVisuals.length;
+      const visual=onlineRemote?remoteVisuals[remoteIndex]:null;
+
+      if(visual){
+        // V20.18: las naves remotas ya no esperan quietas entre snapshots.
+        // Extrapolamos SOLO el dibujo con la velocidad autoritativa recibida y
+        // reconciliamos suavemente al llegar el siguiente estado. Fisica,
+        // colisiones y puntuacion siguen exclusivamente en el host.
+        const rawAge=Math.max(0,(now-lastStateTime)/1000);
+        const predictionAge=Math.min(.12,rawAge);
+        const targetX=(p.x+p.vx*predictionAge+W)%W;
+        const targetY=(p.y+p.vy*predictionAge+H)%H;
+
+        let angularVelocity=0;
+        if(previous&&!previous.dead){
+          const sampleDt=Math.max(.03,Math.min(.12,smoothedStateInterval/1000));
+          angularVelocity=clamp(angleDelta(previous.r,p.r)/sampleDt,-240,240);
+        }
+        const targetR=(p.r+angularVelocity*predictionAge+360)%360;
+
+        const needsReset=!visual.ready||(previous&&previous.dead)||now-visual.lastAt>250;
+        if(needsReset){
+          visual.ready=true;
+          visual.x=targetX;visual.y=targetY;visual.r=targetR;
+          visual.vx=p.vx;visual.vy=p.vy;visual.lastAt=now;
+        }else{
+          const dt=Math.min(.05,Math.max(0,(now-visual.lastAt)/1000));
+          visual.lastAt=now;
+
+          // Seguir la velocidad del host sin cambios bruscos al recibir paquete.
+          const velocityFollow=1-Math.exp(-14*dt);
+          visual.vx+=(p.vx-visual.vx)*velocityFollow;
+          visual.vy+=(p.vy-visual.vy)*velocityFollow;
+
+          // Solo predecimos hasta 120 ms. Si hay un corte mayor, dejamos que la
+          // nave se asiente en la ultima posicion predicha en vez de inventar
+          // movimiento indefinidamente.
+          if(rawAge<.12){
+            visual.x=(visual.x+visual.vx*dt+W)%W;
+            visual.y=(visual.y+visual.vy*dt+H)%H;
+          }
+
+          const dx=wrappedDelta(visual.x,targetX,W);
+          const dy=wrappedDelta(visual.y,targetY,H);
+          const error=Math.hypot(dx,dy);
+          if(error>120){
+            // Respawn/teletransporte/impacto fuerte: manda el estado del host.
+            visual.x=targetX;visual.y=targetY;
+            visual.vx=p.vx;visual.vy=p.vy;
+          }else{
+            const positionFollow=1-Math.exp(-11*dt);
+            visual.x=(visual.x+dx*positionFollow+W)%W;
+            visual.y=(visual.y+dy*positionFollow+H)%H;
+          }
+
+          const dr=angleDelta(visual.r,targetR);
+          if(Math.abs(dr)>75){
+            visual.r=targetR;
+          }else{
+            const rotationFollow=1-Math.exp(-15*dt);
+            visual.r=(visual.r+dr*rotationFollow+360)%360;
+          }
+        }
+        x=visual.x;y=visual.y;r=visual.r;
+      }else if(previous&&!previous.dead){
+        // En CPU local conservamos la interpolacion existente.
+        x=lerpWrapped(previous.x,p.x,W,blend);
+        y=lerpWrapped(previous.y,p.y,H,blend);
+        r=lerpAngle(previous.r,p.r,blend);
+      }
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
