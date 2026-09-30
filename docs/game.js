@@ -1156,7 +1156,9 @@
     return audioUnlocked;
   }
   function loadJoystickPreference(){
-    try{joystickEnabled=localStorage.getItem(JOYSTICK_STORAGE_KEY)==='1';}catch(_){joystickEnabled=false;}
+    // V20.39: JOYSTICK siempre arranca desactivado al abrir/recargar el juego.
+    // El usuario debe activarlo expresamente en cada sesion.
+    joystickEnabled=false;
   }
   function saveJoystickPreference(){
     try{localStorage.setItem(JOYSTICK_STORAGE_KEY,joystickEnabled?'1':'0');}catch(_){}
