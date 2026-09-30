@@ -600,10 +600,10 @@
           // una firma de movimiento propia. Se usa despues para una deriva
           // suave y una ondulacion mas erratica al final, sin jitter aleatorio.
           wobblePhase:rand(0,Math.PI*2),
-          wobbleRate:rand(2.15,3.35),
-          wobbleAmp:rand(7.5,11.5),
+          wobbleRate:rand(2.35,3.65),
+          wobbleAmp:rand(11.5,16.5),
           wobbleMix:rand(.65,1.35),
-          driftBias:rand(-2.2,2.2)
+          driftBias:rand(-3.2,3.2)
         });
       }
       return true;
@@ -715,10 +715,12 @@
         const wave1=Math.sin(phase);
         const wave2=Math.sin(phase*1.73+mix*2.15);
         const wave3=Math.sin(phase*.67+mix*4.1);
-        // Desde el inicio hay una deriva leve. Al final se mezclan dos ondas
-        // adicionales para un movimiento mas impredecible pero continuo.
+        // V20.32: ondulacion visible desde la salida. La primera onda ya
+        // tiene presencia clara desde el primer instante y crece suavemente;
+        // al final se suman otras dos para volverla mas erratica sin jitter.
         const turnRate=(Number(f.driftBias)||0)
-          +wave1*amp*(.28+.22*progress)
+          +wave1*amp*(.52+.22*progress)
+          +(wave2*.56)*amp*(.16+.24*progress)
           +(wave2*.72+wave3*.34)*amp*late;
         const turn=turnRate*(Math.PI/180)*dt;
         if(Math.abs(turn)>1e-8){
