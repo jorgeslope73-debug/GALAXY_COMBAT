@@ -85,7 +85,9 @@
     clearTimeout(resumeExpiryTimer);resumeExpiryTimer=null;
     if(roomMini&&roomMini.textContent===tr('reconnecting'))roomMini.textContent='';
   }
-  const NET_FRAME_MS=1000/30;
+  // V20.16 PERF: snapshots visuales a 20 Hz. La fisica sigue a 60 Hz y
+  // los controles a 30 Hz; interpolacion/extrapolacion mantienen la fluidez.
+  const NET_FRAME_MS=1000/20;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),flares:new Map(),meteors:new Map()};
   const localizedTargetOwners=[-1,-1,-1,-1];
   const localizaSpriteKeys=['localizaA','localizaB','localizaC','localizaD'];
@@ -132,10 +134,8 @@
   let lastStateProcessedAt=0;
   const CONTROL_SEND_MS=1000/30;
   const CONTROL_HEARTBEAT_MS=100;
-  // V16.4.38: recuperamos los 30 snapshots/s en movil para que la interpolacion
-  // vuelva a tener la misma cadencia que el servidor. Seguimos procesandolos al
-  // comienzo del RAF y conservando solo el mas reciente, asi evitamos los picos
-  // asincronos de versiones anteriores sin sacrificar fluidez visual.
+  // V20.16: procesamos como maximo los 20 snapshots/s publicados por la
+  // simulacion. Se conserva solo el mas reciente al comienzo del RAF.
   const STATE_PROCESS_MS=isMobile?NET_FRAME_MS:0;
   // Intervalo de snapshots suavizado. Usar directamente el tiempo entre llegadas
   // hace que unos pocos ms de jitter se traduzcan en pequenas variaciones de
@@ -871,6 +871,10 @@
   let audioCtx=null,masterGain=null,fxGain=null,musicGain=null;
   let webAudioLoadPromise=null,webMusicLoadPromise=null,webMusicSource=null,webMusicIdleHandle=0;
   const webAudioBuffers={};
+  const webEffectGains={};
+  function cleanupWebEffectSource(){
+    try{this.disconnect();}catch(_){}
+  }
 
   function ensureAudioContext(){
     if(!useWebAudio)return null;
@@ -950,18 +954,19 @@
     if(!useWebAudio||!audioCtx||audioCtx.state!=='running'||!webAudioBuffers[key]||!gameAudioEnabled)return false;
     try{
       const def=soundDefs[key];
+      let gain=webEffectGains[key];
+      if(!gain){
+        gain=audioCtx.createGain();
+        gain.gain.value=def?def.volume:1;
+        gain.connect(fxGain);
+        webEffectGains[key]=gain;
+      }
+      // Un BufferSource es de un solo uso por diseno de WebAudio, pero el Gain
+      // y el callback se reutilizan. Antes cada disparo creaba ambos de nuevo.
       const src=audioCtx.createBufferSource();
-      const gain=audioCtx.createGain();
       src.buffer=webAudioBuffers[key];
-      gain.gain.value=def?def.volume:1;
-      src.connect(gain);gain.connect(fxGain);
-      // V19.76: liberar explicitamente los nodos temporales al terminar cada
-      // efecto. Evita acumular referencias internas del grafo WebAudio en
-      // partidas largas y reduce la presion sobre el recolector de basura.
-      src.onended=()=>{
-        try{src.disconnect();}catch(_){}
-        try{gain.disconnect();}catch(_){}
-      };
+      src.connect(gain);
+      src.onended=cleanupWebEffectSource;
       src.start(0);
       return true;
     }catch(_){return false;}
@@ -3099,20 +3104,26 @@
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 
   function centerNoticeY(kind,now,defaultY){
-    const active=[];
-    if(state&&Number(state.shower)>0)active.push('shower');
-    if(brutalFxUntil&&now<brutalFxUntil)active.push('brutal');
-    if(weaponTheftFxUntil&&now<weaponTheftFxUntil&&weaponTheftIndex>=0)active.push('theft');
-    if(huntFxUntil&&now<huntFxUntil&&huntText)active.push('hunt');
-    if(invisibleNoticeUntil&&now<invisibleNoticeUntil&&invisibleNoticeIndex>=0)active.push('ghost');
-    if(active.length<=1)return defaultY;
-    const order=['shower','hunt','brutal','theft','ghost'].filter(k=>active.includes(k));
-    const idx=order.indexOf(kind);
+    const shower=!!(state&&Number(state.shower)>0);
+    const hunt=!!(huntFxUntil&&now<huntFxUntil&&huntText);
+    const brutal=!!(brutalFxUntil&&now<brutalFxUntil);
+    const theft=!!(weaponTheftFxUntil&&now<weaponTheftFxUntil&&weaponTheftIndex>=0);
+    const ghost=!!(invisibleNoticeUntil&&now<invisibleNoticeUntil&&invisibleNoticeIndex>=0);
+    const count=(shower?1:0)+(hunt?1:0)+(brutal?1:0)+(theft?1:0)+(ghost?1:0);
+    if(count<=1)return defaultY;
+
+    let idx=-1,cursor=0;
+    if(shower){if(kind==='shower')idx=cursor;cursor++;}
+    if(hunt){if(kind==='hunt')idx=cursor;cursor++;}
+    if(brutal){if(kind==='brutal')idx=cursor;cursor++;}
+    if(theft){if(kind==='theft')idx=cursor;cursor++;}
+    if(ghost){if(kind==='ghost')idx=cursor;cursor++;}
     if(idx<0)return defaultY;
-    if(order.length===2)return [H*.34,H*.57][idx]||defaultY;
-    if(order.length===3)return [H*.28,H*.48,H*.68][idx]||defaultY;
-    if(order.length===4)return [H*.23,H*.39,H*.55,H*.71][idx]||defaultY;
-    return [H*.18,H*.32,H*.46,H*.60,H*.74][idx]||defaultY;
+
+    if(count===2)return idx===0?H*.34:H*.57;
+    if(count===3)return idx===0?H*.28:(idx===1?H*.48:H*.68);
+    if(count===4)return idx===0?H*.23:(idx===1?H*.39:(idx===2?H*.55:H*.71));
+    return idx===0?H*.18:(idx===1?H*.32:(idx===2?H*.46:(idx===3?H*.60:H*.74)));
   }
 
   function drawPenaltyAnnouncement(now){
