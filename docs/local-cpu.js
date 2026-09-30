@@ -54,6 +54,10 @@
   };
   const dirFromRot=rot=>{const r=rot*Math.PI/180;return{x:-Math.sin(r),y:-Math.cos(r)};};
   const normalize=(x,y)=>{const l=Math.hypot(x,y)||1;return{x:x/l,y:y/l};};
+  // V20.44: para roca contra roca usamos el mismo radio visual de la portada:
+  // 48,5% del tamano dibujado. Esto evita rebotar antes de que los sprites se toquen.
+  const asteroidRockRadius=a=>(Number(a&&a.type)===5?60:90)*.485;
+  const GIANT_ROCK_RADIUS=270*.485;
   // V20.43: colision de roca inspirada en la portada. Resuelve el impulso
   // solo sobre la normal del choque y corrige todo el solapamiento en el mismo
   // tick. La masa permite que el gigante apenas se desvie frente al mediano.
@@ -1621,7 +1625,7 @@
       // intercambio de la componente normal y separacion completa del solape.
       for(let i=0;i<this.asteroids.length;i++)for(let j=i+1;j<this.asteroids.length;j++){
         const a=this.asteroids[i],b=this.asteroids[j];
-        resolveRockCollision(a,a.r,b,b.r,1,1);
+        resolveRockCollision(a,asteroidRockRadius(a),b,asteroidRockRadius(b),1,1);
       }
       for(let i=this.pickups.length-1;i>=0;i--){
         const pk=this.pickups[i];
@@ -1947,7 +1951,7 @@
       // V20.43: el choque gigante-mediano usa la misma resolucion fisica
       // que la portada. El gigante tiene masa 9x (radio 3x), por lo que el
       // mediano rebota con claridad y el gigante solo corrige ligeramente.
-      for(const a of this.asteroids)resolveRockCollision(g,GIANT_RADIUS,a,a.r,9,1);
+      for(const a of this.asteroids)resolveRockCollision(g,GIANT_ROCK_RADIUS,a,asteroidRockRadius(a),9,1);
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
       if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){this.giant=null;this.nextGiant=rand(130,190);}
     }
