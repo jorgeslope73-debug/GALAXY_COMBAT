@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.36**
+**Versión actual: V20.37**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -255,6 +255,7 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 
 - V20.23: si un misil guiado impacta contra una nave con escudo activo, consume el escudo por completo y el misil explota/desaparece; la nave sobrevive a ese impacto. Las balas normales siguen sin romper el escudo y la proteccion de aparicion sigue ignorando proyectiles.
 
+- V20.37: el boton JOYSTICK adopta el mismo tamaño y lenguaje visual que AUDIO: gris cuando esta desactivado y verde cuando esta activo. Con JOYSTICK activo, el micro indica LB/L1 como pulsar-para-hablar; tras activar el micro, mantener LB/L1 transmite voz y soltarlo corta la transmision. La tecla V y el PTT tactil siguen funcionando como alternativas.
 - V20.36: se añade un boton JOYSTICK en el menu. Al activarlo usa automaticamente el primer mando conectado mediante Gamepad API: stick izquierdo horizontal gira, stick hacia delante o D-pad arriba acelera, y A/Cross o gatillo derecho RT/R2 disparan. Teclado y controles moviles siguen funcionando a la vez. La preferencia se guarda localmente y funciona tanto contra CPU como online/P2P.
 - V20.35: el misil guiado aumenta ligeramente la ondulacion durante su ultimo segundo antes de desintegrarse. Combina una onda principal mas marcada con una segunda onda lenta para un serpenteo mas organico, manteniendo la frenada final, duracion total, daño, colisiones y guiado previo sin cambios.
 - V20.34: la desintegracion del cohete queda completamente sin sonido. El efecto visual usa 46 particulas agrupadas con una mezcla amplia de tamanos (aprox. 1-4,5 px) y colores blanco, amarillo, naranja, rojo, rosa, violeta, cian y verdes. Las bengalas aumentan de forma clara su movimiento ondulatorio desde la salida, manteniendo curvas continuas, la inercia, duracion, colisiones y funcion de señuelo.
