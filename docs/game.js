@@ -1156,9 +1156,14 @@
     return audioUnlocked;
   }
   function loadJoystickPreference(){
-    // V20.39: JOYSTICK siempre arranca desactivado al abrir/recargar el juego.
-    // El usuario debe activarlo expresamente en cada sesion.
+    // V20.40: JOYSTICK solo existe en PC. En movil/tablet queda siempre
+    // desactivado y el boton se oculta por completo.
     joystickEnabled=false;
+    if(isMobile&&joystickToggleButton){
+      joystickToggleButton.style.display='none';
+      joystickToggleButton.setAttribute('aria-hidden','true');
+      joystickToggleButton.tabIndex=-1;
+    }
   }
   function saveJoystickPreference(){
     try{localStorage.setItem(JOYSTICK_STORAGE_KEY,joystickEnabled?'1':'0');}catch(_){}
@@ -1185,6 +1190,7 @@
     return pad;
   }
   function joystickControls(){
+    if(isMobile)return {active:false,turn:0,thrust:false,fire:false,ptt:false};
     const pad=findJoystick();
     if(!pad)return {active:false,turn:0,thrust:false,fire:false,ptt:false};
     const dead=.18;
@@ -1247,9 +1253,10 @@
   function notifyJoystickVoiceUi(){
     try{window.dispatchEvent(new CustomEvent('galaxy-joystickchange',{detail:{enabled:joystickEnabled,connected:joystickConnected}}));}catch(_){}
   }
-  window.GalaxyJoystickEnabled=()=>!!joystickEnabled;
+  window.GalaxyJoystickEnabled=()=>!isMobile&&!!joystickEnabled;
   window.addEventListener('galaxy-languagechange',updateControlHelp);
   function toggleJoystick(){
+    if(isMobile)return;
     joystickEnabled=!joystickEnabled;
     if(!joystickEnabled){
       joystickIndex=-1;joystickConnected=false;
