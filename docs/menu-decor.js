@@ -14,7 +14,7 @@
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const METEOR_COUNT=reducedMotion?2:(isMobile?3:5);
   const PARTICLE_MAX=isMobile?42:72;
-  const VERSION='V20.7';
+  const VERSION='V20.9';
 
   const rand=(a,b)=>a+Math.random()*(b-a);
 
@@ -168,7 +168,7 @@
     }
   }
 
-  // V20.7: mismo criterio de dibujo que durante la partida.
+  // V20.9: mismo criterio de dibujo que durante la partida.
   // Estos PNG estan preparados para mostrarse dentro de un cuadro cuadrado;
   // usar la proporcion del lienzo completo del PNG achataba visualmente la roca.
   function drawMeteorSprite(im,x,y,size,rotDeg=0){
@@ -228,16 +228,25 @@
     const rect=canvas.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
 
+    // V20.9: el backing canvas debe tener EXACTAMENTE la misma proporcion
+    // que el rectangulo CSS visible. Antes limitabamos solo el ancho a 1500
+    // pero dejabamos la altura calculada por separado; eso podia crear, por
+    // ejemplo, un buffer 1500x1350 mostrado en una caja 16:9, achatando todos
+    // los sprites aunque drawImage usase size x size.
     const dpr=Math.min(window.devicePixelRatio||1,isMobile?1.05:1.25);
     const maxW=isMobile?1100:1500;
-    const targetW=Math.max(480,Math.min(maxW,Math.round(rect.width*dpr)));
-    const targetH=Math.max(270,Math.round(rect.height*dpr));
+    const rawW=rect.width*dpr;
+    const rawH=rect.height*dpr;
+    const cap=Math.min(1,maxW/rawW);
+    const targetW=Math.max(480,Math.round(rawW*cap));
+    const targetH=Math.max(270,Math.round(rawH*cap));
 
     if(canvas.width!==targetW||canvas.height!==targetH){
       canvas.width=targetW;
       canvas.height=targetH;
     }
 
+    // Escala uniforme: nunca hay una escala X distinta de Y.
     const scale=Math.max(canvas.width/W,canvas.height/H);
     const ox=(canvas.width-W*scale)/2;
     const oy=(canvas.height-H*scale)/2;
