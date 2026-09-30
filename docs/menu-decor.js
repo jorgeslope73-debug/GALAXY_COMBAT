@@ -14,7 +14,7 @@
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const METEOR_COUNT=reducedMotion?2:(isMobile?3:5);
   const PARTICLE_MAX=isMobile?42:72;
-  const VERSION='V20.6';
+  const VERSION='V20.7';
 
   const rand=(a,b)=>a+Math.random()*(b-a);
 
@@ -168,20 +168,16 @@
     }
   }
 
-  // Mantiene siempre la proporcion nativa del PNG.
-  function drawSpriteAspect(im,x,y,size,rotDeg=0,alpha=1){
+  // V20.7: mismo criterio de dibujo que durante la partida.
+  // Estos PNG estan preparados para mostrarse dentro de un cuadro cuadrado;
+  // usar la proporcion del lienzo completo del PNG achataba visualmente la roca.
+  function drawMeteorSprite(im,x,y,size,rotDeg=0){
     if(!(im&&im.complete&&im.naturalWidth&&im.naturalHeight))return false;
-
-    const aspect=im.naturalWidth/im.naturalHeight;
-    let w=size,h=size;
-    if(aspect>=1)h=size/aspect;
-    else w=size*aspect;
-
     ctx.save();
-    ctx.globalAlpha=alpha;
+    ctx.globalAlpha=1;
     ctx.translate(x,y);
     ctx.rotate(rotDeg*Math.PI/180);
-    ctx.drawImage(im,-w/2,-h/2,w,h);
+    ctx.drawImage(im,-size/2,-size/2,size,size);
     ctx.restore();
     return true;
   }
@@ -217,7 +213,7 @@
 
     for(const m of meteors){
       const im=assets[m.sprite];
-      if(!drawSpriteAspect(im,m.x,m.y,m.size,m.rot,.76)){
+      if(!drawMeteorSprite(im,m.x,m.y,m.size,m.rot)){
         ctx.globalAlpha=.5;
         ctx.fillStyle='#83878e';
         ctx.beginPath();

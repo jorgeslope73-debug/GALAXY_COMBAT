@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.6**
+**Versión actual: V20.7**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -220,3 +220,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V20.5: portada animada LocalFX. El menu principal incorpora una escena decorativa independiente por debajo de la interfaz: 5 meteoritos en PC / 3 en movil cruzan la pantalla con tamaños distintos y generan pequeñas rocas locales al chocar. Dos naves exactas se persiguen y se lanzan cohetes ocasionalmente; los impactos generan partículas y, cuando una nave se destruye, reaparece tras una pausa con otro color. Todo vive en `menu-decor.js`, no usa P2P, no toca fisicas de partida ni ranking, se pausa al entrar a jugar o cambiar de pestaña y utiliza pools cerrados de objetos/particulas.
 
 - V20.6: portada LocalFX simplificada. Se eliminan por completo las naves, cohetes y combate decorativo de V20.5. En la pantalla inicial quedan solo meteoritos/asteroides decorativos, con 5 en PC y 3 en movil. Los sprites conservan siempre su relacion de aspecto nativa para evitar deformaciones. Sus choques pueden generar unas pocas rocas grises locales, sin P2P ni relacion con las fisicas reales de partida.
+
+- V20.7: correccion visual de meteoritos en portada. Los meteoritos decorativos vuelven a dibujarse con el mismo criterio cuadrado que en la partida, evitando el aspecto achatado provocado por interpretar la proporcion externa del PNG. Se elimina tambien la doble reduccion de opacidad del canvas/sprite para que conserven el aspecto y contraste originales.
