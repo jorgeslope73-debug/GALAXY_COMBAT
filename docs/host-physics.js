@@ -56,15 +56,19 @@
   const normalize=(x,y)=>{const l=Math.hypot(x,y)||1;return{x:x/l,y:y/l};};
   // V20.44: para roca contra roca usamos el mismo radio visual de la portada:
   // 48,5% del tamano dibujado. Esto evita rebotar antes de que los sprites se toquen.
-  const asteroidDrawSize=a=>Number(a&&a.type)===5?112:120;
+  // V20.50: tipos 1-5 son los cinco asteroides medianos normales.
+  // El tipo 6 (dos.png) es la variante pequena, exactamente a mitad de escala.
+  const asteroidDrawSize=a=>Number(a&&a.type)===6?60:120;
   const asteroidRockRadius=a=>asteroidDrawSize(a)*.485;
   const GIANT_ROCK_RADIUS=324*.485;
   // V20.46: asteroide6.png (type 5) es una variante algo mas pequena y rara.
   // Conservamos exactamente el mismo numero total de asteroides y los mismos
   // tiempos de entrada; solo cambia la distribucion visual de variantes.
   const randomAsteroidTemplateIndex=()=>{
-    // Type 5 recibe aprox. la mitad de peso que el resto.
-    const bag=[0,0,1,1,2,2,3,3,4,5,5];
+    // Tipos 1-5 se alternan con el mismo peso. El tipo 6 aparece aprox.
+    // la mitad de veces que cada variante mediana normal.
+    // ASTEROID_STARTS indexa los tipos como [1,3,4,2,5,6].
+    const bag=[0,0,1,1,2,2,3,3,4,4,5];
     return bag[randint(0,bag.length-1)];
   };
   // V20.43: colision de roca inspirada en la portada. Resuelve el impulso
@@ -282,7 +286,7 @@
         // V20.47: rotacion muy leve, similar a la portada pero mas discreta.
         // Cada roca conserva su sentido y velocidad durante toda su vida.
         spin:(Math.random()<.5?-1:1)*rand(2,7),
-        vx:n.x*80,vy:n.y*80,r:(type===5?112:120)*.485,exiting:false,exitDelay:-1
+        vx:n.x*80,vy:n.y*80,r:(type===6?60:120)*.485,exiting:false,exitDelay:-1
       });
     }
     spawnProgressiveAsteroid(){
