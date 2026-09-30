@@ -564,8 +564,8 @@
       const joystickActive=typeof window.GalaxyJoystickEnabled==='function'&&window.GalaxyJoystickEnabled();
       if(this.enableButton){
         if(joystickActive){
-          this.enableButton.textContent=this.enabled?'MICRO ACTIVO · LB/L1':'ACTIVAR MICRO · LB/L1';
-          this.enableButton.title=this.enabled?'Mantén LB/L1 para hablar':'Activa el micro; después mantén LB/L1 para hablar';
+          this.enableButton.textContent=this.enabled?'MICRO ACTIVO · R1':'ACTIVAR MICRO · R1';
+          this.enableButton.title=this.enabled?'Mantén R1 para hablar':'Activa el micro; después mantén R1 para hablar';
           this.enableButton.setAttribute('aria-label',this.enableButton.title);
         }else{
           this.enableButton.textContent=this.enabled?tr('voiceActive'):tr('activateVoice');
@@ -575,7 +575,7 @@
         this.enableButton.classList.toggle('active',this.enabled);
       }
       if(this.activationTipEl){
-        this.activationTipEl.textContent=joystickActive?'MANTÉN LB/L1 PARA HABLAR':tr('voiceKeyTip');
+        this.activationTipEl.textContent=joystickActive?'MANTÉN R1 PARA HABLAR':tr('voiceKeyTip');
       }
       if(this.statusEl&&!this.enabling){
         this.statusEl.textContent=this.enabled?tr('voiceEnabled'):tr('voiceDisabled');
@@ -594,7 +594,7 @@
         this.hintEl.classList.toggle('hidden',!show);
         this.hintEl.textContent=this.talking
           ?tr('voiceHintTalking')
-          :(joystickActive?'LB/L1: HABLAR':tr('voiceHintTalk'));
+          :(joystickActive?'R1: HABLAR':tr('voiceHintTalk'));
         this.hintEl.classList.toggle('talking',this.talking);
       }
       this.refreshTalkers();
