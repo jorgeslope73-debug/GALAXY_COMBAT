@@ -76,9 +76,34 @@
   refreshInstallButton();
 
   if (!('serviceWorker' in navigator)) return;
+
+  // V20.41: cuando entra un SW nuevo, la pagina actual puede seguir mostrando
+  // el HTML antiguo hasta la siguiente recarga. Forzamos UNA sola recarga al
+  // cambiar el controlador para que el testigo de version se actualice al instante.
+  let reloadingForUpdate=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(reloadingForUpdate)return;
+    reloadingForUpdate=true;
+    location.reload();
+  });
+
+  async function refreshServiceWorker(){
+    try{
+      const reg=await navigator.serviceWorker.getRegistration('./');
+      if(reg)await reg.update();
+    }catch(_){}
+  }
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
-      .then(reg => reg.update().catch(() => {}))
+    navigator.serviceWorker.register('./sw.js?v=V20.41', { updateViaCache: 'none' })
+      .then(async reg=>{
+        try{await reg.update();}catch(_){}
+      })
       .catch(err => console.warn('[PWA] Service worker no disponible:', err));
   });
+
+  // Al volver a la pestaña o ventana, comprobar si GitHub Pages ya tiene una
+  // version nueva. Es barato y evita mantener una PWA abierta con version vieja.
+  window.addEventListener('focus',refreshServiceWorker);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshServiceWorker();});
 })();
