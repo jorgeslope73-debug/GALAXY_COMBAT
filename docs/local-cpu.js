@@ -54,6 +54,45 @@
   };
   const dirFromRot=rot=>{const r=rot*Math.PI/180;return{x:-Math.sin(r),y:-Math.cos(r)};};
   const normalize=(x,y)=>{const l=Math.hypot(x,y)||1;return{x:x/l,y:y/l};};
+  // V20.43: colision de roca inspirada en la portada. Resuelve el impulso
+  // solo sobre la normal del choque y corrige todo el solapamiento en el mismo
+  // tick. La masa permite que el gigante apenas se desvie frente al mediano.
+  const resolveRockCollision=(a,ar,b,br,massA=1,massB=1)=>{
+    if(!a||!b)return false;
+    let dx=b.x-a.x,dy=b.y-a.y;
+    const rr=ar+br,d2=dx*dx+dy*dy;
+    if(d2>rr*rr)return false;
+    let d=Math.sqrt(d2);
+    let nx,ny;
+    if(d>1e-6){nx=dx/d;ny=dy/d;}
+    else{
+      const rvx=(Number(a.vx)||0)-(Number(b.vx)||0);
+      const rvy=(Number(a.vy)||0)-(Number(b.vy)||0);
+      const rl=Math.hypot(rvx,rvy)||1;
+      nx=rvx/rl;ny=rvy/rl;d=0;
+    }
+
+    const avx=Number(a.vx)||0,avy=Number(a.vy)||0;
+    const bvx=Number(b.vx)||0,bvy=Number(b.vy)||0;
+    const closing=(avx-bvx)*nx+(avy-bvy)*ny;
+    if(closing>0){
+      const invA=1/Math.max(.01,massA),invB=1/Math.max(.01,massB);
+      const impulse=(2*closing)/(invA+invB);
+      a.vx=avx-impulse*invA*nx;a.vy=avy-impulse*invA*ny;
+      b.vx=bvx+impulse*invB*nx;b.vy=bvy+impulse*invB*ny;
+    }
+
+    const overlap=Math.max(0,rr-d);
+    if(overlap>0){
+      const invA=1/Math.max(.01,massA),invB=1/Math.max(.01,massB);
+      const invSum=invA+invB;
+      const separation=overlap+1.5;
+      const moveA=separation*(invA/invSum),moveB=separation*(invB/invSum);
+      a.x-=nx*moveA;a.y-=ny*moveA;
+      b.x+=nx*moveB;b.y+=ny*moveB;
+    }
+    return true;
+  };
   const round1=v=>Math.round(v*10)/10,round2=v=>Math.round(v*100)/100,round3=v=>Math.round(v*1000)/1000;
   // Si la inercia actual ya atraviesa un pickup, la CPU deja de acelerar y
   // entra recta por deslizamiento. Solo se cancela si hay un obstaculo peligroso
@@ -1578,13 +1617,11 @@
         if(a.x<-190&&a.vx<0)a.vx*=-1;else if(a.x>W+190&&a.vx>0)a.vx*=-1;
         if(a.y<-190&&a.vy<0)a.vy*=-1;else if(a.y>H+190&&a.vy>0)a.vy*=-1;
       }
+      // V20.43: mismo tipo de rebote limpio de la pantalla de inicio:
+      // intercambio de la componente normal y separacion completa del solape.
       for(let i=0;i<this.asteroids.length;i++)for(let j=i+1;j<this.asteroids.length;j++){
         const a=this.asteroids[i],b=this.asteroids[j];
-        if(circles(a,a.r,b,b.r)){
-          const n=normalize(b.x-a.x,b.y-a.y),rel=(a.vx-b.vx)*n.x+(a.vy-b.vy)*n.y;
-          if(rel>0){const an=a.vx*n.x+a.vy*n.y,bn=b.vx*n.x+b.vy*n.y;a.vx+=(bn-an)*n.x;a.vy+=(bn-an)*n.y;b.vx+=(an-bn)*n.x;b.vy+=(an-bn)*n.y;}
-          a.x-=n.x*2;b.x+=n.x*2;a.y-=n.y*2;b.y+=n.y*2;
-        }
+        resolveRockCollision(a,a.r,b,b.r,1,1);
       }
       for(let i=this.pickups.length-1;i>=0;i--){
         const pk=this.pickups[i];
@@ -1907,7 +1944,10 @@
         this.flares.splice(f,1);
       }
       for(const p of this.players)if(!p.dead&&sweptCircles(g,GIANT_RADIUS,p,SHIP_RADIUS,false)){if(p.shield>0||p.protection>0){this.emitShipImpact(p,g,false);const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}
-      for(const a of this.asteroids)if(circles(g,GIANT_RADIUS,a,a.r)){const n=normalize(a.x-g.x,a.y-g.y);a.vx+=n.x*25;a.vy+=n.y*25;a.x+=n.x*5;a.y+=n.y*5;}
+      // V20.43: el choque gigante-mediano usa la misma resolucion fisica
+      // que la portada. El gigante tiene masa 9x (radio 3x), por lo que el
+      // mediano rebota con claridad y el gigante solo corrige ligeramente.
+      for(const a of this.asteroids)resolveRockCollision(g,GIANT_RADIUS,a,a.r,9,1);
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
       if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){this.giant=null;this.nextGiant=rand(130,190);}
     }
