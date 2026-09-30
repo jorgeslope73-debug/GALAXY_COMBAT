@@ -250,6 +250,17 @@
   const giantRockLastBurst=new Map();
   let rockFxCursor=0,rockFxLastAt=0;
 
+  // V20.4 LocalFX: fogonazo y estela de particulas del cohete guiado.
+  // Usa exclusivamente la posicion/velocidad del proyectil ya recibida.
+  const ROCKET_FX_MAX=isMobile?64:128;
+  const ROCKET_FX_INTERVAL=isMobile?62:42;
+  const rocketParticles=Array.from({length:ROCKET_FX_MAX},()=>({
+    life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0
+  }));
+  const rocketSeen=new Set();
+  const rocketEmitAt=new Map();
+  let rocketFxCursor=0,rocketFxLastAt=0;
+
   function clearEngineTrailOwner(owner){
     for(const particle of engineParticles){
       if(particle.life>0&&particle.owner===owner)particle.life=0;
@@ -428,6 +439,92 @@
       ctx.fill();
       ctx.stroke();
       ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function spawnRocketParticle(x,y,dx,dy,burst=false){
+    const particle=rocketParticles[rocketFxCursor];
+    rocketFxCursor=(rocketFxCursor+1)%ROCKET_FX_MAX;
+
+    const tx=-dy,ty=dx;
+    const spread=(Math.random()-.5)*(burst?1.15:.75);
+    const back=burst?(45+Math.random()*90):(30+Math.random()*55);
+    const side=(Math.random()-.5)*(burst?34:20);
+
+    particle.x=x+tx*side*.08+dx*(burst?0:-10);
+    particle.y=y+ty*side*.08+dy*(burst?0:-10);
+    particle.vx=-dx*back+tx*spread*28;
+    particle.vy=-dy*back+ty*spread*28;
+    particle.maxLife=burst?(.28+Math.random()*.28):(.42+Math.random()*.34);
+    particle.life=particle.maxLife;
+    particle.size=burst?(3.2+Math.random()*4.8):(2.0+Math.random()*3.5);
+  }
+
+  function updateRocketLocalFx(now,bullets,age){
+    const active=new Set();
+    for(const b of (Array.isArray(bullets)?bullets:[])){
+      if(!b||b.g!==true)continue;
+      const id=String(b.id);
+      active.add(id);
+
+      const vx=Number(b.vx)||0,vy=Number(b.vy)||0;
+      const speed=Math.hypot(vx,vy)||1;
+      const dx=vx/speed,dy=vy/speed;
+      const x=Number(b.x)+vx*age,y=Number(b.y)+vy*age;
+
+      if(!rocketSeen.has(id)){
+        rocketSeen.add(id);
+        const burstCount=isMobile?4:6;
+        for(let i=0;i<burstCount;i++)spawnRocketParticle(x,y,dx,dy,true);
+        rocketEmitAt.set(id,now);
+      }
+
+      const last=Number(rocketEmitAt.get(id))||0;
+      if(now-last>=ROCKET_FX_INTERVAL){
+        rocketEmitAt.set(id,now);
+        spawnRocketParticle(x,y,dx,dy,false);
+      }
+    }
+
+    // Cuando un cohete deja de existir, eliminamos solo sus marcas de control.
+    for(const id of [...rocketSeen]){
+      if(active.has(id))continue;
+      rocketSeen.delete(id);
+      rocketEmitAt.delete(id);
+    }
+  }
+
+  function drawRocketParticles(now){
+    if(!rocketFxLastAt){rocketFxLastAt=now;return;}
+    const elapsed=now-rocketFxLastAt;
+    rocketFxLastAt=now;
+    if(elapsed>300){
+      for(const particle of rocketParticles)particle.life=0;
+      return;
+    }
+    const dt=Math.min(.05,Math.max(0,elapsed/1000));
+    if(dt<=0)return;
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(const particle of rocketParticles){
+      if(particle.life<=0)continue;
+      particle.life-=dt;
+      if(particle.life<=0)continue;
+
+      particle.x+=particle.vx*dt;
+      particle.y+=particle.vy*dt;
+      particle.vx*=Math.pow(.66,dt);
+      particle.vy*=Math.pow(.66,dt);
+
+      const t=particle.life/particle.maxLife;
+      const radius=Math.max(.6,particle.size*(.25+.75*t));
+      ctx.globalAlpha=Math.min(.9,t*.9);
+      ctx.fillStyle=t>.58?'#ffd36a':'#ff6b3d';
+      ctx.beginPath();
+      ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -3584,6 +3681,12 @@
     // Las balas ya traen velocidad: una extrapolacion muy corta evita el efecto
     // de avance a saltos sin alterar nunca la posicion autoritativa del servidor.
     const age=Math.min(.05,Math.max(0,(now-lastStateTime)/1000));
+
+    // V20.4: el cohete mantiene su fisica/red intactas. Solo generamos aqui
+    // sus particulas visuales locales usando datos que ya estaban en el estado.
+    updateRocketLocalFx(now,state.bullets,age);
+    drawRocketParticles(now);
+
     for(const b of state.bullets){
       const x=b.x+b.vx*age,y=b.y+b.vy*age;
       const sp=Math.hypot(b.vx,b.vy)||1;
