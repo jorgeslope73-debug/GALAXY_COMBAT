@@ -597,6 +597,11 @@
           a.x+=(dx/d)*5;a.y+=(dy/d)*5;
         }
       }
+      for(const rival of this.players){
+        if(!rival||rival===p||rival.dead)continue;
+        const dx=wrapDelta(rival.x-p.x,W),dy=wrapDelta(rival.y-p.y,H);
+        if(dx*dx+dy*dy<=radius2)this.destroyShip(rival,p);
+      }
       if(this.giant){
         const g=this.giant,dx=wrapDelta(g.x-p.x,W),dy=wrapDelta(g.y-p.y,H),d2=dx*dx+dy*dy;
         if(d2<=radius2&&d2>1){
