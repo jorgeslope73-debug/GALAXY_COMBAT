@@ -28,11 +28,16 @@
   color:#eafff0!important;
   box-shadow:0 0 18px rgba(80,255,130,.28)!important;
 }
-/* V20.37: AUDIO y JOYSTICK tienen exactamente el mismo ancho visual. */
-#enableAudio,#enableJoystick{
+/* V20.72: AUDIO necesita mas ancho para que "AUDIO DESACTIVADO" no desborde. */
+#enableJoystick{
   width:112px!important;
   min-width:112px!important;
   max-width:112px!important;
+}
+#enableAudio{
+  width:152px!important;
+  min-width:152px!important;
+  max-width:152px!important;
 }
 .voice-status{font-size:10px;letter-spacing:.055em;color:rgba(232,218,255,.78)}
 .voice-hint,.voice-talker{
@@ -189,9 +194,9 @@
     box-shadow:0 0 14px rgba(80,255,130,.24)!important;
   }
   #menu #enableAudio{
-    width:92px!important;
-    min-width:92px!important;
-    max-width:92px!important;
+    width:132px!important;
+    min-width:132px!important;
+    max-width:132px!important;
   }
 }
 
