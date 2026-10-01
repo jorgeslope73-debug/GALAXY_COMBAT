@@ -1022,11 +1022,12 @@
           }
           for(let bi=this.bullets.length-1;bi>=0;bi--){
             const b=this.bullets[bi];
-            if(!b||!b.guided)continue;
+            if(!b)continue;
+            const hitRadius=b.guided?MISSILE_HIT_RADIUS:BULLET_RADIUS;
             const dx=b.x-wave.x,dy=b.y-wave.y;
             const distance=Math.hypot(dx,dy);
-            if(distance-MISSILE_HIT_RADIUS<=radius&&distance+MISSILE_HIT_RADIUS>=previous){
-              this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
+            if(distance-hitRadius<=radius&&distance+hitRadius>=previous){
+              if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
               this.bullets.splice(bi,1);
             }
           }
