@@ -265,7 +265,7 @@
 
   const CONTROL_FLARE_GUIDE = {
     es: {
-      visual:{mobileTitle:'MOVIL · BOTONES',turn:'GIRAR',fire:'DISPARO',oneTap:'1 TOQUE',bullet:'BALA',doubleTap:'2 TOQUES',flares:'BENGALAS',hold:'MANTENER',accelerate:'ACELERAR',pcTitle:'PC · TECLADO',pcTap:'TOQUE',pcHold:'MANTENER',wait:'3 s entre bengalas'},
+      visual:{mobileTitle:'MOVIL · BOTONES',turn:'GIRAR',fire:'DISPARO',oneTap:'1 TOQUE',bullet:'BALA',doubleTap:'2 TOQUES',flares:'BENGALAS',shockwave:'ONDA EXPANSIVA',specialPriority:'ONDA primero · luego BENGALAS',hold:'MANTENER',accelerate:'ACELERAR',pcTitle:'PC · TECLADO',pcTap:'TOQUE',pcHold:'MANTENER',wait:'3 s entre bengalas'},
       pc:'PC: A / D o flechas para girar; W para acelerar; CTRL o ESPACIO para disparar. Mantén disparo para usar el arma especial: si llevas ESFERA se activa primero la ONDA EXPANSIVA; si no, se lanzan bengalas. ESC sale de la partida.',
       mobile:'Movil: horizontal. Flechas de la izquierda para girar. En la derecha: un toque dispara, doble toque usa el arma especial y mantener pulsado acelera. Si llevas ESFERA y bengalas, el doble toque activa primero la ONDA EXPANSIVA; despues podras seguir usando las bengalas acumuladas.',
       tip:'La ESFERA y las bengalas usan el mismo gesto especial. La ONDA EXPANSIVA tiene prioridad y no consume las bengalas que tengas guardadas.',
@@ -274,7 +274,7 @@
       hazard:'Meteorito pequeno: se destruyen los dos. Meteorito gigante: la bengala explota y desaparece, pero el gigante sigue intacto.'
     },
     en: {
-      visual:{mobileTitle:'MOBILE · BUTTONS',turn:'TURN',fire:'FIRE',oneTap:'1 TAP',bullet:'SHOT',doubleTap:'2 TAPS',flares:'FLARES',hold:'HOLD',accelerate:'ACCELERATE',pcTitle:'PC · KEYBOARD',pcTap:'TAP',pcHold:'HOLD',wait:'3 s between flares'},
+      visual:{mobileTitle:'MOBILE · BUTTONS',turn:'TURN',fire:'FIRE',oneTap:'1 TAP',bullet:'SHOT',doubleTap:'2 TAPS',flares:'FLARES',shockwave:'SHOCKWAVE',specialPriority:'SHOCKWAVE first · then FLARES',hold:'HOLD',accelerate:'ACCELERATE',pcTitle:'PC · KEYBOARD',pcTap:'TAP',pcHold:'HOLD',wait:'3 s between flares'},
       pc:'PC: A / D or arrow keys to turn; W to accelerate; CTRL or SPACE to fire. Hold fire to deploy flares. ESC leaves the match.',
       mobile:'Mobile: landscape. Use the left arrows to turn. On the right: tap to fire, double tap for flares, hold to accelerate.',
       tip:'Simple controls: turn left, turn right, fire and accelerate.',
@@ -283,7 +283,7 @@
       hazard:'Small meteor: both are destroyed. Giant meteor: the flare explodes and disappears, but the giant meteor is unaffected.'
     },
     it: {
-      visual:{mobileTitle:'MOBILE · PULSANTI',turn:'GIRA',fire:'SPARO',oneTap:'1 TOCCO',bullet:'COLPO',doubleTap:'2 TOCCHI RAPIDI',flares:'BENGALA',hold:'TIENI PREMUTO',accelerate:'ACCELERA',pcTitle:'PC · TASTIERA',pcTap:'TOCCO BREVE',pcHold:'TIENI 0,22 s',wait:'3 s tra i lanci'},
+      visual:{mobileTitle:'MOBILE · PULSANTI',turn:'GIRA',fire:'SPARO',oneTap:'1 TOCCO',bullet:'COLPO',doubleTap:'2 TOCCHI RAPIDI',flares:'BENGALA',shockwave:'ONDA ESPANSIVA',specialPriority:'ONDA prima · poi BENGALA',hold:'TIENI PREMUTO',accelerate:'ACCELERA',pcTitle:'PC · TASTIERA',pcTap:'TOCCO BREVE',pcHold:'TIENI 0,22 s',wait:'3 s tra i lanci'},
       pc:'PC: A / D o frecce sinistra / destra per girare; W o freccia su per accelerare. CTRL o SPAZIO: tocco breve = sparo normale; tieni premuto per circa 0,22 s = lancia le bengala equipaggiate. Le bengala funzionano anche con 0 munizioni o arma non carica. ESC esce dalla partita.',
       mobile:'Mobile: gioca in orizzontale e usa solo i pulsanti touch. Le frecce nella meta sinistra fanno girare la nave. Nella meta destra: tocco rapido = sparo normale; due tocchi rapidi consecutivi (entro circa 0,35 s) = bengala; tieni premuto = accelera. Le bengala non richiedono un colpo carico.',
       tip:'Comandi semplici: gira a sinistra, gira a destra, spara e accelera.',
@@ -292,7 +292,7 @@
       hazard:'Meteorite piccolo: si distruggono entrambi. Meteorite gigante: la bengala esplode e scompare, ma il gigante resta intatto.'
     },
     fr: {
-      visual:{mobileTitle:'MOBILE · BOUTONS',turn:'TOURNER',fire:'TIR',oneTap:'1 TOUCHE',bullet:'TIR',doubleTap:'2 TOUCHES RAPIDES',flares:'LEURRES',hold:'MAINTENIR',accelerate:'ACCELERER',pcTitle:'PC · CLAVIER',pcTap:'APPUI BREF',pcHold:'MAINTENIR 0,22 s',wait:'3 s entre les lancers'},
+      visual:{mobileTitle:'MOBILE · BOUTONS',turn:'TOURNER',fire:'TIR',oneTap:'1 TOUCHE',bullet:'TIR',doubleTap:'2 TOUCHES RAPIDES',flares:'LEURRES',shockwave:'ONDE DE CHOC',specialPriority:'ONDE d abord · puis LEURRES',hold:'MAINTENIR',accelerate:'ACCELERER',pcTitle:'PC · CLAVIER',pcTap:'APPUI BREF',pcHold:'MAINTENIR 0,22 s',wait:'3 s entre les lancers'},
       pc:'PC : A / D ou fleches gauche / droite pour tourner; W ou fleche haut pour accelerer. CTRL ou ESPACE : appui bref = tir normal; maintenir environ 0,22 s = deployer les leurres equipes. Les leurres fonctionnent meme avec 0 munition ou une arme non chargee. ESC quitte la partie.',
       mobile:'Mobile : joue en paysage et utilise uniquement les boutons tactiles. Les fleches de la moitie gauche font tourner le vaisseau. A droite : touche rapide = tir normal; deux touches rapides successives (environ 0,35 s) = deployer les leurres; maintenir = accelerer. Les leurres ne demandent pas de munition chargee.',
       tip:'Sur mobile il n y a plus de controle par inclinaison : la rotation se fait uniquement avec les boutons/fleches de gauche.',
@@ -301,7 +301,7 @@
       hazard:'Petite meteorite : les deux sont detruits. Meteorite geant : le leurre explose et disparait, mais le geant reste intact.'
     },
     de: {
-      visual:{mobileTitle:'MOBIL · TASTEN',turn:'DREHEN',fire:'FEUER',oneTap:'1 TIPP',bullet:'SCHUSS',doubleTap:'2 SCHNELLE TIPPS',flares:'FLARES',hold:'HALTEN',accelerate:'BESCHLEUNIGEN',pcTitle:'PC · TASTATUR',pcTap:'KURZ DRUECKEN',pcHold:'0,22 s HALTEN',wait:'3 s zwischen Ausloesungen'},
+      visual:{mobileTitle:'MOBIL · TASTEN',turn:'DREHEN',fire:'FEUER',oneTap:'1 TIPP',bullet:'SCHUSS',doubleTap:'2 SCHNELLE TIPPS',flares:'FLARES',shockwave:'SCHOCKWELLE',specialPriority:'SCHOCKWELLE zuerst · dann FLARES',hold:'HALTEN',accelerate:'BESCHLEUNIGEN',pcTitle:'PC · TASTATUR',pcTap:'KURZ DRUECKEN',pcHold:'0,22 s HALTEN',wait:'3 s zwischen Ausloesungen'},
       pc:'PC: A / D oder Pfeil links / rechts zum Drehen; W oder Pfeil hoch zum Beschleunigen. CTRL oder LEERTASTE: kurz tippen = normal feuern; etwa 0,22 s halten = ausgeruestete Flares ausstossen. Flares funktionieren auch mit 0 Munition oder ungeladener Waffe. ESC verlaesst das Spiel.',
       mobile:'Mobil: im Querformat spielen und nur die Touch-Tasten verwenden. Die Pfeile auf der linken Haelfte drehen das Schiff. Rechts: kurz tippen = normal feuern; zweimal schnell hintereinander tippen (ca. innerhalb 0,35 s) = Flares; halten = beschleunigen. Flares brauchen keine geladene Munition.',
       tip:'Mobil gibt es keine Neigungssteuerung mehr: gedreht wird ausschliesslich mit den linken Pfeiltasten.',
@@ -497,6 +497,7 @@
     if(!v)return '';
     const bullet='assets/sprites/municion1.png';
     const flare='assets/sprites/bengalahud.png';
+    const shock='<span aria-hidden="true" style="display:inline-flex;width:30px;height:30px;border:2px solid #9edcff;border-radius:50%;align-items:center;justify-content:center;color:#fff;font-size:18px;line-height:1;box-shadow:0 0 8px rgba(158,220,255,.65)">●</span>';
     const fireKey='<span class="manual-demo-fire">'+escapeHtml(v.fire)+'</span>';
     return '<div class="manual-control-visual">'
       +'<div class="manual-control-visual-title">'+escapeHtml(v.mobileTitle)+'</div>'
@@ -506,13 +507,13 @@
       +'</div>'
       +'<div class="manual-action-examples">'
         +'<div class="manual-action-example shot"><div class="manual-action-input">'+fireKey+'<span class="manual-action-count">×1</span></div><span class="manual-action-arrow">→</span><div class="manual-action-result"><img src="'+bullet+'" alt=""><strong>'+escapeHtml(v.bullet)+'</strong><small>'+escapeHtml(v.oneTap)+'</small></div></div>'
-        +'<div class="manual-action-example flare"><div class="manual-action-input">'+fireKey+'<span class="manual-action-plus">+</span>'+fireKey+'</div><span class="manual-action-arrow">→</span><div class="manual-action-result"><img src="'+flare+'" alt=""><strong>'+escapeHtml(v.flares)+'</strong><small>'+escapeHtml(v.doubleTap)+'</small><em>'+escapeHtml(v.wait)+'</em></div></div>'
+        +'<div class="manual-action-example flare"><div class="manual-action-input">'+fireKey+'<span class="manual-action-plus">+</span>'+fireKey+'</div><span class="manual-action-arrow">→</span><div class="manual-action-result">'+shock+'<strong>'+escapeHtml(v.shockwave||'ONDA')+'</strong><small>'+escapeHtml(v.doubleTap)+'</small><span class="manual-action-plus">+</span><img src="'+flare+'" alt=""><strong>'+escapeHtml(v.flares)+'</strong><em>'+escapeHtml(v.specialPriority||v.wait)+'</em></div></div>'
         +'<div class="manual-action-example thrust"><div class="manual-action-input">'+fireKey+'<span class="manual-hold-mark">'+escapeHtml(v.hold)+'</span></div><span class="manual-action-arrow">→</span><div class="manual-action-result manual-action-text"><strong>'+escapeHtml(v.accelerate)+'</strong></div></div>'
       +'</div>'
       +'<div class="manual-pc-demo"><strong>'+escapeHtml(v.pcTitle)+'</strong>'
         +'<div><span class="manual-keycap">A</span><span class="manual-key-or">/</span><span class="manual-keycap">D</span><span class="manual-key-or">·</span><span class="manual-keycap" aria-label="izquierda">←</span><span class="manual-key-or">/</span><span class="manual-keycap" aria-label="derecha">→</span><span class="manual-action-arrow">→</span><b>'+escapeHtml(v.turn)+'</b></div>'
         +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcTap)+'</span><span class="manual-action-arrow">→</span><img src="'+bullet+'" alt=""><b>'+escapeHtml(v.bullet)+'</b></div>'
-        +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcHold)+'</span><span class="manual-action-arrow">→</span><img src="'+flare+'" alt=""><b>'+escapeHtml(v.flares)+'</b></div>'
+        +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcHold)+'</span><span class="manual-action-arrow">→</span>'+shock+'<b>'+escapeHtml(v.shockwave||'ONDA')+'</b><span class="manual-key-or">/</span><img src="'+flare+'" alt=""><b>'+escapeHtml(v.flares)+'</b><small>'+escapeHtml(v.specialPriority||'')+'</small></div>'
       +'</div>'
     +'</div>';
   }
