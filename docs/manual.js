@@ -266,10 +266,11 @@
   const CONTROL_FLARE_GUIDE = {
     es: {
       visual:{mobileTitle:'MOVIL · BOTONES',turn:'GIRAR',fire:'DISPARO',oneTap:'1 TOQUE',bullet:'BALA',doubleTap:'2 TOQUES',flares:'BENGALAS',hold:'MANTENER',accelerate:'ACELERAR',pcTitle:'PC · TECLADO',pcTap:'TOQUE',pcHold:'MANTENER',wait:'3 s entre bengalas'},
-      pc:'PC: A / D o flechas para girar; W para acelerar; CTRL o ESPACIO para disparar. Mantén disparo para lanzar bengalas. ESC sale de la partida.',
-      mobile:'Movil: horizontal. Flechas de la izquierda para girar. En la derecha: un toque dispara, doble toque lanza bengalas y mantener pulsado acelera.',
-      tip:'Controles simples: girar a la izquierda, girar a la derecha, disparar y acelerar.',
+      pc:'PC: A / D o flechas para girar; W para acelerar; CTRL o ESPACIO para disparar. Mantén disparo para usar el arma especial: si llevas ESFERA se activa primero la ONDA EXPANSIVA; si no, se lanzan bengalas. ESC sale de la partida.',
+      mobile:'Movil: horizontal. Flechas de la izquierda para girar. En la derecha: un toque dispara, doble toque usa el arma especial y mantener pulsado acelera. Si llevas ESFERA y bengalas, el doble toque activa primero la ONDA EXPANSIVA; despues podras seguir usando las bengalas acumuladas.',
+      tip:'La ESFERA y las bengalas usan el mismo gesto especial. La ONDA EXPANSIVA tiene prioridad y no consume las bengalas que tengas guardadas.',
       flare:['flare','BENGALAS','Cada carga despliega tres bengalas durante 3 s. Entre un lanzamiento y el siguiente deben pasar al menos 3 s, aunque lleves varias cargas. Desvian misiles, bloquean balas, pueden romper escudos o destruir naves al chocar; si tu bengala destruye a un rival, esa baja se suma a tu marcador. Tambien destruyen los meteoritos pequenos de la lluvia. Si chocan con el meteorito gigante, la bengala explota pero el gigante sigue. PC: mantén disparo; movil: doble toque rapido. No necesitan municion ni arma cargada.'],
+      shockwave:['shockwave','ESFERA · ONDA EXPANSIVA','Mejora rara y no acumulable: solo puedes llevar 1 carga. Se indica con un pequeno circulo en la parte trasera de la nave. PC: mantén disparo; movil: doble toque rapido, igual que las bengalas. Si tienes esfera y bengalas, la ONDA tiene prioridad y las bengalas quedan guardadas para despues. La onda se expande hasta 30 m. Destruye naves sin escudo; si una nave lleva escudo, rompe el escudo pero la nave sobrevive. Respeta la proteccion de aparicion. Tambien deshace balas, misiles guiados y bengalas desplegadas, destruye meteoritos pequenos de la lluvia y aparta los asteroides normales y el meteorito gigante sin destruirlos.'],
       hazard:'Meteorito pequeno: se destruyen los dos. Meteorito gigante: la bengala explota y desaparece, pero el gigante sigue intacto.'
     },
     en: {
@@ -278,6 +279,7 @@
       mobile:'Mobile: landscape. Use the left arrows to turn. On the right: tap to fire, double tap for flares, hold to accelerate.',
       tip:'Simple controls: turn left, turn right, fire and accelerate.',
       flare:['flare','FLARES','Each charge deploys three flares for 3 s. At least 3 s must pass before the same ship can deploy another charge, even if several are stored. They divert guided missiles, block bullets, can break shields or destroy ships on contact; if your flare destroys a rival, the kill is added to your score. They also destroy small meteors in meteor showers. If they hit the giant meteor, the flare explodes but the giant remains. PC: hold fire; mobile: quick double tap. No ammo or loaded weapon is required.'],
+      shockwave:['shockwave','SPHERE · SHOCKWAVE','Rare, non-stackable upgrade: you can carry only 1 charge. A small circle behind the ship shows that it is loaded. PC: hold fire; mobile: quick double tap, the same gesture as flares. If you carry both, the shockwave has priority and your stored flares remain available afterwards. The wave expands to 30 m. It destroys unshielded ships; a shield is broken but its ship survives. Spawn protection is respected. It also clears bullets, guided missiles and deployed flares, destroys small shower meteors, and pushes normal asteroids and the giant meteor away without destroying them.'],
       hazard:'Small meteor: both are destroyed. Giant meteor: the flare explodes and disappears, but the giant meteor is unaffected.'
     },
     it: {
@@ -286,6 +288,7 @@
       mobile:'Mobile: gioca in orizzontale e usa solo i pulsanti touch. Le frecce nella meta sinistra fanno girare la nave. Nella meta destra: tocco rapido = sparo normale; due tocchi rapidi consecutivi (entro circa 0,35 s) = bengala; tieni premuto = accelera. Le bengala non richiedono un colpo carico.',
       tip:'Comandi semplici: gira a sinistra, gira a destra, spara e accelera.',
       flare:['flare','BENGALA','Ogni carica dispiega tre bengala per 3 s. Tra un lancio e il successivo devono passare almeno 3 s, anche con piu cariche disponibili. Deviano i missili guidati, bloccano i proiettili, possono rompere gli scudi o distruggere navi al contatto; se una tua bengala distrugge un rivale, l eliminazione viene aggiunta al tuo punteggio. Distruggono anche le meteore piccole della pioggia. Se colpiscono il meteorite gigante, la bengala esplode ma il gigante continua. PC: tieni premuto il fuoco; mobile: doppio tocco rapido. Non servono munizioni ne arma carica.'],
+      shockwave:['shockwave','SFERA · ONDA ESPANSIVA','Potenziamento raro e non cumulabile: puoi portare 1 sola carica. Un piccolo cerchio dietro la nave indica che e pronta. PC: tieni premuto il fuoco; mobile: doppio tocco rapido. Se hai anche bengala, l onda ha priorita e le bengala restano disponibili. Raggio 30 m: distrugge navi senza scudo; con scudo, rompe lo scudo ma la nave sopravvive. Rispetta la protezione di comparsa. Elimina proiettili, missili guidati e bengala dispiegate, distrugge le meteore piccole e spinge via asteroidi normali e meteorite gigante senza distruggerli.'],
       hazard:'Meteorite piccolo: si distruggono entrambi. Meteorite gigante: la bengala esplode e scompare, ma il gigante resta intatto.'
     },
     fr: {
@@ -294,6 +297,7 @@
       mobile:'Mobile : joue en paysage et utilise uniquement les boutons tactiles. Les fleches de la moitie gauche font tourner le vaisseau. A droite : touche rapide = tir normal; deux touches rapides successives (environ 0,35 s) = deployer les leurres; maintenir = accelerer. Les leurres ne demandent pas de munition chargee.',
       tip:'Sur mobile il n y a plus de controle par inclinaison : la rotation se fait uniquement avec les boutons/fleches de gauche.',
       flare:['flare','LEURRES','Chaque charge deploie trois leurres pendant 3 s. Il faut attendre au moins 3 s avant de deployer une autre charge avec le meme vaisseau, meme si plusieurs charges sont disponibles. Ils detournent les missiles guides, bloquent les tirs, peuvent briser les boucliers ou detruire un vaisseau au contact; si ton leurre detruit un rival, l elimination est ajoutee a ton score. Ils detruisent aussi les petites meteorites de la pluie. S ils touchent la meteorite geante, le leurre explose mais le geant continue. PC : maintenir le tir; mobile : double touche rapide. Aucune munition chargee n est necessaire.'],
+      shockwave:['shockwave','SPHERE · ONDE DE CHOC','Amelioration rare et non cumulable : une seule charge peut etre portee. Un petit cercle derriere le vaisseau indique qu elle est prete. PC : maintenir le tir; mobile : double touche rapide. Si tu as aussi des leurres, l onde a priorite et les leurres restent disponibles. Rayon de 30 m : detruit les vaisseaux sans bouclier; avec bouclier, le bouclier est detruit mais le vaisseau survit. La protection de reapparition est respectee. Elle elimine aussi tirs, missiles guides et leurres deployes, detruit les petites meteorites et repousse les asteroides et la meteorite geante sans les detruire.'],
       hazard:'Petite meteorite : les deux sont detruits. Meteorite geant : le leurre explose et disparait, mais le geant reste intact.'
     },
     de: {
@@ -302,6 +306,7 @@
       mobile:'Mobil: im Querformat spielen und nur die Touch-Tasten verwenden. Die Pfeile auf der linken Haelfte drehen das Schiff. Rechts: kurz tippen = normal feuern; zweimal schnell hintereinander tippen (ca. innerhalb 0,35 s) = Flares; halten = beschleunigen. Flares brauchen keine geladene Munition.',
       tip:'Mobil gibt es keine Neigungssteuerung mehr: gedreht wird ausschliesslich mit den linken Pfeiltasten.',
       flare:['flare','FLARES','Jede Ladung setzt drei Flares fuer 3 s aus. Vor der naechsten Ladung desselben Schiffs muessen mindestens 3 s vergehen, auch wenn mehrere Ladungen vorhanden sind. Sie lenken Lenkraketen ab, blockieren Schuesse, koennen Schilde brechen oder Schiffe bei Kontakt zerstoeren; zerstoert dein Flare einen Gegner, wird dir der Abschuss gutgeschrieben. Sie zerstoeren auch kleine Meteore des Schauers. Treffen sie den Riesenmeteor, explodiert die Flare, der Riesenmeteor fliegt weiter. PC: Feuer halten; mobil: schneller Doppeltipp. Keine Munition oder geladene Waffe erforderlich.'],
+      shockwave:['shockwave','SPHAERE · SCHOCKWELLE','Seltenes, nicht stapelbares Upgrade: nur 1 Ladung kann getragen werden. Ein kleiner Kreis hinter dem Schiff zeigt die Ladung an. PC: Feuer halten; mobil: schneller Doppeltipp. Sind auch Flares vorhanden, hat die Schockwelle Vorrang und die Flares bleiben gespeichert. Radius 30 m: zerstoert Schiffe ohne Schild; bei Schild wird nur der Schild zerstoert und das Schiff ueberlebt. Respawn-Schutz bleibt wirksam. Die Welle entfernt auch Kugeln, Lenkraketen und aktive Flares, zerstoert kleine Meteore und stoesst normale Asteroiden sowie den Riesenmeteor weg, ohne sie zu zerstoeren.'],
       hazard:'Kleiner Meteor: beide werden zerstoert. Riesenmeteor: die Flare explodiert und verschwindet, der Riesenmeteor bleibt unbeschaedigt.'
     }
   };
@@ -449,6 +454,7 @@
       if(guide){
         const pickups = pack.sections.find(section => section.id === 'pickups');
         if(pickups&&Array.isArray(pickups.pickups)&&!pickups.pickups.some(item=>item&&item[0]==='flare'))pickups.pickups.push(guide.flare);
+        if(pickups&&Array.isArray(pickups.pickups)&&guide.shockwave&&!pickups.pickups.some(item=>item&&item[0]==='shockwave'))pickups.pickups.push(guide.shockwave);
         // V19.82: la sección de meteoritos se mantiene deliberadamente breve.
         // Los detalles de las bengalas se explican en la propia mejora BENGALAS.
       }
@@ -481,6 +487,7 @@
     if(kind==='mira')return '<img src="assets/sprites/mira1.png" alt="" loading="lazy">';
     if(kind==='speed')return '<img src="assets/sprites/velocidad.png" alt="" loading="lazy">';
     if(kind==='flare')return '<img src="assets/sprites/bengalahud.png" alt="" loading="lazy">';
+    if(kind==='shockwave')return '<span aria-hidden="true" style="display:inline-flex;width:34px;height:34px;border:2px solid #9edcff;border-radius:50%;align-items:center;justify-content:center;color:#fff;font-size:22px;line-height:1">●</span>';
     if(kind==='shield')return '<span class="manual-vector-icon manual-shield-icon" aria-hidden="true"></span>';
     if(kind==='camo')return '<img src="assets/sprites/ojo.png" alt="" loading="lazy">';
     return '<span class="manual-vector-icon manual-eye-icon" aria-hidden="true"><i></i></span>';
