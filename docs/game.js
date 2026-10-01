@@ -3339,6 +3339,17 @@
       const navemiraIm=imageReady(images[navemiraKey])?images[navemiraKey]:images.navemira;
       if(imageReady(navemiraIm))drawImageCentered(navemiraIm,x,y,64,-r,Math.min(1,alpha*.95));
     }
+    if(p.shock===true){
+      const back=dirFromRot((Number(p.r)||0)+180);
+      const sx=x+back.x*34,sy=y+back.y*34;
+      ctx.save();
+      ctx.globalAlpha=Math.min(1,alpha*.95);
+      ctx.fillStyle='#eef8ff';
+      ctx.strokeStyle='#7fcfff';
+      ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(sx,sy,6,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.restore();
+    }
     if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
   }
   function drawHud(now){
