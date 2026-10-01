@@ -542,10 +542,6 @@
         if(Number(victim.cadence)<Number(attacker.cadence))attacker.cadence=victim.cadence;
         if(Number(victim.speed)>Number(attacker.speed))attacker.speed=victim.speed;
         if(Number(victim.camo)>Number(attacker.camo))attacker.camo=victim.camo;
-        if(victim.guided&&!attacker.guided){
-          attacker.guided=true;
-          attacker.guidedTarget=this.guidedTargetFor(attacker);
-        }
         this.emit({t:'weapon-theft',index:attacker.index,name:attacker.name,ammo:stolenAmmo});
       }
 
