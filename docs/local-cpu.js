@@ -10,6 +10,7 @@
   const FLARE_CPU_EVAL_SECONDS=1.15,FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
+  const SHOCKWAVE_RADIUS=180,SHOCKWAVE_SAFE_DISTANCE=240,SHOCKWAVE_STANDOFF_DISTANCE=300;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
     [1500,150,160,2],[500,430,160,5],[1300,430,200,6]
@@ -180,6 +181,10 @@
         if(score>bestScore){bestScore=score;best=action;}
       }
       return best;
+    }
+    shockLearningContext(kind,distance){
+      const band=distance<SHOCKWAVE_RADIUS?0:(distance<SHOCKWAVE_SAFE_DISTANCE?1:2);
+      return 'shock-'+kind+'-d'+band;
     }
     learningContext(cpu,rival,distance){
       const ammo=cpu.bullets<=0?0:(cpu.bullets<=2?1:2);
@@ -732,7 +737,7 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,spawnFx:SPAWN_MATERIALIZE_SECONDS,spawnAnchorX:0,spawnAnchorY:0,
-        guided:false,guidedTarget:-1,guidedAmmo:0,flare:0,flareHold:0,flareGesture:false,specialReleaseLock:false,shockwave:false,shockReachAt:0,shockExplodeAt:0,shockOwner:-1,
+        guided:false,guidedTarget:-1,guidedAmmo:0,flare:0,flareHold:0,flareGesture:false,specialReleaseLock:false,shockwave:false,shockReachAt:0,shockExplodeAt:0,shockOwner:-1,nextShockLearning:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         cpuFireDelay:cpu?CPU_ARMED_WARNING_SECONDS:0,
         difficulty:this.difficulty,
@@ -897,7 +902,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.nextShockLearning=0;
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
         if(p.cpu){
@@ -1009,7 +1014,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.nextShockLearning=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
       if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.flarePending=null;p.nextFlareDecision=0;p.easyNextDecision=0;p.easyControl=null;}
     }
     deployShockwave(p){
@@ -1091,9 +1096,26 @@
       if(!p)return fireNow;
       if(p.cpu){
         if(p.shockwave){
-          const nearMeteor=this.meteors.some(m=>{const dx=wrapDelta(m.x-p.x,W),dy=wrapDelta(m.y-p.y,H);return dx*dx+dy*dy<260*260;});
-          const nearAsteroid=this.asteroids.some(a=>{const dx=wrapDelta(a.x-p.x,W),dy=wrapDelta(a.y-p.y,H);const limit=(Number(a.r)||ASTEROID_RADIUS)+105;return dx*dx+dy*dy<limit*limit;});
-          if(nearMeteor||nearAsteroid)this.deployShockwave(p);
+          let nearestRival=null,nearestDistance=Infinity;
+          for(const rival of this.players){
+            if(!rival||rival===p||rival.dead||rival.camo>0)continue;
+            const distance=Math.hypot(rival.x-p.x,rival.y-p.y);
+            if(distance<nearestDistance){nearestDistance=distance;nearestRival=rival;}
+          }
+          if(nearestRival&&nearestDistance<=SHOCKWAVE_RADIUS){
+            if(this.difficulty==='dificil')this.recordLearning(p,this.shockLearningContext('own',nearestDistance),'shock_use');
+            this.deployShockwave(p);
+          }else{
+            // Solo se gasta defensivamente contra el entorno si el peligro es
+            // inmediato. Conservarla para una nave rival tiene prioridad.
+            const nearMeteor=this.meteors.some(m=>{const dx=m.x-p.x,dy=m.y-p.y;return dx*dx+dy*dy<95*95;});
+            const nearAsteroid=this.asteroids.some(a=>{const dx=a.x-p.x,dy=a.y-p.y;const limit=(Number(a.r)||ASTEROID_RADIUS)+50;return dx*dx+dy*dy<limit*limit;});
+            if(!nearestRival&&(nearMeteor||nearAsteroid))this.deployShockwave(p);
+            else if(this.difficulty==='dificil'&&this.fxClock>=(Number(p.nextShockLearning)||0)){
+              p.nextShockLearning=this.fxClock+.9;
+              this.recordLearning(p,this.shockLearningContext('own',nearestDistance),'shock_keep');
+            }
+          }
         }
         this.smartCpuFlare(p);
         return fireNow;
@@ -1262,6 +1284,17 @@
         rival=this.players.find(p=>p.index===this.huntTargetIndex&&!p.dead&&p.camo<=0)||null;
       }
       if(!rival){
+        // La esfera convierte a su portador en objetivo prioritario. Las CPU
+        // intentan neutralizarlo desde fuera del radio seguro.
+        let shockBest=Infinity;
+        for(const p of this.players){
+          if(p.index===cpu.index||p.dead||p.camo>0||!p.shockwave)continue;
+          if(huntGrace&&p.index===this.huntTargetIndex)continue;
+          const d=dist2(cpu,p);
+          if(d<shockBest){shockBest=d;rival=p;}
+        }
+      }
+      if(!rival){
         let best=Infinity;
         for(const p of this.players){
           if(p.index===cpu.index||p.dead||p.camo>0)continue;
@@ -1284,7 +1317,7 @@
         // Sin objetivo visible (por ejemplo jugador en FANTASMA): deriva y busca recursos.
         let target=null,best=Infinity;
         for(const pk of this.pickups){
-          const useful=pk.type==='shield'||pk.type.startsWith('ammo')||(pk.type==='flare')||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided);
+          const useful=pk.type==='shield'||pk.type.startsWith('ammo')||(pk.type==='flare')||(pk.type==='shockwave'&&!cpu.shockwave)||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided);
           if(!useful)continue;
           const d=dist2(cpu,pk);
           if(d<best){best=d;target=pk;}
@@ -1301,6 +1334,7 @@
       const dx=rival.x-cpu.x,dy=rival.y-cpu.y,distance=Math.hypot(dx,dy);
       const rivalShielded=rival.shield>0||rival.protection>0;
       const rivalDangerous=rival.shield>0;
+      const rivalHasShockwave=!!rival.shockwave;
       const huntActive=this.huntUntil>this.fxClock&&this.fxClock>=this.huntStartsAt&&rival.index===this.huntTargetIndex;
 
       // Cuando el humano esta a una baja de ganar, A POR tiene prioridad total:
@@ -1327,10 +1361,12 @@
         if(cpu.bullets<=1)resourceScore+=58;
         else if(cpu.bullets<=3)resourceScore+=24;
         if(cpu.shield<=0)resourceScore+=22;
+        if(this.pickups.some(pk=>pk.type==='shockwave')&&!cpu.shockwave)resourceScore+=82;
+        if(rivalHasShockwave){evadeScore+=72;attackScore+=cpu.bullets>0?20:-18;}
 
         let hasUsefulPickup=false;
         for(const pk of this.pickups){
-          if(pk.type==='shield'||pk.type.startsWith('ammo')||(pk.type==='flare')||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)){hasUsefulPickup=true;break;}
+          if(pk.type==='shield'||pk.type.startsWith('ammo')||(pk.type==='flare')||(pk.type==='shockwave'&&!cpu.shockwave)||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)){hasUsefulPickup=true;break;}
         }
         if(!hasUsefulPickup)resourceScore-=40;
 
@@ -1361,7 +1397,7 @@
       let defensive=false;
 
       const findResource=(preferShield=false)=>{
-        const isUsefulResource=pk=>!!(pk&&(pk.type==='shield'||pk.type.startsWith('ammo')||(pk.type==='flare')||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)));
+        const isUsefulResource=pk=>!!(pk&&(pk.type==='shield'||pk.type.startsWith('ammo')||(pk.type==='flare')||(pk.type==='shockwave'&&!cpu.shockwave)||(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)));
         const locked=cpu.resourceTargetId==null?null:this.pickups.find(pk=>pk.id===cpu.resourceTargetId);
         if(isUsefulResource(locked))return locked;
         let bestPk=null,bestScore=Infinity;
@@ -1369,6 +1405,7 @@
           if(!isUsefulResource(pk))continue;
           let score=Math.sqrt(dist2(cpu,pk));
           if(preferShield&&pk.type==='shield')score-=260;
+          if(pk.type==='shockwave'&&!cpu.shockwave)score-=520;
           if(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)score-=cpu.bullets<=1?390:260;
           if(pk.type==='flare')score-=210;
           if(cpu.bullets===0&&pk.type.startsWith('ammo'))score-=320;
@@ -1421,7 +1458,7 @@
       // Con escudo la CPU usa siempre la embestida como opcion ofensiva:
       // deja de huir o buscar recursos y se dirige al rival visible. Si ambos
       // tienen escudo, chocaran y rebotaran segun la fisica normal.
-      if(cpu.shield>0){
+      if(cpu.shield>0&&!rivalHasShockwave){
         cpu.tactic='attack';
         cpu.resourceTargetId=null;
         seekPickup=null;
@@ -1444,6 +1481,27 @@
           desiredX=cpu.x+(cpu.x-rival.x)*inv*360+(-dy/(distance||1))*side;
           desiredY=cpu.y+(cpu.y-rival.y)*inv*360+(dx/(distance||1))*side;
           defensive=true;
+        }
+      }
+
+      if(rivalHasShockwave&&!huntActive&&!(seekPickup&&seekPickup.type==='shockwave')){
+        ramming=false;defensive=true;
+        const inv=1/(distance||1);
+        const ux=(cpu.x-rival.x)*inv,uy=(cpu.y-rival.y)*inv;
+        const side=cpu.tacticTurn;
+        if(distance<SHOCKWAVE_SAFE_DISTANCE+18){
+          desiredX=cpu.x+ux*900+(-uy)*side*180;
+          desiredY=cpu.y+uy*900+(ux)*side*180;
+        }else if(distance<SHOCKWAVE_STANDOFF_DISTANCE+70){
+          desiredX=cpu.x+(-uy)*side*260;
+          desiredY=cpu.y+(ux)*side*260;
+        }else{
+          desiredX=rival.x+ux*SHOCKWAVE_STANDOFF_DISTANCE;
+          desiredY=rival.y+uy*SHOCKWAVE_STANDOFF_DISTANCE;
+        }
+        if(this.difficulty==='dificil'&&this.fxClock>=(Number(cpu.nextShockLearning)||0)){
+          cpu.nextShockLearning=this.fxClock+.9;
+          this.recordLearning(cpu,this.shockLearningContext('threat',distance),'shock_keep_range');
         }
       }
 
@@ -1508,7 +1566,7 @@
       const guidedReady=!!(cpu.guided&&Number.isInteger(cpu.guidedTarget)&&cpu.guidedTarget>=0);
       const firingArc=guidedReady&&this.difficulty==='dificil'?30:7;
       const inFiringArc=Math.abs(aimErr)<firingArc&&distance<1350;
-      const fire=cpu.bullets>0&&cpu.reload<=0&&inFiringArc&&(huntActive||!rivalDangerous);
+      const fire=cpu.bullets>0&&cpu.reload<=0&&inFiringArc&&(huntActive||!rivalDangerous)&&(!rivalHasShockwave||distance>SHOCKWAVE_SAFE_DISTANCE);
       return{turn,thrust,fire};
     }
     update(dt){
@@ -1887,9 +1945,10 @@
         let type;
         const flarePresent=this.pickups.some(pk=>pk.type==='flare');
         const shockPresent=this.pickups.some(pk=>pk.type==='shockwave');
+        const shockChance=this.trainingMode?.20:.04;
         // V19.68 prueba de bengalas: si no hay una flotando, tiene ~35% de
         // probabilidad de ser el siguiente pickup para facilitar las pruebas.
-        if(!shockPresent&&Math.random()<.04)type='shockwave';
+        if(!shockPresent&&Math.random()<shockChance)type='shockwave';
         else if(!flarePresent&&Math.random()<.35)type='flare';
         else if(Math.random()<.50&&!this.pickups.some(pk=>pk.type==='mira'))type='mira';
         else{
