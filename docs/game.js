@@ -1816,6 +1816,12 @@
     hostPhysics=null;
     lobbyPlayers=[];
   }
+  function p2pGameHealthy(now=performance.now()){
+    if(!inGame||localCpuActive||!p2p)return false;
+    if(isHost)return !!hostPhysics&&!hostPhysics.finished;
+    return !!lastP2PStateAt&&(now-lastP2PStateAt)<2500;
+  }
+
   function clientNeedsFallback(now=performance.now()){
     if(isHost||!inGame)return false;
     if(netStartAt&&now-netStartAt<FALLBACK_AFTER_MS)return false;
@@ -2000,6 +2006,15 @@
           clearTimeout(resumeExpiryTimer);
           resumeExpiryTimer=setTimeout(()=>{
             if(!resumeStartedAt)return;
+            // V20.64: si la partida P2P sigue viva, perder el servidor de
+            // senalizacion no debe expulsar a los jugadores. Seguimos intentando
+            // reconectar en segundo plano y conservamos la partida.
+            if(p2pGameHealthy()){
+              resumeStartedAt=0;
+              clearTimeout(resumeExpiryTimer);resumeExpiryTimer=null;
+              scheduleReconnect(1200);
+              return;
+            }
             clearResumeSession();playerToken='';
             alert(tr('resumeFailed'));
             returnToMainMenu(false);
@@ -2570,6 +2585,14 @@
       else if(!m.cpu){lobby.classList.remove('hidden');}
     }
     else if(m.t==='resume-failed'){
+      if(inGame&&p2pGameHealthy()){
+        // La sala puede haber caducado solo en el servidor mientras el P2P
+        // seguia vivo. No destruimos una partida que aun esta funcionando.
+        stopResumeWindow();
+        statusEl.textContent=tr('reconnectingGame');
+        scheduleReconnect(1200);
+        return;
+      }
       stopResumeWindow();clearResumeSession();playerToken='';
       if(inGame||roomCode){alert(sinTildes(trServer(m.message||tr('resumeFailed'))));returnToMainMenu(false);}
       else send({t:'public-rooms'});
@@ -2690,7 +2713,18 @@
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
     else if(m.t==='restarted'){resetOnlineStartCountdown();if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
-    else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
+    else if(m.t==='closed'){
+      const recoverable=String(m.cause||'')==='host_timeout'&&p2pGameHealthy();
+      if(recoverable){
+        stopResumeWindow();
+        statusEl.textContent=tr('reconnectingGame');
+        scheduleReconnect(1200);
+        return;
+      }
+      stopResumeWindow();clearResumeSession();playerToken='';
+      alert(sinTildes(m.reason?trServer(m.reason):tr('close')));
+      returnToMainMenu(false);
+    }
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function beginGame(preparingOnline=false){stopMusic();updateMobileControlUi();resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
