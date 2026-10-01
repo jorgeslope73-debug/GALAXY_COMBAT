@@ -605,7 +605,7 @@
         const d=Math.sqrt(Math.max(0,d2));
         const normalized=Math.max(0,Math.min(1,(d-28)/272));
         const reachT=1-Math.sqrt(Math.max(0,1-normalized));
-        rival.shockReachAt=this.fxClock+.90*reachT;
+        rival.shockReachAt=this.fxClock+1.35*reachT;
         rival.shockExplodeAt=0;
         rival.shockOwner=p.index;
       }
