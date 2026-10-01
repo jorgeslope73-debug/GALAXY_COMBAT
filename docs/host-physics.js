@@ -266,7 +266,7 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,spawnFx:SPAWN_MATERIALIZE_SECONDS,spawnAnchorX:0,spawnAnchorY:0,
-        guided:false,guidedTarget:-1,guidedAmmo:0,flare:0,flareHold:0,flareGesture:false,flarePending:null,nextFlareDecision:0,nextFlareAllowed:0,
+        guided:false,guidedTarget:-1,guidedAmmo:0,flare:0,flareHold:0,flareGesture:false,specialReleaseLock:false,shockwave:false,flarePending:null,nextFlareDecision:0,nextFlareAllowed:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         cpuFireDelay:cpu?CPU_ARMED_WARNING_SECONDS:0,
         difficulty:this.difficulty,aiControl:null
@@ -440,7 +440,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flare=0;p.flareHold=0;p.flareGesture=false;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
@@ -545,7 +545,7 @@
         this.emit({t:'weapon-theft',index:attacker.index,name:attacker.name,ammo:stolenAmmo});
       }
 
-      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.guidedAmmo=0;victim.flareHold=0;victim.flareGesture=false;
+      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.guidedAmmo=0;victim.flareHold=0;victim.flareGesture=false;victim.specialReleaseLock=false;victim.shockwave=false;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
       if(attacker&&attacker!==victim){
         attacker.kills++;
@@ -576,7 +576,38 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flareHold=0;p.flareGesture=false;p.flarePending=null;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.flarePending=null;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+    }
+    deployShockwave(p){
+      if(!p||p.dead||!p.shockwave)return false;
+      p.shockwave=false;
+      const radius=300;
+      const radius2=radius*radius;
+      for(let i=this.meteors.length-1;i>=0;i--){
+        const m=this.meteors[i];
+        const dx=wrapDelta(m.x-p.x,W),dy=wrapDelta(m.y-p.y,H);
+        if(dx*dx+dy*dy<=radius2)this.meteors.splice(i,1);
+      }
+      for(const a of this.asteroids){
+        const dx=wrapDelta(a.x-p.x,W),dy=wrapDelta(a.y-p.y,H);
+        const d2=dx*dx+dy*dy;
+        if(d2<=radius2&&d2>1){
+          const d=Math.sqrt(d2),strength=150*(1-d/radius)+55;
+          a.vx+=(dx/d)*strength;a.vy+=(dy/d)*strength;
+          a.x+=(dx/d)*5;a.y+=(dy/d)*5;
+        }
+      }
+      if(this.giant){
+        const g=this.giant,dx=wrapDelta(g.x-p.x,W),dy=wrapDelta(g.y-p.y,H),d2=dx*dx+dy*dy;
+        if(d2<=radius2&&d2>1){
+          const d=Math.sqrt(d2),strength=48*(1-d/radius)+18;
+          g.vx+=(dx/d)*strength;g.vy+=(dy/d)*strength;
+        }
+      }
+      this.fxEvents.push({id:++this.fxSeq,i:p.index,x:+p.x.toFixed(1),y:+p.y.toFixed(1),kind:'shockwave',hidden:false,at:this.fxClock});
+      if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
+      this.emit({t:'sound',kind:'sparkle'});
+      return true;
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
@@ -706,20 +737,35 @@
       let fireNow=!!(c&&c.fire);
       if(!p)return fireNow;
       if(p.cpu){
+        if(p.shockwave){
+          const nearMeteor=this.meteors.some(m=>{const dx=wrapDelta(m.x-p.x,W),dy=wrapDelta(m.y-p.y,H);return dx*dx+dy*dy<260*260;});
+          const nearAsteroid=this.asteroids.some(a=>{const dx=wrapDelta(a.x-p.x,W),dy=wrapDelta(a.y-p.y,H);const limit=(Number(a.r)||ASTEROID_RADIUS)+105;return dx*dx+dy*dy<limit*limit;});
+          if(nearMeteor||nearAsteroid)this.deployShockwave(p);
+        }
         this.smartCpuFlare(p);
         return fireNow;
+      }
+      if(p.specialReleaseLock){
+        if(fireNow)return false;
+        p.specialReleaseLock=false;p.flareHold=0;p.flareGesture=false;
+        return false;
       }
       if(p.flareGesture){
         if(fireNow){
           p.flareHold=(Number(p.flareHold)||0)+dt;
-          if(p.flare&&p.flareHold>=FLARE_HOLD_SECONDS)this.deployFlares(p);
+          if(p.flareHold>=FLARE_HOLD_SECONDS){
+            if(p.shockwave){
+              if(this.deployShockwave(p)){p.specialReleaseLock=true;p.flareGesture=false;p.flareHold=0;}
+            }else if(p.flare)this.deployFlares(p);
+          }
           return false;
         }
-        const tap=!!p.flare&&(Number(p.flareHold)||0)>0&&(Number(p.flareHold)||0)<FLARE_HOLD_SECONDS;
+        const hasSpecial=!!p.shockwave||(Number(p.flare)||0)>0;
+        const tap=hasSpecial&&(Number(p.flareHold)||0)>0&&(Number(p.flareHold)||0)<FLARE_HOLD_SECONDS;
         p.flareGesture=false;p.flareHold=0;
         return tap;
       }
-      if(fireNow&&p.flare){
+      if(fireNow&&(p.shockwave||(Number(p.flare)||0)>0)){
         p.flareGesture=true;p.flareHold=dt;
         return false;
       }
@@ -1223,9 +1269,11 @@
       if(this.nextPickup<=0){
         let type;
         const flarePresent=this.pickups.some(pk=>pk.type==='flare');
+        const shockPresent=this.pickups.some(pk=>pk.type==='shockwave');
         // V19.68 prueba de bengalas: si no hay una flotando, tiene ~35% de
         // probabilidad de ser el siguiente pickup para facilitar las pruebas.
-        if(!flarePresent&&Math.random()<.35)type='flare';
+        if(!shockPresent&&Math.random()<.12)type='shockwave';
+        else if(!flarePresent&&Math.random()<.35)type='flare';
         else if(Math.random()<.50&&!this.pickups.some(pk=>pk.type==='mira'))type='mira';
         else{
           const roll=randint(1,28);
@@ -1268,6 +1316,7 @@
               p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
             }
             else if(pk.type==='flare')p.flare=(Number(p.flare)||0)+1;
+            else if(pk.type==='shockwave')p.shockwave=true;
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
             else if(pk.type==='shield')p.shield=10;
             else if(pk.type==='camo')p.camo=10;
@@ -1415,7 +1464,7 @@
         t:'state',seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
-        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),dead:p.dead,respawn:round3(p.respawn)})),
+        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),shock:!!p.shockwave,dead:p.dead,respawn:round3(p.respawn)})),
         asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type})),
         bullets:this.bullets.map(b=>({id:b.id,o:b.owner,x:round1(b.x),y:round1(b.y),vx:round1(b.vx),vy:round1(b.vy),g:!!b.guided,gt:(!b.decoyed&&Number.isInteger(b.target))?b.target:-1})),
         flares:this.flares.map(f=>({id:f.id,o:f.owner,x:round1(f.x),y:round1(f.y),a:round1(f.angle),life:round2(Math.max(0,f.life))})),
