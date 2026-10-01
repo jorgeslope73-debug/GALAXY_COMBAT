@@ -1527,11 +1527,6 @@
           target.shockReachAt=0;
           const owner=this.players.find(q=>q&&Number(q.index)===Number(target.shockOwner))||null;
           if(owner&&owner!==target&&!owner.dead){
-            const dx=wrapDelta(target.x-owner.x,W),dy=wrapDelta(target.y-owner.y,H);
-            const d=Math.hypot(dx,dy)||1;
-            const push=230;
-            target.vx+=(dx/d)*push;target.vy+=(dy/d)*push;
-            target.x=(target.x+(dx/d)*12+W)%W;target.y=(target.y+(dy/d)*12+H)%H;
             target.shockExplodeAt=this.fxClock+.18;
           }else{
             target.shockOwner=-1;
