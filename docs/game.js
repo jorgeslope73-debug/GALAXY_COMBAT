@@ -4008,6 +4008,19 @@
       ctx.restore();
     }
   }
+  const DECOR_STARS=[[86,92,1,0,.74],[214,178,1,.9,.58],[356,104,2,1.7,.66],[488,226,1,2.4,.62],[634,74,1,3.1,.70],[772,196,1,4,.56],[914,126,2,4.8,.64],[1068,238,1,5.4,.60],[1216,94,1,6.1,.72],[1374,186,2,6.8,.62],[1518,112,1,7.6,.68],[1712,214,1,8.3,.58],[154,418,1,9.1,.62],[318,556,2,9.8,.64],[528,432,1,10.6,.58],[744,612,1,11.4,.70],[972,476,2,12.1,.62],[1196,584,1,12.8,.56],[1438,438,1,13.6,.68],[1674,628,2,14.3,.60],[236,842,1,15.1,.66],[514,928,1,15.8,.58],[846,804,2,16.6,.64],[1128,914,1,17.3,.70],[1396,826,1,18.1,.60],[1748,904,2,18.8,.62]];
+  function drawDecorativeStars(now){
+    const t=now*.00045;
+    ctx.save();
+    ctx.fillStyle='white';
+    for(const s of DECOR_STARS){
+      const pulse=.5+.5*Math.sin(t+s[3]);
+      ctx.globalAlpha=.18+pulse*(s[4]-.18);
+      ctx.fillRect(s[0],s[1],s[2],s[2]);
+    }
+    ctx.restore();
+  }
+
   function render(rafNow){
     requestAnimationFrame(render);
     const now=Number.isFinite(rafNow)?rafNow:performance.now();
@@ -4066,6 +4079,7 @@
     if(!useStaticPcBackground&&!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){
       ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);
     }
+    drawDecorativeStars(now);
     if(!state){drawOnlineStartAnnouncement(now);return;}
 
     const nowSec=now/1000;
