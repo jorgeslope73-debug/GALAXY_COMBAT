@@ -3317,17 +3317,6 @@
       const navemiraKey=NAVEMIRA_IMAGE_KEYS[Math.max(0,Math.min(3,Number(p.i)||0))]||NAVEMIRA_IMAGE_KEYS[0];
       const navemiraIm=imageReady(images[navemiraKey])?images[navemiraKey]:images.navemira;
       if(imageReady(navemiraIm))drawImageCentered(navemiraIm,x,y,64,-r,Math.min(1,alpha*.95));
-      const rocketCount=Math.max(0,Math.round(Number(p.ma)||0));
-      if(rocketCount>1){
-        ctx.save();
-        ctx.globalAlpha=Math.min(1,alpha);
-        ctx.font='700 16px Arial,Helvetica,sans-serif';
-        ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,.9)';ctx.fillStyle='#fff';
-        ctx.strokeText('×'+rocketCount,x+28,y-28);
-        ctx.fillText('×'+rocketCount,x+28,y-28);
-        ctx.restore();
-      }
     }
     if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
   }
