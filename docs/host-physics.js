@@ -582,7 +582,7 @@
     deployShockwave(p){
       if(!p||p.dead||!p.shockwave)return false;
       p.shockwave=false;
-      const radius=300;
+      const radius=180;
       const radius2=radius*radius;
       for(let i=this.meteors.length-1;i>=0;i--){
         const m=this.meteors[i];
@@ -995,7 +995,7 @@
           const age=this.fxClock-Number(wave.born||0);
           const t=Math.max(0,Math.min(1,age/1.35));
           const eased=1-Math.pow(1-t,3);
-          const radius=28+272*eased;
+          const radius=28+152*eased;
           const previous=Math.max(28,Number(wave.prevRadius)||28);
           const owner=this.players.find(q=>q&&Number(q.index)===Number(wave.owner))||null;
           for(const target of this.players){
@@ -1333,7 +1333,7 @@
         const shockPresent=this.pickups.some(pk=>pk.type==='shockwave');
         // V19.68 prueba de bengalas: si no hay una flotando, tiene ~35% de
         // probabilidad de ser el siguiente pickup para facilitar las pruebas.
-        if(!shockPresent&&Math.random()<.12)type='shockwave';
+        if(!shockPresent&&Math.random()<.04)type='shockwave';
         else if(!flarePresent&&Math.random()<.35)type='flare';
         else if(Math.random()<.50&&!this.pickups.some(pk=>pk.type==='mira'))type='mira';
         else{
@@ -1350,6 +1350,9 @@
         for(const p of this.players){
           if(p.dead)continue;
           if(sweptCircles(pk,PICKUP_RADIUS,p,SHIP_RADIUS,false)){
+            // V20.66: la esfera no es acumulable. Si ya llevas una carga,
+            // no consumes otra esfera flotante; queda disponible para otra nave.
+            if(pk.type==='shockwave'&&p.shockwave)continue;
             if(pk.type==='ammo3'){
               const hadBullets=p.bullets>0;
               p.bullets+=6;
