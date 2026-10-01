@@ -3845,7 +3845,7 @@
       ctx.lineWidth=isMobile?5:4;
       ctx.strokeStyle='rgba(0,0,0,.68)';
       ctx.shadowColor=color;
-      ctx.shadowBlur=14*(1-Math.min(1,age/900));
+      ctx.shadowBlur=14*(1-Math.min(1,age/1350));
       ctx.fillStyle=color;
       const text=tr('weaponTheft');
       ctx.strokeText(text,0,0);
@@ -4261,8 +4261,8 @@
       ctx.lineWidth=4;
       for(const e of shockwaveFx){
         const age=now-e.born;
-        if(age<0||age>900)continue;
-        const t=Math.max(0,Math.min(1,age/900));
+        if(age<0||age>1350)continue;
+        const t=Math.max(0,Math.min(1,age/1350));
         // V20.53: expansion rapida al inicio y progresivamente mas lenta.
         // easeOutCubic mantiene el frente avanzando pero desacelera claramente.
         const eased=1-Math.pow(1-t,3);
