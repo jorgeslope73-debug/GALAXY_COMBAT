@@ -266,7 +266,7 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,spawnFx:SPAWN_MATERIALIZE_SECONDS,spawnAnchorX:0,spawnAnchorY:0,
-        guided:false,guidedTarget:-1,guidedAmmo:0,flare:0,flareHold:0,flareGesture:false,specialReleaseLock:false,shockwave:false,flarePending:null,nextFlareDecision:0,nextFlareAllowed:0,
+        guided:false,guidedTarget:-1,guidedAmmo:0,flare:0,flareHold:0,flareGesture:false,specialReleaseLock:false,shockwave:false,shockReachAt:0,shockExplodeAt:0,shockOwner:-1,flarePending:null,nextFlareDecision:0,nextFlareAllowed:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         cpuFireDelay:cpu?CPU_ARMED_WARNING_SECONDS:0,
         difficulty:this.difficulty,aiControl:null
@@ -440,7 +440,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
         this.controls.set(p.index,{turn:0,thrust:false,fire:false});
@@ -545,7 +545,7 @@
         this.emit({t:'weapon-theft',index:attacker.index,name:attacker.name,ammo:stolenAmmo});
       }
 
-      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.guidedAmmo=0;victim.flareHold=0;victim.flareGesture=false;victim.specialReleaseLock=false;victim.shockwave=false;
+      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.guidedAmmo=0;victim.flareHold=0;victim.flareGesture=false;victim.specialReleaseLock=false;victim.shockwave=false;victim.shockReachAt=0;victim.shockExplodeAt=0;victim.shockOwner=-1;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
       if(attacker&&attacker!==victim){
         attacker.kills++;
@@ -576,7 +576,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.flarePending=null;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.flarePending=null;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
     }
     deployShockwave(p){
       if(!p||p.dead||!p.shockwave)return false;
@@ -600,7 +600,14 @@
       for(const rival of this.players){
         if(!rival||rival===p||rival.dead)continue;
         const dx=wrapDelta(rival.x-p.x,W),dy=wrapDelta(rival.y-p.y,H);
-        if(dx*dx+dy*dy<=radius2)this.destroyShip(rival,p);
+        const d2=dx*dx+dy*dy;
+        if(d2>radius2)continue;
+        const d=Math.sqrt(Math.max(0,d2));
+        const normalized=Math.max(0,Math.min(1,(d-28)/272));
+        const reachT=1-Math.sqrt(Math.max(0,1-normalized));
+        rival.shockReachAt=this.fxClock+.90*reachT;
+        rival.shockExplodeAt=0;
+        rival.shockOwner=p.index;
       }
       if(this.giant){
         const g=this.giant,dx=wrapDelta(g.x-p.x,W),dy=wrapDelta(g.y-p.y,H),d2=dx*dx+dy*dy;
@@ -989,6 +996,29 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
+      for(const target of this.players){
+        if(!target||target.dead)continue;
+        if((Number(target.shockReachAt)||0)>0&&this.fxClock>=Number(target.shockReachAt)){
+          target.shockReachAt=0;
+          const owner=this.players.find(q=>q&&Number(q.index)===Number(target.shockOwner))||null;
+          if(owner&&owner!==target&&!owner.dead){
+            const dx=wrapDelta(target.x-owner.x,W),dy=wrapDelta(target.y-owner.y,H);
+            const d=Math.hypot(dx,dy)||1;
+            const push=230;
+            target.vx+=(dx/d)*push;target.vy+=(dy/d)*push;
+            target.x=(target.x+(dx/d)*12+W)%W;target.y=(target.y+(dy/d)*12+H)%H;
+            target.shockExplodeAt=this.fxClock+.18;
+          }else{
+            target.shockOwner=-1;
+          }
+        }
+        if((Number(target.shockExplodeAt)||0)>0&&this.fxClock>=Number(target.shockExplodeAt)){
+          target.shockExplodeAt=0;
+          const owner=this.players.find(q=>q&&Number(q.index)===Number(target.shockOwner))||null;
+          target.shockOwner=-1;
+          if(owner&&owner!==target)this.destroyShip(target,owner);
+        }
+      }
       const cpuPlayers=this.cpuScratch;cpuPlayers.length=0;
       let huntedHuman=null;
       for(const p of this.players){
