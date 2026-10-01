@@ -1020,6 +1020,26 @@
               }
             }
           }
+          for(let bi=this.bullets.length-1;bi>=0;bi--){
+            const b=this.bullets[bi];
+            if(!b||!b.guided)continue;
+            const dx=b.x-wave.x,dy=b.y-wave.y;
+            const distance=Math.hypot(dx,dy);
+            if(distance-MISSILE_HIT_RADIUS<=radius&&distance+MISSILE_HIT_RADIUS>=previous){
+              this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
+              this.bullets.splice(bi,1);
+            }
+          }
+          for(let fi=this.flares.length-1;fi>=0;fi--){
+            const flare=this.flares[fi];
+            if(!flare)continue;
+            const dx=flare.x-wave.x,dy=flare.y-wave.y;
+            const distance=Math.hypot(dx,dy);
+            if(distance-FLARE_RADIUS<=radius&&distance+FLARE_RADIUS>=previous){
+              this.emitExplosionAt(flare.x,flare.y,flare.owner);
+              this.flares.splice(fi,1);
+            }
+          }
           wave.prevRadius=radius;
           if(age<1.35)this.activeShockwaves[shockWrite++]=wave;
         }
