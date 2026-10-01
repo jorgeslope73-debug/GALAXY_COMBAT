@@ -1051,7 +1051,7 @@
       }
       this.fxEvents.push({id:++this.fxSeq,i:p.index,x:+p.x.toFixed(1),y:+p.y.toFixed(1),kind:'shockwave',hidden:false,at:this.fxClock});
       if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
-      this.emit({t:'sound',kind:'sparkle'});
+      this.emit({t:'sound',kind:'shockwave'});
       return true;
     }
     deployFlares(p){
