@@ -2018,6 +2018,10 @@
       // porque un Render gratuito puede estar arrancando todavia.
     };
     ws.onmessage=e=>{
+      // V20.63: una partida Contra la maquina es totalmente local. Mientras
+      // esta activa, ningun mensaje tardio del servidor puede pisar su estado,
+      // cerrar la partida ni inyectar snapshots de una sala online anterior.
+      if(localCpuActive)return;
       const raw=e.data;
       // Los snapshots son reemplazables. No los parseamos en mitad de un frame:
       // conservamos el ultimo y lo procesamos al comienzo del siguiente RAF.
@@ -2334,7 +2338,13 @@
       return;
     }
     stopLocalCpu();
+    // Aislar el modo CPU de cualquier sesion/red anterior. Un snapshot o evento
+    // WebSocket retrasado no debe poder sustituir el estado LOCAL ni provocar
+    // un reload/retorno al menu durante la partida.
+    pendingStateRaw=null;
+    stopP2P();
     stopResumeWindow();clearResumeSession();playerToken='';
+    roomCode='';myIndex=null;isHost=false;
     const difficulty=document.getElementById('difficulty').value;
     activeLocalDifficulty=difficulty;
     updateBuildVersionLearningState();
