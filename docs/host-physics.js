@@ -1256,7 +1256,16 @@
                 p.bullets=1;
                 p.reload=Math.max(p.reload,this.reloadTime(p));
               }
-              p.guidedAmmo=(Number(p.guidedAmmo)||0)+1;p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
+              p.guidedAmmo=(Number(p.guidedAmmo)||0)+1;
+              // V20.44: cada carga de misil acumulada debe poder dispararse.
+              // La MIRA sigue usando una bala como proyectil, pero al acumular
+              // varias cargas garantizamos al menos una bala por cada misil.
+              if(p.bullets<p.guidedAmmo){
+                const hadBullets=p.bullets>0;
+                p.bullets=p.guidedAmmo;
+                if(!hadBullets)p.reload=Math.max(p.reload,this.reloadTime(p));
+              }
+              p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
             }
             else if(pk.type==='flare')p.flare=(Number(p.flare)||0)+1;
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
