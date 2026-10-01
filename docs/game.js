@@ -1550,13 +1550,15 @@
       mobileControls.classList.toggle('thrusting',mobileThrust);
     }
   }
-  function localPlayerHasFlare(){
+  function localPlayerHasSpecial(){
     const p=state&&Array.isArray(state.players)?state.players.find(x=>Number(x.i)===Number(myIndex)):null;
-    return !!(p&&Number(p.flare)>0);
+    return !!(p&&(p.shock===true||Number(p.flare)>0));
   }
   function triggerMobileFire(){
     const now=performance.now();
-    const doubleTap=localPlayerHasFlare()&&lastMobileFireTapAt>0&&now-lastMobileFireTapAt<=MOBILE_FLARE_DOUBLE_TAP_MS;
+    // V20.68: el mismo doble toque sirve para esfera y bengala. Si existen
+    // ambas, la fisica consume primero la esfera y conserva las bengalas.
+    const doubleTap=localPlayerHasSpecial()&&lastMobileFireTapAt>0&&now-lastMobileFireTapAt<=MOBILE_FLARE_DOUBLE_TAP_MS;
     lastMobileFireTapAt=doubleTap?0:now;
     mobileFire=true;
     clearTimeout(mobileFireTimer);
