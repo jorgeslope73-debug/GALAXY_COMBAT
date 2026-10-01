@@ -4316,7 +4316,7 @@
         // V20.53: expansion rapida al inicio y progresivamente mas lenta.
         // easeOutCubic mantiene el frente avanzando pero desacelera claramente.
         const eased=1-Math.pow(1-t,3);
-        const r=28+272*eased;
+        const r=28+152*eased;
         const a=(1-t)*.72;
         ctx.globalAlpha=a;
         ctx.strokeStyle='rgba(205,238,255,.95)';
