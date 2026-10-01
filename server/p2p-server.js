@@ -362,7 +362,7 @@ function scheduleSoloHostClose(r,wss,delay=3000){
     r.soloHostCloseTimer=null;
     const live=rooms.get(r.code);
     if(live!==r||r.cpuFill||r.players.length!==1||!r.players[0]||r.players[0].i!==0)return;
-    broadcast(r,{t:'closed',reason:'La partida se cierra porque solo queda el anfitrion.'});
+    broadcast(r,{t:'closed',cause:'solo_host',reason:'La partida se cierra porque solo queda el anfitrion.'});
     rooms.delete(r.code);
     publicUpdate(wss);
   },Math.max(0,Number(delay)||0));
@@ -377,7 +377,7 @@ function remove(ws,wss){
   r.players=r.players.filter(q=>q!==p);
   if(host){
     if(r.soloHostCloseTimer){clearTimeout(r.soloHostCloseTimer);r.soloHostCloseTimer=null;}
-    broadcast(r,{t:'closed',reason:'El anfitrion cerro la sala.'});
+    broadcast(r,{t:'closed',cause:'host_left',reason:'El anfitrion cerro la sala.'});
     rooms.delete(r.code);
   }else{
     const players=roster(r);
@@ -406,7 +406,7 @@ function expireDisconnectedPlayers(wss){
     if(r.started){
       const hostLost=expired.some(p=>p.i===0);
       if(hostLost){
-        broadcast(r,{t:'closed',reason:'El anfitrion perdio la conexion.'});
+        broadcast(r,{t:'closed',cause:'host_timeout',reason:'El anfitrion perdio la conexion.'});
         rooms.delete(r.code);publicUpdate(wss);continue;
       }
       if(r.cpuFill){
@@ -425,7 +425,7 @@ function expireDisconnectedPlayers(wss){
     }
     let hostLost=false;
     for(const p of expired){if(p.i===0)hostLost=true;r.players=r.players.filter(q=>q!==p);}
-    if(hostLost||!r.players.length){broadcast(r,{t:'closed',reason:'El anfitrion perdio la conexion.'});rooms.delete(r.code);}
+    if(hostLost||!r.players.length){broadcast(r,{t:'closed',cause:'host_timeout',reason:'El anfitrion perdio la conexion.'});rooms.delete(r.code);}
     else{const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r)});}
     publicUpdate(wss);
   }
