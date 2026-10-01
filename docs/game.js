@@ -4212,9 +4212,11 @@
       ctx.lineWidth=4;
       for(const e of shockwaveFx){
         const age=now-e.born;
-        if(age<0||age>520)continue;
-        const t=age/520;
-        const eased=1-Math.pow(1-t,2);
+        if(age<0||age>900)continue;
+        const t=Math.max(0,Math.min(1,age/900));
+        // V20.53: expansion rapida al inicio y progresivamente mas lenta.
+        // easeOutCubic mantiene el frente avanzando pero desacelera claramente.
+        const eased=1-Math.pow(1-t,3);
         const r=28+272*eased;
         const a=(1-t)*.72;
         ctx.globalAlpha=a;
