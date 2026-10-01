@@ -1007,7 +1007,17 @@
             // La nave explota solo cuando el frente circular visible la alcanza.
             if(distance-SHIP_RADIUS<=radius&&distance+SHIP_RADIUS>=previous){
               wave.hitMask=(Number(wave.hitMask)||0)|bit;
-              if(owner)this.destroyShip(target,owner);
+              if(owner){
+                if(target.shield>0){
+                  target.shield=0;
+                  this.emitShipImpact(target,owner,false);
+                  this.emit({t:'sound',kind:'impact'});
+                }else if(target.protection>0){
+                  this.emitShipImpact(target,owner,false);
+                }else{
+                  this.destroyShip(target,owner);
+                }
+              }
             }
           }
           wave.prevRadius=radius;
