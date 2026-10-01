@@ -142,6 +142,7 @@
       this.bullets=[];
       this.flares=[];
       this.pickups=[];
+      this.activeShockwaves=[];
       this.meteors=[];
       this.giant=null;
       this.asteroids=[];
@@ -278,7 +279,7 @@
       this.players=[];
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
-      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;
+      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
       this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.rankReportSent=false;this.rankReportAttempts=0;
@@ -433,7 +434,7 @@
       if(!this.finished||this.players.length<2)return false;
       this.started=false;this.finished=false;this.winner=null;this.seq=0;this.rankReportSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
-      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;
+      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
       this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
@@ -597,18 +598,10 @@
           a.x+=(dx/d)*5;a.y+=(dy/d)*5;
         }
       }
-      for(const rival of this.players){
-        if(!rival||rival===p||rival.dead)continue;
-        const dx=wrapDelta(rival.x-p.x,W),dy=wrapDelta(rival.y-p.y,H);
-        const d2=dx*dx+dy*dy;
-        if(d2>radius2)continue;
-        const d=Math.sqrt(Math.max(0,d2));
-        const normalized=Math.max(0,Math.min(1,(d-28)/272));
-        const reachT=1-Math.sqrt(Math.max(0,1-normalized));
-        rival.shockReachAt=this.fxClock+1.35*reachT;
-        rival.shockExplodeAt=0;
-        rival.shockOwner=p.index;
-      }
+      if(!Array.isArray(this.activeShockwaves))this.activeShockwaves=[];
+      this.activeShockwaves.push({
+        owner:p.index,x:p.x,y:p.y,born:this.fxClock,prevRadius:28,hitMask:0
+      });
       if(this.giant){
         const g=this.giant,dx=wrapDelta(g.x-p.x,W),dy=wrapDelta(g.y-p.y,H),d2=dx*dx+dy*dy;
         if(d2<=radius2&&d2>1){
@@ -996,23 +989,31 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
-      for(const target of this.players){
-        if(!target||target.dead)continue;
-        if((Number(target.shockReachAt)||0)>0&&this.fxClock>=Number(target.shockReachAt)){
-          target.shockReachAt=0;
-          const owner=this.players.find(q=>q&&Number(q.index)===Number(target.shockOwner))||null;
-          if(owner&&owner!==target&&!owner.dead){
-            target.shockExplodeAt=this.fxClock+.18;
-          }else{
-            target.shockOwner=-1;
+      if(Array.isArray(this.activeShockwaves)&&this.activeShockwaves.length){
+        let shockWrite=0;
+        for(const wave of this.activeShockwaves){
+          const age=this.fxClock-Number(wave.born||0);
+          const t=Math.max(0,Math.min(1,age/1.35));
+          const eased=1-Math.pow(1-t,3);
+          const radius=28+272*eased;
+          const previous=Math.max(28,Number(wave.prevRadius)||28);
+          const owner=this.players.find(q=>q&&Number(q.index)===Number(wave.owner))||null;
+          for(const target of this.players){
+            if(!target||target.dead||Number(target.index)===Number(wave.owner))continue;
+            const bit=1<<Math.max(0,Math.min(3,Number(target.index)||0));
+            if((Number(wave.hitMask)||0)&bit)continue;
+            const dx=target.x-wave.x,dy=target.y-wave.y;
+            const distance=Math.hypot(dx,dy);
+            // La nave explota solo cuando el frente circular visible la alcanza.
+            if(distance-SHIP_RADIUS<=radius&&distance+SHIP_RADIUS>=previous){
+              wave.hitMask=(Number(wave.hitMask)||0)|bit;
+              if(owner)this.destroyShip(target,owner);
+            }
           }
+          wave.prevRadius=radius;
+          if(age<1.35)this.activeShockwaves[shockWrite++]=wave;
         }
-        if((Number(target.shockExplodeAt)||0)>0&&this.fxClock>=Number(target.shockExplodeAt)){
-          target.shockExplodeAt=0;
-          const owner=this.players.find(q=>q&&Number(q.index)===Number(target.shockOwner))||null;
-          target.shockOwner=-1;
-          if(owner&&owner!==target)this.destroyShip(target,owner);
-        }
+        this.activeShockwaves.length=shockWrite;
       }
       const cpuPlayers=this.cpuScratch;cpuPlayers.length=0;
       let huntedHuman=null;
