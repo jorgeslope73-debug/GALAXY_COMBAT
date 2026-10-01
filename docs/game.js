@@ -1110,6 +1110,44 @@
     }catch(_){return false;}
   }
 
+  function playShockwaveSound(){
+    if(!useWebAudio||!gameAudioEnabled)return false;
+    const ctx=ensureAudioContext();
+    if(!ctx||ctx.state!=='running'||!fxGain)return false;
+    try{
+      const now=ctx.currentTime;
+      const bus=ctx.createGain();
+      bus.gain.setValueAtTime(.0001,now);
+      bus.gain.exponentialRampToValueAtTime(.78,now+.018);
+      bus.gain.exponentialRampToValueAtTime(.0001,now+1.35);
+      bus.connect(fxGain);
+
+      const low=ctx.createOscillator();
+      const lowGain=ctx.createGain();
+      low.type='sine';
+      low.frequency.setValueAtTime(92,now);
+      low.frequency.exponentialRampToValueAtTime(38,now+1.25);
+      lowGain.gain.setValueAtTime(.0001,now);
+      lowGain.gain.exponentialRampToValueAtTime(.95,now+.02);
+      lowGain.gain.exponentialRampToValueAtTime(.0001,now+1.30);
+      low.connect(lowGain);lowGain.connect(bus);
+      low.start(now);low.stop(now+1.32);
+
+      const body=ctx.createOscillator();
+      const bodyGain=ctx.createGain();
+      body.type='triangle';
+      body.frequency.setValueAtTime(155,now);
+      body.frequency.exponentialRampToValueAtTime(62,now+.95);
+      bodyGain.gain.setValueAtTime(.0001,now);
+      bodyGain.gain.exponentialRampToValueAtTime(.22,now+.012);
+      bodyGain.gain.exponentialRampToValueAtTime(.0001,now+1.0);
+      body.connect(bodyGain);bodyGain.connect(bus);
+      body.start(now);body.stop(now+1.02);
+
+      return true;
+    }catch(_){return false;}
+  }
+
   function playWebMusic(){
     if(!useWebAudio||!gameAudioEnabled||!menu||menu.classList.contains('hidden'))return false;
     const ctx=ensureAudioContext();
@@ -1290,6 +1328,7 @@
   }
   function playSound(k){
     if(!gameAudioEnabled)return;
+    if(k==='shockwave'){playShockwaveSound();return;}
     // V20.34: la desintegracion del cohete es deliberadamente muda.
     if(k==='sparkle')return;
     if(useWebAudio){
