@@ -10,6 +10,7 @@
   const FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
+  const SHOCKWAVE_RADIUS=180,SHOCKWAVE_SAFE_DISTANCE=240,SHOCKWAVE_STANDOFF_DISTANCE=300;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
     [1500,150,160,2],[500,430,160,5],[1300,430,200,6]
@@ -743,9 +744,19 @@
       if(!p)return fireNow;
       if(p.cpu){
         if(p.shockwave){
-          const nearMeteor=this.meteors.some(m=>{const dx=wrapDelta(m.x-p.x,W),dy=wrapDelta(m.y-p.y,H);return dx*dx+dy*dy<260*260;});
-          const nearAsteroid=this.asteroids.some(a=>{const dx=wrapDelta(a.x-p.x,W),dy=wrapDelta(a.y-p.y,H);const limit=(Number(a.r)||ASTEROID_RADIUS)+105;return dx*dx+dy*dy<limit*limit;});
-          if(nearMeteor||nearAsteroid)this.deployShockwave(p);
+          let nearestRival=null,nearestDistance=Infinity;
+          for(const rival of this.players){
+            if(!rival||rival===p||rival.dead||rival.camo>0)continue;
+            const distance=Math.hypot(rival.x-p.x,rival.y-p.y);
+            if(distance<nearestDistance){nearestDistance=distance;nearestRival=rival;}
+          }
+          if(nearestRival&&nearestDistance<=SHOCKWAVE_RADIUS){
+            this.deployShockwave(p);
+          }else{
+            const nearMeteor=this.meteors.some(m=>{const dx=m.x-p.x,dy=m.y-p.y;return dx*dx+dy*dy<95*95;});
+            const nearAsteroid=this.asteroids.some(a=>{const dx=a.x-p.x,dy=a.y-p.y;const limit=(Number(a.r)||ASTEROID_RADIUS)+50;return dx*dx+dy*dy<limit*limit;});
+            if(!nearestRival&&(nearMeteor||nearAsteroid))this.deployShockwave(p);
+          }
         }
         this.smartCpuFlare(p);
         return fireNow;
@@ -883,6 +894,15 @@
         if(target)rival=target;
       }
       if(!rival){
+        let shockBest=Infinity;
+        for(const p of this.players){
+          if(p.index===cpu.index||p.dead||p.camo>0||!p.shockwave)continue;
+          if(huntGrace&&p.index===this.huntTargetIndex)continue;
+          const d=dist2(cpu,p);
+          if(d<shockBest){shockBest=d;rival=p;}
+        }
+      }
+      if(!rival){
         for(const p of this.players){
           if(p.index===cpu.index||p.dead||p.camo>0)continue;
           if(huntGrace&&p.index===this.huntTargetIndex)continue;
@@ -897,6 +917,7 @@
       let err=((targetRot-cpu.rot+540)%360)-180;
       let desiredX=rival.x,desiredY=rival.y,seekPickup=null,defensiveNoAmmo=false,ramming=false;
       const rivalShielded=rival.shield>0||rival.protection>0,rivalDangerous=rival.shield>0;
+      const rivalHasShockwave=!!rival.shockwave;
       if(cpu.bullets===0){
         let bestAmmoScore=Infinity,bestAmmoDistance=Infinity,seekPickupRivalDistance=Infinity;
         for(const pk of this.pickups){
@@ -936,7 +957,7 @@
       }else if(rivalDangerous){
         let bestD2=Infinity;
         for(const pk of this.pickups){
-          if(pk.type!=='shield'&&!pk.type.startsWith('ammo')&&!(pk.type==='flare'))continue;
+          if(pk.type!=='shield'&&!pk.type.startsWith('ammo')&&!(pk.type==='flare')&&!(pk.type==='shockwave'&&!cpu.shockwave))continue;
           const d2=dist2(cpu,pk);if(d2<bestD2){bestD2=d2;seekPickup=pk;}
         }
         if(!seekPickup){desiredX=cpu.x-dx;desiredY=cpu.y-dy;}
@@ -952,12 +973,20 @@
             else if(pk.type==='speed')value=cpu.speed<2?55:10;
             else if(pk.type==='shield')value=cpu.shield<=0?95:20;
             else if(pk.type==='flare')value=80;
+            else if(pk.type==='shockwave'&&!cpu.shockwave)value=150;
             const score=value-Math.sqrt(dist2(cpu,pk))*.06;
             if(score>bestScore){bestScore=score;seekPickup=pk;}
           }
         }
       }
       if(seekPickup&&!defensiveNoAmmo){desiredX=seekPickup.x;desiredY=seekPickup.y;}
+      if(rivalHasShockwave&&!huntActive&&!(seekPickup&&seekPickup.type==='shockwave')){
+        ramming=false;defensiveNoAmmo=true;
+        const inv=1/(distance||1),ux=(cpu.x-rival.x)*inv,uy=(cpu.y-rival.y)*inv,side=cpu.index%2?1:-1;
+        if(distance<SHOCKWAVE_SAFE_DISTANCE+18){desiredX=cpu.x+ux*900+(-uy)*side*180;desiredY=cpu.y+uy*900+(ux)*side*180;}
+        else if(distance<SHOCKWAVE_STANDOFF_DISTANCE+70){desiredX=cpu.x+(-uy)*side*260;desiredY=cpu.y+(ux)*side*260;}
+        else{desiredX=rival.x+ux*SHOCKWAVE_STANDOFF_DISTANCE;desiredY=rival.y+uy*SHOCKWAVE_STANDOFF_DISTANCE;}
+      }
       const pickupRun=seekPickup?pickupRunThroughPlan(cpu,seekPickup,this.asteroids,this.meteors,this.giant,this.players):null;
       if(pickupRun&&pickupRun.clear){desiredX=pickupRun.x;desiredY=pickupRun.y;}
       const ddx=desiredX-cpu.x,ddy=desiredY-cpu.y,dRot=(Math.atan2(-ddx,-ddy)*180/Math.PI+360)%360;
@@ -982,7 +1011,7 @@
       const thrust=pickupRunClear?true:!!(Math.abs(err)<60&&(seekPickup||defensiveNoAmmo||ramming||distance>280||avoidMag>20));
       const guidedReady=!!(cpu.guided&&Number.isInteger(cpu.guidedTarget)&&cpu.guidedTarget>=0);
       const fireArc=guidedReady&&cpu.difficulty==='dificil'?30:6;
-      const fire=(huntActive||!rivalDangerous)&&!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<fireArc&&distance<1350;
+      const fire=(huntActive||!rivalDangerous)&&!seekPickup&&cpu.bullets>0&&cpu.reload<=0&&Math.abs(err)<fireArc&&distance<1350&&(!rivalHasShockwave||distance>SHOCKWAVE_SAFE_DISTANCE);
       const control={turn,thrust,fire};
       return this.cpuOpeningCollisionAvoidance(cpu,control)||control;
     }
