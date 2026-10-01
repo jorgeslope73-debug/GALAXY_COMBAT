@@ -42,7 +42,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;bord
 <script>
 const API='https://galaxy-combat-web.onrender.com';
 const actions=['attack','evade','resource','scatter','meteor_left','meteor_right','meteor_brake','flare_use','flare_keep'];
-const actionLabel={attack:'ATACAR',evade:'HUIR',resource:'RECURSOS',scatter:'SALIDA',meteor_left:'METEORO IZQ.',meteor_right:'METEORO DER.',meteor_brake:'FRENAR METEORO',flare_use:'USAR BENGALA',flare_keep:'CONSERVAR'};
+const actionLabel={attack:'ATACAR',evade:'HUIR',resource:'RECURSOS',scatter:'SALIDA',meteor_left:'METEORO IZQ.',meteor_right:'METEORO DER.',meteor_brake:'FRENAR METEORO',flare_use:'USAR BENGALA',flare_keep:'CONSERVAR',shock_use:'USAR ONDA',shock_keep:'CONSERVAR ONDA',shock_keep_range:'MANTENER 40 M'};
 const contextLabel=c=>{
   if(c==='open3')return 'Apertura CPU 3';
   const mm=/^meteor-s([01])-v([01])-d([01])$/.exec(c||'');
@@ -51,6 +51,12 @@ const contextLabel=c=>{
     const speed=mm[2]==='1'?'cierre rápido':'cierre lento';
     const dist=mm[3]==='0'?'cerca':'lejos';
     return 'ESQUIVA · '+side+' · '+speed+' · '+dist;
+  }
+  const sm=/^shock-(own|threat)-d([012])$/.exec(c||'');
+  if(sm){
+    const role=sm[1]==='own'?'CPU con onda':'rival con onda';
+    const dist=['dentro de 30 m','entre 30 y 40 m','mas de 40 m'][+sm[2]];
+    return 'ONDA · '+role+' · '+dist;
   }
   const fm=/^flare-([gbp])-d([012])-s([01])-e([01])$/.exec(c||'');
   if(fm){
