@@ -3379,8 +3379,9 @@
       if(imageReady(navemiraIm))drawImageCentered(navemiraIm,x,y,64,-r,Math.min(1,alpha*.95));
     }
     if(p.shock===true){
-      const back=dirFromRot((Number(p.r)||0)+180);
-      const sx=x+back.x*34,sy=y+back.y*34;
+      const backRot=((Number(p.r)||0)+180)*Math.PI/180;
+      const backX=-Math.sin(backRot),backY=-Math.cos(backRot);
+      const sx=x+backX*34,sy=y+backY*34;
       ctx.save();
       ctx.globalAlpha=Math.min(1,alpha*.95);
       ctx.fillStyle='#eef8ff';
