@@ -974,10 +974,6 @@
         if(Number(victim.cadence)<Number(attacker.cadence))attacker.cadence=victim.cadence;
         if(Number(victim.speed)>Number(attacker.speed))attacker.speed=victim.speed;
         if(Number(victim.camo)>Number(attacker.camo))attacker.camo=victim.camo;
-        if(victim.guided&&!attacker.guided){
-          attacker.guided=true;
-          attacker.guidedTarget=this.guidedTargetFor(attacker);
-        }
         this.emit({t:'weapon-theft',index:attacker.index,name:attacker.name,ammo:stolenAmmo});
       }
 
@@ -1523,6 +1519,7 @@
         const vmax=330*p.speed,sp=Math.hypot(p.vx,p.vy);
         if(sp>vmax){p.vx=p.vx/sp*vmax;p.vy=p.vy/sp*vmax;}
         p.x=(p.x+p.vx*dt+W)%W;p.y=(p.y+p.vy*dt+H)%H;
+        p.guided=Number(p.guidedAmmo)>0;
         p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;
 
         // Comprobacion final de disparo DESPUES de aplicar el giro de este frame.
@@ -1549,7 +1546,7 @@
           const guided=!!p.guided,guidedTarget=guided?p.guidedTarget:-1;
           const projectileSpeed=guided?500:this.bulletSpeed(p);
           this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false});
-          if(guided){p.guided=false;p.guidedTarget=-1;}
+          if(guided){p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1);p.guided=p.guidedAmmo>0;p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;}
           p.bullets--;p.reload=this.reloadTime(p);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
         }
       }
@@ -1814,6 +1811,12 @@
                 p.bullets=1;
                 p.reload=Math.max(p.reload,this.reloadTime(p));
               }
+              p.guidedAmmo=(Number(p.guidedAmmo)||0)+1;
+              if(p.bullets<p.guidedAmmo){
+                const hadBullets=p.bullets>0;
+                p.bullets=p.guidedAmmo;
+                if(!hadBullets)p.reload=Math.max(p.reload,this.reloadTime(p));
+              }
               p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
             }
             else if(pk.type==='flare')p.flare=(Number(p.flare)||0)+1;
@@ -1958,7 +1961,7 @@
         t:'state',seq:++this.seq,code:'LOCAL',mode:'cpu',started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
-        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),dead:p.dead,respawn:round3(p.respawn)})),
+        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),dead:p.dead,respawn:round3(p.respawn)})),
         asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type})),
         bullets:this.bullets.map(b=>({id:b.id,o:b.owner,x:round1(b.x),y:round1(b.y),vx:round1(b.vx),vy:round1(b.vy),g:!!b.guided,gt:(!b.decoyed&&Number.isInteger(b.target))?b.target:-1})),
         flares:this.flares.map(f=>({id:f.id,o:f.owner,x:round1(f.x),y:round1(f.y),a:round1(f.angle),life:round2(Math.max(0,f.life))})),
