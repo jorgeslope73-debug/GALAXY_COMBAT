@@ -41,12 +41,12 @@
       for(const p of this.players){
         if(p&&p.cpu)continue;
         const i=Number(p&&p.i);
-        if(!Number.isInteger(i)||i===this.myIndex||this.reconnectingPeers.has(i))continue;
+        if(!Number.isInteger(i)||i===this.myIndex)continue;
         const rec=this.peers.get(i);
         if(rec&&rec.pc&&rec.pc.connectionState!=='closed'&&rec.pc.connectionState!=='failed')continue;
-        if(rec)this.closePeer(i);
-        try{await this.createPeer(i,true);}
-        catch(err){if(!this.closed)console.warn('[Galaxy P2P] ensure peer',err);}
+        // V20.83: toda creacion/recreacion del host pasa por la misma puerta
+        // deduplicada. Varias señales simultaneas no pueden abrir dos peers.
+        await this.reconnectPeer(i);
       }
     }
     closePeer(peerIndex){
