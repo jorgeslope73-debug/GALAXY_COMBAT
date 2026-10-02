@@ -217,6 +217,16 @@ html:not(.handheld-device) #menu .menu-scene {
 #menu .mode-actions { display: flex; gap: 8px; }
 #menu .mode-actions > * { width: 100%; }
 #menu .cpu-actions select { flex: 0 0 112px; width: 112px; }
+/* V20.82: en Chrome/Windows la metrica vertical de Flashback podia recortar
+   MEDIO y 1 CPU dentro del select. En PC damos mas caja y aire al texto sin
+   alterar el dialogo movil ni el resto de botones del menu. */
+html:not(.handheld-device) #menu .cpu-actions select{
+  height:50px!important;
+  min-height:50px!important;
+  padding:6px 12px 3px!important;
+  line-height:1.35!important;
+  font-size:17px!important;
+}
 #menu .code-actions input { flex: 0 0 112px; width: 112px; text-transform: uppercase; letter-spacing: .10em; }
 #menu button {
   display: flex;
