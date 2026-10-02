@@ -8,20 +8,19 @@
   const trServer=text=>i18n?i18n.translateServerText(text):String(text==null?'':text);
   const canvas=document.getElementById('game');
   const useStaticPcBackground=!isMobile;
-  // V20.73: cada partida rota entre cuatro fondos. Los fondos 02/03/04
-  // pueden incorporarse como PNG sin tocar de nuevo la logica.
+  // V20.76: cada partida rota entre cuatro fondos JPG optimizados.
   const MATCH_BACKGROUNDS=[
-    {file:'assets/sprites/fondo.png',mobileKey:'bg',stars:true},
-    {file:'assets/sprites/fondo02.png',mobileKey:'bg02',stars:false},
-    {file:'assets/sprites/fondo03.png',mobileKey:'bg03',stars:false},
-    {file:'assets/sprites/fondo04.png',mobileKey:'bg04',stars:false}
+    {file:'assets/sprites/fondo.jpg',mobileKey:'bg',stars:true},
+    {file:'assets/sprites/fondo02.jpg',mobileKey:'bg02',stars:false},
+    {file:'assets/sprites/fondo03.jpg',mobileKey:'bg03',stars:false},
+    {file:'assets/sprites/fondo04.jpg',mobileKey:'bg04',stars:false}
   ];
   let matchBackgroundCursor=-1,currentMatchBackground=0,currentMatchBackgroundRound=0;
   if(useStaticPcBackground){
     // Fondo PC estatico: se compone una sola vez como capa CSS 16:9 y ya no se
     // copia dentro del canvas en cada frame.
     canvas.style.backgroundColor='#020714';
-    canvas.style.backgroundImage="url('assets/sprites/fondo.png')";
+    canvas.style.backgroundImage="url('assets/sprites/fondo.jpg')";
     canvas.style.backgroundRepeat='no-repeat';
     canvas.style.backgroundPosition='center center';
     canvas.style.backgroundSize='100% 100%';
@@ -684,8 +683,8 @@
     if(useStaticPcBackground){
       // El fondo base queda como fallback si 02/03/04 aun no existen o fallan.
       canvas.style.backgroundImage=currentMatchBackground===0
-        ? "url('assets/sprites/fondo.png')"
-        : "url('"+cfg.file+"'),url('assets/sprites/fondo.png')";
+        ? "url('assets/sprites/fondo.jpg')"
+        : "url('"+cfg.file+"'),url('assets/sprites/fondo.jpg')";
     }else{
       backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
       rebuildBackgroundCache();
@@ -706,7 +705,7 @@
   function selectMatchBackgroundForRound(round){
     const safeRound=Math.max(1,Number(round)||1);
     let candidate=(safeRound-1)%MATCH_BACKGROUNDS.length;
-    // Todos los clientes usan la misma regla. Si falta ese fondo, fondo.png.
+    // Todos los clientes usan la misma regla. Si falta ese fondo, fondo.jpg.
     if(!matchBackgroundAvailable(candidate))candidate=0;
     currentMatchBackgroundRound=safeRound;
     matchBackgroundCursor=candidate;
@@ -868,8 +867,10 @@
   campoNombre.addEventListener('compositionend',normalizarNombreVisible);
 
   const assetList={
-    bg:isMobile?'assets/sprites/fondo_1280.png':null,
-    bg02:'assets/sprites/fondo02.png',bg03:'assets/sprites/fondo03.png',bg04:'assets/sprites/fondo04.png',
+    bg:isMobile?'assets/sprites/fondo_1280.jpg':null,
+    bg02:isMobile?'assets/sprites/fondo02_1280.jpg':'assets/sprites/fondo02.jpg',
+    bg03:isMobile?'assets/sprites/fondo03_1280.jpg':'assets/sprites/fondo03.jpg',
+    bg04:isMobile?'assets/sprites/fondo04_1280.jpg':'assets/sprites/fondo04.jpg',
     giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
