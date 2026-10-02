@@ -28,6 +28,41 @@
   Object.assign(dictionaries.it,{weaponTheft:'FURTO DI ARMAMENTI'});
   Object.assign(dictionaries.fr,{weaponTheft:"VOL D'ARMEMENT"});
   Object.assign(dictionaries.de,{weaponTheft:'WAFFENRAUB'});
+  Object.assign(dictionaries.es,{
+    campaignLevelComplete:'NIVEL {level} SUPERADO',
+    campaignLevelLost:'NIVEL {level} · GANA {name}',
+    continueCampaign:'CONTINUAR',
+    retryLevel:'REPETIR NIVEL',
+    campaignChampion:'CAMPEÓN INTERESTELAR'
+  });
+  Object.assign(dictionaries.en,{
+    campaignLevelComplete:'LEVEL {level} COMPLETE',
+    campaignLevelLost:'LEVEL {level} · {name} WINS',
+    continueCampaign:'CONTINUE',
+    retryLevel:'RETRY LEVEL',
+    campaignChampion:'INTERSTELLAR CHAMPION'
+  });
+  Object.assign(dictionaries.it,{
+    campaignLevelComplete:'LIVELLO {level} SUPERATO',
+    campaignLevelLost:'LIVELLO {level} · VINCE {name}',
+    continueCampaign:'CONTINUA',
+    retryLevel:'RIPETI LIVELLO',
+    campaignChampion:'CAMPIONE INTERSTELLARE'
+  });
+  Object.assign(dictionaries.fr,{
+    campaignLevelComplete:'NIVEAU {level} TERMINE',
+    campaignLevelLost:'NIVEAU {level} · {name} GAGNE',
+    continueCampaign:'CONTINUER',
+    retryLevel:'REJOUER LE NIVEAU',
+    campaignChampion:'CHAMPION INTERSTELLAIRE'
+  });
+  Object.assign(dictionaries.de,{
+    campaignLevelComplete:'LEVEL {level} GESCHAFFT',
+    campaignLevelLost:'LEVEL {level} · {name} GEWINNT',
+    continueCampaign:'WEITER',
+    retryLevel:'LEVEL WIEDERHOLEN',
+    campaignChampion:'INTERSTELLARER CHAMPION'
+  });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
   let language='es';
