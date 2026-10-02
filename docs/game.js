@@ -122,6 +122,7 @@
   // para estabilizar WebRTC/recursos; al aparecer VAMOS arrancan fisica y controles.
   const ONLINE_READY_MS=2000,ONLINE_GO_MS=900;
   let onlineStartAt=0,onlineGoAt=0,onlineStartEndAt=0,onlineStartTimer=null,onlineStartRankRound=1;
+  let onlineStartPending=false,onlineStartGeneration=0;
   let onlineReadyRedCache=null,onlineReadyOrangeCache=null,onlineGoCache=null;
   let weaponTheftFxStart=0,weaponTheftFxUntil=0,weaponTheftIndex=-1;
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[];
@@ -923,6 +924,7 @@
         }).catch(()=>resolve(false));
       };
     });
+    if(window.GalaxyGraphicsLoader)window.GalaxyGraphicsLoader.track(imageDecodePromises[k]);
     im.src=url;
     images[k]=im;
   }
@@ -2760,7 +2762,7 @@
       if(!previousState){previousState=m;previousStateTime=now-NET_FRAME_MS;rebuildPreviousLookup(m);}
       syncVoicePlayers(m.players);
       maybeScheduleVictory();
-      if(!inGame&&m.started&&!m.finished)beginGame();
+      if(!inGame&&!onlineStartPending&&m.started&&!m.finished)beginGame();
     }
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';brutalShooter=sinTildes(String(m.shooter||'')).trim();}
     else if(m.t==='weapon-theft'){
@@ -3871,6 +3873,7 @@
     return !!(onlineReadyRedCache&&onlineReadyOrangeCache&&onlineGoCache);
   }
   function resetOnlineStartCountdown(){
+    onlineStartGeneration++;onlineStartPending=false;
     if(onlineStartTimer){clearTimeout(onlineStartTimer);onlineStartTimer=null;}
     onlineStartAt=0;onlineGoAt=0;onlineStartEndAt=0;onlineStartRankRound=1;
   }
@@ -3891,14 +3894,18 @@
     if(roomCode!=='LOCAL'&&isHost&&!hostPhysics)startHostPhysics(lobbyPlayers,onlineStartRankRound);
     playSound('start');
   }
-  function beginOnlineStartCountdown(rankRound=1){
+  async function beginOnlineStartCountdown(rankRound=1){
     resetOnlineStartCountdown();
+    const generation=onlineStartGeneration,startingRoom=roomCode;
+    onlineStartPending=true;
+    await prepareGameAssets();
+    if(generation!==onlineStartGeneration||roomCode!==startingRoom)return;
+    onlineStartPending=false;
     const now=performance.now();
     onlineStartAt=now;onlineGoAt=now+ONLINE_READY_MS;onlineStartEndAt=onlineGoAt+ONLINE_GO_MS;
     onlineStartRankRound=Math.max(1,Number(rankRound)||1);
     netStartAt=roomCode==='LOCAL'?0:onlineGoAt;
-    prepareGameAssets().then(()=>warmOnlineStartCaches(true)).catch(()=>{});
-    warmOnlineStartCaches();
+    warmOnlineStartCaches(true);
     beginGame(true,onlineStartRankRound);
     onlineStartTimer=setTimeout(launchOnlineAfterReady,ONLINE_READY_MS);
   }
@@ -4337,6 +4344,7 @@
 
   function render(rafNow){
     requestAnimationFrame(render);
+    if(!gameAssetsReady)return;
     const now=Number.isFinite(rafNow)?rafNow:performance.now();
     sampleDisplayRefresh(now);
     flushPendingState(false,now);
@@ -4571,5 +4579,7 @@
       else wakeStatus();
     }
   });
+  const startupGraphics=prepareGameAssets();
+  if(window.GalaxyGraphicsLoader)window.GalaxyGraphicsLoader.track(startupGraphics);
   connect();render();
 })();
