@@ -3482,14 +3482,9 @@
     if((Number(p.flare)||0)>0&&imageReady(images.bengalasnave)){
       drawImageCentered(images.bengalasnave,x,y,64,-r,Math.min(1,alpha*.95));
     }
-    if(p.mira===true){
-      const navemiraKey=NAVEMIRA_IMAGE_KEYS[Math.max(0,Math.min(3,Number(p.i)||0))]||NAVEMIRA_IMAGE_KEYS[0];
-      const navemiraIm=imageReady(images[navemiraKey])?images[navemiraKey]:images.navemira;
-      if(imageReady(navemiraIm))drawImageCentered(navemiraIm,x,y,64,-r,Math.min(1,alpha*.95));
-    }
     if(p.shock===true){
-      // V20.74: testigo de onda expansiva como aro plano, adelantado
-      // hacia la punta de la nave en lugar de una esfera retrasada.
+      // V20.78: el testigo de onda se dibuja antes que la capa MIRA/misil,
+      // para que el indicador del misil quede siempre visualmente por encima.
       const noseRot=(Number(r)||0)*Math.PI/180;
       const noseX=-Math.sin(noseRot),noseY=-Math.cos(noseRot);
       const sx=x+noseX*22,sy=y+noseY*22;
@@ -3504,6 +3499,11 @@
       ctx.lineWidth=1;
       ctx.beginPath();ctx.arc(sx,sy,6,0,Math.PI*2);ctx.stroke();
       ctx.restore();
+    }
+    if(p.mira===true){
+      const navemiraKey=NAVEMIRA_IMAGE_KEYS[Math.max(0,Math.min(3,Number(p.i)||0))]||NAVEMIRA_IMAGE_KEYS[0];
+      const navemiraIm=imageReady(images[navemiraKey])?images[navemiraKey]:images.navemira;
+      if(imageReady(navemiraIm))drawImageCentered(navemiraIm,x,y,64,-r,Math.min(1,alpha*.95));
     }
     if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
   }
