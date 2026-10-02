@@ -3076,7 +3076,12 @@
       }
       if(!ok&&p2p&&!fallbackActive)ok=p2p.sendAction('restart');
     }
-    if(!ok){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
+    if(!ok){
+      restartMatchBtn.disabled=false;
+      if(roomCode==='LOCAL'){
+        restartMatchBtn.textContent=localCampaignAwaitingContinue?tr('continueCampaign'):tr('retryLevel');
+      }else restartMatchBtn.textContent=tr('rematch');
+    }
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);
   window.addEventListener('keydown',e=>{
