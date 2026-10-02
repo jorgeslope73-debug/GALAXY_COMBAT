@@ -77,15 +77,36 @@
 
   if (!('serviceWorker' in navigator)) return;
 
-  // V20.88: cuando entra un SW nuevo, la pagina actual puede seguir mostrando
-  // el HTML antiguo hasta la siguiente recarga. Forzamos UNA sola recarga al
-  // cambiar el controlador para que el testigo de version se actualice al instante.
+  // V20.90: una actualizacion nunca puede recargar la pagina mientras hay
+  // una sala, partida o pantalla de victoria activa. El nuevo SW puede quedar
+  // controlando la pagina, pero la recarga se aplaza hasta volver al menu.
   let reloadingForUpdate=false;
+  let pendingUpdateReload=false;
+
+  function safeToReloadForUpdate(){
+    const menu=document.getElementById('menu');
+    return !!(menu&&!menu.classList.contains('hidden'));
+  }
+
+  function reloadForPendingUpdate(){
+    if(reloadingForUpdate||!pendingUpdateReload||!safeToReloadForUpdate())return false;
+    reloadingForUpdate=true;
+    pendingUpdateReload=false;
+    location.reload();
+    return true;
+  }
+
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
     if(reloadingForUpdate)return;
-    reloadingForUpdate=true;
-    location.reload();
+    pendingUpdateReload=true;
+    reloadForPendingUpdate();
   });
+
+  const mainMenu=document.getElementById('menu');
+  if(mainMenu&&typeof MutationObserver==='function'){
+    const menuObserver=new MutationObserver(()=>reloadForPendingUpdate());
+    menuObserver.observe(mainMenu,{attributes:true,attributeFilter:['class']});
+  }
 
   async function refreshServiceWorker(){
     try{
