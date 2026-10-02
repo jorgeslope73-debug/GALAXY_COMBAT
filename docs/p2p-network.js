@@ -11,6 +11,9 @@
       this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;this.stateRaf=0;
       this.lastStateRound=-1;this.lastStateSeq=-1;
       this.pendingBroadcastState=null;this.broadcastTimer=0;
+      // V20.83: una reconexion por peer a la vez. Evita que dos rutas de
+      // recuperacion cierren/recreen el mismo RTCPeerConnection simultaneamente.
+      this.reconnectingPeers=new Map();this.closed=false;
       this.iceServers=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
     }
     setIceServers(servers){if(Array.isArray(servers)&&servers.length)this.iceServers=servers;}
@@ -34,33 +37,56 @@
       for(const i of [...this.peers.keys()])if(!allowed.has(i))this.closePeer(i);
     }
     async ensureHostPeers(){
+      if(this.closed)return;
       for(const p of this.players){
         if(p&&p.cpu)continue;
         const i=Number(p&&p.i);
-        if(!Number.isInteger(i)||i===this.myIndex)continue;
+        if(!Number.isInteger(i)||i===this.myIndex||this.reconnectingPeers.has(i))continue;
         const rec=this.peers.get(i);
         if(rec&&rec.pc&&rec.pc.connectionState!=='closed'&&rec.pc.connectionState!=='failed')continue;
         if(rec)this.closePeer(i);
-        await this.createPeer(i,true);
+        try{await this.createPeer(i,true);}
+        catch(err){if(!this.closed)console.warn('[Galaxy P2P] ensure peer',err);}
       }
     }
     closePeer(peerIndex){
       const rec=this.peers.get(peerIndex);if(!rec)return;
       this.peers.delete(peerIndex);
-      try{rec.dc&&rec.dc.close();}catch(_){}
-      try{rec.pc&&rec.pc.close();}catch(_){}
+      try{
+        if(rec.dc){
+          rec.dc.onopen=null;rec.dc.onclose=null;rec.dc.onerror=null;rec.dc.onmessage=null;
+          rec.dc.close();
+        }
+      }catch(_){}
+      try{
+        if(rec.pc){
+          rec.pc.onicecandidate=null;rec.pc.onconnectionstatechange=null;rec.pc.ondatachannel=null;
+          rec.pc.close();
+        }
+      }catch(_){}
     }
     makePc(peerIndex){
+      if(this.closed)throw new Error('P2P closed');
       const pc=new RTCPeerConnection({iceServers:this.iceServers});
       const rec={pc,dc:null,open:false,pendingIce:[]};this.peers.set(peerIndex,rec);
-      pc.onicecandidate=e=>{if(e.candidate)this.sendSignal({t:'p2p-ice',to:peerIndex,data:e.candidate});};
+      pc.onicecandidate=e=>{
+        if(this.closed||this.peers.get(peerIndex)!==rec)return;
+        if(e.candidate)this.sendSignal({t:'p2p-ice',to:peerIndex,data:e.candidate});
+      };
       pc.onconnectionstatechange=()=>{
+        // Un callback de una conexion antigua nunca puede cerrar la nueva.
+        if(this.closed||this.peers.get(peerIndex)!==rec)return;
         const state=pc.connectionState,ok=state==='connected';
         rec.open=ok&&!!(rec.dc&&rec.dc.readyState==='open');
         this.onPeerState(peerIndex,state);
-        if(this.isHost&&state==='failed'){this.closePeer(peerIndex);this.ensureHostPeers();}
+        if(this.isHost&&state==='failed'){
+          this.closePeer(peerIndex);
+          this.ensureHostPeers();
+        }
       };
-      pc.ondatachannel=e=>this.bindChannel(peerIndex,e.channel);
+      pc.ondatachannel=e=>{
+        if(!this.closed&&this.peers.get(peerIndex)===rec)this.bindChannel(peerIndex,e.channel);
+      };
       return rec;
     }
     stateOrderFromRaw(raw){
@@ -137,11 +163,14 @@
       };
     }
     async createPeer(peerIndex,offerer){
+      if(this.closed)throw new Error('P2P closed');
       let rec=this.peers.get(peerIndex);if(!rec)rec=this.makePc(peerIndex);
       if(offerer&&!rec.dc)this.bindChannel(peerIndex,rec.pc.createDataChannel('galaxy',{ordered:false,maxRetransmits:0}));
       if(offerer){
         const offer=await rec.pc.createOffer();
+        if(this.closed||this.peers.get(peerIndex)!==rec)return rec;
         await rec.pc.setLocalDescription(offer);
+        if(this.closed||this.peers.get(peerIndex)!==rec)return rec;
         this.sendSignal({t:'p2p-offer',to:peerIndex,data:rec.pc.localDescription});
       }
       return rec;
@@ -156,11 +185,27 @@
     }
     async reconnectPeer(peerIndex){
       const i=Number(peerIndex);
-      if(!this.isHost||!Number.isInteger(i)||i===this.myIndex)return false;
-      this.closePeer(i);
-      try{await this.createPeer(i,true);return true;}catch(err){console.warn('[Galaxy P2P] reconnect',err);return false;}
+      if(this.closed||!this.isHost||!Number.isInteger(i)||i===this.myIndex)return false;
+      const existing=this.reconnectingPeers.get(i);
+      if(existing)return existing;
+      const task=(async()=>{
+        this.closePeer(i);
+        if(this.closed)return false;
+        try{
+          await this.createPeer(i,true);
+          if(this.closed){this.closePeer(i);return false;}
+          return true;
+        }catch(err){
+          if(!this.closed)console.warn('[Galaxy P2P] reconnect',err);
+          return false;
+        }
+      })();
+      this.reconnectingPeers.set(i,task);
+      try{return await task;}
+      finally{if(this.reconnectingPeers.get(i)===task)this.reconnectingPeers.delete(i);}
     }
     async handleSignal(m){
+      if(this.closed)return false;
       const from=Number(m&&m.from);if(!Number.isInteger(from)||from===this.myIndex)return false;
       if(m.t==='p2p-reconnect')return this.reconnectPeer(from);
       let rec=this.peers.get(from);if(!rec)rec=await this.createPeer(from,false);
@@ -191,6 +236,9 @@
       if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire});return true;}
       const rec=this.peers.get(0)||[...this.peers.values()].find(x=>x.open);
       if(!rec||!rec.dc||rec.dc.readyState!=='open')return false;
+      // Los controles son efimeros: con cola alta descartamos el antiguo y el
+      // siguiente heartbeat enviara el estado mas reciente, evitando input lag.
+      if(Number(rec.dc.bufferedAmount||0)>32*1024)return false;
       try{rec.dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire}));return true;}catch(_){return false;}
     }
     flushBroadcastState(){
@@ -232,10 +280,12 @@
       try{rec.dc.send(JSON.stringify({t:'action',action}));return true;}catch(_){return false;}
     }
     close(){
+      this.closed=true;
       if(this.stateRaf){cancelAnimationFrame(this.stateRaf);this.stateRaf=0;}
       if(this.broadcastTimer){clearTimeout(this.broadcastTimer);this.broadcastTimer=0;}
       this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;
       this.lastStateRound=-1;this.lastStateSeq=-1;this.pendingBroadcastState=null;
+      this.reconnectingPeers.clear();
       for(const rec of this.peers.values()){
         try{rec.dc&&rec.dc.close();}catch(_){}
         try{rec.pc.close();}catch(_){}
