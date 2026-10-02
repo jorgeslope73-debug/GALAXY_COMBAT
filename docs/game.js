@@ -3503,7 +3503,7 @@
       // para que el indicador del misil quede siempre visualmente por encima.
       const noseRot=(Number(r)||0)*Math.PI/180;
       const noseX=-Math.sin(noseRot),noseY=-Math.cos(noseRot);
-      const sx=x+noseX*22,sy=y+noseY*22;
+      const sx=x+noseX*19,sy=y+noseY*19;
       ctx.save();
       ctx.globalAlpha=Math.min(1,alpha*.9);
       ctx.fillStyle='rgba(150,215,255,.10)';
