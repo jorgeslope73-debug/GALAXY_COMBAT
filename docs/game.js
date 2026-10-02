@@ -8,12 +8,13 @@
   const trServer=text=>i18n?i18n.translateServerText(text):String(text==null?'':text);
   const canvas=document.getElementById('game');
   const useStaticPcBackground=!isMobile;
-  // V20.76: cada partida rota entre cuatro fondos JPG optimizados.
+  // V20.76: cada partida rota entre cinco fondos JPG optimizados.
   const MATCH_BACKGROUNDS=[
     {file:'assets/sprites/fondo.jpg',mobileKey:'bg',stars:true},
     {file:'assets/sprites/fondo02.jpg',mobileKey:'bg02',stars:false},
     {file:'assets/sprites/fondo03.jpg',mobileKey:'bg03',stars:false},
-    {file:'assets/sprites/fondo04.jpg',mobileKey:'bg04',stars:false}
+    {file:'assets/sprites/fondo04.jpg',mobileKey:'bg04',stars:false},
+    {file:'assets/sprites/fondo05.jpg',mobileKey:'bg05',stars:false}
   ];
   let matchBackgroundCursor=-1,currentMatchBackground=0,currentMatchBackgroundRound=0;
   if(useStaticPcBackground){
@@ -127,7 +128,7 @@
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false,activeLocalDifficulty='';
-  // V20.92: CONTRA LA MAQUINA pasa a ser una campana de cuatro niveles.
+  // V20.92: CONTRA LA MAQUINA pasa a ser una campana de cinco niveles.
   // El nivel solo avanza si gana el jugador humano (J1).
   let localCampaignLevel=1,localCampaignAwaitingContinue=false,localCampaignComplete=false;
   let cpuLearningControl={autoTrainingEnabled:false,localHardEnabled:false,ready:false};
@@ -684,7 +685,7 @@
     currentMatchBackground=Math.max(0,Math.min(MATCH_BACKGROUNDS.length-1,Number(index)||0));
     const cfg=MATCH_BACKGROUNDS[currentMatchBackground]||MATCH_BACKGROUNDS[0];
     if(useStaticPcBackground){
-      // El fondo base queda como fallback si 02/03/04 aun no existen o fallan.
+      // El fondo base queda como fallback si los fondos alternativos aun no existen o fallan.
       canvas.style.backgroundImage=currentMatchBackground===0
         ? "url('assets/sprites/fondo.jpg')"
         : "url('"+cfg.file+"'),url('assets/sprites/fondo.jpg')";
@@ -876,6 +877,7 @@
     bg02:isMobile?'assets/sprites/fondo02_1280.jpg':'assets/sprites/fondo02.jpg',
     bg03:isMobile?'assets/sprites/fondo03_1280.jpg':'assets/sprites/fondo03.jpg',
     bg04:isMobile?'assets/sprites/fondo04_1280.jpg':'assets/sprites/fondo04.jpg',
+    bg05:isMobile?'assets/sprites/fondo05_1280.jpg':'assets/sprites/fondo05.jpg',
     giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
@@ -913,7 +915,7 @@
       im.onload=()=>{
         const decoded=typeof im.decode==='function'?im.decode():Promise.resolve();
         Promise.resolve(decoded).then(()=>{
-          if(k==='bg'||k==='bg02'||k==='bg03'||k==='bg04'){
+          if(k==='bg'||k==='bg02'||k==='bg03'||k==='bg04'||k==='bg05'){
             backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
             scheduleCanvasResolution();
           }
@@ -2810,7 +2812,7 @@
     return index;
   }
   function beginGame(preparingOnline=false,backgroundRound=0){
-    // En CPU el nivel decide el fondo: 1=fondo, 2=fondo02, 3=fondo03, 4=fondo04.
+    // En CPU el nivel decide el fondo: 1=fondo, 2=fondo02, 3=fondo03, 4=fondo04, 5=fondo05.
     // Online conserva su sincronizacion autoritativa por rankRound.
     if(roomCode==='LOCAL')selectLocalCampaignBackground(localCampaignLevel);
     else if(Number(backgroundRound)>0)selectMatchBackgroundForRound(backgroundRound);
@@ -2863,7 +2865,7 @@
     localCampaignAwaitingContinue=false;
     localCampaignComplete=false;
 
-    if(localCampaign&&humanWon&&localCampaignLevel>=4){
+    if(localCampaign&&humanWon&&localCampaignLevel>=MATCH_BACKGROUNDS.length){
       victoryText.textContent=tr('campaignChampion');
       localCampaignComplete=true;
       if(restartBtn){restartBtn.disabled=false;restartBtn.classList.add('hidden');}
@@ -3061,7 +3063,7 @@
         restartMatchBtn.classList.add('hidden');
         return;
       }
-      if(wasContinue)localCampaignLevel=Math.min(4,localCampaignLevel+1);
+      if(wasContinue)localCampaignLevel=Math.min(MATCH_BACKGROUNDS.length,localCampaignLevel+1);
       localCampaignAwaitingContinue=false;
       ok=send({t:'restart',level:localCampaignLevel});
       if(!ok){

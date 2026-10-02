@@ -4,6 +4,7 @@
   const DRAG_PER_TICK=Math.pow(0.35,DT);
   const IDLE_CONTROL=Object.freeze({turn:0,thrust:false,fire:false});
   const SCORE_TO_WIN=5;
+  const CAMPAIGN_LEVELS=5;
   const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,MISSILE_HIT_RADIUS=12,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,SPAWN_MATERIALIZE_SECONDS=1.15,BRUTAL_SHOT_DISTANCE=850;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_LAUNCH_COOLDOWN=1,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
@@ -171,7 +172,19 @@
     hazardProfile(){
       // V20.94: dificultad ambiental progresiva SOLO de la campana CPU.
       // El maximo de asteroides sigue siendo 5 para conservar estabilidad.
-      const level=clamp(Math.round(Number(this.campaignLevel)||1),1,4);
+      const level=clamp(Math.round(Number(this.campaignLevel)||1),1,CAMPAIGN_LEVELS);
+      if(level===5)return{
+        asteroidMin:5,
+        asteroidInitialMin:8,asteroidInitialMax:12,
+        asteroidRespawnMin:3,asteroidRespawnMax:6,
+        asteroidPopulationMin:12,asteroidPopulationMax:24,
+        firstShowerMin:35,firstShowerMax:55,
+        showerRepeatMin:35,showerRepeatMax:60,
+        showerDuration:10,
+        meteorIntervalMin:.18,meteorIntervalMax:.26,
+        giantFirstMin:30,giantFirstMax:45,
+        giantRepeatMin:60,giantRepeatMax:90
+      };
       if(level===4)return{
         asteroidMin:4,
         asteroidInitialMin:10,asteroidInitialMax:15,
@@ -812,7 +825,7 @@
     start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null,learningEnabled=true,campaignLevel=1){
       this.trainingMode=false;
       this.learningEnabled=learningEnabled!==false;
-      this.campaignLevel=clamp(Math.round(Number(campaignLevel)||1),1,4);
+      this.campaignLevel=clamp(Math.round(Number(campaignLevel)||1),1,CAMPAIGN_LEVELS);
       this.difficulty=String(difficulty||'medio');
       this.brain=this.difficulty==='dificil'&&brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
@@ -917,7 +930,7 @@
       if(!msg||typeof msg!=='object')return true;
       if(msg.t==='ctrl'){this.setControl(msg.turn,msg.thrust,msg.fire);return true;}
       if(msg.t==='restart'){
-        if(Number.isFinite(Number(msg.level)))this.campaignLevel=clamp(Math.round(Number(msg.level)||1),1,4);
+        if(Number.isFinite(Number(msg.level)))this.campaignLevel=clamp(Math.round(Number(msg.level)||1),1,CAMPAIGN_LEVELS);
         if(this.restart()){
           this.emit({t:'restarted'});
           this.onState(this.publicState());
