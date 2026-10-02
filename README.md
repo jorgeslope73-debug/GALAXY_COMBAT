@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.44**
+**Versión actual: V20.75**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -275,4 +275,5 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V20.25: nueva materializacion de aparicion al comenzar la partida y tras cada muerte. Durante ~1,15 s la nave queda fija y sin control, con anillos/rayos de localizacion y entrada por escala; al terminar se habilita el control y empiezan completos los 3 s de inmunidad existentes. Se aplica tanto a partidas online/P2P como al modo CPU local sin nuevos assets.
 - V20.24: el misil guiado entra en fase de agotamiento durante su ultimo segundo de vida (de 3 a 4 s): mantiene su velocidad base pero aplica una oscilacion lateral progresiva y determinista. Al llegar a los 4 s detona en su posicion y genera el efecto de explosion con particulas que se desvanecen, en lugar de desaparecer instantaneamente. No cambia dano, guiado previo, colisiones ni vida de las balas normales.
 
+- V20.75: sincroniza el fondo de partidas online usando el número de ronda para que todos los jugadores vean el mismo escenario; el testigo de onda expansiva usa la rotación visual interpolada de la nave para permanecer pegado a la punta; README actualizado a la versión actual.
 - V20.73: los fondos de partida rotan entre fondo.png, fondo02.png, fondo03.png y fondo04.png cuando estén disponibles. Las estrellas animadas/parpadeantes solo se dibujan sobre fondo.png; los fondos planetarios 02/03/04 quedan sin esa capa hasta definir posiciones específicas. Si un fondo alternativo falta o falla al cargar, se usa fondo.png como fallback seguro.
