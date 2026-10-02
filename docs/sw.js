@@ -1,4 +1,4 @@
-const VERSION = 'V20.95-round-ready';
+const VERSION = 'V20.95-lobby-clean';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);

@@ -2634,6 +2634,7 @@
     if(m.t==='chat-history'){loadLobbyChatHistory(m.messages);return;}
     if(m.t==='chat'){appendLobbyChatMessage(m);return;}
     if(m.t==='created'||m.t==='joined'){
+      if(!m.started){inGame=false;resetOnlineStartCountdown();clearGameCanvas();}
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
@@ -2647,6 +2648,7 @@
       else if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
+      if(!m.started){inGame=false;resetOnlineStartCountdown();clearGameCanvas();}
       roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;
       if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
       updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
@@ -2674,6 +2676,7 @@
       else send({t:'public-rooms'});
     }
     else if(m.t==='lobby'){
+      if(!inGame&&!onlineStartPending&&!lobby.classList.contains('hidden')){resetOnlineStartCountdown();clearGameCanvas();}
       roomCode=m.code;lobbyPlayers=Array.isArray(m.players)?m.players.slice():[];cpuFillEnabled=!!m.cpuFill;
       ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
       // El roster es la autoridad sobre si cada plaza es HUMANO o CPU,
@@ -3035,7 +3038,7 @@
     if(voice)voice.clearSession();
     stopP2P();
     stopResumeWindow();clearResumeSession();playerToken='';
-    inGame=false;setMobileKeyboardActive(false);state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
+    inGame=false;clearGameCanvas();setMobileKeyboardActive(false);state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     // Recuperar el testigo de aprendizaje al volver al menu sin esperar al
     // siguiente intervalo de 5 s.
     refreshCpuLearningControl();
@@ -3887,6 +3890,13 @@
     if(!onlineGoCache)onlineGoCache=buildOnlineStartTitleCache('VAMOS!!!','#54ff63','rgba(55,255,95,.98)',178,16);
     return !!(onlineReadyRedCache&&onlineReadyOrangeCache&&onlineGoCache);
   }
+  function clearGameCanvas(){
+    ctx.save();
+    try{
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+    }finally{ctx.restore();}
+  }
   function resetOnlineStartCountdown(){
     onlineStartGeneration++;onlineStartPending=false;
     if(onlineStartTimer){clearTimeout(onlineStartTimer);onlineStartTimer=null;}
@@ -3945,7 +3955,7 @@
     onlineStartTimer=setTimeout(launchOnlineAfterReady,ONLINE_READY_MS);
   }
   function drawOnlineStartAnnouncement(now){
-    if(!onlineStartAt||now<onlineStartAt||now>=onlineStartEndAt)return;
+    if(!inGame||!menu.classList.contains('hidden')||!lobby.classList.contains('hidden')||!onlineStartAt||now<onlineStartAt||now>=onlineStartEndAt)return;
     warmOnlineStartCaches();
     const age=now-onlineStartAt;
     ctx.save();
