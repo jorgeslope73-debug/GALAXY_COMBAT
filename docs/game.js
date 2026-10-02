@@ -3470,15 +3470,21 @@
       if(imageReady(navemiraIm))drawImageCentered(navemiraIm,x,y,64,-r,Math.min(1,alpha*.95));
     }
     if(p.shock===true){
-      const backRot=((Number(p.r)||0)+180)*Math.PI/180;
-      const backX=-Math.sin(backRot),backY=-Math.cos(backRot);
-      const sx=x+backX*34,sy=y+backY*34;
+      // V20.74: testigo de onda expansiva como aro plano, adelantado
+      // hacia la punta de la nave en lugar de una esfera retrasada.
+      const noseRot=(Number(p.r)||0)*Math.PI/180;
+      const noseX=-Math.sin(noseRot),noseY=-Math.cos(noseRot);
+      const sx=x+noseX*22,sy=y+noseY*22;
       ctx.save();
-      ctx.globalAlpha=Math.min(1,alpha*.95);
-      ctx.fillStyle='#eef8ff';
-      ctx.strokeStyle='#7fcfff';
-      ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(sx,sy,6,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.globalAlpha=Math.min(1,alpha*.9);
+      ctx.fillStyle='rgba(150,215,255,.10)';
+      ctx.strokeStyle='#8ed8ff';
+      ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(sx,sy,9,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.globalAlpha=Math.min(1,alpha*.42);
+      ctx.strokeStyle='#e8f8ff';
+      ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(sx,sy,6,0,Math.PI*2);ctx.stroke();
       ctx.restore();
     }
     if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
