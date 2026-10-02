@@ -2442,7 +2442,8 @@
       difficulty,
       document.getElementById('cpuCount').value,
       brain,
-      cpuLearningControl.localHardEnabled===true
+      cpuLearningControl.localHardEnabled===true,
+      localCampaignLevel
     );
     localCpuActive=true;
     handle({t:'created',code:'LOCAL',index:0,cpu:true,playerToken:''});
@@ -3062,7 +3063,7 @@
       }
       if(wasContinue)localCampaignLevel=Math.min(4,localCampaignLevel+1);
       localCampaignAwaitingContinue=false;
-      ok=send({t:'restart'});
+      ok=send({t:'restart',level:localCampaignLevel});
       if(!ok){
         localCampaignLevel=previousLevel;
         localCampaignAwaitingContinue=wasContinue;
