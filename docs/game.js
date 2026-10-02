@@ -3054,15 +3054,19 @@
     let ok=false;
     if(roomCode==='LOCAL'){
       const previousLevel=localCampaignLevel;
+      const wasContinue=localCampaignAwaitingContinue;
       if(localCampaignComplete){
         restartMatchBtn.disabled=false;
         restartMatchBtn.classList.add('hidden');
         return;
       }
-      if(localCampaignAwaitingContinue)localCampaignLevel=Math.min(4,localCampaignLevel+1);
+      if(wasContinue)localCampaignLevel=Math.min(4,localCampaignLevel+1);
       localCampaignAwaitingContinue=false;
       ok=send({t:'restart'});
-      if(!ok)localCampaignLevel=previousLevel;
+      if(!ok){
+        localCampaignLevel=previousLevel;
+        localCampaignAwaitingContinue=wasContinue;
+      }
     }else if(isHost&&p2p){
       // El anfitrion no necesita red para reiniciar: sendAction ejecuta la
       // accion localmente y conserva la misma ruta autoritativa existente.
