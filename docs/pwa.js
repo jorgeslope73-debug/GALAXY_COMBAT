@@ -77,7 +77,7 @@
 
   if (!('serviceWorker' in navigator)) return;
 
-  // V20.42: cuando entra un SW nuevo, la pagina actual puede seguir mostrando
+  // V20.88: cuando entra un SW nuevo, la pagina actual puede seguir mostrando
   // el HTML antiguo hasta la siguiente recarga. Forzamos UNA sola recarga al
   // cambiar el controlador para que el testigo de version se actualice al instante.
   let reloadingForUpdate=false;
@@ -95,7 +95,9 @@
   }
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=V20.42', { updateViaCache: 'none' })
+    // URL estable + updateViaCache:none: el navegador compara siempre el
+    // contenido real de sw.js. Asi no hay que mantener aqui una version manual.
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
       .then(async reg=>{
         try{await reg.update();}catch(_){}
       })
