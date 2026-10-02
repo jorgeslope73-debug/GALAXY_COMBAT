@@ -956,7 +956,8 @@
       this.learningSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
-      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      const hazard=this.hazardProfile();
+      this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.huntTargetIndex=0;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
