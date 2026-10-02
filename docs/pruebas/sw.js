@@ -1,6 +1,6 @@
 const VERSION = 'PRUEBAS-01';
-const SHELL_CACHE = `galaxy-bruebas-shell-${VERSION}`;
-const ASSET_CACHE = `galaxy-bruebas-assets-${VERSION}`;
+const SHELL_CACHE = `galaxy-pruebas-shell-${VERSION}`;
+const ASSET_CACHE = `galaxy-pruebas-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
 
 const SHELL_FILES = [
@@ -72,7 +72,7 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.map(key => {
-        if (key.startsWith('galaxy-bruebas-') && !ACTIVE_CACHES.has(key)) return caches.delete(key);
+        if (key.startsWith('galaxy-pruebas-') && !ACTIVE_CACHES.has(key)) return caches.delete(key);
         return Promise.resolve(false);
       })))
       .then(() => self.clients.claim())

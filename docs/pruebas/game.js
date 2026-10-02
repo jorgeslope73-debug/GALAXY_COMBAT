@@ -48,9 +48,9 @@
   const images={},sounds={};
   let state=null,previousState=null,myIndex=null,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
   let lastAcceptedStateRound=-1,lastAcceptedStateSeq=-1;
-  const RESUME_STORAGE_KEY='galaxyBruebasResumeV1';
-  const ROOM_CLIENT_ID_KEY='galaxyBruebasRoomClientIdV1';
-  const TEST_ROOM_PERMIT_STORAGE='galaxyBruebasTestRoomPermitV1';
+  const RESUME_STORAGE_KEY='galaxyPruebasResumeV1';
+  const ROOM_CLIENT_ID_KEY='galaxyPruebasRoomClientIdV1';
+  const TEST_ROOM_PERMIT_STORAGE='galaxyPruebasTestRoomPermitV1';
   const RESUME_WINDOW_MS=30000;
   function roomClientId(){
     try{
