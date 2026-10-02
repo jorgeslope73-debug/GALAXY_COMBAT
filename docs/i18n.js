@@ -33,7 +33,7 @@
     campaignLevelLost:'NIVEL {level} · GANA {name}',
     continueCampaign:'CONTINUAR',
     retryLevel:'REPETIR NIVEL',
-    campaignChampion:'CAMPEÓN INTERESTELAR'
+    campaignChampion:'CAMPEON INTERESTELAR'
   });
   Object.assign(dictionaries.en,{
     campaignLevelComplete:'LEVEL {level} COMPLETE',
