@@ -8,6 +8,15 @@
   const trServer=text=>i18n?i18n.translateServerText(text):String(text==null?'':text);
   const canvas=document.getElementById('game');
   const useStaticPcBackground=!isMobile;
+  // V20.73: cada partida rota entre cuatro fondos. Los fondos 02/03/04
+  // pueden incorporarse como PNG sin tocar de nuevo la logica.
+  const MATCH_BACKGROUNDS=[
+    {file:'assets/sprites/fondo.png',mobileKey:'bg',stars:true},
+    {file:'assets/sprites/fondo02.png',mobileKey:'bg02',stars:false},
+    {file:'assets/sprites/fondo03.png',mobileKey:'bg03',stars:false},
+    {file:'assets/sprites/fondo04.png',mobileKey:'bg04',stars:false}
+  ];
+  let matchBackgroundCursor=-1,currentMatchBackground=0;
   if(useStaticPcBackground){
     // Fondo PC estatico: se compone una sola vez como capa CSS 16:9 y ya no se
     // copia dentro del canvas en cada frame.
@@ -659,9 +668,43 @@
   }
   const voice=typeof window.GalaxyVoice==='function'?new window.GalaxyVoice({send:o=>send(o),isMobile}):null;
   let backgroundCache=null,backgroundCacheW=0,backgroundCacheH=0;
+  function activeMobileBackground(){
+    const cfg=MATCH_BACKGROUNDS[currentMatchBackground]||MATCH_BACKGROUNDS[0];
+    const candidate=images[cfg.mobileKey];
+    return imageReady(candidate)?candidate:images.bg;
+  }
+  function matchBackgroundAvailable(index){
+    if(index===0)return true;
+    const cfg=MATCH_BACKGROUNDS[index];
+    return !!(cfg&&imageReady(images[cfg.mobileKey]));
+  }
+  function applyMatchBackground(index){
+    currentMatchBackground=Math.max(0,Math.min(MATCH_BACKGROUNDS.length-1,Number(index)||0));
+    const cfg=MATCH_BACKGROUNDS[currentMatchBackground]||MATCH_BACKGROUNDS[0];
+    if(useStaticPcBackground){
+      // El fondo base queda como fallback si 02/03/04 aun no existen o fallan.
+      canvas.style.backgroundImage=currentMatchBackground===0
+        ? "url('assets/sprites/fondo.png')"
+        : "url('"+cfg.file+"'),url('assets/sprites/fondo.png')";
+    }else{
+      backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
+      rebuildBackgroundCache();
+    }
+  }
+  function selectNextMatchBackground(){
+    for(let step=1;step<=MATCH_BACKGROUNDS.length;step++){
+      const candidate=(matchBackgroundCursor+step)%MATCH_BACKGROUNDS.length;
+      if(matchBackgroundAvailable(candidate)){
+        matchBackgroundCursor=candidate;
+        applyMatchBackground(candidate);
+        return candidate;
+      }
+    }
+    matchBackgroundCursor=0;applyMatchBackground(0);return 0;
+  }
   function rebuildBackgroundCache(){
     if(useStaticPcBackground)return;
-    const bg=images.bg;
+    const bg=activeMobileBackground();
     if(!imageReady(bg)||!canvas.width||!canvas.height)return;
     if(backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height&&backgroundCache)return;
     const cached=document.createElement('canvas');
@@ -814,7 +857,9 @@
   campoNombre.addEventListener('compositionend',normalizarNombreVisible);
 
   const assetList={
-    bg:isMobile?'assets/sprites/fondo_1280.png':null, giant:'assets/sprites/asteroidegrande_270.png',
+    bg:isMobile?'assets/sprites/fondo_1280.png':null,
+    bg02:'assets/sprites/fondo02.png',bg03:'assets/sprites/fondo03.png',bg04:'assets/sprites/fondo04.png',
+    giant:'assets/sprites/asteroidegrande_270.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
     bengala:'assets/sprites/bengala.png',bengalahud:'assets/sprites/bengalahud.png',bengalasnave:'assets/sprites/bengalasnave.png',ojo:'assets/sprites/ojo.png',
@@ -851,7 +896,7 @@
       im.onload=()=>{
         const decoded=typeof im.decode==='function'?im.decode():Promise.resolve();
         Promise.resolve(decoded).then(()=>{
-          if(k==='bg'){
+          if(k==='bg'||k==='bg02'||k==='bg03'||k==='bg04'){
             backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
             scheduleCanvasResolution();
           }
@@ -2729,7 +2774,7 @@
     }
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(preparingOnline=false){stopMusic();updateMobileControlUi();resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
+  function beginGame(preparingOnline=false){selectNextMatchBackground();stopMusic();updateMobileControlUi();resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
   function queueVictory(i){
     const winnerIndex=Number(i);
     if(!inGame||!Number.isInteger(winnerIndex)||winnerIndex<0||winnerIndex>3)return;
@@ -4209,10 +4254,10 @@
       ctx.globalCompositeOperation='source-over';
     }
     ctx.setTransform(renderScale,0,0,renderScale,0,0);
-    if(!useStaticPcBackground&&!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){
+    if(!useStaticPcBackground&&!backgroundCache&&!drawImageSafely(activeMobileBackground(),0,0,W,H)){
       ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);
     }
-    drawDecorativeStars(now);
+    if((MATCH_BACKGROUNDS[currentMatchBackground]||MATCH_BACKGROUNDS[0]).stars)drawDecorativeStars(now);
     if(!state){drawOnlineStartAnnouncement(now);return;}
 
     const nowSec=now/1000;
