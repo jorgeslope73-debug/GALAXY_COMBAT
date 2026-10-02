@@ -2162,6 +2162,10 @@
       if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
         requestFallback(now);
         if(ws&&ws.readyState===WebSocket.OPEN){
+          // V20.83: en fallback tambien descartamos controles viejos si la
+          // salida WebSocket esta congestionada. El siguiente heartbeat enviara
+          // el estado actual y evita una cola de giros/disparos atrasados.
+          if(Number(ws.bufferedAmount||0)>32*1024)return false;
           try{ws.send(JSON.stringify({t:'fallback-ctrl',turn,thrust:!!thrust,fire:!!fire}));return true;}catch(_){return false;}
         }
         return false;
@@ -2995,10 +2999,20 @@
     restartMatchBtn.disabled=true;
     restartMatchBtn.textContent=tr('restarting');
     let ok=false;
-    if(roomCode==='LOCAL')ok=send({t:'restart'});
-    else if(p2p&&!fallbackActive)ok=p2p.sendAction('restart');
-    if(!ok&&roomCode!=='LOCAL'&&ws&&ws.readyState===WebSocket.OPEN){
-      try{ws.send(JSON.stringify({t:'fallback-action',action:'restart'}));ok=true;}catch(_){}
+    if(roomCode==='LOCAL'){
+      ok=send({t:'restart'});
+    }else if(isHost&&p2p){
+      // El anfitrion no necesita red para reiniciar: sendAction ejecuta la
+      // accion localmente y conserva la misma ruta autoritativa existente.
+      ok=p2p.sendAction('restart');
+    }else{
+      // V20.83: REPETIR es una accion unica y no debe depender del DataChannel
+      // no fiable (maxRetransmits:0). Preferimos el WebSocket fiable; P2P queda
+      // solo como respaldo si en ese instante no hay servidor de senalizacion.
+      if(ws&&ws.readyState===WebSocket.OPEN){
+        try{ws.send(JSON.stringify({t:'fallback-action',action:'restart'}));ok=true;}catch(_){}
+      }
+      if(!ok&&p2p&&!fallbackActive)ok=p2p.sendAction('restart');
     }
     if(!ok){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
   });
