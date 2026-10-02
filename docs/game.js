@@ -704,9 +704,11 @@
   }
   function selectMatchBackgroundForRound(round){
     const safeRound=Math.max(1,Number(round)||1);
-    let candidate=(safeRound-1)%MATCH_BACKGROUNDS.length;
-    // Todos los clientes usan la misma regla. Si falta ese fondo, fondo.jpg.
-    if(!matchBackgroundAvailable(candidate))candidate=0;
+    // V20.84: online la ronda manda SIEMPRE sobre el fondo. No sustituimos
+    // el indice por fondo.jpg segun la velocidad de carga de cada dispositivo:
+    // todos conservan el mismo candidato y activeMobileBackground() usa fondo.jpg
+    // solo de forma temporal hasta que el JPG correspondiente termina de cargar.
+    const candidate=(safeRound-1)%MATCH_BACKGROUNDS.length;
     currentMatchBackgroundRound=safeRound;
     matchBackgroundCursor=candidate;
     applyMatchBackground(candidate);
