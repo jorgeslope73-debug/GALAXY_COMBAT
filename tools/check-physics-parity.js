@@ -126,7 +126,7 @@ function normalizeCode(source){
     if(ch==='/'&&next==='/'){lineComment=true;i++;continue;}
     if(ch==='/'&&next==='*'){blockComment=true;i++;continue;}
     if(ch==="'"||ch==='"'||ch==='\x60'){quote=ch;out+=ch;continue;}
-    if(/\\s/.test(ch))continue;
+    if(/\s/.test(ch))continue;
     out+=ch;
   }
   return out;
