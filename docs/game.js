@@ -16,7 +16,7 @@
     {file:'assets/sprites/fondo03.png',mobileKey:'bg03',stars:false},
     {file:'assets/sprites/fondo04.png',mobileKey:'bg04',stars:false}
   ];
-  let matchBackgroundCursor=-1,currentMatchBackground=0;
+  let matchBackgroundCursor=-1,currentMatchBackground=0,currentMatchBackgroundRound=0;
   if(useStaticPcBackground){
     // Fondo PC estatico: se compone una sola vez como capa CSS 16:9 y ya no se
     // copia dentro del canvas en cada frame.
@@ -696,11 +696,22 @@
       const candidate=(matchBackgroundCursor+step)%MATCH_BACKGROUNDS.length;
       if(matchBackgroundAvailable(candidate)){
         matchBackgroundCursor=candidate;
+        currentMatchBackgroundRound=0;
         applyMatchBackground(candidate);
         return candidate;
       }
     }
-    matchBackgroundCursor=0;applyMatchBackground(0);return 0;
+    matchBackgroundCursor=0;currentMatchBackgroundRound=0;applyMatchBackground(0);return 0;
+  }
+  function selectMatchBackgroundForRound(round){
+    const safeRound=Math.max(1,Number(round)||1);
+    let candidate=(safeRound-1)%MATCH_BACKGROUNDS.length;
+    // Todos los clientes usan la misma regla. Si falta ese fondo, fondo.png.
+    if(!matchBackgroundAvailable(candidate))candidate=0;
+    currentMatchBackgroundRound=safeRound;
+    matchBackgroundCursor=candidate;
+    applyMatchBackground(candidate);
+    return candidate;
   }
   function rebuildBackgroundCache(){
     if(useStaticPcBackground)return;
@@ -2660,6 +2671,9 @@
       // Nunca dejamos que un snapshot antiguo vuelva a mover la escena atras.
       // round permite que seq se reinicie de forma segura entre rondas.
       const incomingRound=Number(m.round),incomingSeq=Number(m.seq);
+      if(Number.isInteger(incomingRound)&&incomingRound>0&&currentMatchBackgroundRound!==incomingRound){
+        selectMatchBackgroundForRound(incomingRound);
+      }
       if(Number.isInteger(incomingRound)&&Number.isInteger(incomingSeq)){
         const stale=lastAcceptedStateRound>=0&&(
           incomingRound<lastAcceptedStateRound||
@@ -2774,7 +2788,10 @@
     }
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(preparingOnline=false){selectNextMatchBackground();stopMusic();updateMobileControlUi();resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
+  function beginGame(preparingOnline=false,backgroundRound=0){
+    if(Number(backgroundRound)>0)selectMatchBackgroundForRound(backgroundRound);
+    else if(roomCode==='LOCAL'||!roomCode)selectNextMatchBackground();
+    stopMusic();updateMobileControlUi();resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
   function queueVictory(i){
     const winnerIndex=Number(i);
     if(!inGame||!Number.isInteger(winnerIndex)||winnerIndex<0||winnerIndex>3)return;
@@ -3472,7 +3489,7 @@
     if(p.shock===true){
       // V20.74: testigo de onda expansiva como aro plano, adelantado
       // hacia la punta de la nave en lugar de una esfera retrasada.
-      const noseRot=(Number(p.r)||0)*Math.PI/180;
+      const noseRot=(Number(r)||0)*Math.PI/180;
       const noseX=-Math.sin(noseRot),noseY=-Math.cos(noseRot);
       const sx=x+noseX*22,sy=y+noseY*22;
       ctx.save();
@@ -3793,7 +3810,7 @@
     netStartAt=roomCode==='LOCAL'?0:onlineGoAt;
     prepareGameAssets().then(()=>warmOnlineStartCaches(true)).catch(()=>{});
     warmOnlineStartCaches();
-    beginGame(true);
+    beginGame(true,onlineStartRankRound);
     onlineStartTimer=setTimeout(launchOnlineAfterReady,ONLINE_READY_MS);
   }
   function drawOnlineStartAnnouncement(now){
