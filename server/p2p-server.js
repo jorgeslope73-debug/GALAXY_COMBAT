@@ -18,6 +18,16 @@ const NORMAL_HOST_ROOM_LIMIT=1;
 const TEST_ROOM_PERMIT_MAX=10;
 const TEST_ROOM_PERMIT_TTL_MS=8*60*60*1000;
 
+// V20.85: limites deliberadamente amplios. Protegen el proceso frente a
+// clientes modificados sin acercarse al trafico de una partida normal.
+const WS_MAX_PAYLOAD_BYTES=256*1024;
+const WS_RATE_WINDOW_MS=2000;
+const WS_RATE_MAX_MESSAGES=360;
+const SIGNAL_RATE_WINDOW_MS=5000;
+const SIGNAL_RATE_MAX_MESSAGES=180;
+const SIGNAL_DATA_MAX_BYTES=64*1024;
+const ICE_DATA_MAX_BYTES=12*1024;
+
 let dbReady=false;
 let dbInitPromise=null;
 const db=DATABASE_URL?new Pool({
@@ -44,6 +54,40 @@ function safeClientId(value){
 function requestIp(req){
   const forwarded=String(req&&req.headers&&req.headers['x-forwarded-for']||'').split(',')[0].trim();
   return forwarded||String(req&&req.socket&&req.socket.remoteAddress||'').trim()||'unknown';
+}
+
+function allowInboundMessage(ws){
+  const meta=connectionMeta.get(ws);
+  if(!meta)return true;
+  const now=Date.now();
+  if(!meta.rateWindowAt||now-meta.rateWindowAt>=WS_RATE_WINDOW_MS){
+    meta.rateWindowAt=now;meta.rateCount=0;meta.rateViolations=0;
+  }
+  meta.rateCount=(Number(meta.rateCount)||0)+1;
+  if(meta.rateCount<=WS_RATE_MAX_MESSAGES)return true;
+  meta.rateViolations=(Number(meta.rateViolations)||0)+1;
+  // No cerramos por un unico pico aislado. Tres mensajes extra dentro de la
+  // misma ventana ya indican una cola/anomalia muy por encima del juego real.
+  if(meta.rateViolations>=3){
+    try{ws.close(1008,'Rate limit');}catch(_){}
+  }
+  return false;
+}
+function allowSignalingMessage(ws,type,data){
+  const meta=connectionMeta.get(ws);
+  if(!meta)return false;
+  const now=Date.now();
+  if(!meta.signalWindowAt||now-meta.signalWindowAt>=SIGNAL_RATE_WINDOW_MS){
+    meta.signalWindowAt=now;meta.signalCount=0;
+  }
+  meta.signalCount=(Number(meta.signalCount)||0)+1;
+  if(meta.signalCount>SIGNAL_RATE_MAX_MESSAGES)return false;
+
+  let bytes=0;
+  try{bytes=Buffer.byteLength(JSON.stringify(data==null?null:data),'utf8');}
+  catch(_){return false;}
+  const limit=String(type||'').endsWith('-ice')?ICE_DATA_MAX_BYTES:SIGNAL_DATA_MAX_BYTES;
+  return bytes>0&&bytes<=limit;
 }
 function cleanupTestRoomPermits(){
   const now=Date.now();
@@ -953,7 +997,7 @@ const server=http.createServer(async(req,res)=>{
   res.end('Galaxy Combat P2P signaling server online. Physics run on the host browser.\n');
 });
 
-const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false});
+const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false,maxPayload:WS_MAX_PAYLOAD_BYTES});
 
 wss.on('connection',(ws,req)=>{
   const detectedIp=requestIp(req);
@@ -965,7 +1009,9 @@ wss.on('connection',(ws,req)=>{
   send(ws,{t:'public-rooms',rooms:publicRooms()});
 
   ws.on('message',async raw=>{
+    if(!allowInboundMessage(ws))return;
     let m;try{m=JSON.parse(String(raw));}catch(_){return;}
+    if(!m||typeof m!=='object'||Array.isArray(m))return;
 
     if(m.t==='create'){
       if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
@@ -1097,7 +1143,11 @@ wss.on('connection',(ws,req)=>{
     }
 
     if(['p2p-offer','p2p-answer','p2p-ice'].includes(m.t)){
-      const to=Number(m.to),target=r.players.find(p=>p.i===to);if(target)send(target.ws,{t:m.t,from:x.i,data:m.data});return;
+      const to=Number(m.to);
+      if(!Number.isInteger(to)||to<0||to>=MAX_PLAYERS||to===x.i||!allowSignalingMessage(ws,m.t,m.data))return;
+      const target=r.players.find(p=>p.i===to);
+      if(target)send(target.ws,{t:m.t,from:x.i,data:m.data});
+      return;
     }
     if(m.t==='fallback-request'||m.t==='fallback-clear'){
       const host=r.players.find(p=>p.i===0);
@@ -1135,7 +1185,11 @@ wss.on('connection',(ws,req)=>{
       send(ws,{t:'voice-peers',peers:r.players.filter(p=>p.i!==x.i).map(p=>p.i)});for(const p of r.players)if(p.i!==x.i)send(p.ws,{t:'voice-ready',from:x.i});return;
     }
     if(['voice-offer','voice-answer','voice-ice'].includes(m.t)){
-      const to=Number(m.to),target=r.players.find(p=>p.i===to);if(target)send(target.ws,{t:m.t,from:x.i,data:m.data});return;
+      const to=Number(m.to);
+      if(!Number.isInteger(to)||to<0||to>=MAX_PLAYERS||to===x.i||!allowSignalingMessage(ws,m.t,m.data))return;
+      const target=r.players.find(p=>p.i===to);
+      if(target)send(target.ws,{t:m.t,from:x.i,data:m.data});
+      return;
     }
     if(m.t==='voice-talking'||m.t==='voice-offline'){
       for(const p of r.players)if(p.i!==x.i)send(p.ws,{t:m.t,from:x.i,on:!!m.on});return;
