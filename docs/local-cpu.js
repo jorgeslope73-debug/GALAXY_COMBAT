@@ -169,7 +169,7 @@
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
     hazardProfile(){
-      // V20.93: dificultad ambiental progresiva SOLO de la campana CPU.
+      // V20.94: dificultad ambiental progresiva SOLO de la campana CPU.
       // El maximo de asteroides sigue siendo 5 para conservar estabilidad.
       const level=clamp(Math.round(Number(this.campaignLevel)||1),1,4);
       if(level===4)return{
@@ -180,7 +180,9 @@
         firstShowerMin:45,firstShowerMax:70,
         showerRepeatMin:45,showerRepeatMax:75,
         showerDuration:9,
-        meteorIntervalMin:.18,meteorIntervalMax:.28
+        meteorIntervalMin:.18,meteorIntervalMax:.28,
+        giantFirstMin:40,giantFirstMax:55,
+        giantRepeatMin:75,giantRepeatMax:105
       };
       if(level===3)return{
         asteroidMin:3,
@@ -190,7 +192,9 @@
         firstShowerMin:65,firstShowerMax:95,
         showerRepeatMin:65,showerRepeatMax:100,
         showerDuration:8,
-        meteorIntervalMin:.22,meteorIntervalMax:.32
+        meteorIntervalMin:.22,meteorIntervalMax:.32,
+        giantFirstMin:50,giantFirstMax:70,
+        giantRepeatMin:100,giantRepeatMax:135
       };
       if(level===2)return{
         asteroidMin:2,
@@ -200,7 +204,9 @@
         firstShowerMin:90,firstShowerMax:125,
         showerRepeatMin:90,showerRepeatMax:130,
         showerDuration:7.5,
-        meteorIntervalMin:.26,meteorIntervalMax:.36
+        meteorIntervalMin:.26,meteorIntervalMax:.36,
+        giantFirstMin:60,giantFirstMax:85,
+        giantRepeatMin:125,giantRepeatMax:165
       };
       return{
         asteroidMin:1,
@@ -210,7 +216,9 @@
         firstShowerMin:120,firstShowerMax:160,
         showerRepeatMin:120,showerRepeatMax:160,
         showerDuration:7,
-        meteorIntervalMin:.28,meteorIntervalMax:.42
+        meteorIntervalMin:.28,meteorIntervalMax:.42,
+        giantFirstMin:70,giantFirstMax:100,
+        giantRepeatMin:150,giantRepeatMax:200
       };
     }
     brainScore(context,action){
@@ -826,7 +834,7 @@
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(50,80);
+      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);
       this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       const human=this.makePlayer(0,name,false);
@@ -958,7 +966,7 @@
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(50,80);
+      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);
       this.huntTargetIndex=0;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
@@ -2147,7 +2155,11 @@
       for(const p of this.players)if(!p.dead&&sweptCircles(g,GIANT_RADIUS,p,SHIP_RADIUS,false)){if(p.shield>0||p.protection>0){this.emitShipImpact(p,g,false);const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}
       for(const a of this.asteroids)if(circles(g,GIANT_RADIUS,a,a.r)){const n=normalize(a.x-g.x,a.y-g.y);a.vx+=n.x*25;a.vy+=n.y*25;a.x+=n.x*5;a.y+=n.y*5;}
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
-      if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){this.giant=null;this.nextGiant=rand(130,190);}
+      if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){
+        this.giant=null;
+        const profile=this.hazardProfile();
+        this.nextGiant=this.trainingMode?rand(130,190):rand(profile.giantRepeatMin,profile.giantRepeatMax);
+      }
     }
     shipCollisions(){
       for(const p of this.players){
