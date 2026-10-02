@@ -6,7 +6,7 @@
   const SCORE_TO_WIN=5;
   const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,MISSILE_HIT_RADIUS=12,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,SPAWN_MATERIALIZE_SECONDS=1.15,BRUTAL_SHOT_DISTANCE=850;
-  const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_LAUNCH_COOLDOWN=2,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
+  const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_LAUNCH_COOLDOWN=1,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
   const FLARE_CPU_EVAL_SECONDS=1.15,FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
@@ -1054,7 +1054,7 @@
     }
     deployFlares(p){
       if(!p||p.dead||(Number(p.flare)||0)<=0)return false;
-      // V20.77: cada nave debe esperar al menos 2 segundos entre dos
+      // V20.80: cada nave debe esperar al menos 1 segundo entre dos
       // lanzamientos de bengalas, aunque tenga varias cargas acumuladas.
       if(this.fxClock<(Number(p.nextFlareAllowed)||0))return false;
       p.nextFlareAllowed=this.fxClock+FLARE_LAUNCH_COOLDOWN;

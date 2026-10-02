@@ -1,6 +1,6 @@
 # Galaxy Combat Web
 
-**Versión actual: V20.79**
+**Versión actual: V20.80**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
 
@@ -280,3 +280,4 @@ La versión publicada es la que aparece en `docs/index.html` y en `docs/sw.js`. 
 - V20.77: el tiempo mínimo entre dos lanzamientos de cargas de bengalas baja de 3 a 2 segundos para jugadores y CPU, tanto en partidas locales como online. Cada carga sigue desplegando tres bengalas y cada bengala conserva sus 3 segundos de vida.
 - V20.78: el testigo de la onda expansiva se dibuja por debajo de la capa visual del testigo de misil, de modo que el indicador de misil permanece visible por encima cuando ambos coinciden.
 - V20.79: en la portada de PC, al hacer zoom o reducir la altura de la ventana, el fondo INTRO y el canvas decorativo conservan su escala 16:9 basada en la altura y vuelven a alcanzar los bordes superior e inferior. La regla compacta de 420 px queda limitada exclusivamente a móviles.
+- V20.80: el intervalo mínimo entre dos lanzamientos de cargas de bengalas baja de 2 a 1 segundo para jugadores y CPU, tanto en partidas locales como online. Cada carga sigue desplegando tres bengalas y cada bengala conserva sus 3 segundos de vida.
