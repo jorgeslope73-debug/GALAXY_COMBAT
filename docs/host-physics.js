@@ -160,12 +160,27 @@
       this.resetAsteroids();
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
+    hazardProfile(){
+      // Perfil base del modo online. V20.93 usa la misma estructura que CPU
+      // para mantener identicas las mecanicas compartidas sin cambiar su dificultad.
+      return{
+        asteroidMin:1,
+        asteroidInitialMin:18,asteroidInitialMax:24,
+        asteroidRespawnMin:4,asteroidRespawnMax:12,
+        asteroidPopulationMin:22,asteroidPopulationMax:48,
+        firstShowerMin:150,firstShowerMax:210,
+        showerRepeatMin:140,showerRepeatMax:200,
+        showerDuration:7,
+        meteorIntervalMin:.28,meteorIntervalMax:.42
+      };
+    }
     resetAsteroids(){
       // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
+      const profile=this.hazardProfile();
       this.asteroids=[];
       this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1),true);
       this.nextAsteroidIndex=1;
-      this.nextAsteroidSpawn=rand(18,24);
+      this.nextAsteroidSpawn=rand(profile.asteroidInitialMin,profile.asteroidInitialMax);
       this.asteroidRampComplete=false;
       this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
       this.nextAsteroidPopulationChange=999999;
@@ -202,15 +217,16 @@
     }
     spawnProgressiveAsteroid(){
       if(this.asteroids.length>=ASTEROID_MAX_ACTIVE)return;
+      const profile=this.hazardProfile();
       this.spawnAsteroidFromEdge(this.nextAsteroidIndex);
       this.nextAsteroidIndex++;
       if(this.asteroids.length>=ASTEROID_MAX_ACTIVE){
         this.asteroidRampComplete=true;
         this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
         this.nextAsteroidSpawn=999999;
-        this.nextAsteroidPopulationChange=rand(22,48);
+        this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
       }else{
-        this.nextAsteroidSpawn=rand(18,24);
+        this.nextAsteroidSpawn=rand(profile.asteroidInitialMin,profile.asteroidInitialMax);
       }
     }
     beginAsteroidExit(a){
@@ -226,10 +242,16 @@
     }
     chooseAsteroidPopulation(){
       const current=this.asteroids.length;
-      let target=randint(1,ASTEROID_MAX_ACTIVE);
-      if(target===current)target=target===ASTEROID_MAX_ACTIVE?randint(1,ASTEROID_MAX_ACTIVE-1):target+1;
+      const profile=this.hazardProfile();
+      const minAsteroids=clamp(Math.round(Number(profile.asteroidMin)||1),1,ASTEROID_MAX_ACTIVE);
+      let target=randint(minAsteroids,ASTEROID_MAX_ACTIVE);
+      if(target===current){
+        if(minAsteroids===ASTEROID_MAX_ACTIVE)target=ASTEROID_MAX_ACTIVE;
+        else if(current>=ASTEROID_MAX_ACTIVE)target=randint(minAsteroids,ASTEROID_MAX_ACTIVE-1);
+        else target=Math.max(minAsteroids,current+1);
+      }
       this.asteroidTargetCount=target;
-      this.nextAsteroidPopulationChange=rand(22,48);
+      this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
       if(target<current){
         const pool=this.asteroids.slice();
         for(let i=pool.length-1;i>0;i--){
@@ -239,10 +261,11 @@
         for(let i=0;i<leaving;i++)pool[i].exitDelay=rand(i*2.2,i*2.2+5.5);
         this.nextAsteroidSpawn=999999;
       }else{
-        this.nextAsteroidSpawn=rand(4,12);
+        this.nextAsteroidSpawn=rand(profile.asteroidRespawnMin,profile.asteroidRespawnMax);
       }
     }
     updateAsteroidPopulation(){
+      const profile=this.hazardProfile();
       if(!this.asteroidRampComplete){
         this.nextAsteroidSpawn-=DT;
         if(this.nextAsteroidSpawn<=0)this.spawnProgressiveAsteroid();
@@ -253,7 +276,7 @@
         this.nextAsteroidSpawn-=DT;
         if(this.nextAsteroidSpawn<=0){
           this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1));
-          this.nextAsteroidSpawn=this.asteroids.length<this.asteroidTargetCount?rand(4,12):999999;
+          this.nextAsteroidSpawn=this.asteroids.length<this.asteroidTargetCount?rand(profile.asteroidRespawnMin,profile.asteroidRespawnMax):999999;
         }
         return;
       }
@@ -1421,19 +1444,20 @@
       }
     }
     updateShower(dt){
+      const profile=this.hazardProfile();
       if(this.showerLeft<=0){
         this.firstShower-=dt;
-        if(this.firstShower<=0){this.showerLeft=7;this.nextMeteor=0;this.firstShower=999999;}
-        else if(this.nextShower>0){this.nextShower-=dt;if(this.nextShower<=0){this.showerLeft=7;this.nextMeteor=0;}}
+        if(this.firstShower<=0){this.showerLeft=profile.showerDuration;this.nextMeteor=0;this.firstShower=999999;}
+        else if(this.nextShower>0){this.nextShower-=dt;if(this.nextShower<=0){this.showerLeft=profile.showerDuration;this.nextMeteor=0;}}
       }
       if(this.showerLeft>0){
         this.showerLeft=Math.max(0,this.showerLeft-dt);this.nextMeteor-=dt;
         while(this.nextMeteor<=0&&this.showerLeft>0){
           const left=Math.random()<.5,vx=(left?1:-1)*rand(110,220),vy=rand(-55,55);
           this.meteors.push({id:uid(),type:randint(1,3),x:left?-40:W+40,y:rand(40,H-40),vx,vy,angle:rand(0,360)});
-          this.nextMeteor+=rand(.28,.42);
+          this.nextMeteor+=rand(profile.meteorIntervalMin,profile.meteorIntervalMax);
         }
-        if(this.showerLeft<=0)this.nextShower=rand(140,200);
+        if(this.showerLeft<=0)this.nextShower=rand(profile.showerRepeatMin,profile.showerRepeatMax);
       }
     }
     updateMeteors(dt){
