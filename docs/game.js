@@ -131,7 +131,7 @@
   let localCpu=null,localCpuActive=false,activeLocalDifficulty='';
   // V20.92: CONTRA LA MAQUINA pasa a ser una campana de cinco niveles.
   // El nivel solo avanza si gana el jugador humano (J1).
-  let localCampaignLevel=1,localCampaignAwaitingContinue=false,localCampaignComplete=false;
+  let localCampaignLevel=1,localCampaignAwaitingContinue=false,localCampaignComplete=false,localCampaignGameOver=false;
   let cpuLearningControl={autoTrainingEnabled:false,localHardEnabled:false,ready:false};
   let p2p=null,hostPhysics=null,lobbyPlayers=[],cpuFillEnabled=false;
   let netStartAt=0,lastP2PStateAt=0,lastFallbackRequestAt=0,lastFallbackStateSentAt=0;
@@ -2391,7 +2391,7 @@
   function stopLocalCpu(){
     if(localCpu&&typeof localCpu.stop==='function')localCpu.stop();
     localCpu=null;localCpuActive=false;activeLocalDifficulty='';
-    localCampaignLevel=1;localCampaignAwaitingContinue=false;localCampaignComplete=false;
+    localCampaignLevel=1;localCampaignAwaitingContinue=false;localCampaignComplete=false;localCampaignGameOver=false;
     updateBuildVersionLearningState();
   }
   async function loadCpuBrain(){
@@ -2426,7 +2426,7 @@
       return;
     }
     stopLocalCpu();
-    localCampaignLevel=1;localCampaignAwaitingContinue=false;localCampaignComplete=false;
+    localCampaignLevel=1;localCampaignAwaitingContinue=false;localCampaignComplete=false;localCampaignGameOver=false;
     // Aislar el modo CPU de cualquier sesion/red anterior. Un snapshot o evento
     // WebSocket retrasado no debe poder sustituir el estado LOCAL ni provocar
     // un reload/retorno al menu durante la partida.
@@ -2866,6 +2866,7 @@
 
     localCampaignAwaitingContinue=false;
     localCampaignComplete=false;
+    localCampaignGameOver=false;
 
     if(localCampaign&&humanWon&&localCampaignLevel>=MATCH_BACKGROUNDS.length){
       victoryText.textContent=tr('campaignChampion');
@@ -2880,12 +2881,12 @@
         restartBtn.textContent=tr('continueCampaign');
       }
     }else if(localCampaign){
-      const winnerName=p?sinTildes(p.n):('J'+(Number(i)+1));
-      victoryText.textContent=tr('campaignLevelLost',{level:localCampaignLevel,name:winnerName});
+      localCampaignGameOver=localCampaignLevel>1;
+      victoryText.textContent=tr('campaignGameOver');
       if(restartBtn){
         restartBtn.classList.remove('hidden');
         restartBtn.disabled=false;
-        restartBtn.textContent=tr('retryLevel');
+        restartBtn.textContent=localCampaignGameOver?tr('restartCampaign'):tr('retryLevel');
       }
     }else{
       victoryText.textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});
@@ -2899,7 +2900,7 @@
     victory.style.setProperty('--winner-color',playerColors[Number(i)]||'#d8a7ff');
     victory.classList.remove('hidden','winner-celebration');
     void victory.offsetWidth;
-    victory.classList.add('winner-celebration');
+    if(!localCampaign||humanWon)victory.classList.add('winner-celebration');
   }
 
   postAnalyticsEvent('visit');
@@ -3060,17 +3061,20 @@
     if(roomCode==='LOCAL'){
       const previousLevel=localCampaignLevel;
       const wasContinue=localCampaignAwaitingContinue;
+      const wasGameOver=localCampaignGameOver;
       if(localCampaignComplete){
         restartMatchBtn.disabled=false;
         restartMatchBtn.classList.add('hidden');
         return;
       }
-      if(wasContinue)localCampaignLevel=Math.min(MATCH_BACKGROUNDS.length,localCampaignLevel+1);
-      localCampaignAwaitingContinue=false;
+      if(wasGameOver)localCampaignLevel=1;
+      else if(wasContinue)localCampaignLevel=Math.min(MATCH_BACKGROUNDS.length,localCampaignLevel+1);
+      localCampaignAwaitingContinue=false;localCampaignGameOver=false;
       ok=send({t:'restart',level:localCampaignLevel});
       if(!ok){
         localCampaignLevel=previousLevel;
         localCampaignAwaitingContinue=wasContinue;
+        localCampaignGameOver=wasGameOver;
       }
     }else if(isHost&&p2p){
       // El anfitrion no necesita red para reiniciar: sendAction ejecuta la
@@ -3088,7 +3092,7 @@
     if(!ok){
       restartMatchBtn.disabled=false;
       if(roomCode==='LOCAL'){
-        restartMatchBtn.textContent=localCampaignAwaitingContinue?tr('continueCampaign'):tr('retryLevel');
+        restartMatchBtn.textContent=localCampaignGameOver?tr('restartCampaign'):(localCampaignAwaitingContinue?tr('continueCampaign'):tr('retryLevel'));
       }else restartMatchBtn.textContent=tr('rematch');
     }
   });

@@ -33,6 +33,8 @@
     campaignLevelLost:'NIVEL {level} · GANA {name}',
     continueCampaign:'CONTINUAR',
     retryLevel:'REPETIR NIVEL',
+    campaignGameOver:'JUEGO TERMINADO',
+    restartCampaign:'VOLVER A EMPEZAR',
     campaignChampion:'CAMPEON INTERESTELAR'
   });
   Object.assign(dictionaries.en,{
@@ -40,6 +42,8 @@
     campaignLevelLost:'LEVEL {level} · {name} WINS',
     continueCampaign:'CONTINUE',
     retryLevel:'RETRY LEVEL',
+    campaignGameOver:'GAME OVER',
+    restartCampaign:'START OVER',
     campaignChampion:'INTERSTELLAR CHAMPION'
   });
   Object.assign(dictionaries.it,{
@@ -47,6 +51,8 @@
     campaignLevelLost:'LIVELLO {level} · VINCE {name}',
     continueCampaign:'CONTINUA',
     retryLevel:'RIPETI LIVELLO',
+    campaignGameOver:'PARTITA TERMINATA',
+    restartCampaign:'RICOMINCIA',
     campaignChampion:'CAMPIONE INTERSTELLARE'
   });
   Object.assign(dictionaries.fr,{
@@ -54,6 +60,8 @@
     campaignLevelLost:'NIVEAU {level} · {name} GAGNE',
     continueCampaign:'CONTINUER',
     retryLevel:'REJOUER LE NIVEAU',
+    campaignGameOver:'PARTIE TERMINEE',
+    restartCampaign:'RECOMMENCER',
     campaignChampion:'CHAMPION INTERSTELLAIRE'
   });
   Object.assign(dictionaries.de,{
@@ -61,6 +69,8 @@
     campaignLevelLost:'LEVEL {level} · {name} GEWINNT',
     continueCampaign:'WEITER',
     retryLevel:'LEVEL WIEDERHOLEN',
+    campaignGameOver:'SPIEL VORBEI',
+    restartCampaign:'NEU ANFANGEN',
     campaignChampion:'INTERSTELLARER CHAMPION'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};

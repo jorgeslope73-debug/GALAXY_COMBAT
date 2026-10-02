@@ -1,4 +1,4 @@
-const VERSION = 'V20.95-loading';
+const VERSION = 'V20.95-campaign-loss';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
