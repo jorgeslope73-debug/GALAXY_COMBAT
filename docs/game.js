@@ -4276,6 +4276,18 @@
     pumpControls(now);
     if(localCpuActive&&localCpu&&!onlinePreparing(now))localCpu.advance(now);
     if(hostPhysics&&isHost)hostPhysics.advance(now);
+
+    // V20.86: fuera de una partida no repintamos el canvas del combate.
+    // El RAF sigue vivo para joystick, red, reconexion y tareas de interfaz,
+    // pero evitamos clearRect/drawImage/HUD/particulas debajo de menu, lobby o
+    // victoria. Al entrar de nuevo en partida, el siguiente RAF pinta normal.
+    if(!inGame){
+      renderCadenceTick=0;
+      lastPaintAt=0;
+      if(perfStats)perfStats.lastPaint=0;
+      return;
+    }
+
     // Fisica y controles siguen ejecutandose en todos los RAF. Solo el pintado
     // usa un divisor entero para conservar un frame pacing regular.
     renderCadenceTick++;
