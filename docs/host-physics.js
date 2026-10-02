@@ -421,7 +421,7 @@
       if(msg.t==='ctrl'){this.setControl(msg.i,msg.turn,msg.thrust,msg.fire);return true;}
       if(msg.t==='restart'){
         if(this.restart()){
-          this.emit({t:'restarted'});
+          this.emit({t:'restarted',rankRound:this.rankRound});
           this.onState(this.publicState());
         }
         return true;

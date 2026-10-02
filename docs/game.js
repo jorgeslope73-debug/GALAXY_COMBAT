@@ -122,7 +122,7 @@
   // para estabilizar WebRTC/recursos; al aparecer VAMOS arrancan fisica y controles.
   const ONLINE_READY_MS=2000,ONLINE_GO_MS=900;
   let onlineStartAt=0,onlineGoAt=0,onlineStartEndAt=0,onlineStartTimer=null,onlineStartRankRound=1;
-  let onlineStartPending=false,onlineStartGeneration=0;
+  let onlineStartPending=false,onlineStartGeneration=0,lastRestartedRound=0;
   let onlineReadyRedCache=null,onlineReadyOrangeCache=null,onlineGoCache=null;
   let weaponTheftFxStart=0,weaponTheftFxUntil=0,weaponTheftIndex=-1;
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[];
@@ -1866,8 +1866,8 @@
           if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
           send({t:'rank-restart'});
           if(hostPhysics.restart()){
-            p2p.broadcastEvent({t:'restarted'});
-            handle({t:'restarted'});
+            p2p.broadcastEvent({t:'restarted',rankRound:hostPhysics.rankRound});
+            handle({t:'restarted',rankRound:hostPhysics.rankRound});
           }
         }else handle(m);
       },
@@ -1878,6 +1878,7 @@
   function stopP2P(){
     if(p2p)p2p.close();
     p2p=null;
+    lastRestartedRound=0;
     netStartAt=0;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
     fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
     if(hostPhysics)hostPhysics.stop();
@@ -2146,9 +2147,9 @@
           if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
           send({t:'rank-restart'});
           if(hostPhysics.restart()){
-            if(p2p)p2p.broadcastEvent({t:'restarted'});
-            sendHostFallbackEvent({t:'restarted'});
-            handle({t:'restarted'});
+            if(p2p)p2p.broadcastEvent({t:'restarted',rankRound:hostPhysics.rankRound});
+            sendHostFallbackEvent({t:'restarted',rankRound:hostPhysics.rankRound});
+            handle({t:'restarted',rankRound:hostPhysics.rankRound});
           }
         }
         return;
@@ -2688,6 +2689,12 @@
       // Nunca dejamos que un snapshot antiguo vuelva a mover la escena atras.
       // round permite que seq se reinicie de forma segura entre rondas.
       const incomingRound=Number(m.round),incomingSeq=Number(m.seq);
+      // Un snapshot de la nueva ronda tambien recupera una cuenta atras si
+      // el evento restarted se pierde; rankRound evita arrancarla dos veces.
+      const previousRound=state&&Number(state.round);
+      if(roomCode!=='LOCAL'&&Number.isInteger(incomingRound)&&previousRound>0&&incomingRound>previousRound&&m.started&&!m.finished){
+        handle({t:'restarted',rankRound:incomingRound});
+      }
       if(Number.isInteger(incomingRound)&&incomingRound>0&&currentMatchBackgroundRound!==incomingRound){
         selectMatchBackgroundForRound(incomingRound);
       }
@@ -2789,7 +2796,11 @@
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
-    else if(m.t==='restarted'){resetOnlineStartCountdown();if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){
+      const restartRound=roomCode==='LOCAL'?localCampaignLevel:Math.max(1,Number(m.rankRound)||(hostPhysics&&hostPhysics.rankRound)||currentMatchBackgroundRound+1);
+      if(roomCode!=='LOCAL'&&restartRound<=lastRestartedRound)return;
+      if(roomCode!=='LOCAL')lastRestartedRound=restartRound;
+      resetOnlineStartCountdown();if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){
       const recoverable=String(m.cause||'')==='host_timeout'&&p2pGameHealthy();
@@ -3881,7 +3892,7 @@
     if(onlineStartTimer){clearTimeout(onlineStartTimer);onlineStartTimer=null;}
     onlineStartAt=0;onlineGoAt=0;onlineStartEndAt=0;onlineStartRankRound=1;
   }
-  function onlinePreparing(now=performance.now()){return onlineGoAt>0&&now<onlineGoAt;}
+  function onlinePreparing(now=performance.now()){return onlineStartPending||(onlineGoAt>0&&now<onlineGoAt);}
   function activateGameUi(){
     topbar.classList.remove('hidden');
     if(isMobile){
@@ -3898,12 +3909,32 @@
     if(roomCode!=='LOCAL'&&isHost&&!hostPhysics)startHostPhysics(lobbyPlayers,onlineStartRankRound);
     playSound('start');
   }
+  function prepareMatchBackground(rankRound){
+    const index=roomCode==='LOCAL'
+      ?clamp(Math.round(Number(localCampaignLevel)||1)-1,0,MATCH_BACKGROUNDS.length-1)
+      :(Math.max(1,Number(rankRound)||1)-1)%MATCH_BACKGROUNDS.length;
+    const cfg=MATCH_BACKGROUNDS[index];
+    if(imageDecodePromises[cfg.mobileKey])return imageDecodePromises[cfg.mobileKey];
+    // En PC el primer fondo vive en CSS: tambien esperamos su decodificacion.
+    const im=new Image();im.decoding='async';
+    const ready=new Promise(resolve=>{
+      im.onerror=()=>{reportImageFailure(im);resolve(false);};
+      im.onload=()=>{
+        const decoded=typeof im.decode==='function'?im.decode():Promise.resolve();
+        Promise.resolve(decoded).then(()=>resolve(true),()=>resolve(false));
+      };
+    });
+    imageDecodePromises[cfg.mobileKey]=ready;
+    images[cfg.mobileKey]=im;im.src=cfg.file;
+    return ready;
+  }
   async function beginOnlineStartCountdown(rankRound=1){
     resetOnlineStartCountdown();
     const generation=onlineStartGeneration,startingRoom=roomCode;
     onlineStartPending=true;
-    await prepareGameAssets();
-    if(generation!==onlineStartGeneration||roomCode!==startingRoom)return;
+    await Promise.all([prepareGameAssets(),prepareMatchBackground(rankRound)]);
+    if(generation!==onlineStartGeneration)return;
+    if(roomCode!==startingRoom){onlineStartPending=false;return;}
     onlineStartPending=false;
     const now=performance.now();
     onlineStartAt=now;onlineGoAt=now+ONLINE_READY_MS;onlineStartEndAt=onlineGoAt+ONLINE_GO_MS;
@@ -4359,7 +4390,7 @@
     }
     pumpControls(now);
     if(localCpuActive&&localCpu&&!onlinePreparing(now))localCpu.advance(now);
-    if(hostPhysics&&isHost)hostPhysics.advance(now);
+    if(hostPhysics&&isHost&&!onlinePreparing(now))hostPhysics.advance(now);
 
     // V20.86: fuera de una partida no repintamos el canvas del combate.
     // El RAF sigue vivo para joystick, red, reconexion y tareas de interfaz,
