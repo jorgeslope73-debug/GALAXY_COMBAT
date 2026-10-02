@@ -31,6 +31,15 @@
   margin: auto 0;
   isolation: isolate;
 }
+/* V20.79: en escritorio la escena se dimensiona siempre desde la altura.
+   Conserva 16:9, toca los bordes superior e inferior y, si la ventana es
+   mas estrecha, recorta simetricamente los laterales en lugar de encogerse. */
+html:not(.handheld-device) #menu .menu-scene {
+  width: calc(100svh * 16 / 9);
+  height: 100svh;
+  max-width: none;
+  margin: 0;
+}
 #menu .menu-art {
   position: absolute;
   top: 0;
@@ -297,7 +306,10 @@
   html.handheld-device #menu .cpu-actions select{display:none!important}
   html.handheld-device #menu .cpu-actions{display:flex!important}
   html.handheld-device #menu .cpu-actions #cpu{width:100%!important;display:flex!important}
-  #menu .menu-scene { width: min(100%, clamp(230px, calc((100svh - 285px) * 2.7), 420px)); aspect-ratio: auto; }
+  /* V20.79: esta reduccion pertenece solo a la portada movil. En PC hacia
+     que INTRO y el canvas decorativo se encogieran a 420 px al hacer zoom o
+     reducir la altura de la ventana, dejando de alcanzar arriba y abajo. */
+  html.handheld-device #menu .menu-scene { width: min(100%, clamp(230px, calc((100svh - 285px) * 2.7), 420px)); aspect-ratio: auto; }
   #menu .menu-body { padding-top: 35.2%; padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
   #menu .launch-console { width: min(980px, calc(100vw - var(--menu-edge) * 2)); }
   #menu .mode-grid { gap: 8px; }
