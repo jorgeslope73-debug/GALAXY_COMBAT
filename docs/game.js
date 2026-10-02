@@ -127,6 +127,9 @@
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false,activeLocalDifficulty='';
+  // V20.92: CONTRA LA MAQUINA pasa a ser una campana de cuatro niveles.
+  // El nivel solo avanza si gana el jugador humano (J1).
+  let localCampaignLevel=1,localCampaignAwaitingContinue=false,localCampaignComplete=false;
   let cpuLearningControl={autoTrainingEnabled:false,localHardEnabled:false,ready:false};
   let p2p=null,hostPhysics=null,lobbyPlayers=[],cpuFillEnabled=false;
   let netStartAt=0,lastP2PStateAt=0,lastFallbackRequestAt=0,lastFallbackStateSentAt=0;
@@ -2384,6 +2387,7 @@
   function stopLocalCpu(){
     if(localCpu&&typeof localCpu.stop==='function')localCpu.stop();
     localCpu=null;localCpuActive=false;activeLocalDifficulty='';
+    localCampaignLevel=1;localCampaignAwaitingContinue=false;localCampaignComplete=false;
     updateBuildVersionLearningState();
   }
   async function loadCpuBrain(){
@@ -2418,6 +2422,7 @@
       return;
     }
     stopLocalCpu();
+    localCampaignLevel=1;localCampaignAwaitingContinue=false;localCampaignComplete=false;
     // Aislar el modo CPU de cualquier sesion/red anterior. Un snapshot o evento
     // WebSocket retrasado no debe poder sustituir el estado LOCAL ni provocar
     // un reload/retorno al menu durante la partida.
@@ -2795,9 +2800,20 @@
     }
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function selectLocalCampaignBackground(level){
+    const safeLevel=clamp(Math.round(Number(level)||1),1,MATCH_BACKGROUNDS.length);
+    const index=safeLevel-1;
+    currentMatchBackgroundRound=0;
+    matchBackgroundCursor=index;
+    applyMatchBackground(index);
+    return index;
+  }
   function beginGame(preparingOnline=false,backgroundRound=0){
-    if(Number(backgroundRound)>0)selectMatchBackgroundForRound(backgroundRound);
-    else if(roomCode==='LOCAL'||!roomCode)selectNextMatchBackground();
+    // En CPU el nivel decide el fondo: 1=fondo, 2=fondo02, 3=fondo03, 4=fondo04.
+    // Online conserva su sincronizacion autoritativa por rankRound.
+    if(roomCode==='LOCAL')selectLocalCampaignBackground(localCampaignLevel);
+    else if(Number(backgroundRound)>0)selectMatchBackgroundForRound(backgroundRound);
+    else if(!roomCode)selectNextMatchBackground();
     stopMusic();updateMobileControlUi();resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');if(preparingOnline){topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');}else activateGameUi();scheduleCanvasResolution();}
   function queueVictory(i){
     const winnerIndex=Number(i);
@@ -2839,10 +2855,43 @@
     const p=(state&&Array.isArray(state.players)&&state.players.find(x=>Number(x.i)===Number(i)))||
       (Array.isArray(lobbyPlayers)&&lobbyPlayers.find(x=>Number(x.i)===Number(i)))||null;
     const victoryText=document.getElementById('victoryText');
-    victoryText.textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});
-    victory.style.setProperty('--winner-color',playerColors[Number(i)]||'#d8a7ff');
     const restartBtn=document.getElementById('restartMatch');
-    if(restartBtn){restartBtn.disabled=false;restartBtn.textContent=tr('rematch');}
+    const localCampaign=roomCode==='LOCAL'&&localCpuActive;
+    const humanWon=localCampaign&&Number(i)===0;
+
+    localCampaignAwaitingContinue=false;
+    localCampaignComplete=false;
+
+    if(localCampaign&&humanWon&&localCampaignLevel>=4){
+      victoryText.textContent=tr('campaignChampion');
+      localCampaignComplete=true;
+      if(restartBtn){restartBtn.disabled=false;restartBtn.classList.add('hidden');}
+    }else if(localCampaign&&humanWon){
+      victoryText.textContent=tr('campaignLevelComplete',{level:localCampaignLevel});
+      localCampaignAwaitingContinue=true;
+      if(restartBtn){
+        restartBtn.classList.remove('hidden');
+        restartBtn.disabled=false;
+        restartBtn.textContent=tr('continueCampaign');
+      }
+    }else if(localCampaign){
+      const winnerName=p?sinTildes(p.n):('J'+(Number(i)+1));
+      victoryText.textContent=tr('campaignLevelLost',{level:localCampaignLevel,name:winnerName});
+      if(restartBtn){
+        restartBtn.classList.remove('hidden');
+        restartBtn.disabled=false;
+        restartBtn.textContent=tr('retryLevel');
+      }
+    }else{
+      victoryText.textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});
+      if(restartBtn){
+        restartBtn.classList.remove('hidden');
+        restartBtn.disabled=false;
+        restartBtn.textContent=tr('rematch');
+      }
+    }
+
+    victory.style.setProperty('--winner-color',playerColors[Number(i)]||'#d8a7ff');
     victory.classList.remove('hidden','winner-celebration');
     void victory.offsetWidth;
     victory.classList.add('winner-celebration');
@@ -2961,6 +3010,8 @@
     invisibleHudUntil.fill(0);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
     victory.classList.remove('winner-celebration');
+    const restartBtn=document.getElementById('restartMatch');
+    if(restartBtn)restartBtn.classList.remove('hidden');
     const wasLocal=localCpuActive;
     if(wasLocal)stopLocalCpu();
     if(notifyServer&&!wasLocal&&roomCode)send({t:'leave'});
@@ -3002,7 +3053,16 @@
     restartMatchBtn.textContent=tr('restarting');
     let ok=false;
     if(roomCode==='LOCAL'){
+      const previousLevel=localCampaignLevel;
+      if(localCampaignComplete){
+        restartMatchBtn.disabled=false;
+        restartMatchBtn.classList.add('hidden');
+        return;
+      }
+      if(localCampaignAwaitingContinue)localCampaignLevel=Math.min(4,localCampaignLevel+1);
+      localCampaignAwaitingContinue=false;
       ok=send({t:'restart'});
+      if(!ok)localCampaignLevel=previousLevel;
     }else if(isHost&&p2p){
       // El anfitrion no necesita red para reiniciar: sendAction ejecuta la
       // accion localmente y conserva la misma ruta autoritativa existente.
