@@ -127,6 +127,7 @@
       this.winner=null;
       this.difficulty='medio';
       this.cpuCount=1;
+      this.campaignLevel=1;
       this.huntTargetIndex=0;
       this.huntUntil=0;
       this.huntStartsAt=0;
@@ -167,6 +168,51 @@
       this.resetAsteroids();
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
+    hazardProfile(){
+      // V20.93: dificultad ambiental progresiva SOLO de la campana CPU.
+      // El maximo de asteroides sigue siendo 5 para conservar estabilidad.
+      const level=clamp(Math.round(Number(this.campaignLevel)||1),1,4);
+      if(level===4)return{
+        asteroidMin:4,
+        asteroidInitialMin:10,asteroidInitialMax:15,
+        asteroidRespawnMin:3,asteroidRespawnMax:7,
+        asteroidPopulationMin:15,asteroidPopulationMax:28,
+        firstShowerMin:45,firstShowerMax:70,
+        showerRepeatMin:45,showerRepeatMax:75,
+        showerDuration:9,
+        meteorIntervalMin:.18,meteorIntervalMax:.28
+      };
+      if(level===3)return{
+        asteroidMin:3,
+        asteroidInitialMin:13,asteroidInitialMax:18,
+        asteroidRespawnMin:3.5,asteroidRespawnMax:8.5,
+        asteroidPopulationMin:18,asteroidPopulationMax:34,
+        firstShowerMin:65,firstShowerMax:95,
+        showerRepeatMin:65,showerRepeatMax:100,
+        showerDuration:8,
+        meteorIntervalMin:.22,meteorIntervalMax:.32
+      };
+      if(level===2)return{
+        asteroidMin:2,
+        asteroidInitialMin:16,asteroidInitialMax:21,
+        asteroidRespawnMin:4,asteroidRespawnMax:10,
+        asteroidPopulationMin:20,asteroidPopulationMax:42,
+        firstShowerMin:90,firstShowerMax:125,
+        showerRepeatMin:90,showerRepeatMax:130,
+        showerDuration:7.5,
+        meteorIntervalMin:.26,meteorIntervalMax:.36
+      };
+      return{
+        asteroidMin:1,
+        asteroidInitialMin:18,asteroidInitialMax:24,
+        asteroidRespawnMin:4,asteroidRespawnMax:12,
+        asteroidPopulationMin:22,asteroidPopulationMax:48,
+        firstShowerMin:120,firstShowerMax:160,
+        showerRepeatMin:120,showerRepeatMax:160,
+        showerDuration:7,
+        meteorIntervalMin:.28,meteorIntervalMax:.42
+      };
+    }
     brainScore(context,action){
       if(!this.brain||!Array.isArray(this.brain.strategies))return 0;
       const e=this.brain.strategies.find(x=>x&&x.context===context&&x.action===action);
@@ -631,10 +677,11 @@
     }
     resetAsteroids(){
       // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
+      const profile=this.hazardProfile();
       this.asteroids=[];
       this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1),true);
       this.nextAsteroidIndex=1;
-      this.nextAsteroidSpawn=rand(18,24);
+      this.nextAsteroidSpawn=rand(profile.asteroidInitialMin,profile.asteroidInitialMax);
       this.asteroidRampComplete=false;
       this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
       this.nextAsteroidPopulationChange=999999;
@@ -671,15 +718,16 @@
     }
     spawnProgressiveAsteroid(){
       if(this.asteroids.length>=ASTEROID_MAX_ACTIVE)return;
+      const profile=this.hazardProfile();
       this.spawnAsteroidFromEdge(this.nextAsteroidIndex);
       this.nextAsteroidIndex++;
       if(this.asteroids.length>=ASTEROID_MAX_ACTIVE){
         this.asteroidRampComplete=true;
         this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
         this.nextAsteroidSpawn=999999;
-        this.nextAsteroidPopulationChange=rand(22,48);
+        this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
       }else{
-        this.nextAsteroidSpawn=rand(18,24);
+        this.nextAsteroidSpawn=rand(profile.asteroidInitialMin,profile.asteroidInitialMax);
       }
     }
     beginAsteroidExit(a){
@@ -695,10 +743,16 @@
     }
     chooseAsteroidPopulation(){
       const current=this.asteroids.length;
-      let target=randint(1,ASTEROID_MAX_ACTIVE);
-      if(target===current)target=target===ASTEROID_MAX_ACTIVE?randint(1,ASTEROID_MAX_ACTIVE-1):target+1;
+      const profile=this.hazardProfile();
+      const minAsteroids=clamp(Math.round(Number(profile.asteroidMin)||1),1,ASTEROID_MAX_ACTIVE);
+      let target=randint(minAsteroids,ASTEROID_MAX_ACTIVE);
+      if(target===current){
+        if(minAsteroids===ASTEROID_MAX_ACTIVE)target=ASTEROID_MAX_ACTIVE;
+        else if(current>=ASTEROID_MAX_ACTIVE)target=randint(minAsteroids,ASTEROID_MAX_ACTIVE-1);
+        else target=Math.max(minAsteroids,current+1);
+      }
       this.asteroidTargetCount=target;
-      this.nextAsteroidPopulationChange=rand(22,48);
+      this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
       if(target<current){
         const pool=this.asteroids.slice();
         for(let i=pool.length-1;i>0;i--){
@@ -708,10 +762,11 @@
         for(let i=0;i<leaving;i++)pool[i].exitDelay=rand(i*2.2,i*2.2+5.5);
         this.nextAsteroidSpawn=999999;
       }else{
-        this.nextAsteroidSpawn=rand(4,12);
+        this.nextAsteroidSpawn=rand(profile.asteroidRespawnMin,profile.asteroidRespawnMax);
       }
     }
     updateAsteroidPopulation(){
+      const profile=this.hazardProfile();
       if(!this.asteroidRampComplete){
         this.nextAsteroidSpawn-=DT;
         if(this.nextAsteroidSpawn<=0)this.spawnProgressiveAsteroid();
@@ -722,7 +777,7 @@
         this.nextAsteroidSpawn-=DT;
         if(this.nextAsteroidSpawn<=0){
           this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1));
-          this.nextAsteroidSpawn=this.asteroids.length<this.asteroidTargetCount?rand(4,12):999999;
+          this.nextAsteroidSpawn=this.asteroids.length<this.asteroidTargetCount?rand(profile.asteroidRespawnMin,profile.asteroidRespawnMax):999999;
         }
         return;
       }
@@ -746,9 +801,10 @@
         easyNextDecision:0,easyControl:null,aiControl:null
       };
     }
-    start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null,learningEnabled=true){
+    start(name='JUGADOR',difficulty='medio',cpuCount=1,brain=null,learningEnabled=true,campaignLevel=1){
       this.trainingMode=false;
       this.learningEnabled=learningEnabled!==false;
+      this.campaignLevel=clamp(Math.round(Number(campaignLevel)||1),1,4);
       this.difficulty=String(difficulty||'medio');
       this.brain=this.difficulty==='dificil'&&brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
@@ -768,7 +824,8 @@
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
-      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      const hazard=this.hazardProfile();
+      this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
@@ -799,6 +856,7 @@
     startTraining(brain=null){
       this.trainingMode=true;
       this.learningEnabled=true;
+      this.campaignLevel=1;
       this.difficulty='dificil';
       this.brain=brain&&typeof brain==='object'?brain:null;
       this.learningByCpu.clear();
@@ -818,7 +876,8 @@
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
-      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      const hazard=this.hazardProfile();
+      this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
       this.noDeathTime=0;this.nextGiant=rand(50,80);
       this.resetAsteroids();
       for(let i=0;i<4;i++){
@@ -850,6 +909,7 @@
       if(!msg||typeof msg!=='object')return true;
       if(msg.t==='ctrl'){this.setControl(msg.turn,msg.thrust,msg.fire);return true;}
       if(msg.t==='restart'){
+        if(Number.isFinite(Number(msg.level)))this.campaignLevel=clamp(Math.round(Number(msg.level)||1),1,4);
         if(this.restart()){
           this.emit({t:'restarted'});
           this.onState(this.publicState());
@@ -2004,19 +2064,20 @@
       }
     }
     updateShower(dt){
+      const profile=this.hazardProfile();
       if(this.showerLeft<=0){
         this.firstShower-=dt;
-        if(this.firstShower<=0){this.showerLeft=7;this.nextMeteor=0;this.firstShower=999999;}
-        else if(this.nextShower>0){this.nextShower-=dt;if(this.nextShower<=0){this.showerLeft=7;this.nextMeteor=0;}}
+        if(this.firstShower<=0){this.showerLeft=profile.showerDuration;this.nextMeteor=0;this.firstShower=999999;}
+        else if(this.nextShower>0){this.nextShower-=dt;if(this.nextShower<=0){this.showerLeft=profile.showerDuration;this.nextMeteor=0;}}
       }
       if(this.showerLeft>0){
         this.showerLeft=Math.max(0,this.showerLeft-dt);this.nextMeteor-=dt;
         while(this.nextMeteor<=0&&this.showerLeft>0){
           const left=Math.random()<.5,vx=(left?1:-1)*rand(110,220),vy=rand(-55,55);
           this.meteors.push({id:uid(),type:randint(1,3),x:left?-40:W+40,y:rand(40,H-40),vx,vy,angle:rand(0,360)});
-          this.nextMeteor+=rand(.28,.42);
+          this.nextMeteor+=rand(profile.meteorIntervalMin,profile.meteorIntervalMax);
         }
-        if(this.showerLeft<=0)this.nextShower=rand(140,200);
+        if(this.showerLeft<=0)this.nextShower=rand(profile.showerRepeatMin,profile.showerRepeatMax);
       }
     }
     updateMeteors(dt){
