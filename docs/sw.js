@@ -1,4 +1,4 @@
-const VERSION = 'V21.43-red-missile-arrow';
+const VERSION = 'V21.44-cpu-missile-arrow';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
