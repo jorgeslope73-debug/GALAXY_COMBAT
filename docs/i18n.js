@@ -23,11 +23,6 @@
   Object.assign(dictionaries.it,{playerJoinedNotice:'ENTRA IN PARTITA'});
   Object.assign(dictionaries.fr,{playerJoinedNotice:'ENTRE DANS LA PARTIE'});
   Object.assign(dictionaries.de,{playerJoinedNotice:'TRITT DEM SPIEL BEI'});
-  Object.assign(dictionaries.es,{weaponTheft:'ROBO DE ARMAMENTO'});
-  Object.assign(dictionaries.en,{weaponTheft:'WEAPON THEFT'});
-  Object.assign(dictionaries.it,{weaponTheft:'FURTO DI ARMAMENTI'});
-  Object.assign(dictionaries.fr,{weaponTheft:"VOL D'ARMEMENT"});
-  Object.assign(dictionaries.de,{weaponTheft:'WAFFENRAUB'});
   Object.assign(dictionaries.es,{
     campaignLevelComplete:'NIVEL {level} · {name} SUPERADO',
     campaignLevelTitle:'NIVEL {level} · {name}',
