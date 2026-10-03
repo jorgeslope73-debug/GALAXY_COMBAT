@@ -1140,6 +1140,36 @@
       });
       if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
     }
+    dropDefeatedLoadout(victim){
+      if(!victim)return;
+      const types=[];
+      // V21.34: al abatir a un rival, su equipo reaparece como botin alrededor
+      // del punto de muerte. Las muertes por entorno no llaman a esta funcion.
+      if((Number(victim.bullets)||0)>0)types.push((Number(victim.bullets)||0)>=3?'ammo3':'ammo1');
+      if((Number(victim.guidedAmmo)||0)>0||victim.guided)types.push('mira');
+      if((Number(victim.flare)||0)>0)types.push('flare');
+      if(victim.shockwave)types.push('shockwave');
+      if((Number(victim.cadence)||30)<30)types.push('cadence');
+      if((Number(victim.speed)||1)>1)types.push('speed');
+      if((Number(victim.shield)||0)>0)types.push('shield');
+      if((Number(victim.camo)||0)>0)types.push('camo');
+      if(!types.length)return;
+      const count=types.length;
+      const base=Math.random()*Math.PI*2;
+      for(let i=0;i<count;i++){
+        const angle=base+(Math.PI*2*i/count);
+        const radius=count===1?0:32+10*(i%2);
+        this.pickups.push({
+          id:uid(),type:types[i],
+          x:clamp(victim.x+Math.cos(angle)*radius,70,W-70),
+          y:clamp(victim.y+Math.sin(angle)*radius,70,H-70),
+          phase:rand(0,Math.PI*2)
+        });
+      }
+      // Permitimos temporalmente mas objetos cuando proceden de una baja,
+      // pero mantenemos un limite razonable para no cargar la partida.
+      while(this.pickups.length>12)this.pickups.shift();
+    }
     destroyShip(victim,attacker=null,weaponTheft=false,scorePenalty=false){
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
@@ -1160,6 +1190,9 @@
 
       // V21.33: la embestida con escudo conserva su efecto de colision/baja,
       // pero ya no roba ni transfiere armamento o mejoras del rival.
+      // V21.34: solo una baja causada por otro jugador deja el armamento del
+      // derrotado repartido en el punto de muerte. Entorno/meteoritos no dejan botin.
+      if(attacker&&attacker!==victim)this.dropDefeatedLoadout(victim);
 
       victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.guidedAmmo=0;victim.flareHold=0;victim.flareGesture=false;victim.specialReleaseLock=false;victim.shockwave=false;victim.shockReachAt=0;victim.shockExplodeAt=0;victim.shockOwner=-1;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
