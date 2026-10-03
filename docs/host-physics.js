@@ -1566,7 +1566,10 @@
           this.flares.splice(f,1);
           if(p.shield>0||p.protection>0){
             this.emitShipImpact(p,flare,false);
-            if(p.shield>0)p.shield=0;
+            if(p.shield>0){
+              if(flareOwner&&flareOwner!==p)this.emit({t:'shield-break',index:flareOwner.index});
+              p.shield=0;
+            }
             const n=normalize(p.x-flare.x,p.y-flare.y);
             p.vx=n.x*150;p.vy=n.y*150;
             p.x+=n.x*7;p.y+=n.y*7;
