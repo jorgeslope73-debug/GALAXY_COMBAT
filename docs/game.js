@@ -4059,8 +4059,11 @@
       // V21.35: aceptar tanto el snapshot compacto P2P (g/gt/o) como
       // nombres completos (guided/target/owner). Garantiza el mismo aviso
       // de misil para el humano online y en el modo contra la maquina.
-      const guided=b.g===true||b.guided===true;
-      const targetIndex=Number(b.gt!==undefined?b.gt:b.target);
+      const guided=b.g===true||b.guided===true||b.g===1||b.guided===1;
+      // V21.41: wt es el objetivo explicito del AVISO enviado por el host.
+      // gt/target se conservan como compatibilidad con snapshots anteriores.
+      const rawTarget=b.wt!==undefined?b.wt:(b.gt!==undefined?b.gt:b.target);
+      const targetIndex=Number(rawTarget);
       const ownerIndex=Number(b.o!==undefined?b.o:b.owner);
       if(!guided||targetIndex!==Number(myIndex)||ownerIndex===Number(myIndex))continue;
       const x=Number(b.x)+(Number(b.vx)||0)*projectileAge;
