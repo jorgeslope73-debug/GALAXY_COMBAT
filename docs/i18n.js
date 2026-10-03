@@ -56,7 +56,9 @@
     interceptMove:'INTERCEPTADO',
     nearWinWarning:'OJO EL JUGADOR A UNA BAJA',
     shockwaveFirstHelp:'SI DEJAS PULSADO DISPARO SE ACTIVA',
-    flareFirstHelp:'PULSA DOS DISPAROS SEGUIDOS PARA ACTIVAR'
+    flareFirstHelp:'PULSA DOS DISPAROS SEGUIDOS PARA ACTIVAR',
+    specialPcHelp:'DEJA PULSADO DISPARO PARA ACTIVAR',
+    specialMobileHelp:'PULSA DOS VECES DISPARO SEGUIDO PARA ACTIVAR'
   });
   Object.assign(dictionaries.en,{
     campaignLevelComplete:'LEVEL {level} · {name} COMPLETE',
@@ -86,7 +88,9 @@
     interceptMove:'INTERCEPTED',
     nearWinWarning:'WATCH OUT - ONE KILL FROM WINNING',
     shockwaveFirstHelp:'HOLD FIRE TO ACTIVATE',
-    flareFirstHelp:'PRESS FIRE TWICE TO ACTIVATE'
+    flareFirstHelp:'PRESS FIRE TWICE TO ACTIVATE',
+    specialPcHelp:'HOLD FIRE TO ACTIVATE',
+    specialMobileHelp:'PRESS FIRE TWICE QUICKLY TO ACTIVATE'
   });
   Object.assign(dictionaries.it,{
     campaignLevelComplete:'LIVELLO {level} · {name} SUPERATO',
@@ -116,7 +120,9 @@
     interceptMove:'INTERCETTATO',
     nearWinWarning:'ATTENZIONE - UNA KILL ALLA VITTORIA',
     shockwaveFirstHelp:'TIENI PREMUTO FUOCO PER ATTIVARE',
-    flareFirstHelp:'PREMI FUOCO DUE VOLTE PER ATTIVARE'
+    flareFirstHelp:'PREMI FUOCO DUE VOLTE PER ATTIVARE',
+    specialPcHelp:'TIENI PREMUTO FUOCO PER ATTIVARE',
+    specialMobileHelp:'PREMI FUOCO DUE VOLTE DI SEGUITO PER ATTIVARE'
   });
   Object.assign(dictionaries.fr,{
     campaignLevelComplete:'NIVEAU {level} · {name} TERMINE',
@@ -146,7 +152,9 @@
     interceptMove:'INTERCEPTE',
     nearWinWarning:'ATTENTION - UNE ELIMINATION DE LA VICTOIRE',
     shockwaveFirstHelp:'MAINTENEZ TIR POUR ACTIVER',
-    flareFirstHelp:'APPUYEZ DEUX FOIS SUR TIR POUR ACTIVER'
+    flareFirstHelp:'APPUYEZ DEUX FOIS SUR TIR POUR ACTIVER',
+    specialPcHelp:'MAINTENEZ TIR POUR ACTIVER',
+    specialMobileHelp:'APPUYEZ DEUX FOIS DE SUITE SUR TIR POUR ACTIVER'
   });
   Object.assign(dictionaries.de,{
     campaignLevelComplete:'LEVEL {level} · {name} GESCHAFFT',
@@ -176,7 +184,9 @@
     interceptMove:'ABGEFANGEN',
     nearWinWarning:'ACHTUNG - NOCH EIN ABSCHUSS BIS ZUM SIEG',
     shockwaveFirstHelp:'FEUER GEDRUECKT HALTEN ZUM AKTIVIEREN',
-    flareFirstHelp:'ZWEIMAL FEUER DRUECKEN ZUM AKTIVIEREN'
+    flareFirstHelp:'ZWEIMAL FEUER DRUECKEN ZUM AKTIVIEREN',
+    specialPcHelp:'FEUER GEDRUECKT HALTEN ZUM AKTIVIEREN',
+    specialMobileHelp:'ZWEIMAL DIREKT HINTEREINANDER FEUER DRUECKEN'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
