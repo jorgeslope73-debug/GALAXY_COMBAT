@@ -1815,7 +1815,9 @@
               if(owner){
                 const targetHasActiveWave=(activeShockOwnerMask&bit)!==0;
                 if(targetHasActiveWave){
-                  // La onda activa del objetivo anula el dano solo contra el.
+                  // V21.22: ambas naves quedan protegidas entre si y reciben
+                  // un aviso privado de que sus ondas se han anulado.
+                  this.emit({t:'shock-cancel',indices:[owner.index,target.index]});
                 }else if(target.shield>0){
                   target.shield=0;
                   this.emitShipImpact(target,owner,false);
