@@ -2895,6 +2895,14 @@
         }
       }
     }
+    else if(m.t==='pointblank'){
+      if(Number(m.index)===Number(myIndex)){
+        playNoticeStart=performance.now();
+        playNoticeUntil=playNoticeStart+1200;
+        playNoticeText=tr('pointBlankMove');
+        playNoticeKind='pointblank';
+      }
+    }
     else if(m.t==='flare-kill'){
       if(Number(m.index)===Number(myIndex)){
         playNoticeStart=performance.now();
