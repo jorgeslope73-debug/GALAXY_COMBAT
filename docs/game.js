@@ -2895,6 +2895,14 @@
         }
       }
     }
+    else if(m.t==='flare-kill'){
+      if(Number(m.index)===Number(myIndex)){
+        playNoticeStart=performance.now();
+        playNoticeUntil=playNoticeStart+1250;
+        playNoticeText=tr('flareHitMove');
+        playNoticeKind='flarehit';
+      }
+    }
     else if(m.t==='weapon-theft'){
       const theftIndex=Math.max(0,Math.min(3,Number(m.index)||0));
       // El robo sigue siendo un evento de partida, pero el cartel es privado:
