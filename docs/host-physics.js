@@ -1748,13 +1748,15 @@
 
         let target=null,best=Infinity;
         for(const p of this.players){
-          if(!p||p.dead||p.cpu)continue;
+          // V21.39 ONLINE: el OVNI no detecta jugadores invisibles.
+          // No los selecciona, persigue ni carga mientras camo > 0.
+          if(!p||p.dead||p.cpu||Number(p.camo)>0)continue;
           const d2=dist2(u,p);
           if(d2<best){best=d2;target=p;}
         }
         if(!target){
           for(const p of this.players){
-            if(!p||p.dead)continue;
+            if(!p||p.dead||Number(p.camo)>0)continue;
             const d2=dist2(u,p);
             if(d2<best){best=d2;target=p;}
           }
