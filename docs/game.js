@@ -2895,6 +2895,14 @@
         }
       }
     }
+    else if(m.t==='hunter'){
+      if(Number(m.index)===Number(myIndex)){
+        playNoticeStart=performance.now();
+        playNoticeUntil=playNoticeStart+1200;
+        playNoticeText=tr('hunterMove');
+        playNoticeKind='hunter';
+      }
+    }
     else if(m.t==='pointblank'){
       if(Number(m.index)===Number(myIndex)){
         playNoticeStart=performance.now();
