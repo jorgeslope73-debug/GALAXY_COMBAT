@@ -2895,6 +2895,14 @@
         }
       }
     }
+    else if(m.t==='intercept'){
+      if(Number(m.index)===Number(myIndex)){
+        playNoticeStart=performance.now();
+        playNoticeUntil=playNoticeStart+1100;
+        playNoticeText=tr('interceptMove');
+        playNoticeKind='intercept';
+      }
+    }
     else if(m.t==='shield-break'){
       if(Number(m.index)===Number(myIndex)){
         playNoticeStart=performance.now();
