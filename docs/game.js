@@ -3161,8 +3161,10 @@
         g.font=(isMobile?'32px ':'42px ')+'Flashback,Arial,Helvetica,sans-serif';
         g.fillText(tr('interstellarTravel'),cx,cy-22);
         g.fillStyle='#8fe8ff';
-        g.font=(isMobile?'19px ':'24px ')+'Flashback,Arial,Helvetica,sans-serif';
-        g.fillText(tr('destinationLevel',{level:targetLevel,name:localCampaignWorldName(targetLevel)}),cx,cy+28);
+        // V21.59: el destino de la siguiente fase debe leerse como parte
+        // principal de la transicion, especialmente en movil.
+        g.font=(isMobile?'28px ':'36px ')+'Flashback,Arial,Helvetica,sans-serif';
+        g.fillText(tr('destinationLevel',{level:targetLevel,name:localCampaignWorldName(targetLevel)}),cx,cy+34);
         g.restore();
 
         // Flash final muy corto para enlazar de forma limpia con el nuevo mundo.
