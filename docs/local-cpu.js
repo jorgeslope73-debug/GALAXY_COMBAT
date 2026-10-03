@@ -1272,10 +1272,15 @@
       p.shockwave=false;
       const radius=SHOCKWAVE_RADIUS;
       const radius2=radius*radius;
+      // V21.55: los meteoritos pequenos de la lluvia se destruyen cuando el
+      // frente visible de la onda los alcanza. Solo limpiamos aqui los que ya
+      // tocan el radio inicial para que ninguno quede atrapado dentro del aro.
+      const initialMeteorReach=28+SMALL_METEOR_RADIUS;
+      const initialMeteorReach2=initialMeteorReach*initialMeteorReach;
       for(let i=this.meteors.length-1;i>=0;i--){
         const m=this.meteors[i];
-        const dx=wrapDelta(m.x-p.x,W),dy=wrapDelta(m.y-p.y,H);
-        if(dx*dx+dy*dy<=radius2)this.meteors.splice(i,1);
+        const dx=m.x-p.x,dy=m.y-p.y;
+        if(dx*dx+dy*dy<=initialMeteorReach2)this.meteors.splice(i,1);
       }
       for(const a of this.asteroids){
         const dx=wrapDelta(a.x-p.x,W),dy=wrapDelta(a.y-p.y,H);
@@ -1931,6 +1936,18 @@
                   }
                 }
               }
+            }
+          }
+          // V21.55: el aro expansivo destruye los meteoritos pequenos
+          // de la lluvia exactamente al cruzar su frente. Mismo comportamiento
+          // en local/online y, por tanto, en PC, movil y tablet.
+          for(let mi=this.meteors.length-1;mi>=0;mi--){
+            const meteor=this.meteors[mi];
+            if(!meteor)continue;
+            const dx=meteor.x-wave.x,dy=meteor.y-wave.y;
+            const distance=Math.hypot(dx,dy);
+            if(distance-SMALL_METEOR_RADIUS<=radius&&distance+SMALL_METEOR_RADIUS>=previous){
+              this.meteors.splice(mi,1);
             }
           }
           for(let bi=this.bullets.length-1;bi>=0;bi--){
