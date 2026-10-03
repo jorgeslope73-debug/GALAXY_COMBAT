@@ -624,7 +624,8 @@
       }
       if(!Array.isArray(this.activeShockwaves))this.activeShockwaves=[];
       this.activeShockwaves.push({
-        owner:p.index,x:p.x,y:p.y,born:this.fxClock,prevRadius:28,hitMask:0
+        owner:p.index,x:p.x,y:p.y,born:this.fxClock,prevRadius:28,hitMask:0,
+        killCount:0,perfectNotified:false
       });
       if(this.giant){
         const g=this.giant,dx=wrapDelta(g.x-p.x,W),dy=wrapDelta(g.y-p.y,H),d2=dx*dx+dy*dy;
@@ -1099,6 +1100,13 @@
                   this.emitShipImpact(target,owner,false);
                 }else{
                   this.destroyShip(target,owner);
+                  // V21.25: una sola onda que elimina a dos o mas rivales
+                  // reconoce la jugada sin modificar bajas ni dano.
+                  wave.killCount=(Number(wave.killCount)||0)+1;
+                  if(wave.killCount>=2&&!wave.perfectNotified){
+                    wave.perfectNotified=true;
+                    this.emit({t:'shock-perfect',index:owner.index,count:wave.killCount});
+                  }
                 }
               }
             }
