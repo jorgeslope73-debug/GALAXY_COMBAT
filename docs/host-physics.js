@@ -951,7 +951,7 @@
           const danger=Math.max(0,900-rivalDistance),dangerWeight=cpu.shield>0?.45:1.35;
           // En dificil, MIRA cuenta incluso algo mas que una bala suelta:
           // rearma con 1 bala y deja preparado un misil teledirigido.
-          const sightBonus=isHardSight?220:0;
+          const sightBonus=isHardSight?360:0;
           const score=cpuDistance+danger*dangerWeight-sightBonus;
           if(score<bestAmmoScore){bestAmmoScore=score;bestAmmoDistance=cpuDistance;seekPickupRivalDistance=rivalDistance;seekPickup=pk;}
         }
@@ -990,8 +990,8 @@
           let bestScore=10;
           for(const pk of this.pickups){
             let value=0;
-            if(pk.type==='mira'&&!cpu.guided)value=cpu.bullets<=1?125:105;
-            else if(pk.type.startsWith('ammo'))value=cpu.bullets<=2?85:25;
+            if(pk.type==='mira'&&!cpu.guided)value=cpu.bullets<=1?165:145;
+            else if(pk.type.startsWith('ammo'))value=cpu.bullets<=2?70:20;
             else if(pk.type==='cadence')value=cpu.cadence>=20?100:35;
             else if(pk.type==='speed')value=cpu.speed<2?55:10;
             else if(pk.type==='shield')value=cpu.shield<=0?95:20;
