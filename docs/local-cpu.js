@@ -1144,6 +1144,12 @@
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
+      // V21.28: una onda pertenece a la vida que la lanzo. Si esa nave muere,
+      // su frente deja de tener fisica inmediatamente y no puede matar despues
+      // de la explosion ni reactivarse cuando la nave reaparece.
+      for(const wave of this.activeShockwaves){
+        if(wave&&Number(wave.owner)===Number(victim.index))wave.cancelled=true;
+      }
       if(victim.cpu&&victim.flareDecision)this.settleFlareDecision(victim,victim.flareDecision.action==='flare_use'?-.95:-1.55);
       if(victim.cpu)victim.flarePending=null;
       if(!victim.cpu)this.humanMeteorDecision=null;
@@ -1815,6 +1821,7 @@
         // Sus frentes siguen existiendo y pueden afectar a terceros sin onda.
         let activeShockOwnerMask=0;
         for(const activeWave of this.activeShockwaves){
+          if(!activeWave||activeWave.cancelled)continue;
           const activeAge=this.fxClock-Number(activeWave.born||0);
           if(activeAge>=0&&activeAge<1.35){
             const oi=Math.max(0,Math.min(3,Number(activeWave.owner)||0));
@@ -1823,6 +1830,7 @@
         }
         let shockWrite=0;
         for(const wave of this.activeShockwaves){
+          if(!wave||wave.cancelled)continue;
           const age=this.fxClock-Number(wave.born||0);
           const t=Math.max(0,Math.min(1,age/1.35));
           const eased=1-Math.pow(1-t,3);
@@ -2536,7 +2544,10 @@
 
       // La embestida es peligrosa para la nave, pero el OVNI rebota y sigue.
       for(const p of this.players){
-        if(!p||p.dead||!sweptCircles(u,UFO_RADIUS,p,SHIP_RADIUS,false))continue;
+        // V21.28: para una embestida letal exigimos solape real en este tick.
+        // A 60 Hz el OVNI no atraviesa una nave; evita muertes entre snapshots
+        // que visualmente puedan parecer que no llegaron a tocarse.
+        if(!p||p.dead||!circles(u,UFO_RADIUS,p,SHIP_RADIUS))continue;
         if(p.shield>0||p.protection>0){
           this.emitShipImpact(p,u,false);
         }else{
@@ -2592,7 +2603,11 @@
         for(const a of this.asteroids)if(sweptCircles(p,SHIP_RADIUS,a,a.r,false)){if(p.shield>0){this.emitShipImpact(p,a,false);const n=normalize(p.x-a.x,p.y-a.y),dot=p.vx*n.x+p.vy*n.y;if(dot<0){p.vx-=1.85*dot*n.x;p.vy-=1.85*dot*n.y;}p.x+=n.x*5;p.y+=n.y*5;}else this.destroyShip(p,null);}
       }
       for(let i=0;i<this.players.length;i++)for(let j=i+1;j<this.players.length;j++){
-        const a=this.players[i],b=this.players[j];if(a.dead||b.dead||!sweptCircles(a,SHIP_RADIUS,b,SHIP_RADIUS,true))continue;
+        const a=this.players[i],b=this.players[j];
+        // V21.28: no colisionar dos naves que se ven en bordes opuestos.
+        // El movimiento sigue haciendo wrap, pero el choque solo existe cuando
+        // sus trayectorias se tocan en la misma zona visible de la pantalla.
+        if(a.dead||b.dead||!sweptCircles(a,SHIP_RADIUS,b,SHIP_RADIUS,false))continue;
         if(a.shield>0||a.protection>0)this.emitShipImpact(a,b,false);
         if(b.shield>0||b.protection>0)this.emitShipImpact(b,a,false);
         if(a.shield>0&&b.shield<=0)this.destroyShip(b,a,true);
