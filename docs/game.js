@@ -16,6 +16,11 @@
     {file:'assets/sprites/fondo04.jpg',mobileKey:'bg04',stars:false},
     {file:'assets/sprites/fondo05.jpg',mobileKey:'bg05',stars:false}
   ];
+  const LOCAL_CAMPAIGN_WORLD_KEYS=['campaignWorld1','campaignWorld2','campaignWorld3','campaignWorld4','campaignWorld5'];
+  function localCampaignWorldName(level){
+    const safe=Math.max(1,Math.min(LOCAL_CAMPAIGN_WORLD_KEYS.length,Math.round(Number(level)||1)));
+    return tr(LOCAL_CAMPAIGN_WORLD_KEYS[safe-1]);
+  }
   let matchBackgroundCursor=-1,currentMatchBackground=0,currentMatchBackgroundRound=0;
   if(useStaticPcBackground){
     // Fondo PC estatico: se compone una sola vez como capa CSS 16:9 y ya no se
@@ -2946,7 +2951,7 @@
         g.fillText(tr('interstellarTravel'),cx,cy-22);
         g.fillStyle='#8fe8ff';
         g.font=(isMobile?'19px ':'24px ')+'Flashback,Arial,Helvetica,sans-serif';
-        g.fillText(tr('destinationLevel',{level:targetLevel}),cx,cy+28);
+        g.fillText(tr('destinationLevel',{level:targetLevel,name:localCampaignWorldName(targetLevel)}),cx,cy+28);
         g.restore();
 
         // Flash final muy corto para enlazar de forma limpia con el nuevo mundo.
@@ -3023,7 +3028,7 @@
       localCampaignComplete=true;
       if(restartBtn){restartBtn.disabled=false;restartBtn.classList.add('hidden');}
     }else if(localCampaign&&humanWon){
-      victoryText.textContent=tr('campaignLevelComplete',{level:localCampaignLevel});
+      victoryText.textContent=tr('campaignLevelComplete',{level:localCampaignLevel,name:localCampaignWorldName(localCampaignLevel)});
       localCampaignAwaitingContinue=true;
       if(restartBtn){
         restartBtn.classList.remove('hidden');
@@ -4177,6 +4182,12 @@
         if(onlineReadyOrangeCache){
           ctx.globalAlpha=fadeIn*t;
           ctx.drawImage(onlineReadyOrangeCache,-onlineReadyOrangeCache.width/2,-onlineReadyOrangeCache.height/2);
+        }
+        if(roomCode==='LOCAL'){
+          ctx.globalAlpha=fadeIn;
+          ctx.fillStyle='#9eeaff';
+          ctx.font=isMobile?'24px Flashback,Arial':'19px Flashback,Arial';
+          ctx.fillText(tr('campaignLevelTitle',{level:localCampaignLevel,name:localCampaignWorldName(localCampaignLevel)}),0,92);
         }
       }else{
         const goAge=age-ONLINE_READY_MS;
