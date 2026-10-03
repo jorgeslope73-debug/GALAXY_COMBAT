@@ -53,7 +53,9 @@
     pointBlankMove:'A QUEMARROPA',
     hunterMove:'CAZADOR',
     shieldBreakMove:'ROMPEESCUDOS',
-    interceptMove:'INTERCEPTADO'
+    interceptMove:'INTERCEPTADO',
+    shockwaveFirstHelp:'SI DEJAS PULSADO DISPARO SE ACTIVA',
+    flareFirstHelp:'PULSA DOS DISPAROS SEGUIDOS PARA ACTIVAR'
   });
   Object.assign(dictionaries.en,{
     campaignLevelComplete:'LEVEL {level} · {name} COMPLETE',
@@ -80,7 +82,9 @@
     pointBlankMove:'POINT BLANK',
     hunterMove:'HUNTER',
     shieldBreakMove:'SHIELD BREAKER',
-    interceptMove:'INTERCEPTED'
+    interceptMove:'INTERCEPTED',
+    shockwaveFirstHelp:'HOLD FIRE TO ACTIVATE',
+    flareFirstHelp:'PRESS FIRE TWICE TO ACTIVATE'
   });
   Object.assign(dictionaries.it,{
     campaignLevelComplete:'LIVELLO {level} · {name} SUPERATO',
@@ -107,7 +111,9 @@
     pointBlankMove:'A BRUCIAPELO',
     hunterMove:'CACCIATORE',
     shieldBreakMove:'ROMPISCUDO',
-    interceptMove:'INTERCETTATO'
+    interceptMove:'INTERCETTATO',
+    shockwaveFirstHelp:'TIENI PREMUTO FUOCO PER ATTIVARE',
+    flareFirstHelp:'PREMI FUOCO DUE VOLTE PER ATTIVARE'
   });
   Object.assign(dictionaries.fr,{
     campaignLevelComplete:'NIVEAU {level} · {name} TERMINE',
@@ -134,7 +140,9 @@
     pointBlankMove:'A BOUT PORTANT',
     hunterMove:'CHASSEUR',
     shieldBreakMove:'BRISE-BOUCLIER',
-    interceptMove:'INTERCEPTE'
+    interceptMove:'INTERCEPTE',
+    shockwaveFirstHelp:'MAINTENEZ TIR POUR ACTIVER',
+    flareFirstHelp:'APPUYEZ DEUX FOIS SUR TIR POUR ACTIVER'
   });
   Object.assign(dictionaries.de,{
     campaignLevelComplete:'LEVEL {level} · {name} GESCHAFFT',
@@ -161,7 +169,9 @@
     pointBlankMove:'AUS NAECHSTER NAEHE',
     hunterMove:'JAEGER',
     shieldBreakMove:'SCHILDBRECHER',
-    interceptMove:'ABGEFANGEN'
+    interceptMove:'ABGEFANGEN',
+    shockwaveFirstHelp:'FEUER GEDRUECKT HALTEN ZUM AKTIVIEREN',
+    flareFirstHelp:'ZWEIMAL FEUER DRUECKEN ZUM AKTIVIEREN'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
