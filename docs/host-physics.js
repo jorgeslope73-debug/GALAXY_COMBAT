@@ -1355,6 +1355,10 @@
                   // V21.04: un impacto lejano con cohete reconoce la jugada como
                   // BUENA, pero no concede la recompensa exclusiva de BRUTAL.
                   this.emit({t:'brutal',titleKey:'goodShot',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index,ammoBonus:0,cadenceMax:false});
+                }else if(b.guided&&attacker&&attacker!==p){
+                  // V21.13: baja con misil guiado a distancia normal.
+                  // El impacto lejano conserva BUENA para no solapar avisos.
+                  this.emit({t:'hunter',index:attacker.index});
                 }
                 if(b.guided){this.emitRocketDisintegrateAt(b.x,b.y,b.owner);this.emit({t:'sound',kind:'sparkle'});}
                 // V20.11: el atacante suma su baja, pero la victima no pierde
