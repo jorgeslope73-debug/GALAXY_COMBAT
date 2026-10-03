@@ -102,7 +102,7 @@
   // V20.16 PERF: snapshots visuales a 20 Hz. La fisica sigue a 60 Hz y
   // los controles a 30 Hz; interpolacion/extrapolacion mantienen la fluidez.
   const NET_FRAME_MS=1000/20;
-  const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),flares:new Map(),meteors:new Map()};
+  const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),flares:new Map(),meteors:new Map(),ufo:new Map()};
   // V20.98 GAME FEEL: todo este estado es exclusivamente local de render.
   // No modifica snapshots, fisica, colisiones, IA ni red.
   const pickupVisualBorn=new Map();
@@ -973,6 +973,7 @@
     bg04:isMobile?'assets/sprites/fondo04_1280.jpg':'assets/sprites/fondo04.jpg',
     bg05:isMobile?'assets/sprites/fondo05_1280.jpg':'assets/sprites/fondo05.jpg',
     giant:'assets/sprites/asteroidegrande_270.png',
+    ufo:'assets/sprites/ovni.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
     bengala:'assets/sprites/bengala.png',bengalahud:'assets/sprites/bengalahud.png',bengalasnave:'assets/sprites/bengalasnave.png',ojo:'assets/sprites/ojo.png',
@@ -1001,7 +1002,7 @@
     im.decoding='async';
     // Estos sprites aparecen desde el primer frame. Antes los asteroides tenian
     // prioridad baja y podian terminar de descargarse/decodificarse ya jugando.
-    const critical=k==='bg'||k==='giant'||k.startsWith('ship')||k.startsWith('pant')||
+    const critical=k==='bg'||k==='giant'||k==='ufo'||k.startsWith('ship')||k.startsWith('pant')||
       k.startsWith('asteroid')||k.startsWith('rocket')||k.startsWith('navemira')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed'||k==='bengala'||k==='bengalahud'||k==='bengalasnave'||k==='ojo';
     if('fetchPriority' in im)im.fetchPriority=critical?'high':'auto';
     imageDecodePromises[k]=new Promise(resolve=>{
@@ -2366,13 +2367,14 @@
   }
   function resetLeaderAnnouncement(){lastUniqueLeader=null;leaderAnnouncement=null;}
   function rebuildPreviousLookup(snapshot){
-    previousLookup.players.clear();previousLookup.asteroids.clear();previousLookup.pickups.clear();previousLookup.flares.clear();previousLookup.meteors.clear();
+    previousLookup.players.clear();previousLookup.asteroids.clear();previousLookup.pickups.clear();previousLookup.flares.clear();previousLookup.meteors.clear();previousLookup.ufo.clear();
     if(!snapshot)return;
     for(const p of snapshot.players||[])previousLookup.players.set(p.i,p);
     for(const a of snapshot.asteroids||[])previousLookup.asteroids.set(a.id,a);
     for(const p of snapshot.pickups||[])previousLookup.pickups.set(p.id,p);
     for(const f of snapshot.flares||[])previousLookup.flares.set(f.id,f);
     for(const m of snapshot.meteors||[])previousLookup.meteors.set(m.id,m);
+    if(snapshot.ufo&&snapshot.ufo.id!=null)previousLookup.ufo.set(snapshot.ufo.id,snapshot.ufo);
   }
   function syncVoicePlayers(players,force=false){
     if(!voice)return;
@@ -5170,6 +5172,23 @@
       const giantY=old?lerp(old.y,state.giant.y,blend):state.giant.y;
       drawGiantEntryWarning({x:giantX,y:giantY},now);
       drawImageCentered(images.giant,giantX,giantY,270,0,1);
+    }
+    if(state.ufo){
+      const oldUfo=previousLookup.ufo.get(state.ufo.id);
+      const ufoX=oldUfo?lerp(oldUfo.x,state.ufo.x,blend):state.ufo.x;
+      const ufoY=oldUfo?lerp(oldUfo.y,state.ufo.y,blend):state.ufo.y;
+      const vx=Number(state.ufo.vx)||0,vy=Number(state.ufo.vy)||0;
+      const rot=(Math.atan2(vy,vx)*180/Math.PI)+90;
+      drawImageCentered(images.ufo,ufoX,ufoY,92,rot,1);
+      if(Number(state.ufo.hp)>0){
+        ctx.save();
+        ctx.globalAlpha=.72;
+        ctx.fillStyle='rgba(0,0,0,.45)';
+        ctx.fillRect(ufoX-32,ufoY+34,64,5);
+        ctx.fillStyle='#8ff7ff';
+        ctx.fillRect(ufoX-32,ufoY+34,64*Math.max(0,Math.min(1,Number(state.ufo.hp)/3)),5);
+        ctx.restore();
+      }
     }
     detectGiantAsteroidDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
