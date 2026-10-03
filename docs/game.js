@@ -113,6 +113,8 @@
     pickupVisualBorn.clear();gameFeelFxSeen.clear();
     shipHitFlashUntil.fill(0);
     cameraShakeStart=0;cameraShakeUntil=0;cameraShakePower=0;cameraShakeSeed=0;
+    playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';
+    lastLocalKillAt=0;lastSavedNoticeAt=0;
   }
   function updatePickupVisualBirths(nextState,now){
     const active=new Set();
@@ -139,6 +141,13 @@
       const hidden=!!e.hidden&&owner!==Number(myIndex);
       if(e.kind==='hit'&&!hidden&&Number.isInteger(owner)&&owner>=0&&owner<4){
         shipHitFlashUntil[owner]=Math.max(shipHitFlashUntil[owner],now-age+165);
+        if(owner===Number(myIndex)&&now-lastSavedNoticeAt>1200){
+          lastSavedNoticeAt=now;
+          playNoticeStart=now;
+          playNoticeUntil=now+1050;
+          playNoticeText=tr('savedMove');
+          playNoticeKind='saved';
+        }
       }else if(e.kind==='explosion'){
         const start=now-age;
         const power=(owner===Number(myIndex)?(isMobile?2.1:3.1):(isMobile?1.0:1.65));
@@ -167,6 +176,9 @@
   let crashScoreHeldValue=null,crashScorePendingValue=null;
   let penaltyMessageUntil=0;
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='',brutalShooter='';
+  // V21.01: avisos locales de jugadas. Solo leen estados/eventos existentes.
+  let playNoticeStart=0,playNoticeUntil=0,playNoticeText='',playNoticeKind='';
+  let lastLocalKillAt=0,lastSavedNoticeAt=0;
   const shockwaveFx=[];
   // V19.28: el titulo BRUTAL se prerenderiza. El shadowBlur grande era caro
   // si se recalculaba en cada frame y podia producir tirones en PC.
@@ -2790,6 +2802,13 @@
       if(oldLocal&&newLocal&&Number(newLocal.k)>Number(oldLocal.k)){
         // Confirmacion visual local de baja: no se envia por red y solo la ve
         // el jugador que acaba de sumar una muerte.
+        if(lastLocalKillAt>0&&now-lastLocalKillAt<=3500){
+          playNoticeStart=now;
+          playNoticeUntil=now+1350;
+          playNoticeText=tr('doubleMove');
+          playNoticeKind='double';
+        }
+        lastLocalKillAt=now;
         killHudFlashStart=now;
         killHudFlashUntil=now+450;
         // El servidor suma la baja inmediatamente, pero visualmente mantenemos
@@ -2813,6 +2832,7 @@
         crashScoreFxStart=penaltyMessageUntil;
         crashScoreFxUntil=crashScoreFxStart+950;
       }
+      if(oldLocal&&newLocal&&Number(newLocal.d)>Number(oldLocal.d))lastLocalKillAt=0;
       if(lastStateTime>0){
         const arrived=now-lastStateTime;
         if(Number.isFinite(arrived)&&arrived>=16&&arrived<=100){
@@ -2858,7 +2878,7 @@
       const restartRound=roomCode==='LOCAL'?localCampaignLevel:Math.max(1,Number(m.rankRound)||(hostPhysics&&hostPhysics.rankRound)||currentMatchBackgroundRound+1);
       if(roomCode!=='LOCAL'&&restartRound<=lastRestartedRound)return;
       if(roomCode!=='LOCAL')lastRestartedRound=restartRound;
-      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
+      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';lastLocalKillAt=0;lastSavedNoticeAt=0;weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){
       const recoverable=String(m.cause||'')==='host_timeout'&&p2pGameHealthy();
@@ -4096,7 +4116,8 @@
     const brutal=!!(brutalFxUntil&&now<brutalFxUntil);
     const theft=!!(weaponTheftFxUntil&&now<weaponTheftFxUntil&&weaponTheftIndex>=0);
     const ghost=!!(invisibleNoticeUntil&&now<invisibleNoticeUntil&&invisibleNoticeIndex>=0);
-    const count=(shower?1:0)+(hunt?1:0)+(brutal?1:0)+(theft?1:0)+(ghost?1:0);
+    const special=!!(playNoticeUntil&&now<playNoticeUntil&&playNoticeText);
+    const count=(shower?1:0)+(hunt?1:0)+(brutal?1:0)+(theft?1:0)+(ghost?1:0)+(special?1:0);
     if(count<=1)return defaultY;
 
     let idx=-1,cursor=0;
@@ -4105,12 +4126,14 @@
     if(brutal){if(kind==='brutal')idx=cursor;cursor++;}
     if(theft){if(kind==='theft')idx=cursor;cursor++;}
     if(ghost){if(kind==='ghost')idx=cursor;cursor++;}
+    if(special){if(kind==='special')idx=cursor;cursor++;}
     if(idx<0)return defaultY;
 
     if(count===2)return idx===0?H*.34:H*.57;
     if(count===3)return idx===0?H*.28:(idx===1?H*.48:H*.68);
     if(count===4)return idx===0?H*.23:(idx===1?H*.39:(idx===2?H*.55:H*.71));
-    return idx===0?H*.18:(idx===1?H*.32:(idx===2?H*.46:(idx===3?H*.60:H*.74)));
+    if(count===5)return idx===0?H*.18:(idx===1?H*.32:(idx===2?H*.46:(idx===3?H*.60:H*.74)));
+    return H*(.15+idx*.13);
   }
 
   function drawPenaltyAnnouncement(now){
@@ -4414,6 +4437,36 @@
         ctx.strokeText('BALAS PARA CPU',0,isMobile?58:50);
         ctx.fillText('BALAS PARA CPU',0,isMobile?58:50);
       }
+    }finally{ctx.restore();}
+  }
+
+  function drawPlayNotice(now){
+    if(!playNoticeUntil||now>=playNoticeUntil||!playNoticeText)return;
+    const total=playNoticeKind==='double'?1350:1050;
+    const age=Math.max(0,now-playNoticeStart);
+    const remaining=Math.max(0,total-age);
+    const fadeIn=clamp(age/110,0,1);
+    const fadeOut=clamp(remaining/260,0,1);
+    const alpha=Math.min(fadeIn,fadeOut);
+    const intro=clamp(age/160,0,1);
+    const ease=1-Math.pow(1-intro,3);
+    const scale=.72+.28*ease+Math.sin(Math.min(1,age/420)*Math.PI)*.08;
+    const double=playNoticeKind==='double';
+    const color=double?'#ffe44c':'#79f6ff';
+    ctx.save();
+    try{
+      ctx.translate(W/2,centerNoticeY('special',now,H*.61));
+      ctx.scale(scale,scale);
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.globalAlpha=alpha*.92;
+      ctx.font=isMobile?'42px Flashback,Arial':'32px Flashback,Arial';
+      ctx.lineWidth=isMobile?6:5;
+      ctx.strokeStyle='rgba(0,0,0,.82)';
+      ctx.shadowColor=double?'rgba(255,165,35,.9)':'rgba(70,220,255,.85)';
+      ctx.shadowBlur=16*(1-clamp(age/900,0,1));
+      ctx.fillStyle=color;
+      ctx.strokeText(playNoticeText,0,0);
+      ctx.fillText(playNoticeText,0,0);
     }finally{ctx.restore();}
   }
 
@@ -4878,6 +4931,7 @@
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
     drawWeaponTheftAnnouncement(now);
+    drawPlayNotice(now);
     drawHuntAnnouncement(now);
     drawInvisibleModeNotice(now);
     if(state.shower>0){
