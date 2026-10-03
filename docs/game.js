@@ -4665,8 +4665,13 @@
       ctx.lineWidth=isMobile?5:4;
       ctx.strokeStyle='rgba(0,0,0,.78)';
       ctx.fillStyle='#b8f3ff';
-      ctx.shadowColor='rgba(90,210,255,.65)';
-      ctx.shadowBlur=10*(1-clamp(age/700,0,1));
+      if(isMobile){
+        ctx.shadowColor='transparent';
+        ctx.shadowBlur=0;
+      }else{
+        ctx.shadowColor='rgba(90,210,255,.65)';
+        ctx.shadowBlur=10*(1-clamp(age/700,0,1));
+      }
       ctx.strokeText(pickupNoticeText,0,0);
       ctx.fillText(pickupNoticeText,0,0);
     }finally{ctx.restore();}
@@ -4687,8 +4692,13 @@
       ctx.lineWidth=isMobile?5:4;
       ctx.strokeStyle='rgba(0,0,0,.82)';
       ctx.fillStyle='#66ff7a';
-      ctx.shadowColor='rgba(55,255,100,.75)';
-      ctx.shadowBlur=12;
+      if(isMobile){
+        ctx.shadowColor='transparent';
+        ctx.shadowBlur=0;
+      }else{
+        ctx.shadowColor='rgba(55,255,100,.75)';
+        ctx.shadowBlur=12;
+      }
       ctx.strokeText(specialHelpText,0,0);
       ctx.fillText(specialHelpText,0,0);
     }finally{ctx.restore();}
