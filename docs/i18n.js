@@ -35,8 +35,7 @@
     retryLevel:'REPETIR NIVEL',
     campaignGameOver:'JUEGO TERMINADO',
     restartCampaign:'VOLVER A EMPEZAR',
-    campaignChampion:'CAMPEON INTERESTELAR'
-,
+    campaignChampion:'CAMPEON INTERESTELAR',
     interstellarTravel:'VIAJE INTERESTELAR',
     destinationLevel:'DESTINO · NIVEL {level}',
     giantWarning:'METEORITO GIGANTE'
@@ -48,8 +47,7 @@
     retryLevel:'RETRY LEVEL',
     campaignGameOver:'GAME OVER',
     restartCampaign:'START OVER',
-    campaignChampion:'INTERSTELLAR CHAMPION'
-,
+    campaignChampion:'INTERSTELLAR CHAMPION',
     interstellarTravel:'INTERSTELLAR TRAVEL',
     destinationLevel:'DESTINATION · LEVEL {level}',
     giantWarning:'GIANT METEOR'
@@ -61,8 +59,7 @@
     retryLevel:'RIPETI LIVELLO',
     campaignGameOver:'PARTITA TERMINATA',
     restartCampaign:'RICOMINCIA',
-    campaignChampion:'CAMPIONE INTERSTELLARE'
-,
+    campaignChampion:'CAMPIONE INTERSTELLARE',
     interstellarTravel:'VIAGGIO INTERSTELLARE',
     destinationLevel:'DESTINAZIONE · LIVELLO {level}',
     giantWarning:'METEORITE GIGANTE'
@@ -74,8 +71,7 @@
     retryLevel:'REJOUER LE NIVEAU',
     campaignGameOver:'PARTIE TERMINEE',
     restartCampaign:'RECOMMENCER',
-    campaignChampion:'CHAMPION INTERSTELLAIRE'
-,
+    campaignChampion:'CHAMPION INTERSTELLAIRE',
     interstellarTravel:'VOYAGE INTERSTELLAIRE',
     destinationLevel:'DESTINATION · NIVEAU {level}',
     giantWarning:'METEORITE GEANT'
@@ -87,8 +83,7 @@
     retryLevel:'LEVEL WIEDERHOLEN',
     campaignGameOver:'SPIEL VORBEI',
     restartCampaign:'NEU ANFANGEN',
-    campaignChampion:'INTERSTELLARER CHAMPION'
-,
+    campaignChampion:'INTERSTELLARER CHAMPION',
     interstellarTravel:'INTERSTELLARE REISE',
     destinationLevel:'ZIEL · LEVEL {level}',
     giantWarning:'RIESENMETEOR'
