@@ -2895,6 +2895,14 @@
         }
       }
     }
+    else if(m.t==='shield-break'){
+      if(Number(m.index)===Number(myIndex)){
+        playNoticeStart=performance.now();
+        playNoticeUntil=playNoticeStart+1200;
+        playNoticeText=tr('shieldBreakMove');
+        playNoticeKind='shieldbreak';
+      }
+    }
     else if(m.t==='hunter'){
       if(Number(m.index)===Number(myIndex)){
         playNoticeStart=performance.now();
