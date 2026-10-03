@@ -119,6 +119,7 @@
     specialHelpStart=0;specialHelpUntil=0;specialHelpText='';
     seenShockwaveHelp=false;seenFlareHelp=false;
     nearWinNoticeStart=0;nearWinNoticeUntil=0;nearWinNoticeName='';nearWinNoticeIndex=-1;nearWinActive.clear();
+    incomingMissileNoticeId=null;incomingMissileNoticeUntil=0;
     lastLocalKillAt=0;lastSavedNoticeAt=0;
   }
   function updatePickupVisualBirths(nextState,now){
@@ -207,6 +208,8 @@
   let seenShockwaveHelp=false,seenFlareHelp=false;
   let nearWinNoticeStart=0,nearWinNoticeUntil=0,nearWinNoticeName='',nearWinNoticeIndex=-1;
   const nearWinActive=new Set();
+  // V21.46: el texto MISIL ENTRANTE solo aparece 2 s por cada misil.
+  let incomingMissileNoticeId=null,incomingMissileNoticeUntil=0;
   let lastLocalKillAt=0,lastSavedNoticeAt=0;
   const shockwaveFx=[];
   // V19.28: el titulo BRUTAL se prerenderiza. El shadowBlur grande era caro
@@ -4082,9 +4085,14 @@
       const geometricTarget=d<1500&&towardMe>.76&&(localCpuMode||targetIndex<0);
       if(!explicitTarget&&!geometricTarget)continue;
 
-      if(d<best){best=d;threat={x,y};}
+      if(d<best){best=d;threat={id:String(b.id),x,y};}
     }
     if(!threat)return;
+
+    if(incomingMissileNoticeId!==threat.id){
+      incomingMissileNoticeId=threat.id;
+      incomingMissileNoticeUntil=now+2000;
+    }
 
     const old=previousLookup.players.get(me.i);
     const mx=old&&!old.dead?lerpWrapped(old.x,me.x,W,blend):Number(me.x);
@@ -4103,7 +4111,7 @@
     const critical=distance<460;
     const veryClose=distance<260;
     const pulse=.5+.5*Math.sin(now*(critical?.024:.014));
-    const scale=(veryClose?1.34:(critical?1.20:1.04))*(1+(critical?.14:.08)*pulse);
+    const scale=(veryClose?1.16:(critical?1.08:.96))*(1+(critical?.08:.04)*pulse);
 
     ctx.save();
     try{
@@ -4112,32 +4120,34 @@
       ctx.scale(scale,scale);
       ctx.globalAlpha=.82+.18*pulse;
       ctx.shadowColor=critical?'rgba(255,30,30,.95)':'rgba(255,145,45,.72)';
-      ctx.shadowBlur=critical?18:8;
+      ctx.shadowBlur=critical?12:5;
       ctx.fillStyle=critical?'#ff241c':'#ff943d';
-      ctx.strokeStyle='rgba(0,0,0,.92)';
-      ctx.lineWidth=3.5;
       ctx.beginPath();
-      ctx.moveTo(20,0);
-      ctx.lineTo(-12,-12);
-      ctx.lineTo(-7,0);
-      ctx.lineTo(-12,12);
+      ctx.moveTo(14,0);
+      ctx.lineTo(-8,-8);
+      ctx.lineTo(-4,0);
+      ctx.lineTo(-8,8);
       ctx.closePath();
-      ctx.fill();ctx.stroke();
+      ctx.fill();
     }finally{ctx.restore();}
 
-    ctx.save();
-    try{
-      ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.font=isMobile?'26px Flashback,Arial':'20px Flashback,Arial';
-      ctx.globalAlpha=.68+.28*pulse;
-      ctx.fillStyle=critical?'#ff5a4f':'#ffad62';
-      ctx.strokeStyle='rgba(0,0,0,.82)';
-      ctx.lineWidth=4;
-      const labelY=clamp(my-(isMobile?112:96),30,H-30);
-      const label=tr('incomingMissile');
-      ctx.strokeText(label,mx,labelY);
-      ctx.fillText(label,mx,labelY);
-    }finally{ctx.restore();}
+    // El texto es un aviso breve: dura 2 segundos por cada misil nuevo.
+    // La flecha sigue visible mientras el misil continue siendo una amenaza.
+    if(now<incomingMissileNoticeUntil){
+      ctx.save();
+      try{
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font=isMobile?'26px Flashback,Arial':'20px Flashback,Arial';
+        ctx.globalAlpha=.68+.28*pulse;
+        ctx.fillStyle=critical?'#ff5a4f':'#ffad62';
+        ctx.strokeStyle='rgba(0,0,0,.82)';
+        ctx.lineWidth=4;
+        const labelY=clamp(my-(isMobile?112:96),30,H-30);
+        const label=tr('incomingMissile');
+        ctx.strokeText(label,mx,labelY);
+        ctx.fillText(label,mx,labelY);
+      }finally{ctx.restore();}
+    }
   }
 
   function drawHud(now){
