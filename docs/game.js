@@ -103,6 +103,54 @@
   // los controles a 30 Hz; interpolacion/extrapolacion mantienen la fluidez.
   const NET_FRAME_MS=1000/20;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),flares:new Map(),meteors:new Map()};
+  // V20.98 GAME FEEL: todo este estado es exclusivamente local de render.
+  // No modifica snapshots, fisica, colisiones, IA ni red.
+  const pickupVisualBorn=new Map();
+  const gameFeelFxSeen=new Set();
+  const shipHitFlashUntil=[0,0,0,0];
+  let cameraShakeStart=0,cameraShakeUntil=0,cameraShakePower=0,cameraShakeSeed=0;
+  function resetGameFeelVisuals(){
+    pickupVisualBorn.clear();gameFeelFxSeen.clear();
+    shipHitFlashUntil.fill(0);
+    cameraShakeStart=0;cameraShakeUntil=0;cameraShakePower=0;cameraShakeSeed=0;
+  }
+  function updatePickupVisualBirths(nextState,now){
+    const active=new Set();
+    for(const pk of (nextState&&nextState.pickups)||[]){
+      const key=String(pk&&pk.id);
+      active.add(key);
+      const existed=state&&Array.isArray(state.pickups)&&state.pickups.some(old=>String(old&&old.id)===key);
+      if(!existed&&!pickupVisualBorn.has(key))pickupVisualBorn.set(key,now);
+    }
+    for(const key of pickupVisualBorn.keys())if(!active.has(key))pickupVisualBorn.delete(key);
+  }
+  function consumeGameFeelFx(snapshot,now){
+    if(!snapshot||!Array.isArray(snapshot.fx))return;
+    const round=Number(snapshot.round)||localCampaignLevel||0;
+    for(const e of snapshot.fx){
+      if(!e||!Number.isSafeInteger(e.id)||e.id<1)continue;
+      const key=String(snapshot.code||roomCode||'')+':'+round+':'+e.id;
+      if(gameFeelFxSeen.has(key))continue;
+      gameFeelFxSeen.add(key);
+      if(gameFeelFxSeen.size>256)gameFeelFxSeen.delete(gameFeelFxSeen.values().next().value);
+      const age=Math.max(0,Number(e.age)||0);
+      if(age>500)continue;
+      const owner=Number(e.i);
+      const hidden=!!e.hidden&&owner!==Number(myIndex);
+      if(e.kind==='hit'&&!hidden&&Number.isInteger(owner)&&owner>=0&&owner<4){
+        shipHitFlashUntil[owner]=Math.max(shipHitFlashUntil[owner],now-age+165);
+      }else if(e.kind==='explosion'){
+        const start=now-age;
+        const power=(owner===Number(myIndex)?(isMobile?2.1:3.1):(isMobile?1.0:1.65));
+        if(start+190>cameraShakeUntil||power>cameraShakePower){
+          cameraShakeStart=start;
+          cameraShakeUntil=start+190;
+          cameraShakePower=power;
+          cameraShakeSeed=(e.id%97)*.37;
+        }
+      }
+    }
+  }
   const localizedTargetOwners=[-1,-1,-1,-1];
   const localizaSpriteKeys=['localizaA','localizaB','localizaC','localizaD'];
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
@@ -2641,7 +2689,7 @@
     if(m.t==='created'||m.t==='joined'){
       if(!m.started){inGame=false;resetOnlineStartCountdown();clearGameCanvas();}
       closeRoomDialogs();
-      if(impactFX)impactFX.reset();resetLeaderAnnouncement();
+      if(impactFX)impactFX.reset();resetGameFeelVisuals();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
@@ -2716,6 +2764,8 @@
       }
       const now=performance.now();
       if(impactFX)impactFX.consume(m,myIndex,now);
+      consumeGameFeelFx(m,now);
+      updatePickupVisualBirths(m,now);
       if(Array.isArray(m.fx)){
         for(const e of m.fx){
           if(!e||e.kind!=='shockwave'||!Number.isSafeInteger(e.id))continue;
@@ -2808,7 +2858,7 @@
       const restartRound=roomCode==='LOCAL'?localCampaignLevel:Math.max(1,Number(m.rankRound)||(hostPhysics&&hostPhysics.rankRound)||currentMatchBackgroundRound+1);
       if(roomCode!=='LOCAL'&&restartRound<=lastRestartedRound)return;
       if(roomCode!=='LOCAL')lastRestartedRound=restartRound;
-      resetOnlineStartCountdown();if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
+      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){
       const recoverable=String(m.cause||'')==='host_timeout'&&p2pGameHealthy();
@@ -3167,6 +3217,7 @@
   });
   function returnToMainMenu(notifyServer=true){
     cancelInterstellarTravel();
+    resetGameFeelVisuals();
     resetOnlineStartCountdown();
     if(!sharedRoomCode)sharedRoomJoinStarted=false;
     invisibleHudUntil.fill(0);
@@ -3368,25 +3419,29 @@
     return .5+.5*pulse;
   }
   function drawPickup(pk,x=pk.x,y=pk.y,nowSec=0){
-    const alpha=pickupExpiryAlpha(pk,nowSec);
+    const born=pickupVisualBorn.get(String(pk&&pk.id));
+    const intro=born===undefined?1:clamp((nowSec*1000-born)/320,0,1);
+    const introEase=1-Math.pow(1-intro,3);
+    const introScale=.34+.66*introEase;
+    const introAlpha=.18+.82*introEase;
+    const alpha=pickupExpiryAlpha(pk,nowSec)*introAlpha;
     if(pickupSpriteMap[pk.type]){
-      // V20.96: halo local muy barato. Hace que las mejoras se lean mejor
-      // sobre fondos distintos sin cambiar tamano de colision ni estado de red.
+      // V20.96/V20.98: halo + materializacion visual. No cambia el radio real.
       const phase=(String(pk.id||'').charCodeAt(0)||0)*.07;
       const pulse=.5+.5*Math.sin(nowSec*3.7+phase);
       ctx.save();
       ctx.globalAlpha=alpha*(.18+.14*pulse);
       ctx.strokeStyle='rgba(160,235,255,.95)';
       ctx.lineWidth=1.5;
-      ctx.beginPath();ctx.arc(x,y,27+4*pulse,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.arc(x,y,(27+4*pulse)*introScale,0,Math.PI*2);ctx.stroke();
       ctx.globalAlpha=alpha*(.08+.08*pulse);
       ctx.fillStyle='rgba(95,190,255,.9)';
-      ctx.beginPath();ctx.arc(x,y,22+3*pulse,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(x,y,(22+3*pulse)*introScale,0,Math.PI*2);ctx.fill();
       ctx.restore();
-      drawImageCentered(images[pickupSpriteMap[pk.type]],x,y,45+2*pulse,0,alpha);
+      drawImageCentered(images[pickupSpriteMap[pk.type]],x,y,(45+2*pulse)*introScale,0,alpha);
       return;
     }
-    ctx.save();ctx.translate(x,y);
+    ctx.save();ctx.translate(x,y);ctx.scale(introScale,introScale);
     if(pk.type==='shockwave'){
       const pulse=.5+.5*Math.sin(nowSec*4.6+(Number(pk.id)||0));
       ctx.globalAlpha=alpha;
@@ -3790,6 +3845,21 @@
       alpha*=.18+.82*me;
     }
     drawImageCentered(im,x,y,shipSize,-r,alpha);
+    // V20.98: confirmacion visual muy corta de impacto. Solo se alimenta de
+    // eventos ya recibidos y nunca revela una nave rival en modo FANTASMA.
+    const hitLeft=Number(shipHitFlashUntil[Number(p.i)]||0)-now;
+    if(hitLeft>0&&(local||Number(p.camo)<=0)){
+      const hitT=clamp(hitLeft/165,0,1);
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      drawImageCentered(im,x,y,shipSize*1.025,-r,Math.min(.42,alpha*.42)*hitT);
+      ctx.globalCompositeOperation='source-over';
+      ctx.globalAlpha=.82*hitT;
+      ctx.strokeStyle='#fff3bd';
+      ctx.lineWidth=2.2;
+      ctx.beginPath();ctx.arc(x,y,SHIP_DRAW_SIZE*.52+7*(1-hitT),0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    }
     // V19.66: la bengala equipada se indica sobre la propia nave, igual que
     // la capa de MIRA/misil. Solo se dibuja una vez aunque haya varias cargas.
     if((Number(p.flare)||0)>0&&imageReady(images.bengalasnave)){
@@ -4665,7 +4735,17 @@
       }
       ctx.globalCompositeOperation='source-over';
     }
-    ctx.setTransform(renderScale,0,0,renderScale,0,0);
+    let shakeX=0,shakeY=0;
+    if(now<cameraShakeUntil&&cameraShakeUntil>cameraShakeStart){
+      const st=clamp((now-cameraShakeStart)/(cameraShakeUntil-cameraShakeStart),0,1);
+      const envelope=(1-st)*(1-st);
+      const phase=(now-cameraShakeStart)*.075+cameraShakeSeed;
+      shakeX=Math.sin(phase*1.71)*cameraShakePower*envelope;
+      shakeY=Math.sin(phase*2.19+1.1)*cameraShakePower*envelope;
+    }else if(cameraShakeUntil){
+      cameraShakeUntil=0;cameraShakePower=0;
+    }
+    ctx.setTransform(renderScale,0,0,renderScale,shakeX*renderScale,shakeY*renderScale);
     if(!useStaticPcBackground&&!backgroundCache&&!drawImageSafely(activeMobileBackground(),0,0,W,H)){
       ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);
     }
