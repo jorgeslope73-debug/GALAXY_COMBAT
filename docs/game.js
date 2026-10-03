@@ -2506,13 +2506,14 @@
     }catch(_){return null;}
     finally{if(timer)clearTimeout(timer);}
   }
+  const CPU_LEARNING_DELTA_MAX=31;
   async function submitCpuLearning(deltas){
     const base=apiBaseUrl();if(!base||!Array.isArray(deltas)||!deltas.length)return;
     try{
       await fetch(base+'/api/cpu-brain/learn',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({deltas:deltas.slice(0,24)}),
+        body:JSON.stringify({deltas:deltas.slice(0,CPU_LEARNING_DELTA_MAX)}),
         keepalive:true
       });
     }catch(_){}
