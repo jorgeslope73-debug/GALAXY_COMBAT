@@ -1980,14 +1980,18 @@
             if(sweptCircles(b,BULLET_RADIUS,p,SHIP_RADIUS,false)){
               const attacker=this.players.find(q=>q.index===b.owner)||null;
               if(p.shield<=0){
-                const brutal=attacker&&attacker!==p&&!b.guided&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
-                if(brutal){
+                const longShot=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
+                if(longShot&&!b.guided){
                   // V21.03: recompensa BRUTAL solo para bala normal a larga distancia.
                   // +10 balas y cadencia maxima, con recarga actual adaptada al nuevo valor.
                   attacker.bullets+=10;
                   attacker.cadence=1;
                   attacker.reload=Math.min(attacker.reload,this.reloadTime(attacker));
-                  this.emit({t:'brutal',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index,ammoBonus:10,cadenceMax:true});
+                  this.emit({t:'brutal',titleKey:'brutal',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index,ammoBonus:10,cadenceMax:true});
+                }else if(longShot&&b.guided){
+                  // V21.04: un impacto lejano con cohete reconoce la jugada como
+                  // BUENA, pero no concede la recompensa exclusiva de BRUTAL.
+                  this.emit({t:'brutal',titleKey:'goodShot',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index,ammoBonus:0,cadenceMax:false});
                 }
                 if(b.guided){this.emitRocketDisintegrateAt(b.x,b.y,b.owner);this.emit({t:'sound',kind:'sparkle'});}
                 // V20.11: el atacante suma su baja, pero la victima no pierde
