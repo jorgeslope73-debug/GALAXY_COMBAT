@@ -1,4 +1,4 @@
-const VERSION = 'V21.33-no-theft';
+const VERSION = 'V21.34-death-loot';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
