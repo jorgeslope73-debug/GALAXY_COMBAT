@@ -5184,20 +5184,18 @@
       const oldUfo=previousLookup.ufo.get(state.ufo.id);
       const ufoX=oldUfo?lerp(oldUfo.x,state.ufo.x,blend):state.ufo.x;
       const ufoY=oldUfo?lerp(oldUfo.y,state.ufo.y,blend):state.ufo.y;
-      const vx=Number(state.ufo.vx)||0,vy=Number(state.ufo.vy)||0;
-      const targetRot=(Math.atan2(vy,vx)*180/Math.PI)+90;
+      // V21.32: la rotacion del OVNI es puramente visual y constante.
+      // No sigue vx/vy ni afecta a su trayectoria, IA, fisica o colisiones.
       if(ufoVisualId!==state.ufo.id||ufoVisualAngle===null){
         ufoVisualId=state.ufo.id;
-        ufoVisualAngle=targetRot;
+        ufoVisualAngle=0;
         ufoVisualAt=now;
       }else{
         const dt=Math.min(.05,Math.max(0,(now-ufoVisualAt)/1000));
         ufoVisualAt=now;
-        const dr=angleDelta(ufoVisualAngle,targetRot);
-        const follow=1-Math.exp(-8*dt);
-        ufoVisualAngle=(ufoVisualAngle+dr*follow+360)%360;
+        ufoVisualAngle=(ufoVisualAngle+72*dt)%360;
       }
-      drawImageCentered(images.ufo,ufoX,ufoY,72,ufoVisualAngle,1);
+      drawImageCentered(images.ufo,ufoX,ufoY,56,ufoVisualAngle,1);
     }
     detectGiantAsteroidDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
