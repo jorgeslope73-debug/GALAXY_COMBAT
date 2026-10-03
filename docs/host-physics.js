@@ -10,7 +10,7 @@
   const FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
-  const SHOCKWAVE_RADIUS=180,SHOCKWAVE_SAFE_DISTANCE=240,SHOCKWAVE_STANDOFF_DISTANCE=300;
+  const SHOCKWAVE_RADIUS=220,SHOCKWAVE_SAFE_DISTANCE=285,SHOCKWAVE_STANDOFF_DISTANCE=350;
   const UFO_RADIUS=30,UFO_HP=1,UFO_FIRST_MIN=35,UFO_FIRST_MAX=60,UFO_REPEAT_MIN=75,UFO_REPEAT_MAX=120;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
@@ -681,7 +681,7 @@
     deployShockwave(p){
       if(!p||p.dead||!p.shockwave)return false;
       p.shockwave=false;
-      const radius=180;
+      const radius=SHOCKWAVE_RADIUS;
       const radius2=radius*radius;
       for(let i=this.meteors.length-1;i>=0;i--){
         const m=this.meteors[i];
@@ -1152,7 +1152,7 @@
           const age=this.fxClock-Number(wave.born||0);
           const t=Math.max(0,Math.min(1,age/1.35));
           const eased=1-Math.pow(1-t,3);
-          const radius=28+152*eased;
+          const radius=28+(SHOCKWAVE_RADIUS-28)*eased;
           const previous=Math.max(28,Number(wave.prevRadius)||28);
           const owner=this.players.find(q=>q&&Number(q.index)===Number(wave.owner))||null;
           for(const target of this.players){
