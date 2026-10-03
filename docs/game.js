@@ -3943,6 +3943,67 @@
     }
     if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
   }
+  function drawIncomingMissileWarning(now,projectileAge,blend){
+    if(!state||!Array.isArray(state.players)||!Array.isArray(state.bullets))return;
+    const me=state.players.find(p=>Number(p&&p.i)===Number(myIndex));
+    if(!me||me.dead)return;
+
+    let threat=null,best=Infinity;
+    for(const b of state.bullets){
+      if(!b||b.g!==true||Number(b.gt)!==Number(myIndex)||Number(b.o)===Number(myIndex))continue;
+      const x=Number(b.x)+(Number(b.vx)||0)*projectileAge;
+      const y=Number(b.y)+(Number(b.vy)||0)*projectileAge;
+      const d=Math.hypot(x-Number(me.x),y-Number(me.y));
+      if(d<best){best=d;threat={x,y};}
+    }
+    if(!threat)return;
+
+    const old=previousLookup.players.get(me.i);
+    const mx=old&&!old.dead?lerpWrapped(old.x,me.x,W,blend):Number(me.x);
+    const my=old&&!old.dead?lerpWrapped(old.y,me.y,H,blend):Number(me.y);
+    const dx=threat.x-mx,dy=threat.y-my;
+    const distance=Math.hypot(dx,dy)||1;
+    const ux=dx/distance,uy=dy/distance;
+    const radius=isMobile?88:74;
+    const ax=clamp(mx+ux*radius,28,W-28);
+    const ay=clamp(my+uy*radius,28,H-28);
+    const critical=distance<460;
+    const pulse=.5+.5*Math.sin(now*(critical?.022:.014));
+    const scale=(critical?1.18:1)*(1+.12*pulse);
+
+    ctx.save();
+    try{
+      ctx.translate(ax,ay);
+      ctx.rotate(Math.atan2(uy,ux));
+      ctx.scale(scale,scale);
+      ctx.globalAlpha=.72+.26*pulse;
+      ctx.fillStyle=critical?'#ff3a2f':'#ff8b3d';
+      ctx.strokeStyle='rgba(0,0,0,.85)';
+      ctx.lineWidth=3;
+      ctx.beginPath();
+      ctx.moveTo(17,0);
+      ctx.lineTo(-11,-10);
+      ctx.lineTo(-7,0);
+      ctx.lineTo(-11,10);
+      ctx.closePath();
+      ctx.fill();ctx.stroke();
+    }finally{ctx.restore();}
+
+    ctx.save();
+    try{
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.font=isMobile?'26px Flashback,Arial':'20px Flashback,Arial';
+      ctx.globalAlpha=.68+.28*pulse;
+      ctx.fillStyle=critical?'#ff5a4f':'#ffad62';
+      ctx.strokeStyle='rgba(0,0,0,.82)';
+      ctx.lineWidth=4;
+      const labelY=clamp(my-(isMobile?112:96),30,H-30);
+      const label=tr('incomingMissile');
+      ctx.strokeText(label,mx,labelY);
+      ctx.fillText(label,mx,labelY);
+    }finally{ctx.restore();}
+  }
+
   function drawHud(now){
     if(!state)return;
     let max=0,leader=null,tied=false;
@@ -4971,6 +5032,7 @@
       const old=previousLookup.players.get(p.i);
       drawShip(p,old,blend,now);
     }
+    drawIncomingMissileWarning(now,age,blend);
     if(shockwaveFx.length){
       let write=0;
       ctx.save();
