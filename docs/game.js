@@ -2917,12 +2917,12 @@
             seenShockwaveHelp=true;
             specialHelpStart=pickedAt+980;
             specialHelpUntil=specialHelpStart+2200;
-            specialHelpText=tr('shockwaveFirstHelp');
+            specialHelpText=tr(isMobile?'specialMobileHelp':'specialPcHelp');
           }else if(m.pickupType==='flare'&&!seenFlareHelp){
             seenFlareHelp=true;
             specialHelpStart=pickedAt+980;
             specialHelpUntil=specialHelpStart+2200;
-            specialHelpText=tr('flareFirstHelp');
+            specialHelpText=tr(isMobile?'specialMobileHelp':'specialPcHelp');
           }
         }
       }
