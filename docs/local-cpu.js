@@ -1158,18 +1158,8 @@
       // Ser abatido por la bala, misil o bengala de OTRO jugador no resta puntos.
       if(!attacker||attacker===victim||scorePenalty)victim.kills=Math.max(0,victim.kills-1);
 
-      // ROBO DE ARMAMENTO solo ocurre por EMBESTIDA: un jugador con
-      // escudo activo choca fisicamente con un rival sin escudo y lo destruye.
-      // Las bajas por bala o misil nunca roban armamento aunque el tirador
-      // lleve escudo.
-      if(weaponTheft&&attacker&&attacker!==victim&&attacker.shield>0){
-        const stolenAmmo=Math.max(0,Math.floor(Number(victim.bullets)||0));
-        attacker.bullets+=stolenAmmo;
-        if(Number(victim.cadence)<Number(attacker.cadence))attacker.cadence=victim.cadence;
-        if(Number(victim.speed)>Number(attacker.speed))attacker.speed=victim.speed;
-        if(Number(victim.camo)>Number(attacker.camo))attacker.camo=victim.camo;
-        this.emit({t:'weapon-theft',index:attacker.index,name:attacker.name,ammo:stolenAmmo});
-      }
+      // V21.33: la embestida con escudo conserva su efecto de colision/baja,
+      // pero ya no roba ni transfiere armamento o mejoras del rival.
 
       victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.guidedAmmo=0;victim.flareHold=0;victim.flareGesture=false;victim.specialReleaseLock=false;victim.shockwave=false;victim.shockReachAt=0;victim.shockExplodeAt=0;victim.shockOwner=-1;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
