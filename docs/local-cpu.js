@@ -166,8 +166,13 @@
       this.flareLearningByCpu=new Map();
       this.humanLearning=new Map();
       this.humanMeteorLearning=new Map();
+      // V21.40: aprendizaje humano especifico de ONDA EXPANSIVA.
+      // Comparte los contextos shock-train-* con la CPU para alimentar
+      // directamente las decisiones futuras de la dificultad DIFICIL.
+      this.humanShockLearning=new Map();
       this.humanMeteorDecision=null;
       this.nextHumanObserve=0;
+      this.nextHumanShockObserve=0;
       this.learningSent=false;
       this.resetAsteroids();
     }
@@ -597,6 +602,13 @@
       item.uses=Math.min(40,item.uses+1);
       this.humanLearning.set(key,item);
     }
+    recordHumanShockLearning(context,action){
+      if(!this.learningEnabled||this.trainingMode||this.difficulty!=='dificil'||!context||!action)return;
+      const key=context+'|'+action;
+      const item=this.humanShockLearning.get(key)||{context,action,uses:0};
+      item.uses=Math.min(40,item.uses+1);
+      this.humanShockLearning.set(key,item);
+    }
     recordHumanMeteorLearning(context,action,reward){
       if(!this.learningEnabled||this.trainingMode||this.difficulty!=='dificil'||!context||!action)return;
       const key=context+'|'+action;
@@ -622,6 +634,17 @@
         const threat=tracked?this.meteorThreatInfo(human,tracked):null;
         if(!tracked||(!threat&&this.fxClock-this.humanMeteorDecision.started>.35)){
           this.settleHumanMeteorDecision(.7);
+        }
+      }
+
+      // V21.40: si el humano tiene una onda disponible y aparece una situacion
+      // relevante, observar tambien la decision de CONSERVARLA. Se muestrea
+      // despacio para que mantenerla varios segundos no domine el aprendizaje.
+      if(human.shockwave&&this.fxClock>=(Number(this.nextHumanShockObserve)||0)){
+        const shockSituation=this.shockwaveSituation(human);
+        if(shockSituation){
+          this.nextHumanShockObserve=this.fxClock+.9;
+          this.recordHumanShockLearning(shockSituation.context,'shock_keep');
         }
       }
 
@@ -737,7 +760,7 @@
     }
     buildLearningDeltas(){
       if(!this.learningEnabled||this.difficulty!=='dificil')return [];
-      const general=[],shock=[],meteor=[],flare=[],humanGeneral=[],humanMeteor=[];
+      const general=[],shock=[],meteor=[],flare=[],humanGeneral=[],humanMeteor=[],humanShock=[];
       const human=this.players.find(p=>!p.cpu);
       for(const cpu of this.players.filter(p=>p.cpu)){
         const won=this.winner===cpu.index;
@@ -786,15 +809,24 @@
             reward:+clamp(avg,-2,2).toFixed(3)
           });
         }
+        const humanShockItems=Array.from(this.humanShockLearning.values()).sort((a,b)=>b.uses-a.uses);
+        for(const item of humanShockItems){
+          humanShock.push({
+            context:item.context,action:item.action,
+            uses:Math.min(4,item.uses),
+            reward:+reward.toFixed(3)
+          });
+        }
       }
 
       // V21.20: las nuevas estrategias de ONDA del entrenamiento autonomo
       // viajan en un bloque propio. No sustituyen ni borran aprendizaje previo.
       flare.sort((a,b)=>b.uses-a.uses||Math.abs(b.reward)-Math.abs(a.reward));
+      shock.push(...humanShock);
       shock.sort((a,b)=>b.uses-a.uses||Math.abs(b.reward)-Math.abs(a.reward));
       return flare.slice(0,6)
-        .concat(shock.slice(0,5),humanMeteor.slice(0,4),meteor.slice(0,5),humanGeneral.slice(0,4),general.slice(0,5))
-        .slice(0,29);
+        .concat(shock.slice(0,7),humanMeteor.slice(0,4),meteor.slice(0,5),humanGeneral.slice(0,4),general.slice(0,5))
+        .slice(0,31);
     }
     resetAsteroids(){
       // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
@@ -1230,6 +1262,12 @@
     }
     deployShockwave(p){
       if(!p||p.dead||!p.shockwave)return false;
+      // V21.40: una activacion humana enseña a la CPU en el mismo contexto
+      // tactico que usa el entrenamiento autonomo.
+      if(!p.cpu&&this.learningEnabled&&!this.trainingMode&&this.difficulty==='dificil'){
+        const shockSituation=this.shockwaveSituation(p);
+        if(shockSituation)this.recordHumanShockLearning(shockSituation.context,'shock_use');
+      }
       p.shockwave=false;
       const radius=180;
       const radius2=radius*radius;
