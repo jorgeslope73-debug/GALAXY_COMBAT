@@ -6,7 +6,7 @@
   const SCORE_TO_WIN=5;
   const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,MISSILE_HIT_RADIUS=12,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,SPAWN_MATERIALIZE_SECONDS=1.15,BRUTAL_SHOT_DISTANCE=850;
-  const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_LAUNCH_COOLDOWN=1,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
+  const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_LAUNCH_COOLDOWN=.5,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
   const FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
@@ -1154,10 +1154,10 @@
         const fireNow=this.resolveFireWithFlare(p,c,dt);
         if(fireNow&&p.bullets>0&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
           const guided=!!p.guided,guidedTarget=guided?p.guidedTarget:-1;
-          // V21.07: la velocidad del misil depende de las cargas guiadas que
-          // lleva la nave justo antes de disparar. Tope fijo a partir de 4.
-          const guidedCharges=Math.max(0,Math.round(Number(p.guidedAmmo)||0));
-          const guidedSpeed=guidedCharges<=1?450:(guidedCharges>=4?550:500);
+          // V21.08: la velocidad del misil sigue la mejora de cadencia
+          // de la nave, no el numero de misiles acumulados. Tope fijo en 550.
+          const cadence=Number(p.cadence)||30;
+          const guidedSpeed=cadence>=30?450:(cadence>=10?500:550);
           const projectileSpeed=guided?guidedSpeed:this.bulletSpeed(p);
           this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false});
           if(guided){p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1);p.guided=p.guidedAmmo>0;p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;}
