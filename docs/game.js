@@ -117,6 +117,7 @@
     pickupNoticeStart=0;pickupNoticeUntil=0;pickupNoticeText='';
     specialHelpStart=0;specialHelpUntil=0;specialHelpText='';
     seenShockwaveHelp=false;seenFlareHelp=false;
+    nearWinNoticeStart=0;nearWinNoticeUntil=0;nearWinNoticeName='';nearWinNoticeIndex=-1;nearWinActive.clear();
     lastLocalKillAt=0;lastSavedNoticeAt=0;
   }
   function updatePickupVisualBirths(nextState,now){
@@ -203,6 +204,8 @@
   let pickupNoticeStart=0,pickupNoticeUntil=0,pickupNoticeText='';
   let specialHelpStart=0,specialHelpUntil=0,specialHelpText='';
   let seenShockwaveHelp=false,seenFlareHelp=false;
+  let nearWinNoticeStart=0,nearWinNoticeUntil=0,nearWinNoticeName='',nearWinNoticeIndex=-1;
+  const nearWinActive=new Set();
   let lastLocalKillAt=0,lastSavedNoticeAt=0;
   const shockwaveFx=[];
   // V19.28: el titulo BRUTAL se prerenderiza. El shadowBlur grande era caro
@@ -2823,6 +2826,19 @@
           const oldCamo=Number(op&&op.camo)||0;
           const newCamo=Number(np&&np.camo)||0;
           if(newCamo>0&&oldCamo<=0){invisibleHudUntil[idx]=now+2000;invisibleNoticeIndex=idx;invisibleNoticeUntil=now+2000;}
+
+          // V21.18: aviso local cuando cualquier jugador alcanza 4/5.
+          // No se envia por red; cada cliente lo deduce del snapshot recibido.
+          const kills=Number(np&&np.k)||0;
+          if(kills===4&&!nearWinActive.has(idx)){
+            nearWinActive.add(idx);
+            nearWinNoticeStart=now;
+            nearWinNoticeUntil=now+2200;
+            nearWinNoticeName=sinTildes(String(np&&np.n||('JUGADOR '+(idx+1)))).trim().toUpperCase();
+            nearWinNoticeIndex=idx;
+          }else if(kills<4){
+            nearWinActive.delete(idx);
+          }
         }
       }
       if(oldLocal&&newLocal&&Number(newLocal.k)>Number(oldLocal.k)){
@@ -4670,6 +4686,38 @@
     }finally{ctx.restore();}
   }
 
+  function drawNearWinWarning(now){
+    if(!nearWinNoticeUntil||now>=nearWinNoticeUntil)return;
+    const age=Math.max(0,now-nearWinNoticeStart),total=2200;
+    const remaining=Math.max(0,total-age);
+    const alpha=Math.min(clamp(age/140,0,1),clamp(remaining/360,0,1));
+    const pulse=1+.045*Math.sin(age*.018);
+    const color=playerColors[Math.max(0,Math.min(3,Number(nearWinNoticeIndex)||0))]||'#ffcc4d';
+    ctx.save();
+    try{
+      ctx.translate(W/2,H*.22);
+      ctx.scale(pulse,pulse);
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.globalAlpha=alpha*.95;
+      ctx.font=isMobile?'34px Flashback,Arial':'27px Flashback,Arial';
+      ctx.lineWidth=isMobile?6:5;
+      ctx.strokeStyle='rgba(0,0,0,.88)';
+      ctx.fillStyle='#ffb347';
+      ctx.shadowColor='rgba(255,95,40,.85)';
+      ctx.shadowBlur=16;
+      const title=tr('nearWinWarning');
+      ctx.strokeText(title,0,0);
+      ctx.fillText(title,0,0);
+      if(nearWinNoticeName){
+        ctx.font=isMobile?'24px Flashback,Arial':'19px Flashback,Arial';
+        ctx.fillStyle=color;
+        ctx.shadowBlur=8;
+        ctx.strokeText(nearWinNoticeName,0,isMobile?42:34);
+        ctx.fillText(nearWinNoticeName,0,isMobile?42:34);
+      }
+    }finally{ctx.restore();}
+  }
+
   function drawPlayNotice(now){
     if(!playNoticeUntil||now>=playNoticeUntil||!playNoticeText)return;
     const total=playNoticeKind==='double'?1350:1050;
@@ -5165,6 +5213,7 @@
     drawPlayNotice(now);
     drawPickupNotice(now);
     drawSpecialHelp(now);
+    drawNearWinWarning(now);
     drawHuntAnnouncement(now);
     drawInvisibleModeNotice(now);
     if(state.shower>0){
