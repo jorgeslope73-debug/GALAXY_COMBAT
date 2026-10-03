@@ -103,6 +103,7 @@
   // los controles a 30 Hz; interpolacion/extrapolacion mantienen la fluidez.
   const NET_FRAME_MS=1000/20;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),flares:new Map(),meteors:new Map(),ufo:new Map()};
+  let ufoVisualAngle=null,ufoVisualAt=0,ufoVisualId=null;
   // V20.98 GAME FEEL: todo este estado es exclusivamente local de render.
   // No modifica snapshots, fisica, colisiones, IA ni red.
   const pickupVisualBorn=new Map();
@@ -3837,12 +3838,13 @@
         const error=Math.hypot(dx,dy);
         localVisual.lastError=error;
         if(perfStats&&error>perfStats.localErrMax)perfStats.localErrMax=error;
-        if(error>90){
-          // Teletransporte/respawn/impacto fuerte: no arrastrar una correccion.
+        if(error>48){
+          // V21.29: en online la posicion dibujada no debe separarse demasiado
+          // de la fisica autoritativa, especialmente con cuatro jugadores.
           localVisual.x=targetX;localVisual.y=targetY;
           localVisual.vx=p.vx;localVisual.vy=p.vy;
         }else{
-          const positionFollow=1-Math.exp(-16*dt);
+          const positionFollow=1-Math.exp(-22*dt);
           localVisual.x=(localVisual.x+dx*positionFollow+W)%W;
           localVisual.y=(localVisual.y+dy*positionFollow+H)%H;
         }
@@ -5178,17 +5180,19 @@
       const ufoX=oldUfo?lerp(oldUfo.x,state.ufo.x,blend):state.ufo.x;
       const ufoY=oldUfo?lerp(oldUfo.y,state.ufo.y,blend):state.ufo.y;
       const vx=Number(state.ufo.vx)||0,vy=Number(state.ufo.vy)||0;
-      const rot=(Math.atan2(vy,vx)*180/Math.PI)+90;
-      drawImageCentered(images.ufo,ufoX,ufoY,92,rot,1);
-      if(Number(state.ufo.hp)>0){
-        ctx.save();
-        ctx.globalAlpha=.72;
-        ctx.fillStyle='rgba(0,0,0,.45)';
-        ctx.fillRect(ufoX-32,ufoY+34,64,5);
-        ctx.fillStyle='#8ff7ff';
-        ctx.fillRect(ufoX-32,ufoY+34,64*Math.max(0,Math.min(1,Number(state.ufo.hp)/3)),5);
-        ctx.restore();
+      const targetRot=(Math.atan2(vy,vx)*180/Math.PI)+90;
+      if(ufoVisualId!==state.ufo.id||ufoVisualAngle===null){
+        ufoVisualId=state.ufo.id;
+        ufoVisualAngle=targetRot;
+        ufoVisualAt=now;
+      }else{
+        const dt=Math.min(.05,Math.max(0,(now-ufoVisualAt)/1000));
+        ufoVisualAt=now;
+        const dr=angleDelta(ufoVisualAngle,targetRot);
+        const follow=1-Math.exp(-8*dt);
+        ufoVisualAngle=(ufoVisualAngle+dr*follow+360)%360;
       }
+      drawImageCentered(images.ufo,ufoX,ufoY,92,ufoVisualAngle,1);
     }
     detectGiantAsteroidDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
