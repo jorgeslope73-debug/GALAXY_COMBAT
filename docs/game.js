@@ -2927,6 +2927,14 @@
         }
       }
     }
+    else if(m.t==='shock-perfect'){
+      if(Number(m.index)===Number(myIndex)){
+        playNoticeStart=performance.now();
+        playNoticeUntil=playNoticeStart+1400;
+        playNoticeText=tr('shockPerfectMove');
+        playNoticeKind='shockperfect';
+      }
+    }
     else if(m.t==='shock-cancel'){
       if(Array.isArray(m.indices)&&m.indices.some(i=>Number(i)===Number(myIndex))){
         playNoticeStart=performance.now();
