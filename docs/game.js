@@ -2827,6 +2827,142 @@
     applyMatchBackground(index);
     return index;
   }
+
+  // V20.96: transicion puramente visual entre mundos de la campana CPU.
+  // Se ejecuta con la partida terminada, en un canvas UI independiente, por lo
+  // que no modifica fisica, red, temporizadores de simulacion ni colisiones.
+  let interstellarTravelCanvas=null,interstellarTravelRaf=0,interstellarTravelResolve=null,interstellarTravelGeneration=0;
+  function ensureInterstellarTravelCanvas(){
+    if(interstellarTravelCanvas)return interstellarTravelCanvas;
+    const c=document.createElement('canvas');
+    c.id='interstellarTravelFx';
+    c.setAttribute('aria-hidden','true');
+    Object.assign(c.style,{
+      position:'fixed',inset:'0',width:'100vw',height:'100vh',
+      display:'none',pointerEvents:'none',zIndex:'10000'
+    });
+    document.body.appendChild(c);
+    interstellarTravelCanvas=c;
+    return c;
+  }
+  function cancelInterstellarTravel(){
+    interstellarTravelGeneration++;
+    if(interstellarTravelRaf)cancelAnimationFrame(interstellarTravelRaf);
+    interstellarTravelRaf=0;
+    if(interstellarTravelCanvas)interstellarTravelCanvas.style.display='none';
+    if(interstellarTravelResolve){
+      const resolve=interstellarTravelResolve;
+      interstellarTravelResolve=null;
+      resolve(false);
+    }
+  }
+  function runInterstellarTravel(targetLevel){
+    cancelInterstellarTravel();
+    const generation=interstellarTravelGeneration;
+    const c=ensureInterstellarTravelCanvas();
+    const g=c.getContext('2d',{alpha:true});
+    if(!g)return Promise.resolve(true);
+    const cssW=Math.max(1,window.innerWidth||document.documentElement.clientWidth||1280);
+    const cssH=Math.max(1,window.innerHeight||document.documentElement.clientHeight||720);
+    const dpr=Math.min(isMobile?1.25:1.5,Math.max(1,Number(window.devicePixelRatio)||1));
+    c.width=Math.max(1,Math.round(cssW*dpr));
+    c.height=Math.max(1,Math.round(cssH*dpr));
+    c.style.display='block';
+    const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duration=reduced?700:(isMobile?2100:2450);
+    const count=isMobile?46:78;
+    const stars=new Array(count);
+    for(let i=0;i<count;i++){
+      stars[i]={
+        angle:Math.random()*Math.PI*2,
+        seed:Math.random(),
+        speed:.72+Math.random()*1.15,
+        width:.6+Math.random()*1.7
+      };
+    }
+    victory.classList.add('hidden');
+    return new Promise(resolve=>{
+      interstellarTravelResolve=resolve;
+      const started=performance.now();
+      const finish=ok=>{
+        if(interstellarTravelRaf)cancelAnimationFrame(interstellarTravelRaf);
+        interstellarTravelRaf=0;
+        c.style.display='none';
+        if(interstellarTravelResolve===resolve)interstellarTravelResolve=null;
+        resolve(ok);
+      };
+      const frame=now=>{
+        if(generation!==interstellarTravelGeneration){finish(false);return;}
+        const t=Math.max(0,Math.min(1,(now-started)/duration));
+        const accel=t*t;
+        g.setTransform(dpr,0,0,dpr,0,0);
+        g.globalCompositeOperation='source-over';
+        g.globalAlpha=1;
+        g.fillStyle='rgb(1,3,12)';
+        g.fillRect(0,0,cssW,cssH);
+        const cx=cssW*.5,cy=cssH*.5,maxR=Math.hypot(cssW,cssH)*.62;
+
+        // Tunel de estrellas: lineas reutilizan un conjunto fijo creado una vez.
+        g.save();
+        g.translate(cx,cy);
+        g.globalCompositeOperation='lighter';
+        for(const star of stars){
+          const phase=(star.seed+t*(.18+2.2*accel)*star.speed)%1;
+          const r1=Math.pow(phase,1.75)*maxR;
+          const streak=4+(18+150*accel)*(.55+star.speed*.45);
+          const r2=Math.min(maxR*1.12,r1+streak);
+          const ca=Math.cos(star.angle),sa=Math.sin(star.angle);
+          g.globalAlpha=Math.min(.92,.12+.78*t)*Math.min(1,.28+phase);
+          g.strokeStyle=star.speed>1.25?'rgb(145,220,255)':'rgb(235,245,255)';
+          g.lineWidth=star.width;
+          g.beginPath();
+          g.moveTo(ca*r1,sa*r1);
+          g.lineTo(ca*r2,sa*r2);
+          g.stroke();
+        }
+        g.restore();
+
+        // Portal central sencillo y barato. El destello tapa el corte antes de
+        // aparecer el siguiente fondo, sin necesitar texturas adicionales.
+        const portal=Math.sin(Math.min(1,t*1.15)*Math.PI);
+        g.save();
+        g.globalCompositeOperation='lighter';
+        g.globalAlpha=.12+.38*portal;
+        g.fillStyle='rgb(80,175,255)';
+        g.beginPath();g.arc(cx,cy,18+74*portal,0,Math.PI*2);g.fill();
+        g.globalAlpha=.18+.52*portal;
+        g.strokeStyle='rgb(210,245,255)';
+        g.lineWidth=2+4*portal;
+        g.beginPath();g.arc(cx,cy,42+145*portal,0,Math.PI*2);g.stroke();
+        g.restore();
+
+        const textAlpha=Math.min(1,t/.18)*Math.min(1,(1-t)/.12);
+        g.save();
+        g.globalAlpha=Math.max(0,textAlpha);
+        g.textAlign='center';
+        g.textBaseline='middle';
+        g.fillStyle='#ffffff';
+        g.font=(isMobile?'32px ':'42px ')+'Flashback,Arial,Helvetica,sans-serif';
+        g.fillText(tr('interstellarTravel'),cx,cy-22);
+        g.fillStyle='#8fe8ff';
+        g.font=(isMobile?'19px ':'24px ')+'Flashback,Arial,Helvetica,sans-serif';
+        g.fillText(tr('destinationLevel',{level:targetLevel}),cx,cy+28);
+        g.restore();
+
+        // Flash final muy corto para enlazar de forma limpia con el nuevo mundo.
+        if(t>.88){
+          g.globalCompositeOperation='source-over';
+          g.globalAlpha=Math.pow((t-.88)/.12,2)*.88;
+          g.fillStyle='#ffffff';
+          g.fillRect(0,0,cssW,cssH);
+        }
+
+        if(t>=1){finish(true);return;}
+        interstellarTravelRaf=requestAnimationFrame(frame);
+      };
+      interstellarTravelRaf=requestAnimationFrame(frame);
+    });
+  }
   function beginGame(preparingOnline=false,backgroundRound=0){
     // En CPU el nivel decide el fondo: 1=fondo, 2=fondo02, 3=fondo03, 4=fondo04, 5=fondo05.
     // Online conserva su sincronizacion autoritativa por rankRound.
@@ -3025,6 +3161,7 @@
     send({t:'start'});
   });
   function returnToMainMenu(notifyServer=true){
+    cancelInterstellarTravel();
     resetOnlineStartCountdown();
     if(!sharedRoomCode)sharedRoomJoinStarted=false;
     invisibleHudUntil.fill(0);
@@ -3068,7 +3205,7 @@
     });
   }
   const restartMatchBtn=document.getElementById('restartMatch');
-  if(restartMatchBtn)restartMatchBtn.addEventListener('click',()=>{
+  if(restartMatchBtn)restartMatchBtn.addEventListener('click',async()=>{
     restartMatchBtn.disabled=true;
     restartMatchBtn.textContent=tr('restarting');
     let ok=false;
@@ -3081,14 +3218,20 @@
         restartMatchBtn.classList.add('hidden');
         return;
       }
-      if(wasGameOver)localCampaignLevel=1;
-      else if(wasContinue)localCampaignLevel=Math.min(MATCH_BACKGROUNDS.length,localCampaignLevel+1);
+      if(wasContinue){
+        const nextLevel=Math.min(MATCH_BACKGROUNDS.length,localCampaignLevel+1);
+        restartMatchBtn.textContent=tr('interstellarTravel');
+        const travelled=await runInterstellarTravel(nextLevel);
+        if(!travelled||roomCode!=='LOCAL'||!localCpuActive)return;
+        localCampaignLevel=nextLevel;
+      }else if(wasGameOver)localCampaignLevel=1;
       localCampaignAwaitingContinue=false;localCampaignGameOver=false;
       ok=send({t:'restart',level:localCampaignLevel});
       if(!ok){
         localCampaignLevel=previousLevel;
         localCampaignAwaitingContinue=wasContinue;
         localCampaignGameOver=wasGameOver;
+        if(wasContinue)victory.classList.remove('hidden');
       }
     }else if(isHost&&p2p){
       // El anfitrion no necesita red para reiniciar: sendAction ejecuta la
@@ -3221,7 +3364,23 @@
   }
   function drawPickup(pk,x=pk.x,y=pk.y,nowSec=0){
     const alpha=pickupExpiryAlpha(pk,nowSec);
-    if(pickupSpriteMap[pk.type]){drawImageCentered(images[pickupSpriteMap[pk.type]],x,y,46,0,alpha);return;}
+    if(pickupSpriteMap[pk.type]){
+      // V20.96: halo local muy barato. Hace que las mejoras se lean mejor
+      // sobre fondos distintos sin cambiar tamano de colision ni estado de red.
+      const phase=(String(pk.id||'').charCodeAt(0)||0)*.07;
+      const pulse=.5+.5*Math.sin(nowSec*3.7+phase);
+      ctx.save();
+      ctx.globalAlpha=alpha*(.18+.14*pulse);
+      ctx.strokeStyle='rgba(160,235,255,.95)';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(x,y,27+4*pulse,0,Math.PI*2);ctx.stroke();
+      ctx.globalAlpha=alpha*(.08+.08*pulse);
+      ctx.fillStyle='rgba(95,190,255,.9)';
+      ctx.beginPath();ctx.arc(x,y,22+3*pulse,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      drawImageCentered(images[pickupSpriteMap[pk.type]],x,y,45+2*pulse,0,alpha);
+      return;
+    }
     ctx.save();ctx.translate(x,y);
     if(pk.type==='shockwave'){
       const pulse=.5+.5*Math.sin(nowSec*4.6+(Number(pk.id)||0));
@@ -3268,6 +3427,47 @@
     }
     ctx.restore();
   }
+  function drawGiantEntryWarning(giant,now){
+    if(!giant)return;
+    const x=Number(giant.x),y=Number(giant.y);
+    if(!Number.isFinite(x)||!Number.isFinite(y))return;
+    if(x>=0&&x<=W&&y>=0&&y<=H)return;
+
+    const distances=[
+      {d:-x,edge:'left'},{d:x-W,edge:'right'},
+      {d:-y,edge:'top'},{d:y-H,edge:'bottom'}
+    ];
+    let best=distances[0];
+    for(const item of distances)if(item.d>best.d)best=item;
+    const pulse=.5+.5*Math.sin(now*.010);
+    const pad=isMobile?48:38;
+    let px=clamp(x,pad,W-pad),py=clamp(y,pad,H-pad),rot=0;
+    if(best.edge==='left'){px=pad;rot=0;}
+    else if(best.edge==='right'){px=W-pad;rot=Math.PI;}
+    else if(best.edge==='top'){py=pad;rot=Math.PI/2;}
+    else{py=H-pad;rot=-Math.PI/2;}
+
+    ctx.save();
+    ctx.translate(px,py);ctx.rotate(rot);
+    ctx.globalAlpha=.62+.32*pulse;
+    ctx.fillStyle='#ff8a3d';
+    ctx.shadowColor='rgba(255,95,35,.85)';
+    ctx.shadowBlur=8+8*pulse;
+    ctx.beginPath();
+    ctx.moveTo(15,0);ctx.lineTo(-10,-9);ctx.lineTo(-10,9);ctx.closePath();ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha=.62+.28*pulse;
+    ctx.textAlign='center';
+    ctx.font=isMobile?'25px Flashback,Arial':'20px Flashback,Arial';
+    ctx.fillStyle='#ffb05a';
+    ctx.shadowColor='rgba(255,90,35,.65)';
+    ctx.shadowBlur=6;
+    ctx.fillText(tr('giantWarning'),W/2,state&&state.shower>0?232:190);
+    ctx.restore();
+  }
+
   function spawnProtectionAlpha(secondsLeft){
     if(!Number.isFinite(secondsLeft)||secondsLeft<=0)return 1;
     // Six soft pulses over three seconds. The ship never disappears fully.
@@ -4518,7 +4718,10 @@
     }
     if(state.giant){
       const old=prev.giant;
-      drawImageCentered(images.giant,old?lerp(old.x,state.giant.x,blend):state.giant.x,old?lerp(old.y,state.giant.y,blend):state.giant.y,270,0,1);
+      const giantX=old?lerp(old.x,state.giant.x,blend):state.giant.x;
+      const giantY=old?lerp(old.y,state.giant.y,blend):state.giant.y;
+      drawGiantEntryWarning({x:giantX,y:giantY},now);
+      drawImageCentered(images.giant,giantX,giantY,270,0,1);
     }
     detectGiantAsteroidDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
