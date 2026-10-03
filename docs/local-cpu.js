@@ -2607,7 +2607,10 @@
         // V21.28: no colisionar dos naves que se ven en bordes opuestos.
         // El movimiento sigue haciendo wrap, pero el choque solo existe cuando
         // sus trayectorias se tocan en la misma zona visible de la pantalla.
-        if(a.dead||b.dead||!sweptCircles(a,SHIP_RADIUS,b,SHIP_RADIUS,false))continue;
+        // V21.29: a 60 Hz la velocidad maxima no permite atravesar
+        // completamente otra nave en un tick. Exigimos solape REAL para que
+        // toda embestida corresponda con un contacto visible.
+        if(a.dead||b.dead||!circles(a,SHIP_RADIUS,b,SHIP_RADIUS))continue;
         if(a.shield>0||a.protection>0)this.emitShipImpact(a,b,false);
         if(b.shield>0||b.protection>0)this.emitShipImpact(b,a,false);
         if(a.shield>0&&b.shield<=0)this.destroyShip(b,a,true);
