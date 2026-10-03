@@ -4668,6 +4668,105 @@
     ctx.restore();
   }
 
+  // V20.99: personalidad visual por mundo. Todo se dibuja en la capa de fondo
+  // con listas fijas y sin crear objetos por frame. No existen colisiones,
+  // estados de red ni logica de juego asociados a estos elementos.
+  const WORLD_AMBIENT_POINTS=[
+    [120,170,.3,1.1,1],[280,820,1.7,.8,2],[430,310,2.9,1.3,1],[590,950,4.1,.7,1],
+    [760,210,5.3,1.0,2],[920,690,.9,1.4,1],[1090,390,2.2,.9,1],[1260,920,3.5,1.2,2],
+    [1430,250,4.8,.8,1],[1580,740,1.4,1.1,1],[1730,420,2.6,1.3,2],[1860,900,5.7,.9,1],
+    [210,560,3.8,1.2,1],[520,610,.6,.7,2],[820,470,2.0,1.0,1],[1180,570,4.4,1.3,1],
+    [1490,560,5.1,.8,2],[1780,120,1.2,1.1,1],[1010,1000,3.0,.9,1],[350,90,4.9,1.0,1]
+  ];
+  const WORLD_STORM_STREAKS=[
+    [90,160,.7,74],[260,470,1.9,58],[430,860,3.2,82],[610,290,4.4,65],[790,720,5.6,76],
+    [980,130,1.1,54],[1140,520,2.6,86],[1320,930,3.8,62],[1510,350,5.0,80],[1690,680,.4,68],
+    [1840,220,2.1,57],[340,1040,4.8,72],[1030,810,5.9,64],[1420,120,.9,70]
+  ];
+  function drawWorldAmbient(now){
+    const world=Math.max(0,Math.min(4,Number(currentMatchBackground)||0));
+    if(world===0)return; // FRONTERA ESTELAR ya usa las estrellas decorativas.
+    const t=now*.001;
+    const limit=isMobile?12:WORLD_AMBIENT_POINTS.length;
+
+    ctx.save();
+    ctx.globalCompositeOperation='source-over';
+
+    if(world===1){
+      // NEBULOSA ROJA: polvo rojizo flotando muy lentamente.
+      for(let i=0;i<limit;i++){
+        const p=WORLD_AMBIENT_POINTS[i];
+        const x=(p[0]+t*(8+7*p[3]))%W;
+        const y=p[1]+Math.sin(t*.45+p[2])*16;
+        const pulse=.5+.5*Math.sin(t*.85+p[2]);
+        ctx.globalAlpha=.10+.16*pulse;
+        ctx.fillStyle=i%3===0?'#ff8b6c':'#ff5b78';
+        const r=p[4]===2?2:1;
+        ctx.fillRect(x-r,y-r,r*2,r*2);
+      }
+    }else if(world===2){
+      // TORMENTA COSMICA: trazos electricos diagonales muy tenues.
+      const max=isMobile?9:WORLD_STORM_STREAKS.length;
+      ctx.lineWidth=1.3;
+      for(let i=0;i<max;i++){
+        const p=WORLD_STORM_STREAKS[i];
+        const x=(p[0]+t*(24+6*(i%3)))%(W+120)-60;
+        const y=(p[1]+Math.sin(t*.7+p[2])*22+H)%H;
+        const pulse=.5+.5*Math.sin(t*1.55+p[2]);
+        ctx.globalAlpha=.08+.16*pulse;
+        ctx.strokeStyle=i%2===0?'#83e9ff':'#b58cff';
+        ctx.beginPath();
+        ctx.moveTo(x-p[3]*.38,y+p[3]*.18);
+        ctx.lineTo(x+p[3]*.38,y-p[3]*.18);
+        ctx.stroke();
+      }
+      const wave=.5+.5*Math.sin(t*.55);
+      ctx.globalAlpha=.025+.035*wave;
+      ctx.strokeStyle='#d7f4ff';
+      ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(W*.52,H*.48,220+70*wave,0,Math.PI*2);ctx.stroke();
+    }else if(world===3){
+      // ABISMO ESTELAR: casi vacio, con motas azules profundas y lentas.
+      for(let i=0;i<limit;i++){
+        const p=WORLD_AMBIENT_POINTS[i];
+        const y=(p[1]+t*(4+3*p[3]))%H;
+        const x=p[0]+Math.sin(t*.22+p[2])*10;
+        const pulse=.5+.5*Math.sin(t*.55+p[2]);
+        ctx.globalAlpha=.035+.10*pulse;
+        ctx.fillStyle=i%4===0?'#8f8cff':'#4da8ff';
+        const r=p[4]===2?1.5:1;
+        ctx.fillRect(x-r,y-r,r*2,r*2);
+      }
+      ctx.globalAlpha=.045+.025*(.5+.5*Math.sin(t*.24));
+      ctx.fillStyle='#02020a';
+      ctx.fillRect(0,H*.40,W,H*.20);
+    }else{
+      // HORIZONTE FINAL: horizonte energetico y particulas ascendentes.
+      const horizonY=H*.67+Math.sin(t*.32)*8;
+      const pulse=.5+.5*Math.sin(t*.9);
+      ctx.globalAlpha=.11+.10*pulse;
+      ctx.fillStyle='#ffd46b';
+      ctx.fillRect(0,horizonY,W,1);
+      ctx.globalAlpha=.055+.055*pulse;
+      ctx.fillStyle='#b56dff';
+      ctx.fillRect(0,horizonY-3,W,1);
+      ctx.fillRect(0,horizonY+3,W,1);
+      for(let i=0;i<limit;i++){
+        const p=WORLD_AMBIENT_POINTS[i];
+        const travel=(t*(16+6*p[3])+p[1])%(H+80);
+        const y=H+40-travel;
+        const x=p[0]+Math.sin(t*.4+p[2])*14;
+        const life=1-Math.abs(y-horizonY)/H;
+        ctx.globalAlpha=(.06+.14*(.5+.5*Math.sin(t*.8+p[2])))*clamp(life,.25,1);
+        ctx.fillStyle=i%3===0?'#ffd977':'#c58cff';
+        const r=p[4]===2?2:1;
+        ctx.fillRect(x-r,y-r,r*2,r*2);
+      }
+    }
+
+    ctx.restore();
+  }
+
   function render(rafNow){
     requestAnimationFrame(render);
     if(!gameAssetsReady)return;
@@ -4750,6 +4849,7 @@
       ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);
     }
     if((MATCH_BACKGROUNDS[currentMatchBackground]||MATCH_BACKGROUNDS[0]).stars)drawDecorativeStars(now);
+    drawWorldAmbient(now);
     if(!state){drawOnlineStartAnnouncement(now);return;}
 
     const nowSec=now/1000;
