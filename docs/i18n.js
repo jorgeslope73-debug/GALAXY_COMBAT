@@ -47,7 +47,8 @@
     giantWarning:'METEORITO GIGANTE'
 ,
     doubleMove:'DOBLE',
-    savedMove:'SALVADO'
+    savedMove:'SALVADO',
+    evasionMove:'EVASION'
   });
   Object.assign(dictionaries.en,{
     campaignLevelComplete:'LEVEL {level} · {name} COMPLETE',
@@ -68,7 +69,8 @@
     giantWarning:'GIANT METEOR'
 ,
     doubleMove:'DOUBLE',
-    savedMove:'SAVED'
+    savedMove:'SAVED',
+    evasionMove:'EVASION'
   });
   Object.assign(dictionaries.it,{
     campaignLevelComplete:'LIVELLO {level} · {name} SUPERATO',
@@ -89,7 +91,8 @@
     giantWarning:'METEORITE GIGANTE'
 ,
     doubleMove:'DOPPIA',
-    savedMove:'SALVATO'
+    savedMove:'SALVATO',
+    evasionMove:'EVASIONE'
   });
   Object.assign(dictionaries.fr,{
     campaignLevelComplete:'NIVEAU {level} · {name} TERMINE',
@@ -110,7 +113,8 @@
     giantWarning:'METEORITE GEANT'
 ,
     doubleMove:'DOUBLE',
-    savedMove:'SAUVE'
+    savedMove:'SAUVE',
+    evasionMove:'ESQUIVE'
   });
   Object.assign(dictionaries.de,{
     campaignLevelComplete:'LEVEL {level} · {name} GESCHAFFT',
@@ -131,7 +135,8 @@
     giantWarning:'RIESENMETEOR'
 ,
     doubleMove:'DOPPELT',
-    savedMove:'GERETTET'
+    savedMove:'GERETTET',
+    evasionMove:'AUSGEWICHEN'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
