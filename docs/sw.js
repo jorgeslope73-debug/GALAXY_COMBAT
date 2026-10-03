@@ -1,4 +1,4 @@
-const VERSION = 'V21.52-bullet-pickup-collision';
+const VERSION = 'V21.53-ufo-flare-parity';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
