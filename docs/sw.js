@@ -1,4 +1,4 @@
-const VERSION = 'V21.53-ufo-flare-parity';
+const VERSION = 'V21.54-reliability-learning';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
