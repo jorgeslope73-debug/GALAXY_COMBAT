@@ -54,6 +54,7 @@
     hunterMove:'CAZADOR',
     shieldBreakMove:'ROMPEESCUDOS',
     interceptMove:'INTERCEPTADO',
+    nearWinWarning:'OJO EL JUGADOR A UNA BAJA',
     shockwaveFirstHelp:'SI DEJAS PULSADO DISPARO SE ACTIVA',
     flareFirstHelp:'PULSA DOS DISPAROS SEGUIDOS PARA ACTIVAR'
   });
@@ -83,6 +84,7 @@
     hunterMove:'HUNTER',
     shieldBreakMove:'SHIELD BREAKER',
     interceptMove:'INTERCEPTED',
+    nearWinWarning:'WATCH OUT - ONE KILL FROM WINNING',
     shockwaveFirstHelp:'HOLD FIRE TO ACTIVATE',
     flareFirstHelp:'PRESS FIRE TWICE TO ACTIVATE'
   });
@@ -112,6 +114,7 @@
     hunterMove:'CACCIATORE',
     shieldBreakMove:'ROMPISCUDO',
     interceptMove:'INTERCETTATO',
+    nearWinWarning:'ATTENZIONE - UNA KILL ALLA VITTORIA',
     shockwaveFirstHelp:'TIENI PREMUTO FUOCO PER ATTIVARE',
     flareFirstHelp:'PREMI FUOCO DUE VOLTE PER ATTIVARE'
   });
@@ -141,6 +144,7 @@
     hunterMove:'CHASSEUR',
     shieldBreakMove:'BRISE-BOUCLIER',
     interceptMove:'INTERCEPTE',
+    nearWinWarning:'ATTENTION - UNE ELIMINATION DE LA VICTOIRE',
     shockwaveFirstHelp:'MAINTENEZ TIR POUR ACTIVER',
     flareFirstHelp:'APPUYEZ DEUX FOIS SUR TIR POUR ACTIVER'
   });
@@ -170,6 +174,7 @@
     hunterMove:'JAEGER',
     shieldBreakMove:'SCHILDBRECHER',
     interceptMove:'ABGEFANGEN',
+    nearWinWarning:'ACHTUNG - NOCH EIN ABSCHUSS BIS ZUM SIEG',
     shockwaveFirstHelp:'FEUER GEDRUECKT HALTEN ZUM AKTIVIEREN',
     flareFirstHelp:'ZWEIMAL FEUER DRUECKEN ZUM AKTIVIEREN'
   });
