@@ -5192,7 +5192,7 @@
         const follow=1-Math.exp(-8*dt);
         ufoVisualAngle=(ufoVisualAngle+dr*follow+360)%360;
       }
-      drawImageCentered(images.ufo,ufoX,ufoY,92,ufoVisualAngle,1);
+      drawImageCentered(images.ufo,ufoX,ufoY,72,ufoVisualAngle,1);
     }
     detectGiantAsteroidDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
