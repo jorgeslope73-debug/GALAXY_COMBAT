@@ -4108,10 +4108,11 @@
     const radius=isMobile?94:(localCpuMode?86:80);
     const ax=clamp(mx+ux*radius,30,W-30);
     const ay=clamp(my+uy*radius,30,H-30);
-    const critical=distance<460;
-    const veryClose=distance<260;
+    const warning=distance<760;
+    const critical=distance<320;
+    const veryClose=distance<200;
     const pulse=.5+.5*Math.sin(now*(critical?.024:.014));
-    const scale=(veryClose?1.08:(critical?1.02:.90))*(1+(critical?.06:.03)*pulse);
+    const scale=(veryClose?1.14:(critical?1.08:(warning?1.00:.94)))*(1+(critical?.08:.03)*pulse);
 
     if(part!=='label'){
       ctx.save();
@@ -4119,11 +4120,22 @@
         ctx.translate(ax,ay);
         ctx.rotate(Math.atan2(uy,ux));
         ctx.scale(scale,scale);
-        // V21.47: indicador mas discreto y semitransparente.
-        ctx.globalAlpha=critical?.42:.26;
-        ctx.shadowColor=critical?'rgba(255,40,40,.25)':'rgba(255,150,60,.14)';
-        ctx.shadowBlur=critical?5:2;
-        ctx.fillStyle=critical?'#ff3b30':'#ff9b4a';
+        // V21.48: flecha opaca y de alto contraste:
+        // blanca a distancia, amarilla cuando se acerca y roja muy cerca.
+        ctx.globalAlpha=1;
+        if(critical){
+          ctx.fillStyle='#ff251a';
+          ctx.shadowColor='rgba(255,35,25,.95)';
+          ctx.shadowBlur=veryClose?13:10;
+        }else if(warning){
+          ctx.fillStyle='#ffe100';
+          ctx.shadowColor='rgba(255,225,0,.90)';
+          ctx.shadowBlur=8;
+        }else{
+          ctx.fillStyle='#ffffff';
+          ctx.shadowColor='rgba(255,255,255,.80)';
+          ctx.shadowBlur=5;
+        }
         ctx.beginPath();
         ctx.moveTo(13,0);
         ctx.lineTo(-7,-7);
