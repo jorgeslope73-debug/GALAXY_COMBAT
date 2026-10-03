@@ -263,7 +263,7 @@
       }
       return false;
     }
-    trainingShockwaveSituation(cpu){
+    shockwaveSituation(cpu){
       if(!cpu||cpu.dead||!cpu.shockwave)return null;
 
       // 1) Ataque: una onda vale especialmente la pena si puede alcanzar a
@@ -334,6 +334,16 @@
       // que atrapar a dos juntos o salvarse de una amenaza inmediata.
       if(vulnerable.length===1)return{kind:'single',context:'shock-train-single',distance:vulnerable[0].distance,critical:false,count:1};
       return null;
+    }
+    learnedShockwaveDecision(situation){
+      if(!situation||!this.brain||!Array.isArray(this.brain.strategies))return null;
+      const context=String(situation.context||'');
+      const useEntry=this.brain.strategies.find(e=>e&&e.context===context&&e.action==='shock_use'&&Number(e.samples)>0);
+      const keepEntry=this.brain.strategies.find(e=>e&&e.context===context&&e.action==='shock_keep'&&Number(e.samples)>0);
+      if(!useEntry&&!keepEntry)return null;
+      const useScore=useEntry?Number(useEntry.total||0)/Number(useEntry.samples||1):-Infinity;
+      const keepScore=keepEntry?Number(keepEntry.total||0)/Number(keepEntry.samples||1):-Infinity;
+      return useScore>=keepScore;
     }
     learningContext(cpu,rival,distance){
       const ammo=cpu.bullets<=0?0:(cpu.bullets<=2?1:2);
@@ -1269,7 +1279,7 @@
           if(this.trainingMode){
             // V21.20: entrenamiento autonomo especifico de ONDA EXPANSIVA.
             // Usa contextos NUEVOS; no borra ni reescribe aprendizaje anterior.
-            const situation=this.trainingShockwaveSituation(p);
+            const situation=this.shockwaveSituation(p);
             if(situation){
               let use=situation.critical||situation.kind==='multi'||situation.kind==='missile'||situation.kind==='asteroid'||situation.kind==='bullet';
               if(situation.kind==='single'){
@@ -1287,8 +1297,27 @@
                 this.recordLearning(p,situation.context,'shock_keep');
               }
             }
+          }else if(this.difficulty==='dificil'){
+            // V21.26: la CPU DIFICIL de la partida real consulta exactamente
+            // los contextos aprendidos por el entrenamiento autonomo de ONDA.
+            const situation=this.shockwaveSituation(p);
+            if(situation){
+              const learnedUse=this.learnedShockwaveDecision(situation);
+              // Seguridad/tactica: una amenaza critica o dos rivales juntos
+              // nunca se ignoran aunque el Brain aun tenga pocas muestras.
+              const forceUse=!!situation.critical||situation.kind==='multi';
+              const fallbackUse=situation.kind==='missile'||situation.kind==='asteroid'||situation.kind==='bullet'||situation.kind==='single';
+              const use=forceUse||(learnedUse===null?fallbackUse:learnedUse);
+              if(use){
+                this.recordLearning(p,situation.context,'shock_use');
+                this.deployShockwave(p);
+              }else if(this.fxClock>=(Number(p.nextShockLearning)||0)){
+                p.nextShockLearning=this.fxClock+.9;
+                this.recordLearning(p,situation.context,'shock_keep');
+              }
+            }
           }else{
-            // Juego normal: conserva exactamente la logica previa.
+            // FACIL y MEDIO conservan exactamente la logica anterior.
             let nearestRival=null,nearestDistance=Infinity;
             for(const rival of this.players){
               if(!rival||rival===p||rival.dead||rival.camo>0)continue;
@@ -1296,18 +1325,11 @@
               if(distance<nearestDistance){nearestDistance=distance;nearestRival=rival;}
             }
             if(nearestRival&&nearestDistance<=SHOCKWAVE_RADIUS){
-              if(this.difficulty==='dificil')this.recordLearning(p,this.shockLearningContext('own',nearestDistance),'shock_use');
               this.deployShockwave(p);
             }else{
-              // Solo se gasta defensivamente contra el entorno si el peligro es
-              // inmediato. Conservarla para una nave rival tiene prioridad.
               const nearMeteor=this.meteors.some(m=>{const dx=m.x-p.x,dy=m.y-p.y;return dx*dx+dy*dy<95*95;});
               const nearAsteroid=this.asteroids.some(a=>{const dx=a.x-p.x,dy=a.y-p.y;const limit=(Number(a.r)||ASTEROID_RADIUS)+50;return dx*dx+dy*dy<limit*limit;});
               if(!nearestRival&&(nearMeteor||nearAsteroid))this.deployShockwave(p);
-              else if(this.difficulty==='dificil'&&this.fxClock>=(Number(p.nextShockLearning)||0)){
-                p.nextShockLearning=this.fxClock+.9;
-                this.recordLearning(p,this.shockLearningContext('own',nearestDistance),'shock_keep');
-              }
             }
           }
         }
