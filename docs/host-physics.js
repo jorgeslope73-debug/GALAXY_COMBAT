@@ -691,7 +691,10 @@
       for(let i=this.meteors.length-1;i>=0;i--){
         const m=this.meteors[i];
         const dx=m.x-p.x,dy=m.y-p.y;
-        if(dx*dx+dy*dy<=initialMeteorReach2)this.meteors.splice(i,1);
+        if(dx*dx+dy*dy<=initialMeteorReach2){
+          this.emitExplosionAt(m.x,m.y,p.index);
+          this.meteors.splice(i,1);
+        }
       }
       for(const a of this.asteroids){
         const dx=wrapDelta(a.x-p.x,W),dy=wrapDelta(a.y-p.y,H);
@@ -1212,6 +1215,9 @@
             const dx=meteor.x-wave.x,dy=meteor.y-wave.y;
             const distance=Math.hypot(dx,dy);
             if(distance-SMALL_METEOR_RADIUS<=radius&&distance+SMALL_METEOR_RADIUS>=previous){
+              // V21.57: el meteorito pequeno no desaparece sin mas: estalla
+              // visualmente justo cuando el frente de la onda lo alcanza.
+              this.emitExplosionAt(meteor.x,meteor.y,owner?owner.index:-1);
               this.meteors.splice(mi,1);
             }
           }
