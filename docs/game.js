@@ -127,6 +127,25 @@
     }
     for(const key of pickupVisualBorn.keys())if(!active.has(key))pickupVisualBorn.delete(key);
   }
+  function detectLocalMissileEvasion(nextState,now){
+    if(!state||!nextState||!Array.isArray(state.bullets)||!Array.isArray(nextState.bullets))return;
+    const nextMe=Array.isArray(nextState.players)?nextState.players.find(p=>Number(p&&p.i)===Number(myIndex)):null;
+    if(!nextMe||nextMe.dead)return;
+    for(const old of state.bullets){
+      if(!old||old.g!==true||Number(old.gt)!==Number(myIndex)||Number(old.o)===Number(myIndex))continue;
+      const current=nextState.bullets.find(b=>b&&String(b.id)===String(old.id));
+      // V21.09: EVASION solo si el MISMO misil sigue vivo pero deja de
+      // apuntar al jugador. Esto coincide con el desvio por bengala y evita
+      // asumir causas cuando el misil simplemente desaparece.
+      if(current&&current.g===true&&Number(current.gt)!==Number(myIndex)){
+        playNoticeStart=now;
+        playNoticeUntil=now+1200;
+        playNoticeText=tr('evasionMove');
+        playNoticeKind='evasion';
+        return;
+      }
+    }
+  }
   function consumeGameFeelFx(snapshot,now){
     if(!snapshot||!Array.isArray(snapshot.fx))return;
     const round=Number(snapshot.round)||localCampaignLevel||0;
@@ -2779,6 +2798,7 @@
       const now=performance.now();
       if(impactFX)impactFX.consume(m,myIndex,now);
       consumeGameFeelFx(m,now);
+      detectLocalMissileEvasion(m,now);
       updatePickupVisualBirths(m,now);
       if(Array.isArray(m.fx)){
         for(const e of m.fx){
