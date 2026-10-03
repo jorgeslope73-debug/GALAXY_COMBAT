@@ -1988,6 +1988,8 @@
               const attacker=this.players.find(q=>q.index===b.owner)||null;
               if(p.shield<=0){
                 const longShot=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
+                const pointBlank=attacker&&attacker!==p&&!b.guided&&(b.travel||0)<=260;
+                if(pointBlank)this.emit({t:'pointblank',index:attacker.index});
                 if(longShot&&!b.guided){
                   // V21.03: recompensa BRUTAL solo para bala normal a larga distancia.
                   // +10 balas y cadencia maxima, con recarga actual adaptada al nuevo valor.
