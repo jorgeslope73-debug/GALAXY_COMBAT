@@ -9,30 +9,17 @@ const LOCAL_PATH='docs/local-cpu.js';
 // intencionadas (IA/aprendizaje, roster online, ranking y publicState) quedan
 // fuera para no producir falsos positivos.
 const SHARED_METHODS=[
-  'resetAsteroids',
-  'spawnAsteroidFromEdge',
-  'spawnProgressiveAsteroid',
-  'beginAsteroidExit',
-  'chooseAsteroidPopulation',
-  'updateAsteroidPopulation',
-  'stop',
-  'advance',
-  'emitShipImpact',
-  'emitExplosionAt',
-  'emitRocketDisintegrateAt',
-  'placeAtSpawn',
-  'deployShockwave',
-  'deployFlares',
-  'incomingGuidedMissile',
-  'updateFlares',
-  'guidedTargetFor',
-  'cpuOpeningCollisionAvoidance',
+  // V21.54: solo bloques que deben permanecer EXACTAMENTE iguales entre
+  // partida local y host online. IA, aprendizaje, campaña, ranking, respawn,
+  // onda y hazards con progresión quedan fuera porque tienen diferencias
+  // intencionadas entre ambos motores.
   'bulletSpeed',
   'updateAsteroids',
+  'updateFlares',
+  'guidedTargetFor',
   'updateBullets',
-  'updateShower',
-  'updateGiant',
-  'shipCollisions'
+  'shipCollisions',
+  'dropDefeatedLoadout'
 ];
 
 const SHARED_CONSTANTS=[
@@ -45,7 +32,7 @@ const SHARED_CONSTANTS=[
   'FLARE_CPU_KEEP_COOLDOWN','FLARE_CPU_MISSILE_REACTION_MIN',
   'FLARE_CPU_MISSILE_REACTION_MAX','CPU_ARMED_WARNING_SECONDS',
   'SHOCKWAVE_RADIUS','SHOCKWAVE_SAFE_DISTANCE','SHOCKWAVE_STANDOFF_DISTANCE',
-  'ASTEROID_MAX_ACTIVE'
+  'UFO_RADIUS','ASTEROID_MAX_ACTIVE'
 ];
 
 function findMethodStart(source,name){
