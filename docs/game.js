@@ -114,6 +114,7 @@
     shipHitFlashUntil.fill(0);
     cameraShakeStart=0;cameraShakeUntil=0;cameraShakePower=0;cameraShakeSeed=0;
     playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';
+    pickupNoticeStart=0;pickupNoticeUntil=0;pickupNoticeText='';
     lastLocalKillAt=0;lastSavedNoticeAt=0;
   }
   function updatePickupVisualBirths(nextState,now){
@@ -178,6 +179,7 @@
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='',brutalShooter='',brutalAmmoBonus=0,brutalCadenceMax=false,brutalTitleKey='brutal';
   // V21.01: avisos locales de jugadas. Solo leen estados/eventos existentes.
   let playNoticeStart=0,playNoticeUntil=0,playNoticeText='',playNoticeKind='';
+  let pickupNoticeStart=0,pickupNoticeUntil=0,pickupNoticeText='';
   let lastLocalKillAt=0,lastSavedNoticeAt=0;
   const shockwaveFx=[];
   // V19.28: el titulo BRUTAL se prerenderiza. El shadowBlur grande era caro
@@ -2859,6 +2861,20 @@
       brutalCadenceMax=!!m.cadenceMax;
       brutalTitleKey=String(m.titleKey||'brutal');
     }
+    else if(m.t==='pickup'){
+      if(Number(m.index)===Number(myIndex)){
+        const key={
+          ammo1:'pickupAmmo1',ammo3:'pickupAmmo6',cadence:'pickupCadence',
+          mira:'pickupAim',flare:'pickupFlare',shockwave:'pickupShockwave',
+          speed:'pickupSpeed',shield:'pickupShield',camo:'pickupGhost'
+        }[String(m.pickupType||'')];
+        if(key){
+          pickupNoticeStart=performance.now();
+          pickupNoticeUntil=pickupNoticeStart+950;
+          pickupNoticeText=tr(key);
+        }
+      }
+    }
     else if(m.t==='weapon-theft'){
       const theftIndex=Math.max(0,Math.min(3,Number(m.index)||0));
       // El robo sigue siendo un evento de partida, pero el cartel es privado:
@@ -4473,6 +4489,28 @@
     }finally{ctx.restore();}
   }
 
+  function drawPickupNotice(now){
+    if(!pickupNoticeUntil||now>=pickupNoticeUntil||!pickupNoticeText)return;
+    const age=Math.max(0,now-pickupNoticeStart),total=950;
+    const alpha=Math.min(clamp(age/100,0,1),clamp((total-age)/220,0,1));
+    const scale=.82+.18*(1-Math.pow(1-clamp(age/140,0,1),3));
+    ctx.save();
+    try{
+      ctx.translate(W/2,H*.79);
+      ctx.scale(scale,scale);
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.globalAlpha=alpha*.9;
+      ctx.font=isMobile?'34px Flashback,Arial':'26px Flashback,Arial';
+      ctx.lineWidth=isMobile?5:4;
+      ctx.strokeStyle='rgba(0,0,0,.78)';
+      ctx.fillStyle='#b8f3ff';
+      ctx.shadowColor='rgba(90,210,255,.65)';
+      ctx.shadowBlur=10*(1-clamp(age/700,0,1));
+      ctx.strokeText(pickupNoticeText,0,0);
+      ctx.fillText(pickupNoticeText,0,0);
+    }finally{ctx.restore();}
+  }
+
   function drawPlayNotice(now){
     if(!playNoticeUntil||now>=playNoticeUntil||!playNoticeText)return;
     const total=playNoticeKind==='double'?1350:1050;
@@ -4965,6 +5003,7 @@
     drawLeaderAnnouncement(now);
     drawWeaponTheftAnnouncement(now);
     drawPlayNotice(now);
+    drawPickupNotice(now);
     drawHuntAnnouncement(now);
     drawInvisibleModeNotice(now);
     if(state.shower>0){
