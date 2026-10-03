@@ -155,27 +155,79 @@
       this.nextMeteor=0;
       this.nextShower=0;
       this.noDeathTime=0;
-      this.nextGiant=rand(50,80);
-      this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
+      // V21.37 ONLINE: ciclo ambiental progresivo. Solo reinicia peligros,
+      // nunca jugadores, bajas, armamento ni puntuacion.
+      this.hazardCycleAge=0;
+      this.hazardCycleDuration=360;
+      this.nextGiant=999999;
+      this.nextUfo=999999;
       this.lastNow=0;
       this.accumulator=0;
       this.tickCount=0;
       this.resetAsteroids();
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
+    hazardStage(){
+      const t=Math.max(0,Number(this.hazardCycleAge)||0);
+      // Fases con descansos intermedios. El tope sigue siendo 5 asteroides.
+      if(t<60)return {asteroids:1,shower:false,giant:false,ufo:false,rest:false};
+      if(t<120)return {asteroids:2,shower:false,giant:false,ufo:false,rest:false};
+      if(t<165)return {asteroids:3,shower:false,giant:false,ufo:false,rest:false};
+      if(t<195)return {asteroids:2,shower:false,giant:false,ufo:false,rest:true};
+      if(t<240)return {asteroids:3,shower:false,giant:true,ufo:false,rest:false};
+      if(t<285)return {asteroids:4,shower:true,giant:true,ufo:true,rest:false};
+      if(t<315)return {asteroids:2,shower:false,giant:false,ufo:false,rest:true};
+      return {asteroids:5,shower:true,giant:true,ufo:true,rest:false};
+    }
     hazardProfile(){
-      // Perfil base del modo online. V20.93 usa la misma estructura que CPU
-      // para mantener identicas las mecanicas compartidas sin cambiar su dificultad.
+      const stage=this.hazardStage();
       return{
-        asteroidMin:1,
-        asteroidInitialMin:18,asteroidInitialMax:24,
-        asteroidRespawnMin:4,asteroidRespawnMax:12,
-        asteroidPopulationMin:22,asteroidPopulationMax:48,
-        firstShowerMin:150,firstShowerMax:210,
-        showerRepeatMin:140,showerRepeatMax:200,
-        showerDuration:7,
-        meteorIntervalMin:.28,meteorIntervalMax:.42
+        asteroidMin:stage.asteroids,
+        asteroidInitialMin:12,asteroidInitialMax:18,
+        asteroidRespawnMin:5,asteroidRespawnMax:11,
+        asteroidPopulationMin:18,asteroidPopulationMax:30,
+        firstShowerMin:18,firstShowerMax:28,
+        showerRepeatMin:55,showerRepeatMax:85,
+        showerDuration:stage.rest?0:7,
+        meteorIntervalMin:.32,meteorIntervalMax:.48
       };
+    }
+    resetHazardCycle(){
+      this.hazardCycleAge=0;
+      this.meteors=[];
+      this.giant=null;
+      this.ufo=null;
+      this.showerLeft=0;
+      this.nextMeteor=0;
+      this.firstShower=999999;
+      this.nextShower=0;
+      this.nextGiant=999999;
+      this.nextUfo=999999;
+      this.resetAsteroids();
+    }
+    updateHazardCycle(dt){
+      this.hazardCycleAge=(Number(this.hazardCycleAge)||0)+dt;
+      if(this.hazardCycleAge>=this.hazardCycleDuration){
+        this.resetHazardCycle();
+        return;
+      }
+      const stage=this.hazardStage();
+      const target=clamp(Number(stage.asteroids)||1,1,ASTEROID_MAX_ACTIVE);
+      if(this.asteroidTargetCount!==target){
+        this.asteroidTargetCount=target;
+        if(this.asteroids.length<target)this.nextAsteroidSpawn=Math.min(this.nextAsteroidSpawn,3);
+        else if(this.asteroids.length>target){
+          const excess=this.asteroids.length-target;
+          const candidates=this.asteroids.filter(a=>!a.exiting&&a.exitDelay<0);
+          for(let i=0;i<Math.min(excess,candidates.length);i++)candidates[i].exitDelay=rand(.5,2.5);
+        }
+      }
+      if(stage.shower&&this.firstShower>900000&&this.nextShower<=0)this.firstShower=rand(18,28);
+      if(!stage.shower){this.firstShower=999999;this.nextShower=0;this.showerLeft=0;this.meteors=[];}
+      if(stage.giant&&this.nextGiant>900000&&!this.giant)this.nextGiant=rand(12,24);
+      if(!stage.giant){this.nextGiant=999999;this.giant=null;}
+      if(stage.ufo&&this.nextUfo>900000&&!this.ufo)this.nextUfo=rand(18,32);
+      if(!stage.ufo){this.nextUfo=999999;this.ufo=null;}
     }
     resetAsteroids(){
       // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
@@ -184,8 +236,8 @@
       this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1),true);
       this.nextAsteroidIndex=1;
       this.nextAsteroidSpawn=rand(profile.asteroidInitialMin,profile.asteroidInitialMax);
-      this.asteroidRampComplete=false;
-      this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+      this.asteroidRampComplete=true;
+      this.asteroidTargetCount=clamp(Number(this.hazardStage().asteroids)||1,1,ASTEROID_MAX_ACTIVE);
       this.nextAsteroidPopulationChange=999999;
     }
     spawnAsteroidFromEdge(templateIndex,fullyRandom=false){
@@ -269,23 +321,14 @@
     }
     updateAsteroidPopulation(){
       const profile=this.hazardProfile();
-      if(!this.asteroidRampComplete){
-        this.nextAsteroidSpawn-=DT;
-        if(this.nextAsteroidSpawn<=0)this.spawnProgressiveAsteroid();
-        return;
-      }
+      const target=clamp(Number(this.asteroidTargetCount)||1,1,ASTEROID_MAX_ACTIVE);
       const transitioning=this.asteroids.some(a=>a.exiting||a.exitDelay>=0);
-      if(!transitioning&&this.asteroids.length<this.asteroidTargetCount){
+      if(!transitioning&&this.asteroids.length<target){
         this.nextAsteroidSpawn-=DT;
         if(this.nextAsteroidSpawn<=0){
-          this.spawnAsteroidFromEdge(randint(0,ASTEROID_STARTS.length-1));
-          this.nextAsteroidSpawn=this.asteroids.length<this.asteroidTargetCount?rand(profile.asteroidRespawnMin,profile.asteroidRespawnMax):999999;
+          this.spawnAsteroidFromEdge(this.nextAsteroidIndex++);
+          this.nextAsteroidSpawn=rand(profile.asteroidInitialMin,profile.asteroidInitialMax);
         }
-        return;
-      }
-      if(!transitioning&&this.asteroids.length===this.asteroidTargetCount){
-        this.nextAsteroidPopulationChange-=DT;
-        if(this.nextAsteroidPopulationChange<=0)this.chooseAsteroidPopulation();
       }
     }
     makePlayer(index,name,cpu){
@@ -307,8 +350,8 @@
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.activeShockwaves=[];
-      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(50,80);this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
+      this.nextPickup=1;this.firstShower=999999;this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      this.noDeathTime=0;this.hazardCycleAge=0;this.hazardCycleDuration=360;this.nextGiant=999999;this.nextUfo=999999;
       this.rankReportSent=false;this.rankReportAttempts=0;
       this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
@@ -462,8 +505,8 @@
       this.started=false;this.finished=false;this.winner=null;this.seq=0;this.rankReportSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.activeShockwaves=[];
-      this.nextPickup=1;this.firstShower=rand(150,210);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(50,80);this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
+      this.nextPickup=1;this.firstShower=999999;this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
+      this.noDeathTime=0;this.hazardCycleAge=0;this.hazardCycleDuration=360;this.nextGiant=999999;this.nextUfo=999999;
       this.huntTargetIndex=-1;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
@@ -1090,6 +1133,7 @@
     update(dt){
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
+      this.updateHazardCycle(dt);
       if(Array.isArray(this.activeShockwaves)&&this.activeShockwaves.length){
         // V21.16: dos jugadores con ONDA activa se neutralizan entre si.
         // Sus frentes siguen existiendo y pueden afectar a terceros sin onda.
@@ -1559,6 +1603,8 @@
       }
     }
     updateShower(dt){
+      const stage=this.hazardStage();
+      if(!stage.shower){this.showerLeft=0;this.meteors=[];return;}
       const profile=this.hazardProfile();
       if(this.showerLeft<=0){
         this.firstShower-=dt;
@@ -1610,6 +1656,7 @@
       }
     }
     updateGiant(dt){
+      if(!this.hazardStage().giant){this.giant=null;return;}
       if(!this.giant){
         this.nextGiant-=dt;
         if(this.nextGiant<=0){
@@ -1673,6 +1720,7 @@
       return true;
     }
     updateUfo(dt){
+      if(!this.hazardStage().ufo){this.ufo=null;return;}
       // El entrenamiento autonomo no incorpora el OVNI para no contaminar
       // las metricas de aprendizaje ni gastar simulacion extra.
       if(this.trainingMode)return;
