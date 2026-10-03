@@ -4055,10 +4055,18 @@
 
     let threat=null,best=Infinity;
     for(const b of state.bullets){
-      if(!b||b.g!==true||Number(b.gt)!==Number(myIndex)||Number(b.o)===Number(myIndex))continue;
+      if(!b)continue;
+      // V21.35: aceptar tanto el snapshot compacto P2P (g/gt/o) como
+      // nombres completos (guided/target/owner). Garantiza el mismo aviso
+      // de misil para el humano online y en el modo contra la maquina.
+      const guided=b.g===true||b.guided===true;
+      const targetIndex=Number(b.gt!==undefined?b.gt:b.target);
+      const ownerIndex=Number(b.o!==undefined?b.o:b.owner);
+      if(!guided||targetIndex!==Number(myIndex)||ownerIndex===Number(myIndex))continue;
       const x=Number(b.x)+(Number(b.vx)||0)*projectileAge;
       const y=Number(b.y)+(Number(b.vy)||0)*projectileAge;
-      const d=Math.hypot(x-Number(me.x),y-Number(me.y));
+      const ddx=wrapDelta(x-Number(me.x),W),ddy=wrapDelta(y-Number(me.y),H);
+      const d=Math.hypot(ddx,ddy);
       if(d<best){best=d;threat={x,y};}
     }
     if(!threat)return;
@@ -4066,7 +4074,8 @@
     const old=previousLookup.players.get(me.i);
     const mx=old&&!old.dead?lerpWrapped(old.x,me.x,W,blend):Number(me.x);
     const my=old&&!old.dead?lerpWrapped(old.y,me.y,H,blend):Number(me.y);
-    const dx=threat.x-mx,dy=threat.y-my;
+    // La direccion debe señalar el camino corto en el mundo toroidal.
+    const dx=wrapDelta(threat.x-mx,W),dy=wrapDelta(threat.y-my,H);
     const distance=Math.hypot(dx,dy)||1;
     const ux=dx/distance,uy=dy/distance;
     const radius=isMobile?88:74;
