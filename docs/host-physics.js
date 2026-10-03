@@ -1189,6 +1189,15 @@
               }
             }
           }
+          // V21.38 ONLINE: el frente visible de la onda expansiva tambien
+          // destruye el OVNI cuando lo alcanza. No cuenta como baja de jugador.
+          if(this.ufo){
+            const ux=this.ufo.x-wave.x,uy=this.ufo.y-wave.y;
+            const ufoDistance=Math.hypot(ux,uy);
+            if(ufoDistance-UFO_RADIUS<=radius&&ufoDistance+UFO_RADIUS>=previous){
+              this.destroyUfo(owner?owner.index:-1);
+            }
+          }
           for(let bi=this.bullets.length-1;bi>=0;bi--){
             const b=this.bullets[bi];
             if(!b)continue;
