@@ -12,6 +12,7 @@
   const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
   const SHOCKWAVE_RADIUS=180,SHOCKWAVE_SAFE_DISTANCE=240,SHOCKWAVE_STANDOFF_DISTANCE=300;
+  const UFO_RADIUS=30,UFO_HP=3,UFO_FIRST_MIN=35,UFO_FIRST_MAX=60,UFO_REPEAT_MIN=75,UFO_REPEAT_MAX=120;
   const ASTEROID_STARTS=[
     [160,430,300,1],[30,930,10,3],[1800,30,210,4],
     [1500,150,160,2],[500,430,160,5],[1300,430,200,6]
@@ -144,6 +145,7 @@
       this.activeShockwaves=[];
       this.meteors=[];
       this.giant=null;
+      this.ufo=null;
       this.asteroids=[];
       this.nextPickup=1;
       this.firstShower=rand(150,210);
@@ -152,6 +154,7 @@
       this.nextShower=0;
       this.noDeathTime=0;
       this.nextGiant=rand(50,80);
+      this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
       this.lastNow=0;
       this.accumulator=0;
       this.tickCount=0;
@@ -941,10 +944,10 @@
       this.players=[];
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
-      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
+      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);
+      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
       this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       const human=this.makePlayer(0,name,false);
@@ -993,10 +996,10 @@
       this.players=[];
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
-      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
+      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(50,80);
+      this.noDeathTime=0;this.nextGiant=rand(50,80);this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
       this.resetAsteroids();
       for(let i=0;i<4;i++){
         const cpu=this.makePlayer(i,'CPU '+(i+1),true);
@@ -1073,10 +1076,10 @@
       this.humanLearning.clear();this.humanMeteorLearning.clear();this.humanMeteorDecision=null;this.nextHumanObserve=0;
       this.learningSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
-      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.activeShockwaves=[];
+      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);
+      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
       this.huntTargetIndex=0;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
@@ -1981,7 +1984,7 @@
           p.bullets--;p.reload=this.reloadTime(p);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
         }
       }
-      this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.shipCollisions();
+      this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
     }
     reloadTime(p){
       const base=Math.max(.5,p.cadence/8);
@@ -2199,6 +2202,18 @@
             }
           }
         }
+        if(!remove&&this.ufo&&sweptCircles(b,BULLET_RADIUS,this.ufo,UFO_RADIUS,false)){
+          const hitUfo=this.ufo;
+          hitUfo.hp=Math.max(0,(Number(hitUfo.hp)||UFO_HP)-(b.guided?2:1));
+          if(b.guided){
+            this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
+            this.emit({t:'sound',kind:'sparkle'});
+          }else{
+            this.emit({t:'sound',kind:'impact'});
+          }
+          if(hitUfo.hp<=0)this.destroyUfo(Number(b.owner));
+          remove=true;
+        }
         if(!remove)for(const a of this.asteroids){
           if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){
             if(b.guided){
@@ -2379,6 +2394,167 @@
         this.nextGiant=this.trainingMode?rand(130,190):rand(profile.giantRepeatMin,profile.giantRepeatMax);
       }
     }
+    spawnUfo(){
+      if(this.ufo)return false;
+      const side=randint(0,3),margin=90;
+      let x,y,tx,ty;
+      if(side===0){x=-margin;y=rand(140,H-140);tx=W*.42;ty=clamp(y+rand(-220,220),140,H-140);}
+      else if(side===1){x=W+margin;y=rand(140,H-140);tx=W*.58;ty=clamp(y+rand(-220,220),140,H-140);}
+      else if(side===2){x=rand(180,W-180);y=-margin;tx=clamp(x+rand(-320,320),180,W-180);ty=H*.42;}
+      else{x=rand(180,W-180);y=H+margin;tx=clamp(x+rand(-320,320),180,W-180);ty=H*.58;}
+      const n=normalize(tx-x,ty-y);
+      this.ufo={
+        id:uid(),x,y,px:x,py:y,vx:n.x*145,vy:n.y*145,r:UFO_RADIUS,hp:UFO_HP,
+        born:this.fxClock,entered:false,exiting:false,nextSteer:this.fxClock,
+        chargeAt:this.fxClock+rand(4.5,8),chargeUntil:0,bounceUntil:0
+      };
+      return true;
+    }
+    destroyUfo(ownerIndex=-1){
+      const u=this.ufo;
+      if(!u)return false;
+      const owner=Number.isInteger(ownerIndex)&&ownerIndex>=0&&ownerIndex<4?ownerIndex:0;
+      this.emitExplosionAt(u.x,u.y,owner);
+      this.emit({t:'sound',kind:'impact'});
+      const rewards=['ammo3','flare','mira','shield','cadence','speed'];
+      const type=rewards[randint(0,rewards.length-1)];
+      this.pickups.push({
+        id:uid(),type,
+        x:clamp(u.x,80,W-80),y:clamp(u.y,80,H-80),
+        phase:rand(0,Math.PI*2)
+      });
+      if(this.pickups.length>5)this.pickups.shift();
+      this.ufo=null;
+      this.nextUfo=rand(UFO_REPEAT_MIN,UFO_REPEAT_MAX);
+      return true;
+    }
+    updateUfo(dt){
+      // El entrenamiento autonomo no incorpora el OVNI para no contaminar
+      // las metricas de aprendizaje ni gastar simulacion extra.
+      if(this.trainingMode)return;
+      if(!this.ufo){
+        this.nextUfo-=dt;
+        if(this.nextUfo<=0)this.spawnUfo();
+        return;
+      }
+      const u=this.ufo;
+      u.px=u.x;u.py=u.y;
+      const age=this.fxClock-Number(u.born||0);
+      if(age>24)u.exiting=true;
+
+      if(this.fxClock>=Number(u.nextSteer||0)){
+        u.nextSteer=this.fxClock+.12;
+
+        let target=null,best=Infinity;
+        for(const p of this.players){
+          if(!p||p.dead||p.cpu)continue;
+          const d2=dist2(u,p);
+          if(d2<best){best=d2;target=p;}
+        }
+        if(!target){
+          for(const p of this.players){
+            if(!p||p.dead)continue;
+            const d2=dist2(u,p);
+            if(d2<best){best=d2;target=p;}
+          }
+        }
+
+        if(!u.exiting&&target&&this.fxClock>=Number(u.chargeAt||0)){
+          u.chargeUntil=this.fxClock+1.35;
+          u.chargeAt=this.fxClock+rand(5.5,9);
+        }
+
+        let dx,dy,targetSpeed;
+        const charging=!u.exiting&&target&&this.fxClock<Number(u.chargeUntil||0);
+        if(u.exiting){
+          dx=u.x-W*.5;dy=u.y-H*.5;targetSpeed=220;
+        }else if(charging){
+          dx=target.x-u.x;dy=target.y-u.y;targetSpeed=310;
+        }else{
+          const phase=age*.72+(Number(u.id)||0)*.41;
+          const patrolX=W*.5+Math.sin(phase)*W*.27;
+          const patrolY=H*.5+Math.cos(phase*.83)*H*.25;
+          dx=patrolX-u.x;dy=patrolY-u.y;targetSpeed=150;
+          if(target){
+            dx+=((target.x-u.x)*.22);
+            dy+=((target.y-u.y)*.22);
+          }
+        }
+
+        // IA ligera: cada 120 ms suma un vector de evitacion. Maximo 5
+        // asteroides normales y solo una pasada por meteoritos/giant.
+        let avoidX=0,avoidY=0;
+        const avoid=(h,radius,extra,weight)=>{
+          if(!h)return;
+          const ax=u.x-h.x,ay=u.y-h.y,d=Math.hypot(ax,ay)||1;
+          const safe=UFO_RADIUS+radius+extra;
+          if(d>=safe)return;
+          const k=(safe-d)/safe*weight;
+          avoidX+=ax/d*k;avoidY+=ay/d*k;
+        };
+        for(const a of this.asteroids)avoid(a,Number(a.r)||ASTEROID_RADIUS,125,3.2);
+        for(const m of this.meteors)avoid(m,SMALL_METEOR_RADIUS,85,2.2);
+        if(this.giant)avoid(this.giant,GIANT_RADIUS,170,4.5);
+
+        if(u.entered){
+          if(u.x<100)avoidX+=2.5;else if(u.x>W-100)avoidX-=2.5;
+          if(u.y<100)avoidY+=2.5;else if(u.y>H-100)avoidY-=2.5;
+        }
+
+        dx+=avoidX*260;dy+=avoidY*260;
+        const n=normalize(dx,dy);
+        const steer=charging?.34:.24;
+        u.vx=u.vx*(1-steer)+n.x*targetSpeed*steer;
+        u.vy=u.vy*(1-steer)+n.y*targetSpeed*steer;
+      }
+
+      u.x+=u.vx*dt;u.y+=u.vy*dt;
+      if(u.x>-UFO_RADIUS&&u.x<W+UFO_RADIUS&&u.y>-UFO_RADIUS&&u.y<H+UFO_RADIUS)u.entered=true;
+
+      const bounceFrom=(h,radius,retention=.88)=>{
+        if(!h||this.fxClock<Number(u.bounceUntil||0)||!circles(u,UFO_RADIUS,h,radius))return false;
+        const n=normalize(u.x-h.x,u.y-h.y);
+        const dot=u.vx*n.x+u.vy*n.y;
+        if(dot<0){
+          u.vx=(u.vx-2*dot*n.x)*retention;
+          u.vy=(u.vy-2*dot*n.y)*retention;
+        }else{
+          u.vx+=n.x*70;u.vy+=n.y*70;
+        }
+        const d=Math.hypot(u.x-h.x,u.y-h.y)||1;
+        const overlap=UFO_RADIUS+radius-d;
+        if(overlap>0){u.x+=n.x*(overlap+3);u.y+=n.y*(overlap+3);}
+        u.bounceUntil=this.fxClock+.22;
+        return true;
+      };
+
+      for(const a of this.asteroids)if(bounceFrom(a,Number(a.r)||ASTEROID_RADIUS))break;
+      if(this.fxClock>=Number(u.bounceUntil||0)){
+        for(const m of this.meteors)if(bounceFrom(m,SMALL_METEOR_RADIUS,.84))break;
+      }
+      if(this.giant)bounceFrom(this.giant,GIANT_RADIUS,.82);
+
+      // La embestida es peligrosa para la nave, pero el OVNI rebota y sigue.
+      for(const p of this.players){
+        if(!p||p.dead||!sweptCircles(u,UFO_RADIUS,p,SHIP_RADIUS,false))continue;
+        if(p.shield>0||p.protection>0){
+          this.emitShipImpact(p,u,false);
+        }else{
+          this.destroyShip(p,null);
+        }
+        const n=normalize(u.x-p.x,u.y-p.y);
+        const speed=Math.max(150,Math.hypot(u.vx,u.vy));
+        u.vx=n.x*speed*.86;u.vy=n.y*speed*.86;
+        u.x+=n.x*7;u.y+=n.y*7;
+        u.bounceUntil=this.fxClock+.25;
+        break;
+      }
+
+      if(u.entered&&u.exiting&&(u.x<-160||u.x>W+160||u.y<-160||u.y>H+160)){
+        this.ufo=null;
+        this.nextUfo=rand(UFO_REPEAT_MIN,UFO_REPEAT_MAX);
+      }
+    }
     shipCollisions(){
       for(const p of this.players){
         if(p.dead)continue;
@@ -2437,6 +2613,7 @@
         pickups:this.pickups.map((p,idx)=>({id:p.id,type:p.type,x:round1(p.x),y:round1(p.y+Math.cos(p.phase)*3),expiresIn:(idx===0&&this.pickups.length>=5)?round2(Math.max(0,this.nextPickup)):null})),
         meteors:this.meteors.map(m=>({id:m.id,type:m.type,x:round1(m.x),y:round1(m.y),a:round1(m.angle)})),
         giant:this.giant?{x:round1(this.giant.x),y:round1(this.giant.y)}:null,
+        ufo:this.ufo?{id:this.ufo.id,x:round1(this.ufo.x),y:round1(this.ufo.y),vx:round1(this.ufo.vx),vy:round1(this.ufo.vy),hp:Math.max(0,Math.round(Number(this.ufo.hp)||0))}:null,
         shower:round2(this.showerLeft),
         nextShower:this.showerLeft>0?0:round1(Math.max(0,Math.min(this.firstShower,this.nextShower||999999)))
       };
