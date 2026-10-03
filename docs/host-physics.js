@@ -1395,9 +1395,10 @@
         }
         b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;
       }
-      // V20.12: intercepcion entre proyectiles. Solo colisiona si al menos
-      // uno de los dos es misil guiado. Bala-bala sigue atravesandose.
-      // Proyectiles del mismo propietario no se destruyen entre si.
+      // V21.49: unica intercepcion entre proyectiles:
+      // una BALA NORMAL puede destruir un MISIL enemigo. Bala-bala y
+      // misil-misil se atraviesan. Los pickups/objetos flotantes no participan
+      // en ninguna colision de proyectiles.
       if(this.bullets.length>1){
         const destroyedProjectiles=this.destroyedProjectileScratch;
         destroyedProjectiles.clear();
@@ -1408,17 +1409,19 @@
             const b=this.bullets[j];
             if(!b||destroyedProjectiles.has(b))continue;
             if(Number(a.owner)===Number(b.owner))continue;
-            if(!a.guided&&!b.guided)continue;
 
-            const ar=a.guided?MISSILE_HIT_RADIUS:BULLET_RADIUS;
-            const br=b.guided?MISSILE_HIT_RADIUS:BULLET_RADIUS;
-            if(!sweptCircles(a,ar,b,br,false))continue;
+            // Exactamente uno debe ser misil y el otro bala normal.
+            if(!!a.guided===!!b.guided)continue;
 
-            destroyedProjectiles.add(a);
-            destroyedProjectiles.add(b);
-            const hitX=(a.x+b.x)*.5,hitY=(a.y+b.y)*.5;
-            const fxOwner=a.guided?Number(a.owner):Number(b.owner);
-            this.emitRocketDisintegrateAt(hitX,hitY,Number.isInteger(fxOwner)?fxOwner:0);
+            const missile=a.guided?a:b;
+            const bullet=a.guided?b:a;
+            if(!sweptCircles(missile,MISSILE_HIT_RADIUS,bullet,BULLET_RADIUS,false))continue;
+
+            // La bala se consume al interceptar el misil.
+            destroyedProjectiles.add(missile);
+            destroyedProjectiles.add(bullet);
+            const hitX=(missile.x+bullet.x)*.5,hitY=(missile.y+bullet.y)*.5;
+            this.emitRocketDisintegrateAt(hitX,hitY,Number(missile.owner)||0);
             this.emit({t:'sound',kind:'sparkle'});
             break;
           }
