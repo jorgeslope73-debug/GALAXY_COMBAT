@@ -2835,10 +2835,14 @@
           const kills=Number(np&&np.k)||0;
           if(kills===4&&!nearWinActive.has(idx)){
             nearWinActive.add(idx);
-            nearWinNoticeStart=now;
-            nearWinNoticeUntil=now+2200;
-            nearWinNoticeName=sinTildes(String(np&&np.n||('JUGADOR '+(idx+1)))).trim().toUpperCase();
-            nearWinNoticeIndex=idx;
+            // V21.31: el aviso de "a una de ganar" solo alerta sobre rivales.
+            // El propio jugador ya ve su 4/5 en el HUD y no necesita este cartel.
+            if(idx!==Number(myIndex)){
+              nearWinNoticeStart=now;
+              nearWinNoticeUntil=now+2200;
+              nearWinNoticeName=sinTildes(String(np&&np.n||('JUGADOR '+(idx+1)))).trim().toUpperCase();
+              nearWinNoticeIndex=idx;
+            }
           }else if(kills<4){
             nearWinActive.delete(idx);
           }
@@ -4638,26 +4642,27 @@
     const age=now-huntFxStart,total=2200;
     const fadeIn=clamp(age/180,0,1),fadeOut=clamp((total-age)/420,0,1);
     const alpha=Math.min(fadeIn,fadeOut);
-    const pulse=1+Math.sin(age*.018)*.05;
+    const pulse=1+Math.sin(age*.018)*.025;
     ctx.save();
     try{
       ctx.translate(W/2,centerNoticeY('hunt',now,H*.37));
       ctx.scale(pulse,pulse);
       ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.globalAlpha=alpha*.9;
-      ctx.font=isMobile?'900 54px Arial Black,Arial,sans-serif':'900 46px Arial Black,Arial,sans-serif';
-      ctx.lineWidth=8;ctx.strokeStyle='rgba(0,0,0,.9)';
-      ctx.shadowColor='rgba(255,45,45,.95)';ctx.shadowBlur=28;
-      ctx.fillStyle='#ff4b4b';
+      // V21.31: aviso "A POR..." mas pequeno y discreto para no tapar la accion.
+      ctx.globalAlpha=alpha*.72;
+      ctx.font=isMobile?'900 34px Arial Black,Arial,sans-serif':'900 28px Arial Black,Arial,sans-serif';
+      ctx.lineWidth=isMobile?5:4;ctx.strokeStyle='rgba(0,0,0,.78)';
+      ctx.shadowColor='rgba(255,45,45,.72)';ctx.shadowBlur=12;
+      ctx.fillStyle='#ff5b5b';
       ctx.strokeText(huntText,0,0);ctx.fillText(huntText,0,0);
       if(huntCpuAmmo){
-        ctx.font=isMobile?'900 30px Arial Black,Arial,sans-serif':'900 25px Arial Black,Arial,sans-serif';
-        ctx.lineWidth=6;
-        ctx.shadowBlur=18;
-        ctx.fillStyle='#ffe64a';
+        ctx.font=isMobile?'900 20px Arial Black,Arial,sans-serif':'900 17px Arial Black,Arial,sans-serif';
+        ctx.lineWidth=isMobile?4:3;
+        ctx.shadowBlur=8;
+        ctx.fillStyle='#ffe86b';
         const ammoLabel=(huntCpuBonus>0?('+'+huntCpuBonus+' '):'')+'BALAS PARA CPU';
-        ctx.strokeText(ammoLabel,0,isMobile?58:50);
-        ctx.fillText(ammoLabel,0,isMobile?58:50);
+        ctx.strokeText(ammoLabel,0,isMobile?40:34);
+        ctx.fillText(ammoLabel,0,isMobile?40:34);
       }
     }finally{ctx.restore();}
   }
