@@ -2220,6 +2220,7 @@
             // V19.73: una baja causada por una bengala pertenece a quien la
             // lanzo. La propia bengala nunca puede conceder una baja a su dueño.
             const attacker=flareOwner&&flareOwner!==p?flareOwner:null;
+            if(attacker)this.emit({t:'flare-kill',index:attacker.index});
             this.destroyShip(p,attacker);
           }
           if(p.dead)break;
