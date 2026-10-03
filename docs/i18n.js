@@ -36,6 +36,10 @@
     campaignGameOver:'JUEGO TERMINADO',
     restartCampaign:'VOLVER A EMPEZAR',
     campaignChampion:'CAMPEON INTERESTELAR'
+,
+    interstellarTravel:'VIAJE INTERESTELAR',
+    destinationLevel:'DESTINO · NIVEL {level}',
+    giantWarning:'METEORITO GIGANTE'
   });
   Object.assign(dictionaries.en,{
     campaignLevelComplete:'LEVEL {level} COMPLETE',
@@ -45,6 +49,10 @@
     campaignGameOver:'GAME OVER',
     restartCampaign:'START OVER',
     campaignChampion:'INTERSTELLAR CHAMPION'
+,
+    interstellarTravel:'INTERSTELLAR TRAVEL',
+    destinationLevel:'DESTINATION · LEVEL {level}',
+    giantWarning:'GIANT METEOR'
   });
   Object.assign(dictionaries.it,{
     campaignLevelComplete:'LIVELLO {level} SUPERATO',
@@ -54,6 +62,10 @@
     campaignGameOver:'PARTITA TERMINATA',
     restartCampaign:'RICOMINCIA',
     campaignChampion:'CAMPIONE INTERSTELLARE'
+,
+    interstellarTravel:'VIAGGIO INTERSTELLARE',
+    destinationLevel:'DESTINAZIONE · LIVELLO {level}',
+    giantWarning:'METEORITE GIGANTE'
   });
   Object.assign(dictionaries.fr,{
     campaignLevelComplete:'NIVEAU {level} TERMINE',
@@ -63,6 +75,10 @@
     campaignGameOver:'PARTIE TERMINEE',
     restartCampaign:'RECOMMENCER',
     campaignChampion:'CHAMPION INTERSTELLAIRE'
+,
+    interstellarTravel:'VOYAGE INTERSTELLAIRE',
+    destinationLevel:'DESTINATION · NIVEAU {level}',
+    giantWarning:'METEORITE GEANT'
   });
   Object.assign(dictionaries.de,{
     campaignLevelComplete:'LEVEL {level} GESCHAFFT',
@@ -72,6 +88,10 @@
     campaignGameOver:'SPIEL VORBEI',
     restartCampaign:'NEU ANFANGEN',
     campaignChampion:'INTERSTELLARER CHAMPION'
+,
+    interstellarTravel:'INTERSTELLARE REISE',
+    destinationLevel:'ZIEL · LEVEL {level}',
+    giantWarning:'RIESENMETEOR'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
