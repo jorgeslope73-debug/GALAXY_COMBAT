@@ -1568,6 +1568,7 @@
           }else{
             // V19.73: la muerte por bengala suma al jugador que la desplego.
             const attacker=flareOwner&&flareOwner!==p?flareOwner:null;
+            if(attacker)this.emit({t:'flare-kill',index:attacker.index});
             this.destroyShip(p,attacker);
           }
           if(p.dead)break;
