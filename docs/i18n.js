@@ -29,7 +29,13 @@
   Object.assign(dictionaries.fr,{weaponTheft:"VOL D'ARMEMENT"});
   Object.assign(dictionaries.de,{weaponTheft:'WAFFENRAUB'});
   Object.assign(dictionaries.es,{
-    campaignLevelComplete:'NIVEL {level} SUPERADO',
+    campaignLevelComplete:'NIVEL {level} · {name} SUPERADO',
+    campaignLevelTitle:'NIVEL {level} · {name}',
+    campaignWorld1:'FRONTERA ESTELAR',
+    campaignWorld2:'NEBULOSA ROJA',
+    campaignWorld3:'TORMENTA COSMICA',
+    campaignWorld4:'ABISMO ESTELAR',
+    campaignWorld5:'HORIZONTE FINAL',
     campaignLevelLost:'NIVEL {level} · GANA {name}',
     continueCampaign:'CONTINUAR',
     retryLevel:'REPETIR NIVEL',
@@ -37,11 +43,17 @@
     restartCampaign:'VOLVER A EMPEZAR',
     campaignChampion:'CAMPEON INTERESTELAR',
     interstellarTravel:'VIAJE INTERESTELAR',
-    destinationLevel:'DESTINO · NIVEL {level}',
+    destinationLevel:'DESTINO · {name}',
     giantWarning:'METEORITO GIGANTE'
   });
   Object.assign(dictionaries.en,{
-    campaignLevelComplete:'LEVEL {level} COMPLETE',
+    campaignLevelComplete:'LEVEL {level} · {name} COMPLETE',
+    campaignLevelTitle:'LEVEL {level} · {name}',
+    campaignWorld1:'STELLAR FRONTIER',
+    campaignWorld2:'RED NEBULA',
+    campaignWorld3:'COSMIC STORM',
+    campaignWorld4:'STELLAR ABYSS',
+    campaignWorld5:'FINAL HORIZON',
     campaignLevelLost:'LEVEL {level} · {name} WINS',
     continueCampaign:'CONTINUE',
     retryLevel:'RETRY LEVEL',
@@ -49,11 +61,17 @@
     restartCampaign:'START OVER',
     campaignChampion:'INTERSTELLAR CHAMPION',
     interstellarTravel:'INTERSTELLAR TRAVEL',
-    destinationLevel:'DESTINATION · LEVEL {level}',
+    destinationLevel:'DESTINATION · {name}',
     giantWarning:'GIANT METEOR'
   });
   Object.assign(dictionaries.it,{
-    campaignLevelComplete:'LIVELLO {level} SUPERATO',
+    campaignLevelComplete:'LIVELLO {level} · {name} SUPERATO',
+    campaignLevelTitle:'LIVELLO {level} · {name}',
+    campaignWorld1:'FRONTIERA STELLARE',
+    campaignWorld2:'NEBULOSA ROSSA',
+    campaignWorld3:'TEMPESTA COSMICA',
+    campaignWorld4:'ABISSO STELLARE',
+    campaignWorld5:'ORIZZONTE FINALE',
     campaignLevelLost:'LIVELLO {level} · VINCE {name}',
     continueCampaign:'CONTINUA',
     retryLevel:'RIPETI LIVELLO',
@@ -61,11 +79,17 @@
     restartCampaign:'RICOMINCIA',
     campaignChampion:'CAMPIONE INTERSTELLARE',
     interstellarTravel:'VIAGGIO INTERSTELLARE',
-    destinationLevel:'DESTINAZIONE · LIVELLO {level}',
+    destinationLevel:'DESTINAZIONE · {name}',
     giantWarning:'METEORITE GIGANTE'
   });
   Object.assign(dictionaries.fr,{
-    campaignLevelComplete:'NIVEAU {level} TERMINE',
+    campaignLevelComplete:'NIVEAU {level} · {name} TERMINE',
+    campaignLevelTitle:'NIVEAU {level} · {name}',
+    campaignWorld1:'FRONTIERE STELLAIRE',
+    campaignWorld2:'NEBULEUSE ROUGE',
+    campaignWorld3:'TEMPETE COSMIQUE',
+    campaignWorld4:'ABYSSE STELLAIRE',
+    campaignWorld5:'HORIZON FINAL',
     campaignLevelLost:'NIVEAU {level} · {name} GAGNE',
     continueCampaign:'CONTINUER',
     retryLevel:'REJOUER LE NIVEAU',
@@ -73,11 +97,17 @@
     restartCampaign:'RECOMMENCER',
     campaignChampion:'CHAMPION INTERSTELLAIRE',
     interstellarTravel:'VOYAGE INTERSTELLAIRE',
-    destinationLevel:'DESTINATION · NIVEAU {level}',
+    destinationLevel:'DESTINATION · {name}',
     giantWarning:'METEORITE GEANT'
   });
   Object.assign(dictionaries.de,{
-    campaignLevelComplete:'LEVEL {level} GESCHAFFT',
+    campaignLevelComplete:'LEVEL {level} · {name} GESCHAFFT',
+    campaignLevelTitle:'LEVEL {level} · {name}',
+    campaignWorld1:'STERNENFRONT',
+    campaignWorld2:'ROTER NEBEL',
+    campaignWorld3:'KOSMISCHER STURM',
+    campaignWorld4:'STERNENABGRUND',
+    campaignWorld5:'LETZTER HORIZONT',
     campaignLevelLost:'LEVEL {level} · {name} GEWINNT',
     continueCampaign:'WEITER',
     retryLevel:'LEVEL WIEDERHOLEN',
@@ -85,7 +115,7 @@
     restartCampaign:'NEU ANFANGEN',
     campaignChampion:'INTERSTELLARER CHAMPION',
     interstellarTravel:'INTERSTELLARE REISE',
-    destinationLevel:'ZIEL · LEVEL {level}',
+    destinationLevel:'ZIEL · {name}',
     giantWarning:'RIESENMETEOR'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
