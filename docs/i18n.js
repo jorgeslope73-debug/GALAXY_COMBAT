@@ -48,7 +48,8 @@
 ,
     doubleMove:'DOBLE',
     savedMove:'SALVADO',
-    evasionMove:'EVASION'
+    evasionMove:'EVASION',
+    flareHitMove:'IMPACTO CON BENGALA'
   });
   Object.assign(dictionaries.en,{
     campaignLevelComplete:'LEVEL {level} · {name} COMPLETE',
@@ -70,7 +71,8 @@
 ,
     doubleMove:'DOUBLE',
     savedMove:'SAVED',
-    evasionMove:'EVASION'
+    evasionMove:'EVASION',
+    flareHitMove:'FLARE HIT'
   });
   Object.assign(dictionaries.it,{
     campaignLevelComplete:'LIVELLO {level} · {name} SUPERATO',
@@ -92,7 +94,8 @@
 ,
     doubleMove:'DOPPIA',
     savedMove:'SALVATO',
-    evasionMove:'EVASIONE'
+    evasionMove:'EVASIONE',
+    flareHitMove:'COLPO DI RAZZO'
   });
   Object.assign(dictionaries.fr,{
     campaignLevelComplete:'NIVEAU {level} · {name} TERMINE',
@@ -114,7 +117,8 @@
 ,
     doubleMove:'DOUBLE',
     savedMove:'SAUVE',
-    evasionMove:'ESQUIVE'
+    evasionMove:'ESQUIVE',
+    flareHitMove:'IMPACT LEURRE'
   });
   Object.assign(dictionaries.de,{
     campaignLevelComplete:'LEVEL {level} · {name} GESCHAFFT',
@@ -136,7 +140,8 @@
 ,
     doubleMove:'DOPPELT',
     savedMove:'GERETTET',
-    evasionMove:'AUSGEWICHEN'
+    evasionMove:'AUSGEWICHEN',
+    flareHitMove:'LEUCHTKOERPER-TREFFER'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
