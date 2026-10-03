@@ -45,6 +45,9 @@
     interstellarTravel:'VIAJE INTERESTELAR',
     destinationLevel:'DESTINO · {name}',
     giantWarning:'METEORITO GIGANTE'
+,
+    doubleMove:'DOBLE',
+    savedMove:'SALVADO'
   });
   Object.assign(dictionaries.en,{
     campaignLevelComplete:'LEVEL {level} · {name} COMPLETE',
@@ -63,6 +66,9 @@
     interstellarTravel:'INTERSTELLAR TRAVEL',
     destinationLevel:'DESTINATION · {name}',
     giantWarning:'GIANT METEOR'
+,
+    doubleMove:'DOUBLE',
+    savedMove:'SAVED'
   });
   Object.assign(dictionaries.it,{
     campaignLevelComplete:'LIVELLO {level} · {name} SUPERATO',
@@ -81,6 +87,9 @@
     interstellarTravel:'VIAGGIO INTERSTELLARE',
     destinationLevel:'DESTINAZIONE · {name}',
     giantWarning:'METEORITE GIGANTE'
+,
+    doubleMove:'DOPPIA',
+    savedMove:'SALVATO'
   });
   Object.assign(dictionaries.fr,{
     campaignLevelComplete:'NIVEAU {level} · {name} TERMINE',
@@ -99,6 +108,9 @@
     interstellarTravel:'VOYAGE INTERSTELLAIRE',
     destinationLevel:'DESTINATION · {name}',
     giantWarning:'METEORITE GEANT'
+,
+    doubleMove:'DOUBLE',
+    savedMove:'SAUVE'
   });
   Object.assign(dictionaries.de,{
     campaignLevelComplete:'LEVEL {level} · {name} GESCHAFFT',
@@ -117,6 +129,9 @@
     interstellarTravel:'INTERSTELLARE REISE',
     destinationLevel:'ZIEL · {name}',
     giantWarning:'RIESENMETEOR'
+,
+    doubleMove:'DOPPELT',
+    savedMove:'GERETTET'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
