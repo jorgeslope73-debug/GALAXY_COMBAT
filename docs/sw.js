@@ -1,4 +1,4 @@
-const VERSION = 'V21.39-ufo-camo';
+const VERSION = 'V21.40-human-shock-learning';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
