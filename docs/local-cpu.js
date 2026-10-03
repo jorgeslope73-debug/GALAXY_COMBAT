@@ -1965,10 +1965,12 @@
         }
         if(!remove){
           for(let f=this.flares.length-1;f>=0;f--){
-            if(sweptCircles(b,BULLET_RADIUS,this.flares[f],FLARE_RADIUS,false)){
+            const flare=this.flares[f];
+            if(sweptCircles(b,BULLET_RADIUS,flare,FLARE_RADIUS,false)){
               // V19.64: cualquier proyectil queda anulado por una bengala.
               // El misil conserva su explosion visual; la bala normal simplemente
               // desaparece junto con la bengala alcanzada.
+              if(Number(flare.owner)!==Number(b.owner))this.emit({t:'intercept',index:Number(flare.owner),guided:!!b.guided});
               if(b.guided){
                 this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
                 this.emit({t:'sound',kind:'sparkle'});
