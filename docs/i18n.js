@@ -50,7 +50,8 @@
     savedMove:'SALVADO',
     evasionMove:'EVASION',
     flareHitMove:'IMPACTO CON BENGALA',
-    pointBlankMove:'A QUEMARROPA'
+    pointBlankMove:'A QUEMARROPA',
+    hunterMove:'CAZADOR'
   });
   Object.assign(dictionaries.en,{
     campaignLevelComplete:'LEVEL {level} · {name} COMPLETE',
@@ -74,7 +75,8 @@
     savedMove:'SAVED',
     evasionMove:'EVASION',
     flareHitMove:'FLARE HIT',
-    pointBlankMove:'POINT BLANK'
+    pointBlankMove:'POINT BLANK',
+    hunterMove:'HUNTER'
   });
   Object.assign(dictionaries.it,{
     campaignLevelComplete:'LIVELLO {level} · {name} SUPERATO',
@@ -98,7 +100,8 @@
     savedMove:'SALVATO',
     evasionMove:'EVASIONE',
     flareHitMove:'COLPO DI RAZZO',
-    pointBlankMove:'A BRUCIAPELO'
+    pointBlankMove:'A BRUCIAPELO',
+    hunterMove:'CACCIATORE'
   });
   Object.assign(dictionaries.fr,{
     campaignLevelComplete:'NIVEAU {level} · {name} TERMINE',
@@ -122,7 +125,8 @@
     savedMove:'SAUVE',
     evasionMove:'ESQUIVE',
     flareHitMove:'IMPACT LEURRE',
-    pointBlankMove:'A BOUT PORTANT'
+    pointBlankMove:'A BOUT PORTANT',
+    hunterMove:'CHASSEUR'
   });
   Object.assign(dictionaries.de,{
     campaignLevelComplete:'LEVEL {level} · {name} GESCHAFFT',
@@ -146,7 +150,8 @@
     savedMove:'GERETTET',
     evasionMove:'AUSGEWICHEN',
     flareHitMove:'LEUCHTKOERPER-TREFFER',
-    pointBlankMove:'AUS NAECHSTER NAEHE'
+    pointBlankMove:'AUS NAECHSTER NAEHE',
+    hunterMove:'JAEGER'
   });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
