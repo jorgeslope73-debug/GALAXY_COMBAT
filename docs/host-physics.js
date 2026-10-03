@@ -848,6 +848,22 @@
         f.angle=(f.angle+260*dt)%360;
         f.life-=dt;
         f.ownerSafe=Math.max(0,(Number(f.ownerSafe)||0)-dt);
+
+        // V21.19: una bengala que golpea un asteroide normal/mediano/grande
+        // se consume, pero el asteroide no recibe dano ni cambia trayectoria.
+        let hitAsteroid=false;
+        for(const a of this.asteroids){
+          if(!a||!sweptCircles(f,FLARE_RADIUS,a,a.r,false))continue;
+          this.emitExplosionAt(f.x,f.y,f.owner);
+          this.emit({t:'sound',kind:'impact'});
+          hitAsteroid=true;
+          break;
+        }
+        if(hitAsteroid){
+          this.flares.splice(i,1);
+          continue;
+        }
+
         if(f.life<=0||f.x<-100||f.x>W+100||f.y<-100||f.y>H+100)this.flares.splice(i,1);
       }
     }
