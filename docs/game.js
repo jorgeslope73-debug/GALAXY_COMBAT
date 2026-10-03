@@ -4089,27 +4089,33 @@
     const dx=wrapDelta(threat.x-mx,W),dy=wrapDelta(threat.y-my,H);
     const distance=Math.hypot(dx,dy)||1;
     const ux=dx/distance,uy=dy/distance;
-    const radius=isMobile?88:74;
-    const ax=clamp(mx+ux*radius,28,W-28);
-    const ay=clamp(my+uy*radius,28,H-28);
+    // V21.43: restaurado el indicador clasico alrededor de la nave.
+    // La flecha apunta al lugar por donde llega el misil: naranja a distancia
+    // y roja, mas grande y con pulso rapido, cuando ya esta cerca.
+    const radius=isMobile?94:80;
+    const ax=clamp(mx+ux*radius,30,W-30);
+    const ay=clamp(my+uy*radius,30,H-30);
     const critical=distance<460;
-    const pulse=.5+.5*Math.sin(now*(critical?.022:.014));
-    const scale=(critical?1.18:1)*(1+.12*pulse);
+    const veryClose=distance<260;
+    const pulse=.5+.5*Math.sin(now*(critical?.024:.014));
+    const scale=(veryClose?1.34:(critical?1.20:1.04))*(1+(critical?.14:.08)*pulse);
 
     ctx.save();
     try{
       ctx.translate(ax,ay);
       ctx.rotate(Math.atan2(uy,ux));
       ctx.scale(scale,scale);
-      ctx.globalAlpha=.72+.26*pulse;
-      ctx.fillStyle=critical?'#ff3a2f':'#ff8b3d';
-      ctx.strokeStyle='rgba(0,0,0,.85)';
-      ctx.lineWidth=3;
+      ctx.globalAlpha=.82+.18*pulse;
+      ctx.shadowColor=critical?'rgba(255,30,30,.95)':'rgba(255,145,45,.72)';
+      ctx.shadowBlur=critical?18:8;
+      ctx.fillStyle=critical?'#ff241c':'#ff943d';
+      ctx.strokeStyle='rgba(0,0,0,.92)';
+      ctx.lineWidth=3.5;
       ctx.beginPath();
-      ctx.moveTo(17,0);
-      ctx.lineTo(-11,-10);
+      ctx.moveTo(20,0);
+      ctx.lineTo(-12,-12);
       ctx.lineTo(-7,0);
-      ctx.lineTo(-11,10);
+      ctx.lineTo(-12,12);
       ctx.closePath();
       ctx.fill();ctx.stroke();
     }finally{ctx.restore();}
