@@ -11,6 +11,7 @@
   const FLARE_CPU_EVAL_SECONDS=1.15,FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
   const CPU_ARMED_WARNING_SECONDS=1;
+  const CPU_LEARNING_DELTA_MAX=31;
   const SHOCKWAVE_RADIUS=220,SHOCKWAVE_SAFE_DISTANCE=285,SHOCKWAVE_STANDOFF_DISTANCE=350;
   const UFO_RADIUS=30,UFO_HP=1,UFO_FIRST_MIN=35,UFO_FIRST_MAX=60,UFO_REPEAT_MIN=75,UFO_REPEAT_MAX=120;
   const ASTEROID_STARTS=[
@@ -826,7 +827,7 @@
       shock.sort((a,b)=>b.uses-a.uses||Math.abs(b.reward)-Math.abs(a.reward));
       return flare.slice(0,6)
         .concat(shock.slice(0,7),humanMeteor.slice(0,4),meteor.slice(0,5),humanGeneral.slice(0,4),general.slice(0,5))
-        .slice(0,31);
+        .slice(0,CPU_LEARNING_DELTA_MAX);
     }
     resetAsteroids(){
       // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
