@@ -175,7 +175,7 @@
   // Entonces aparece la resta junto con el efecto de escala/explosion del HUD.
   let crashScoreHeldValue=null,crashScorePendingValue=null;
   let penaltyMessageUntil=0;
-  let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='',brutalShooter='',brutalAmmoBonus=0,brutalCadenceMax=false;
+  let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='',brutalShooter='',brutalAmmoBonus=0,brutalCadenceMax=false,brutalTitleKey='brutal';
   // V21.01: avisos locales de jugadas. Solo leen estados/eventos existentes.
   let playNoticeStart=0,playNoticeUntil=0,playNoticeText='',playNoticeKind='';
   let lastLocalKillAt=0,lastSavedNoticeAt=0;
@@ -2857,6 +2857,7 @@
       brutalShooter=sinTildes(String(m.shooter||'')).trim();
       brutalAmmoBonus=Math.max(0,Number(m.ammoBonus)||0);
       brutalCadenceMax=!!m.cadenceMax;
+      brutalTitleKey=String(m.titleKey||'brutal');
     }
     else if(m.t==='weapon-theft'){
       const theftIndex=Math.max(0,Math.min(3,Number(m.index)||0));
@@ -2894,7 +2895,7 @@
       const restartRound=roomCode==='LOCAL'?localCampaignLevel:Math.max(1,Number(m.rankRound)||(hostPhysics&&hostPhysics.rankRound)||currentMatchBackgroundRound+1);
       if(roomCode!=='LOCAL'&&restartRound<=lastRestartedRound)return;
       if(roomCode!=='LOCAL')lastRestartedRound=restartRound;
-      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';brutalAmmoBonus=0;brutalCadenceMax=false;playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';lastLocalKillAt=0;lastSavedNoticeAt=0;weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];huntCpuAmmoTotals.clear();invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
+      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';brutalAmmoBonus=0;brutalCadenceMax=false;brutalTitleKey='brutal';playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';lastLocalKillAt=0;lastSavedNoticeAt=0;weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];huntCpuAmmoTotals.clear();invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){
       const recoverable=String(m.cause||'')==='host_timeout'&&p2pGameHealthy();
@@ -4320,7 +4321,7 @@
   }
 
   function getBrutalTitleCache(){
-    const text=tr('brutal');
+    const text=tr(brutalTitleKey||'brutal');
     if(brutalTitleCache&&brutalTitleCacheText===text&&brutalTitleCacheMobile===isMobile)return brutalTitleCache;
     const cache=document.createElement('canvas');
     // Margen amplio para que el glow quede contenido y no fuerce recortes.
@@ -4377,8 +4378,9 @@
         ctx.lineWidth=10;
         ctx.strokeStyle='rgba(0,0,0,.86)';
         ctx.fillStyle='#ffdb35';
-        ctx.strokeText(tr('brutal'),0,0);
-        ctx.fillText(tr('brutal'),0,0);
+        const titleText=tr(brutalTitleKey||'brutal');
+        ctx.strokeText(titleText,0,0);
+        ctx.fillText(titleText,0,0);
       }
       if(brutalDistance>0){
         ctx.shadowBlur=0;
