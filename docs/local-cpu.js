@@ -1726,9 +1726,13 @@
         this.huntTargetIndex=human.index;
         this.huntStartsAt=this.fxClock+3;
         this.huntUntil=Infinity;
-        const cpuIndices=[];
-        for(const cpu of cpuPlayers){cpu.bullets+=3;cpuIndices.push(cpu.index);}
-        this.emit({t:'hunt',name:human.name,duration:0,graceMs:3000,cpuAmmo:true,cpuAmmoBonus:3,cpuIndices});
+        const cpuIndices=[],cpuAmmoTotals=[];
+        for(const cpu of cpuPlayers){
+          cpu.bullets+=4;
+          cpuIndices.push(cpu.index);
+          cpuAmmoTotals.push([cpu.index,cpu.bullets]);
+        }
+        this.emit({t:'hunt',name:human.name,duration:0,graceMs:3000,cpuAmmo:true,cpuAmmoBonus:4,cpuIndices,cpuAmmoTotals});
       }else if(!shouldHunt&&this.huntThresholdActive){
         this.huntThresholdActive=false;
         this.huntStartsAt=0;
