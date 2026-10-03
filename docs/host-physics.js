@@ -1280,12 +1280,13 @@
         const fireNow=this.resolveFireWithFlare(p,c,dt);
         if(fireNow&&p.bullets>0&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
           const guided=!!p.guided,guidedTarget=guided?p.guidedTarget:-1;
-          // V21.08: la velocidad del misil sigue la mejora de cadencia
-          // de la nave, no el numero de misiles acumulados. Tope fijo en 550.
+          // V21.48: el misil empieza mas lento con cadencia basica y gana
+          // velocidad en cada mejora. La cadencia maxima supera ligeramente
+          // el antiguo tope de 550 sin acercarse a la velocidad de una bala.
           const cadence=Number(p.cadence)||30;
-          const guidedSpeed=cadence>=30?450:(cadence>=10?500:550);
+          const guidedSpeed=cadence>=30?400:(cadence>=20?460:(cadence>=10?520:580));
           const projectileSpeed=guided?guidedSpeed:this.bulletSpeed(p);
-          this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false});
+          this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false,baseSpeed:guided?guidedSpeed:projectileSpeed});
           if(guided){p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1);p.guided=p.guidedAmmo>0;p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;}
           p.bullets--;p.reload=this.reloadTime(p);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
         }
@@ -1383,7 +1384,10 @@
             // salto de velocidad al entrar en la fase de agotamiento.
             let slow=clamp((b.age-3.2)/.8,0,1);
             slow=slow*slow*(3-2*slow);
-            const targetSpeed=500*(1-.55*slow);
+            // V21.48: la frenada final conserva la velocidad propia del misil.
+            // Evita que un misil basico de 400 llegue a acelerarse hacia 500.
+            const launchSpeed=Math.max(1,Number(b.baseSpeed)||currentSpeed);
+            const targetSpeed=launchSpeed*(1-.55*slow);
             const finalSpeed=b.age<3.2?currentSpeed:targetSpeed;
             b.vx=b.vx/corrected*finalSpeed;
             b.vy=b.vy/corrected*finalSpeed;
