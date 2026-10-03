@@ -1755,6 +1755,17 @@
       u.x+=u.vx*dt;u.y+=u.vy*dt;
       if(u.x>-UFO_RADIUS&&u.x<W+UFO_RADIUS&&u.y>-UFO_RADIUS&&u.y<H+UFO_RADIUS)u.entered=true;
 
+      // V21.36 ONLINE: una bengala destruye el OVNI al colisionar con el.
+      // La bengala se consume y el OVNI genera su recompensa habitual.
+      for(let f=this.flares.length-1;f>=0;f--){
+        const flare=this.flares[f];
+        if(!flare||!sweptCircles(u,UFO_RADIUS,flare,FLARE_RADIUS,false))continue;
+        const ownerIndex=Number(flare.owner);
+        this.flares.splice(f,1);
+        this.destroyUfo(ownerIndex);
+        return;
+      }
+
       const bounceFrom=(h,radius,retention=.88)=>{
         if(!h||this.fxClock<Number(u.bounceUntil||0)||!circles(u,UFO_RADIUS,h,radius))return false;
         const n=normalize(u.x-h.x,u.y-h.y);
