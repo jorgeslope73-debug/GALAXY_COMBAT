@@ -2310,7 +2310,9 @@
             this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:b.guided?'sparkle':'impact'});break;
           }
         }
-        if(!remove)for(let p=this.pickups.length-1;p>=0;p--)if(sweptCircles(b,BULLET_RADIUS,this.pickups[p],PICKUP_RADIUS,false)){this.pickups.splice(p,1);remove=true;break;}
+        // V21.50: armas y mejoras flotantes son transparentes a TODOS
+        // los proyectiles. Balas y misiles las atraviesan sin destruirlas ni
+        // desaparecer; solo las naves pueden recoger estos pickups.
         if(remove)this.bullets.splice(i,1);
       }
     }
