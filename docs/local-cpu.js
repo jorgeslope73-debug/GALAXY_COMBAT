@@ -1796,7 +1796,11 @@
         }
         if(fireNow&&p.bullets>0&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
           const guided=!!p.guided,guidedTarget=guided?p.guidedTarget:-1;
-          const projectileSpeed=guided?500:this.bulletSpeed(p);
+          // V21.07: la velocidad del misil depende de las cargas guiadas que
+          // lleva la nave justo antes de disparar. Tope fijo a partir de 4.
+          const guidedCharges=Math.max(0,Math.round(Number(p.guidedAmmo)||0));
+          const guidedSpeed=guidedCharges<=1?450:(guidedCharges>=4?550:500);
+          const projectileSpeed=guided?guidedSpeed:this.bulletSpeed(p);
           this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false});
           if(guided){p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1);p.guided=p.guidedAmmo>0;p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;}
           p.bullets--;p.reload=this.reloadTime(p);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
