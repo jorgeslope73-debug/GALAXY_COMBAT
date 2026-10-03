@@ -1488,10 +1488,13 @@
           let score=Math.sqrt(dist2(cpu,pk));
           if(preferShield&&pk.type==='shield')score-=260;
           if(pk.type==='shockwave'&&!cpu.shockwave)score-=520;
-          if(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)score-=cpu.bullets<=1?390:260;
+          // V21.11: en dificil la MIRA es un recurso ofensivo de mayor valor
+          // que la municion normal. Debe atraer claramente a la CPU salvo
+          // que haya una necesidad defensiva inmediata.
+          if(this.difficulty==='dificil'&&pk.type==='mira'&&!cpu.guided)score-=cpu.bullets<=1?560:430;
           if(pk.type==='flare')score-=210;
-          if(cpu.bullets===0&&pk.type.startsWith('ammo'))score-=320;
-          if(cpu.bullets<=2&&pk.type.startsWith('ammo'))score-=130;
+          if(cpu.bullets===0&&pk.type.startsWith('ammo'))score-=260;
+          if(cpu.bullets<=2&&pk.type.startsWith('ammo'))score-=90;
           const rivalDistance=Math.sqrt(dist2(rival,pk));
           if(cpu.shield<=0&&rivalDistance<420)score+=(420-rivalDistance)*1.2;
           if(score<bestScore){bestScore=score;bestPk=pk;}
