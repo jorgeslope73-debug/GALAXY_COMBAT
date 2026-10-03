@@ -1,4 +1,4 @@
-const VERSION = 'V21.55-shockwave-meteors';
+const VERSION = 'V21.56-shockwave-ufo';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
