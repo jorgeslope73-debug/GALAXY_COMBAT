@@ -1938,6 +1938,15 @@
               }
             }
           }
+          // V21.56: paridad con online. El frente visible de la onda
+          // expansiva destruye tambien el OVNI cuando lo alcanza.
+          if(this.ufo){
+            const ux=this.ufo.x-wave.x,uy=this.ufo.y-wave.y;
+            const ufoDistance=Math.hypot(ux,uy);
+            if(ufoDistance-UFO_RADIUS<=radius&&ufoDistance+UFO_RADIUS>=previous){
+              this.destroyUfo(owner?owner.index:-1);
+            }
+          }
           // V21.55: el aro expansivo destruye los meteoritos pequenos
           // de la lluvia exactamente al cruzar su frente. Mismo comportamiento
           // en local/online y, por tanto, en PC, movil y tablet.
