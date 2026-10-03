@@ -4056,20 +4056,28 @@
     let threat=null,best=Infinity;
     for(const b of state.bullets){
       if(!b)continue;
-      // V21.35: aceptar tanto el snapshot compacto P2P (g/gt/o) como
-      // nombres completos (guided/target/owner). Garantiza el mismo aviso
-      // de misil para el humano online y en el modo contra la maquina.
-      const guided=b.g===true||b.guided===true||b.g===1||b.guided===1;
-      // V21.41: wt es el objetivo explicito del AVISO enviado por el host.
-      // gt/target se conservan como compatibilidad con snapshots anteriores.
-      const rawTarget=b.wt!==undefined?b.wt:(b.gt!==undefined?b.gt:b.target);
-      const targetIndex=Number(rawTarget);
+      const guided=!!(b.g||b.guided);
       const ownerIndex=Number(b.o!==undefined?b.o:b.owner);
-      if(!guided||targetIndex!==Number(myIndex)||ownerIndex===Number(myIndex))continue;
+      if(!guided||ownerIndex===Number(myIndex))continue;
+
       const x=Number(b.x)+(Number(b.vx)||0)*projectileAge;
       const y=Number(b.y)+(Number(b.vy)||0)*projectileAge;
-      const ddx=wrapDelta(x-Number(me.x),W),ddy=wrapDelta(y-Number(me.y),H);
+      const ddx=wrapDelta(Number(me.x)-x,W),ddy=wrapDelta(Number(me.y)-y,H);
       const d=Math.hypot(ddx,ddy);
+      if(!Number.isFinite(d)||d<1)continue;
+
+      // V21.42: primero usamos el objetivo autoritativo del misil.
+      // Si por un snapshot P2P ese dato falta, inferimos persecucion solo cuando
+      // el misil enemigo esta realmente cerrando hacia la nave local.
+      const rawTarget=b.wt!==undefined?b.wt:(b.gt!==undefined?b.gt:b.target);
+      const targetIndex=Number(rawTarget);
+      const explicitTarget=targetIndex===Number(myIndex);
+      const vx=Number(b.vx)||0,vy=Number(b.vy)||0;
+      const speed=Math.hypot(vx,vy);
+      const towardMe=speed>1?((vx*ddx+vy*ddy)/(speed*d)):0;
+      const geometricTarget=targetIndex<0&&d<1500&&towardMe>.82;
+      if(!explicitTarget&&!geometricTarget)continue;
+
       if(d<best){best=d;threat={x,y};}
     }
     if(!threat)return;
@@ -5190,7 +5198,6 @@
       const old=previousLookup.players.get(p.i);
       drawShip(p,old,blend,now);
     }
-    drawIncomingMissileWarning(now,age,blend);
     if(shockwaveFx.length){
       let write=0;
       ctx.save();
@@ -5219,6 +5226,9 @@
     }
     if(impactFX)impactFX.draw(ctx,now);
     drawHud(now);
+    // V21.42: el aviso del misil se pinta por encima del HUD para que nunca
+    // quede oculto por paneles u otros elementos de interfaz.
+    drawIncomingMissileWarning(now,age,blend);
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
     drawPlayNotice(now);
