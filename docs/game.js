@@ -4075,7 +4075,11 @@
       const vx=Number(b.vx)||0,vy=Number(b.vy)||0;
       const speed=Math.hypot(vx,vy);
       const towardMe=speed>1?((vx*ddx+vy*ddy)/(speed*d)):0;
-      const geometricTarget=targetIndex<0&&d<1500&&towardMe>.82;
+      // V21.44: en CONTRA LA MAQUINA el misil puede venir fisicamente hacia
+      // el humano aunque el target del snapshot local llegue desfasado.
+      // En LOCAL aceptamos la trayectoria real como autoridad visual.
+      const localCpuMode=roomCode==='LOCAL'||(state&&state.mode==='cpu');
+      const geometricTarget=d<1500&&towardMe>.76&&(localCpuMode||targetIndex<0);
       if(!explicitTarget&&!geometricTarget)continue;
 
       if(d<best){best=d;threat={x,y};}
@@ -4092,7 +4096,8 @@
     // V21.43: restaurado el indicador clasico alrededor de la nave.
     // La flecha apunta al lugar por donde llega el misil: naranja a distancia
     // y roja, mas grande y con pulso rapido, cuando ya esta cerca.
-    const radius=isMobile?94:80;
+    const localCpuMode=roomCode==='LOCAL'||(state&&state.mode==='cpu');
+    const radius=isMobile?94:(localCpuMode?86:80);
     const ax=clamp(mx+ux*radius,30,W-30);
     const ay=clamp(my+uy*radius,30,H-30);
     const critical=distance<460;
