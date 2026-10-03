@@ -1452,6 +1452,9 @@
             else if(pk.type==='speed')p.speed=Math.min(2,p.speed+.5);
             else if(pk.type==='shield')p.shield=10;
             else if(pk.type==='camo')p.camo=10;
+            // V21.05: evento informativo para feedback local de la recogida.
+            // No altera el efecto del objeto ni la fisica de la simulacion.
+            this.emit({t:'pickup',index:p.index,pickupType:pk.type});
             this.emit({t:'sound',kind:'pickup'});taken=true;break;
           }
         }
