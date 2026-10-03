@@ -218,7 +218,6 @@
   let onlineStartAt=0,onlineGoAt=0,onlineStartEndAt=0,onlineStartTimer=null,onlineStartRankRound=1;
   let onlineStartPending=false,onlineStartGeneration=0,lastRestartedRound=0;
   let onlineReadyRedCache=null,onlineReadyOrangeCache=null,onlineGoCache=null;
-  let weaponTheftFxStart=0,weaponTheftFxUntil=0,weaponTheftIndex=-1;
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[],huntCpuAmmoTotals=new Map();
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
@@ -2990,16 +2989,6 @@
         playNoticeKind='flarehit';
       }
     }
-    else if(m.t==='weapon-theft'){
-      const theftIndex=Math.max(0,Math.min(3,Number(m.index)||0));
-      // El robo sigue siendo un evento de partida, pero el cartel es privado:
-      // solo lo ve en su pantalla el jugador que ha realizado la embestida.
-      if(Number(myIndex)===theftIndex){
-        weaponTheftFxStart=performance.now();
-        weaponTheftFxUntil=weaponTheftFxStart+2000;
-        weaponTheftIndex=theftIndex;
-      }
-    }
     else if(m.t==='hunt'){
       huntFxStart=performance.now();
       huntFxUntil=huntFxStart+Math.max(2200,Number(m.graceMs)||0);
@@ -3026,7 +3015,7 @@
       const restartRound=roomCode==='LOCAL'?localCampaignLevel:Math.max(1,Number(m.rankRound)||(hostPhysics&&hostPhysics.rankRound)||currentMatchBackgroundRound+1);
       if(roomCode!=='LOCAL'&&restartRound<=lastRestartedRound)return;
       if(roomCode!=='LOCAL')lastRestartedRound=restartRound;
-      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';brutalAmmoBonus=0;brutalCadenceMax=false;brutalTitleKey='brutal';playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';lastLocalKillAt=0;lastSavedNoticeAt=0;weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];huntCpuAmmoTotals.clear();invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
+      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';brutalAmmoBonus=0;brutalCadenceMax=false;brutalTitleKey='brutal';playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';lastLocalKillAt=0;lastSavedNoticeAt=0;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];huntCpuAmmoTotals.clear();invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){
       const recoverable=String(m.cause||'')==='host_timeout'&&p2pGameHealthy();
@@ -4330,17 +4319,15 @@
     const shower=!!(state&&Number(state.shower)>0);
     const hunt=!!(huntFxUntil&&now<huntFxUntil&&huntText);
     const brutal=!!(brutalFxUntil&&now<brutalFxUntil);
-    const theft=!!(weaponTheftFxUntil&&now<weaponTheftFxUntil&&weaponTheftIndex>=0);
     const ghost=!!(invisibleNoticeUntil&&now<invisibleNoticeUntil&&invisibleNoticeIndex>=0);
     const special=!!(playNoticeUntil&&now<playNoticeUntil&&playNoticeText);
-    const count=(shower?1:0)+(hunt?1:0)+(brutal?1:0)+(theft?1:0)+(ghost?1:0)+(special?1:0);
+    const count=(shower?1:0)+(hunt?1:0)+(brutal?1:0)+(ghost?1:0)+(special?1:0);
     if(count<=1)return defaultY;
 
     let idx=-1,cursor=0;
     if(shower){if(kind==='shower')idx=cursor;cursor++;}
     if(hunt){if(kind==='hunt')idx=cursor;cursor++;}
     if(brutal){if(kind==='brutal')idx=cursor;cursor++;}
-    if(theft){if(kind==='theft')idx=cursor;cursor++;}
     if(ghost){if(kind==='ghost')idx=cursor;cursor++;}
     if(special){if(kind==='special')idx=cursor;cursor++;}
     if(idx<0)return defaultY;
@@ -4595,45 +4582,6 @@
           ctx.fillText(reward,0,112);
         }
       }
-    }finally{ctx.restore();}
-  }
-
-  function drawWeaponTheftAnnouncement(now){
-    if(!weaponTheftFxUntil||now>=weaponTheftFxUntil||weaponTheftIndex<0)return;
-    const age=now-weaponTheftFxStart,total=2000;
-    const remaining=Math.max(0,total-age);
-    const fadeIn=clamp(age/120,0,1);
-    const fadeOut=clamp(remaining/300,0,1);
-    const alpha=Math.min(fadeIn,fadeOut);
-    const intro=clamp(age/170,0,1);
-    const introEase=1-Math.pow(1-intro,3);
-    const settle=1+Math.sin(Math.min(1,age/520)*Math.PI)*.10;
-    const scale=(.62+.38*introEase)*settle;
-    const color=playerColors[Math.max(0,Math.min(3,Number(weaponTheftIndex)||0))]||'#fff';
-    // V19.58: si coincide con LLUVIA DE METEORITOS, el aviso privado
-    // de robo ocupa una ranura inmediatamente inferior y nunca pisa el titulo.
-    // centerNoticeY sigue resolviendo coincidencias con BRUTAL/A POR/FANTASMA.
-    const showerActive=!!(state&&Number(state.shower)>0);
-    const theftBaseY=showerActive?285:H*.52;
-    const y=centerNoticeY('theft',now,theftBaseY)-Math.min(18,age*.012);
-    ctx.save();
-    try{
-      ctx.translate(W/2,y);
-      ctx.scale(scale,scale);
-      ctx.textAlign='center';
-      ctx.textBaseline='middle';
-      ctx.globalAlpha=alpha*.64;
-      // Usa la tipografia propia del juego y un tamano mas contenido para que
-      // el aviso acompane a la accion sin dominar la pantalla.
-      ctx.font=isMobile?'36px Flashback,Arial':'28px Flashback,Arial';
-      ctx.lineWidth=isMobile?5:4;
-      ctx.strokeStyle='rgba(0,0,0,.68)';
-      ctx.shadowColor=color;
-      ctx.shadowBlur=14*(1-Math.min(1,age/1350));
-      ctx.fillStyle=color;
-      const text=tr('weaponTheft');
-      ctx.strokeText(text,0,0);
-      ctx.fillText(text,0,0);
     }finally{ctx.restore();}
   }
 
@@ -5261,7 +5209,6 @@
     drawHud(now);
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
-    drawWeaponTheftAnnouncement(now);
     drawPlayNotice(now);
     drawPickupNotice(now);
     drawSpecialHelp(now);
