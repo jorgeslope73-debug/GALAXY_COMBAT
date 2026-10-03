@@ -4062,7 +4062,7 @@
 
       const x=Number(b.x)+(Number(b.vx)||0)*projectileAge;
       const y=Number(b.y)+(Number(b.vy)||0)*projectileAge;
-      const ddx=wrapDelta(Number(me.x)-x,W),ddy=wrapDelta(Number(me.y)-y,H);
+      const ddx=wrappedDelta(x,Number(me.x),W),ddy=wrappedDelta(y,Number(me.y),H);
       const d=Math.hypot(ddx,ddy);
       if(!Number.isFinite(d)||d<1)continue;
 
@@ -4090,7 +4090,7 @@
     const mx=old&&!old.dead?lerpWrapped(old.x,me.x,W,blend):Number(me.x);
     const my=old&&!old.dead?lerpWrapped(old.y,me.y,H,blend):Number(me.y);
     // La direccion debe señalar el camino corto en el mundo toroidal.
-    const dx=wrapDelta(threat.x-mx,W),dy=wrapDelta(threat.y-my,H);
+    const dx=wrappedDelta(mx,threat.x,W),dy=wrappedDelta(my,threat.y,H);
     const distance=Math.hypot(dx,dy)||1;
     const ux=dx/distance,uy=dy/distance;
     // V21.43: restaurado el indicador clasico alrededor de la nave.
