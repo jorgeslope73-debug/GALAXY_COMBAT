@@ -724,7 +724,7 @@
     }
     buildLearningDeltas(){
       if(!this.learningEnabled||this.difficulty!=='dificil')return [];
-      const general=[],meteor=[],flare=[],humanGeneral=[],humanMeteor=[];
+      const general=[],shock=[],meteor=[],flare=[],humanGeneral=[],humanMeteor=[];
       const human=this.players.find(p=>!p.cpu);
       for(const cpu of this.players.filter(p=>p.cpu)){
         const won=this.winner===cpu.index;
@@ -733,7 +733,11 @@
         if(human&&this.winner===human.index)reward-=.35;
         reward=clamp(reward,-2,2);
         const map=this.learningByCpu.get(cpu.index);
-        if(map)for(const item of map.values())general.push({context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+reward.toFixed(3)});
+        if(map)for(const item of map.values()){
+          const row={context:item.context,action:item.action,uses:Math.min(4,item.uses),reward:+reward.toFixed(3)};
+          if(String(item.context||'').startsWith('shock-train-'))shock.push(row);
+          else general.push(row);
+        }
         const meteorMap=this.meteorLearningByCpu.get(cpu.index);
         if(meteorMap)for(const item of meteorMap.values()){
           const avg=item.uses?item.total/item.uses:0;
@@ -771,12 +775,13 @@
         }
       }
 
-      // Reparto fijo: el aprendizaje humano complementa al existente y nunca
-      // desplaza por completo lo aprendido por las CPU.
+      // V21.20: las nuevas estrategias de ONDA del entrenamiento autonomo
+      // viajan en un bloque propio. No sustituyen ni borran aprendizaje previo.
       flare.sort((a,b)=>b.uses-a.uses||Math.abs(b.reward)-Math.abs(a.reward));
+      shock.sort((a,b)=>b.uses-a.uses||Math.abs(b.reward)-Math.abs(a.reward));
       return flare.slice(0,6)
-        .concat(humanMeteor.slice(0,4),meteor.slice(0,5),humanGeneral.slice(0,4),general.slice(0,5))
-        .slice(0,24);
+        .concat(shock.slice(0,5),humanMeteor.slice(0,4),meteor.slice(0,5),humanGeneral.slice(0,4),general.slice(0,5))
+        .slice(0,29);
     }
     resetAsteroids(){
       // V19.54: el primer asteroide entra desde un borde y trayectoria aleatorios.
