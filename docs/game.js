@@ -190,7 +190,7 @@
   let onlineStartPending=false,onlineStartGeneration=0,lastRestartedRound=0;
   let onlineReadyRedCache=null,onlineReadyOrangeCache=null,onlineGoCache=null;
   let weaponTheftFxStart=0,weaponTheftFxUntil=0,weaponTheftIndex=-1;
-  let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[];
+  let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[],huntCpuAmmoTotals=new Map();
   let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false,activeLocalDifficulty='';
@@ -2867,6 +2867,14 @@
       huntCpuAmmo=!!m.cpuAmmo;
       huntCpuBonus=Math.max(0,Number(m.cpuAmmoBonus)||0);
       huntCpuIndices=Array.isArray(m.cpuIndices)?m.cpuIndices.map(Number).filter(Number.isFinite):[];
+      huntCpuAmmoTotals.clear();
+      if(Array.isArray(m.cpuAmmoTotals)){
+        for(const pair of m.cpuAmmoTotals){
+          if(!Array.isArray(pair)||pair.length<2)continue;
+          const idx=Number(pair[0]),total=Number(pair[1]);
+          if(Number.isInteger(idx)&&Number.isFinite(total))huntCpuAmmoTotals.set(idx,total);
+        }
+      }
     }
     else if(m.t==='rank-round'){
       if(isHost&&hostPhysics&&Number.isFinite(Number(m.rankRound)))hostPhysics.rankRound=Number(m.rankRound);
@@ -2878,7 +2886,7 @@
       const restartRound=roomCode==='LOCAL'?localCampaignLevel:Math.max(1,Number(m.rankRound)||(hostPhysics&&hostPhysics.rankRound)||currentMatchBackgroundRound+1);
       if(roomCode!=='LOCAL'&&restartRound<=lastRestartedRound)return;
       if(roomCode!=='LOCAL')lastRestartedRound=restartRound;
-      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';lastLocalKillAt=0;lastSavedNoticeAt=0;weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
+      resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';lastLocalKillAt=0;lastSavedNoticeAt=0;weaponTheftFxStart=0;weaponTheftFxUntil=0;weaponTheftIndex=-1;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];huntCpuAmmoTotals.clear();invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){
       const recoverable=String(m.cause||'')==='host_timeout'&&p2pGameHealthy();
@@ -3967,7 +3975,13 @@
       const rightHud=p.i===1||p.i===3;
       const nameX=rightHud?px+panelW-4*hudScale:px+4*hudScale;
       ctx.font=HUD_NAME_FONT;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
-      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=HUD_VALUE_FONT;ctx.fillText(hudAmmoText(p),tx,py+15*hudScale);ctx.fillText(hudSpeedText(p),tx,py+80*hudScale);
+      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=HUD_VALUE_FONT;
+      const immediateAmmo=huntCpuAmmo&&huntCpuAmmoTotals.has(Number(p.i))?huntCpuAmmoTotals.get(Number(p.i)):null;
+      if(immediateAmmo!==null){
+        const cached=hudValueCache[p.i]||hudValueCache[0];
+        if(cached.ammoValue!==immediateAmmo){cached.ammoValue=immediateAmmo;cached.ammoText=String(immediateAmmo);}
+      }
+      ctx.fillText(immediateAmmo!==null?String(immediateAmmo):hudAmmoText(p),tx,py+15*hudScale);ctx.fillText(hudSpeedText(p),tx,py+80*hudScale);
       if(cpuAmmoFlash&&huntCpuBonus>0){
         const age=Math.max(0,now-huntFxStart);
         const t=clamp(age/2200,0,1);
@@ -4434,8 +4448,9 @@
         ctx.lineWidth=6;
         ctx.shadowBlur=18;
         ctx.fillStyle='#ffe64a';
-        ctx.strokeText('BALAS PARA CPU',0,isMobile?58:50);
-        ctx.fillText('BALAS PARA CPU',0,isMobile?58:50);
+        const ammoLabel=(huntCpuBonus>0?('+'+huntCpuBonus+' '):'')+'BALAS PARA CPU';
+        ctx.strokeText(ammoLabel,0,isMobile?58:50);
+        ctx.fillText(ammoLabel,0,isMobile?58:50);
       }
     }finally{ctx.restore();}
   }
