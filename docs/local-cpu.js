@@ -1658,6 +1658,16 @@
       if(!this.started||this.finished)return;
       this.noDeathTime+=dt;this.fxClock+=dt;
       if(Array.isArray(this.activeShockwaves)&&this.activeShockwaves.length){
+        // V21.16: dos jugadores con ONDA activa se neutralizan entre si.
+        // Sus frentes siguen existiendo y pueden afectar a terceros sin onda.
+        let activeShockOwnerMask=0;
+        for(const activeWave of this.activeShockwaves){
+          const activeAge=this.fxClock-Number(activeWave.born||0);
+          if(activeAge>=0&&activeAge<1.35){
+            const oi=Math.max(0,Math.min(3,Number(activeWave.owner)||0));
+            activeShockOwnerMask|=(1<<oi);
+          }
+        }
         let shockWrite=0;
         for(const wave of this.activeShockwaves){
           const age=this.fxClock-Number(wave.born||0);
@@ -1676,7 +1686,10 @@
             if(distance-SHIP_RADIUS<=radius&&distance+SHIP_RADIUS>=previous){
               wave.hitMask=(Number(wave.hitMask)||0)|bit;
               if(owner){
-                if(target.shield>0){
+                const targetHasActiveWave=(activeShockOwnerMask&bit)!==0;
+                if(targetHasActiveWave){
+                  // La onda activa del objetivo anula el dano solo contra el.
+                }else if(target.shield>0){
                   target.shield=0;
                   this.emitShipImpact(target,owner,false);
                   this.emit({t:'sound',kind:'impact'});
