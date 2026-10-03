@@ -692,7 +692,7 @@
         const m=this.meteors[i];
         const dx=m.x-p.x,dy=m.y-p.y;
         if(dx*dx+dy*dy<=initialMeteorReach2){
-          this.emitExplosionAt(m.x,m.y,p.index);
+          this.emitRocketDisintegrateAt(m.x,m.y,p.index);
           this.meteors.splice(i,1);
         }
       }
@@ -1215,9 +1215,9 @@
             const dx=meteor.x-wave.x,dy=meteor.y-wave.y;
             const distance=Math.hypot(dx,dy);
             if(distance-SMALL_METEOR_RADIUS<=radius&&distance+SMALL_METEOR_RADIUS>=previous){
-              // V21.57: el meteorito pequeno no desaparece sin mas: estalla
-              // visualmente justo cuando el frente de la onda lo alcanza.
-              this.emitExplosionAt(meteor.x,meteor.y,owner?owner.index:-1);
+              // V21.58: el meteorito pequeno se desintegra con el mismo efecto
+              // visual que el misil cuando el frente de la onda lo alcanza.
+              this.emitRocketDisintegrateAt(meteor.x,meteor.y,owner?owner.index:-1);
               this.meteors.splice(mi,1);
             }
           }
