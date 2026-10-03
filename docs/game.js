@@ -4051,7 +4051,7 @@
     }
     if(localized)drawLocalizaMarker(x,y,localizedOwner,Math.min(1,alpha*.95));
   }
-  function drawIncomingMissileWarning(now,projectileAge,blend){
+  function drawIncomingMissileWarning(now,projectileAge,blend,part='all'){
     if(!state||!Array.isArray(state.players)||!Array.isArray(state.bullets))return;
     const me=state.players.find(p=>Number(p&&p.i)===Number(myIndex));
     if(!me||me.dead)return;
@@ -4111,29 +4111,32 @@
     const critical=distance<460;
     const veryClose=distance<260;
     const pulse=.5+.5*Math.sin(now*(critical?.024:.014));
-    const scale=(veryClose?1.16:(critical?1.08:.96))*(1+(critical?.08:.04)*pulse);
+    const scale=(veryClose?1.08:(critical?1.02:.90))*(1+(critical?.06:.03)*pulse);
 
-    ctx.save();
-    try{
-      ctx.translate(ax,ay);
-      ctx.rotate(Math.atan2(uy,ux));
-      ctx.scale(scale,scale);
-      ctx.globalAlpha=.82+.18*pulse;
-      ctx.shadowColor=critical?'rgba(255,30,30,.95)':'rgba(255,145,45,.72)';
-      ctx.shadowBlur=critical?12:5;
-      ctx.fillStyle=critical?'#ff241c':'#ff943d';
-      ctx.beginPath();
-      ctx.moveTo(14,0);
-      ctx.lineTo(-8,-8);
-      ctx.lineTo(-4,0);
-      ctx.lineTo(-8,8);
-      ctx.closePath();
-      ctx.fill();
-    }finally{ctx.restore();}
+    if(part!=='label'){
+      ctx.save();
+      try{
+        ctx.translate(ax,ay);
+        ctx.rotate(Math.atan2(uy,ux));
+        ctx.scale(scale,scale);
+        // V21.47: indicador mas discreto y semitransparente.
+        ctx.globalAlpha=critical?.42:.26;
+        ctx.shadowColor=critical?'rgba(255,40,40,.25)':'rgba(255,150,60,.14)';
+        ctx.shadowBlur=critical?5:2;
+        ctx.fillStyle=critical?'#ff3b30':'#ff9b4a';
+        ctx.beginPath();
+        ctx.moveTo(13,0);
+        ctx.lineTo(-7,-7);
+        ctx.lineTo(-3,0);
+        ctx.lineTo(-7,7);
+        ctx.closePath();
+        ctx.fill();
+      }finally{ctx.restore();}
+    }
 
     // El texto es un aviso breve: dura 2 segundos por cada misil nuevo.
     // La flecha sigue visible mientras el misil continue siendo una amenaza.
-    if(now<incomingMissileNoticeUntil){
+    if(part!=='arrow'&&now<incomingMissileNoticeUntil){
       ctx.save();
       try{
         ctx.textAlign='center';ctx.textBaseline='middle';
@@ -5193,6 +5196,10 @@
     // de avance a saltos sin alterar nunca la posicion autoritativa del servidor.
     const age=Math.min(.05,Math.max(0,(now-lastStateTime)/1000));
 
+    // V21.47: la flecha se pinta ANTES del combate para que misiles,
+    // disparos, particulas y naves queden visualmente por encima.
+    drawIncomingMissileWarning(now,age,blend,'arrow');
+
     // V20.4: el cohete mantiene su fisica/red intactas. Solo generamos aqui
     // sus particulas visuales locales usando datos que ya estaban en el estado.
     updateRocketLocalFx(now,state.bullets,age);
@@ -5247,9 +5254,8 @@
     }
     if(impactFX)impactFX.draw(ctx,now);
     drawHud(now);
-    // V21.42: el aviso del misil se pinta por encima del HUD para que nunca
-    // quede oculto por paneles u otros elementos de interfaz.
-    drawIncomingMissileWarning(now,age,blend);
+    // V21.47: solo el texto de 2 s queda en la capa de interfaz.
+    drawIncomingMissileWarning(now,age,blend,'label');
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
     drawPlayNotice(now);
