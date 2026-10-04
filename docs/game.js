@@ -976,7 +976,7 @@
     bg04:isMobile?'assets/sprites/fondo04_1280.jpg':'assets/sprites/fondo04.jpg',
     bg05:isMobile?'assets/sprites/fondo05_1280.jpg':'assets/sprites/fondo05.jpg',
     giant:'assets/sprites/asteroidegrande_270.png',
-    ufo:'assets/sprites/ovni.png',
+    ufo:'assets/sprites/ovni.png?v=V21.60',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',pantC:'assets/sprites/pantC.png',pantD:'assets/sprites/pantD.png',
     ammo1:'assets/sprites/municion1.png',ammo3:'assets/sprites/municion3.png',cadence:'assets/sprites/cadencia.png',speed:'assets/sprites/velocidad.png',
     bengala:'assets/sprites/bengala.png',bengalahud:'assets/sprites/bengalahud.png',bengalasnave:'assets/sprites/bengalasnave.png',ojo:'assets/sprites/ojo.png',
