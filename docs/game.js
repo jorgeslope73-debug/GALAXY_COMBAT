@@ -226,6 +226,9 @@
   let onlineReadyRedCache=null,onlineReadyOrangeCache=null,onlineGoCache=null;
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[],huntCpuAmmoTotals=new Map();
   let pendingVictoryIndex=null,victoryShowTimer=null;
+  // V21.64: victorias acumuladas mientras el jugador permanezca en la misma
+  // sesion online. Se reinician solo al volver al menu principal.
+  const onlineSessionWins=new Map();
   let publicRooms=[];
   let localCpu=null,localCpuActive=false,activeLocalDifficulty='';
   // V20.92: CONTRA LA MAQUINA pasa a ser una campana de cinco niveles.
@@ -3346,6 +3349,54 @@
       showVictory(winnerIndex);
     },delay);
   }
+  function onlineSessionPlayerKey(p){
+    const idx=Number(p&&p.i);
+    const name=sinTildes(String(p&&p.n||('JUGADOR '+(Number.isInteger(idx)?idx+1:'?')))).trim().toUpperCase();
+    return String(Number.isInteger(idx)?idx:-1)+'|'+name;
+  }
+  function currentVictoryRoster(){
+    const roster=Array.isArray(lobbyPlayers)&&lobbyPlayers.length?lobbyPlayers:
+      (state&&Array.isArray(state.players)?state.players:[]);
+    return roster
+      .filter(p=>Number.isInteger(Number(p&&p.i))&&Number(p.i)>=0&&Number(p.i)<4)
+      .map(p=>({i:Number(p.i),n:String(p.n||('JUGADOR '+(Number(p.i)+1))),cpu:!!p.cpu}));
+  }
+  function addOnlineSessionWin(winnerIndex){
+    const winner=currentVictoryRoster().find(p=>p.i===Number(winnerIndex));
+    if(!winner)return;
+    const key=onlineSessionPlayerKey(winner);
+    onlineSessionWins.set(key,(Number(onlineSessionWins.get(key))||0)+1);
+  }
+  function renderOnlineSessionRanking(){
+    const box=document.getElementById('sessionRanking');
+    const list=document.getElementById('sessionRankingList');
+    if(!box||!list)return;
+    if(roomCode==='LOCAL'||localCpuActive){
+      box.classList.add('hidden');
+      list.innerHTML='';
+      return;
+    }
+    const rows=currentVictoryRoster().map(p=>({
+      ...p,
+      wins:Number(onlineSessionWins.get(onlineSessionPlayerKey(p)))||0
+    })).sort((a,b)=>(b.wins-a.wins)||(a.i-b.i));
+    if(!rows.length){
+      box.classList.add('hidden');
+      list.innerHTML='';
+      return;
+    }
+    list.innerHTML=rows.map((p,pos)=>{
+      const color=playerColors[p.i]||'#fff';
+      const winsLabel=p.wins===1?tr('gameWon'):tr('gamesWon');
+      const place=pos===0?'<span class="cup" aria-hidden="true">🏆</span>':'<span>'+(pos+1)+'</span>';
+      return '<div class="session-ranking-row'+(pos===0?' is-leader':'')+'">'+
+        '<div class="session-ranking-position">'+place+'</div>'+
+        '<div class="session-ranking-name" style="color:'+color+'">'+escapeHtml(sinTildes(p.n))+(p.cpu?' · CPU':'')+'</div>'+
+        '<div class="session-ranking-wins">'+p.wins+' '+escapeHtml(winsLabel)+'</div>'+
+      '</div>';
+    }).join('');
+    box.classList.remove('hidden');
+  }
   function showVictory(i){
     if(!inGame)return;
     inGame=false;leaderAnnouncement=null;
@@ -3390,6 +3441,14 @@
         restartBtn.disabled=false;
         restartBtn.textContent=tr('rematch');
       }
+    }
+
+    if(!localCampaign){
+      addOnlineSessionWin(i);
+      renderOnlineSessionRanking();
+    }else{
+      const sessionRanking=document.getElementById('sessionRanking');
+      if(sessionRanking)sessionRanking.classList.add('hidden');
     }
 
     victory.style.setProperty('--winner-color',playerColors[Number(i)]||'#d8a7ff');
@@ -3509,6 +3568,11 @@
     cancelInterstellarTravel();
     resetGameFeelVisuals();
     resetOnlineStartCountdown();
+    onlineSessionWins.clear();
+    const sessionRanking=document.getElementById('sessionRanking');
+    const sessionRankingList=document.getElementById('sessionRankingList');
+    if(sessionRanking)sessionRanking.classList.add('hidden');
+    if(sessionRankingList)sessionRankingList.innerHTML='';
     if(!sharedRoomCode)sharedRoomJoinStarted=false;
     invisibleHudUntil.fill(0);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
