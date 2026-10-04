@@ -2707,13 +2707,15 @@
 
         let target=null,best=Infinity;
         for(const p of this.players){
-          if(!p||p.dead||p.cpu)continue;
+          // V21.63 CPU: el OVNI no detecta jugadores en modo FANTASMA.
+          // Mientras camo > 0 no los selecciona, persigue ni carga contra ellos.
+          if(!p||p.dead||p.cpu||Number(p.camo)>0)continue;
           const d2=dist2(u,p);
           if(d2<best){best=d2;target=p;}
         }
         if(!target){
           for(const p of this.players){
-            if(!p||p.dead)continue;
+            if(!p||p.dead||Number(p.camo)>0)continue;
             const d2=dist2(u,p);
             if(d2<best){best=d2;target=p;}
           }
