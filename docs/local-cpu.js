@@ -147,6 +147,17 @@
       this.meteors=[];
       this.giant=null;
       this.ufo=null;
+      // V21.61: la campaña CPU puede tener hasta tres OVNIs simultáneos.
+      // this.ufo conserva el principal para no tocar la física compartida;
+      // los demás viven en ufoExtras.
+      this.ufoExtras=[];
+      this.ufoWaveRemaining=0;
+      this.ufoWaveNext=0;
+      this.ufoWaveSwarm=false;
+      this.ufoWaveSide=-1;
+      this.ufoWaveAnchor=.5;
+      this.ufoWaveSpawned=0;
+      this.ufoWaveTotal=0;
       this.asteroids=[];
       this.nextPickup=1;
       this.firstShower=rand(150,210);
@@ -155,7 +166,7 @@
       this.nextShower=0;
       this.noDeathTime=0;
       this.nextGiant=rand(50,80);
-      this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
+      this.nextUfo=this.ufoLimit()>0?rand(UFO_FIRST_MIN,UFO_FIRST_MAX):999999;
       this.lastNow=0;
       this.accumulator=0;
       this.tickCount=0;
@@ -977,10 +988,10 @@
       this.players=[];
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
-      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.activeShockwaves=[];
+      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.ufoExtras=[];this.ufoWaveRemaining=0;this.ufoWaveNext=0;this.ufoWaveSwarm=false;this.ufoWaveSide=-1;this.ufoWaveAnchor=.5;this.ufoWaveSpawned=0;this.ufoWaveTotal=0;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
+      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);this.nextUfo=this.ufoLimit()>0?rand(UFO_FIRST_MIN,UFO_FIRST_MAX):999999;
       this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       const human=this.makePlayer(0,name,false);
@@ -1029,10 +1040,10 @@
       this.players=[];
       this.controls.clear();
       this.seq=0;this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
-      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.activeShockwaves=[];
+      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.ufoExtras=[];this.ufoWaveRemaining=0;this.ufoWaveNext=0;this.ufoWaveSwarm=false;this.ufoWaveSide=-1;this.ufoWaveAnchor=.5;this.ufoWaveSpawned=0;this.ufoWaveTotal=0;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(50,80);this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
+      this.noDeathTime=0;this.nextGiant=rand(50,80);this.nextUfo=this.ufoLimit()>0?rand(UFO_FIRST_MIN,UFO_FIRST_MAX):999999;
       this.resetAsteroids();
       for(let i=0;i<4;i++){
         const cpu=this.makePlayer(i,'CPU '+(i+1),true);
@@ -1109,10 +1120,10 @@
       this.humanLearning.clear();this.humanMeteorLearning.clear();this.humanMeteorDecision=null;this.nextHumanObserve=0;
       this.learningSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
-      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.activeShockwaves=[];
+      this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.ufoExtras=[];this.ufoWaveRemaining=0;this.ufoWaveNext=0;this.ufoWaveSwarm=false;this.ufoWaveSide=-1;this.ufoWaveAnchor=.5;this.ufoWaveSpawned=0;this.ufoWaveTotal=0;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);this.nextUfo=rand(UFO_FIRST_MIN,UFO_FIRST_MAX);
+      this.noDeathTime=0;this.nextGiant=rand(hazard.giantFirstMin,hazard.giantFirstMax);this.nextUfo=this.ufoLimit()>0?rand(UFO_FIRST_MIN,UFO_FIRST_MAX):999999;
       this.huntTargetIndex=0;this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
@@ -1941,13 +1952,22 @@
               }
             }
           }
-          // V21.56: paridad con online. El frente visible de la onda
-          // expansiva destruye tambien el OVNI cuando lo alcanza.
+          // V21.61: en campaña CPU la onda comprueba los tres OVNIs
+          // posibles. Los extras se revisan primero para que, si cae el principal,
+          // su relevo ya haya sido evaluado en este mismo frente expansivo.
+          for(let ui=this.ufoExtras.length-1;ui>=0;ui--){
+            const extra=this.ufoExtras[ui];
+            const ux=extra.x-wave.x,uy=extra.y-wave.y;
+            const ufoDistance=Math.hypot(ux,uy);
+            if(ufoDistance-UFO_RADIUS<=radius&&ufoDistance+UFO_RADIUS>=previous){
+              this.destroyUfo(owner?owner.index:-1,extra);
+            }
+          }
           if(this.ufo){
             const ux=this.ufo.x-wave.x,uy=this.ufo.y-wave.y;
             const ufoDistance=Math.hypot(ux,uy);
             if(ufoDistance-UFO_RADIUS<=radius&&ufoDistance+UFO_RADIUS>=previous){
-              this.destroyUfo(owner?owner.index:-1);
+              this.destroyUfo(owner?owner.index:-1,this.ufo);
             }
           }
           // V21.55: el aro expansivo destruye los meteoritos pequenos
@@ -2087,7 +2107,7 @@
           p.bullets--;p.reload=this.reloadTime(p);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
         }
       }
-      this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
+      this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updateExtraUfoProjectileHits();this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
     }
     reloadTime(p){
       const base=Math.max(.5,p.cadence/8);
@@ -2512,25 +2532,102 @@
         this.nextGiant=this.trainingMode?rand(130,190):rand(profile.giantRepeatMin,profile.giantRepeatMax);
       }
     }
-    spawnUfo(){
-      if(this.ufo)return false;
-      const side=randint(0,3),margin=90;
+    ufoLimit(){
+      if(this.trainingMode)return 0;
+      const level=clamp(Math.round(Number(this.campaignLevel)||1),1,CAMPAIGN_LEVELS);
+      // Nivel 1: 0 · nivel 2: 1 · nivel 3: 2 · niveles 4/5: 3.
+      return clamp(level-1,0,3);
+    }
+    ufoActiveCount(){return (this.ufo?1:0)+this.ufoExtras.length;}
+    isUfoActive(u){return !!u&&(this.ufo===u||this.ufoExtras.includes(u));}
+    removeUfo(u){
+      if(!u)return false;
+      if(this.ufo===u){
+        this.ufo=this.ufoExtras.length?this.ufoExtras.shift():null;
+        return true;
+      }
+      const index=this.ufoExtras.indexOf(u);
+      if(index<0)return false;
+      this.ufoExtras.splice(index,1);
+      return true;
+    }
+    beginUfoWave(){
+      const count=this.ufoLimit();
+      if(count<=0){this.nextUfo=999999;return false;}
+      this.ufoWaveTotal=count;
+      this.ufoWaveRemaining=count;
+      this.ufoWaveSpawned=0;
+      // Aproximadamente la mitad de las oleadas llegan casi juntas como enjambre.
+      this.ufoWaveSwarm=Math.random()<.5;
+      this.ufoWaveSide=randint(0,3);
+      this.ufoWaveAnchor=rand(.30,.70);
+      this.ufoWaveNext=0;
+      this.nextUfo=999999;
+      return true;
+    }
+    spawnUfo(options={}){
+      const limit=this.ufoLimit();
+      if(limit<=0||this.ufoActiveCount()>=limit)return false;
+      const swarm=!!options.swarm;
+      const side=Number.isInteger(options.side)&&options.side>=0&&options.side<=3?options.side:randint(0,3);
+      const anchor=clamp(Number(options.anchor)||.5,.2,.8);
+      const slot=Math.max(0,Number(options.slot)||0);
+      const count=Math.max(1,Number(options.count)||1);
+      const margin=90;
+      const offset=(slot-(count-1)*.5)*68+rand(-14,14);
       let x,y,tx,ty;
-      if(side===0){x=-margin;y=rand(140,H-140);tx=W*.42;ty=clamp(y+rand(-220,220),140,H-140);}
-      else if(side===1){x=W+margin;y=rand(140,H-140);tx=W*.58;ty=clamp(y+rand(-220,220),140,H-140);}
-      else if(side===2){x=rand(180,W-180);y=-margin;tx=clamp(x+rand(-320,320),180,W-180);ty=H*.42;}
-      else{x=rand(180,W-180);y=H+margin;tx=clamp(x+rand(-320,320),180,W-180);ty=H*.58;}
+      if(side===0){
+        x=-margin;
+        y=swarm?clamp(H*anchor+offset,120,H-120):rand(140,H-140);
+        tx=W*.42;ty=clamp(y+rand(-180,180),140,H-140);
+      }else if(side===1){
+        x=W+margin;
+        y=swarm?clamp(H*anchor+offset,120,H-120):rand(140,H-140);
+        tx=W*.58;ty=clamp(y+rand(-180,180),140,H-140);
+      }else if(side===2){
+        y=-margin;
+        x=swarm?clamp(W*anchor+offset,150,W-150):rand(180,W-180);
+        tx=clamp(x+rand(-260,260),180,W-180);ty=H*.42;
+      }else{
+        y=H+margin;
+        x=swarm?clamp(W*anchor+offset,150,W-150):rand(180,W-180);
+        tx=clamp(x+rand(-260,260),180,W-180);ty=H*.58;
+      }
       const n=normalize(tx-x,ty-y);
-      this.ufo={
+      const u={
         id:uid(),x,y,px:x,py:y,vx:n.x*145,vy:n.y*145,r:UFO_RADIUS,hp:UFO_HP,
         born:this.fxClock,entered:false,exiting:false,nextSteer:this.fxClock,
         chargeAt:this.fxClock+rand(4.5,8),chargeUntil:0,bounceUntil:0
       };
+      if(!this.ufo)this.ufo=u;
+      else this.ufoExtras.push(u);
       return true;
     }
-    destroyUfo(ownerIndex=-1){
-      const u=this.ufo;
-      if(!u)return false;
+    spawnNextUfoWaveMember(){
+      if(this.ufoWaveRemaining<=0)return false;
+      const total=Math.max(1,this.ufoWaveTotal||this.ufoLimit());
+      const slot=this.ufoWaveSpawned;
+      const ok=this.spawnUfo(this.ufoWaveSwarm?{
+        swarm:true,side:this.ufoWaveSide,anchor:this.ufoWaveAnchor,slot,count:total
+      }:{swarm:false});
+      if(!ok){
+        this.ufoWaveNext=.5;
+        return false;
+      }
+      this.ufoWaveSpawned++;
+      this.ufoWaveRemaining--;
+      if(this.ufoWaveRemaining>0){
+        // Enjambre: décimas de segundo. Separados: varios segundos y lados distintos.
+        this.ufoWaveNext=this.ufoWaveSwarm?rand(.22,.55):rand(3.5,7.5);
+      }else{
+        this.ufoWaveNext=0;
+        this.nextUfo=rand(UFO_REPEAT_MIN,UFO_REPEAT_MAX);
+      }
+      return true;
+    }
+    destroyUfo(ownerIndex=-1,target=this.ufo){
+      const u=target;
+      if(!u||!this.isUfoActive(u))return false;
       const owner=Number.isInteger(ownerIndex)&&ownerIndex>=0&&ownerIndex<4?ownerIndex:0;
       this.emitExplosionAt(u.x,u.y,owner);
       this.emit({t:'sound',kind:'impact'});
@@ -2542,20 +2639,65 @@
         phase:rand(0,Math.PI*2)
       });
       if(this.pickups.length>5)this.pickups.shift();
-      this.ufo=null;
-      this.nextUfo=rand(UFO_REPEAT_MIN,UFO_REPEAT_MAX);
+      this.removeUfo(u);
       return true;
     }
+    updateExtraUfoProjectileHits(){
+      if(!this.ufoExtras.length||!this.bullets.length)return;
+      // El OVNI principal sigue usando updateBullets(), idéntico al host online.
+      // Aquí solo añadimos las colisiones de los dos OVNIs extra de campaña.
+      for(let bi=this.bullets.length-1;bi>=0;bi--){
+        const b=this.bullets[bi];
+        if(!b)continue;
+        let hit=null;
+        for(let ui=this.ufoExtras.length-1;ui>=0;ui--){
+          const u=this.ufoExtras[ui];
+          if(u&&sweptCircles(b,BULLET_RADIUS,u,UFO_RADIUS,false)){hit=u;break;}
+        }
+        if(!hit)continue;
+        hit.hp=Math.max(0,(Number(hit.hp)||UFO_HP)-(b.guided?2:1));
+        if(b.guided){
+          this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
+          this.emit({t:'sound',kind:'sparkle'});
+        }else{
+          this.emit({t:'sound',kind:'impact'});
+        }
+        if(hit.hp<=0)this.destroyUfo(Number(b.owner),hit);
+        this.bullets.splice(bi,1);
+      }
+    }
     updateUfo(dt){
-      // El entrenamiento autonomo no incorpora el OVNI para no contaminar
-      // las metricas de aprendizaje ni gastar simulacion extra.
-      if(this.trainingMode)return;
-      if(!this.ufo){
-        this.nextUfo-=dt;
-        if(this.nextUfo<=0)this.spawnUfo();
+      // El entrenamiento autónomo no incorpora OVNIs para no contaminar
+      // las métricas de aprendizaje ni gastar simulación extra.
+      const limit=this.ufoLimit();
+      if(limit<=0){
+        this.ufo=null;this.ufoExtras.length=0;
+        this.ufoWaveRemaining=0;this.ufoWaveNext=0;this.nextUfo=999999;
         return;
       }
-      const u=this.ufo;
+
+      // Planificador de oleadas. La física de cada OVNI sigue siendo la misma;
+      // solo cambia cuántos entran en función del nivel de campaña.
+      if(this.ufoWaveRemaining>0){
+        this.ufoWaveNext-=dt;
+        if(this.ufoWaveNext<=0)this.spawnNextUfoWaveMember();
+      }else{
+        this.nextUfo-=dt;
+        if(this.nextUfo<=0){
+          this.beginUfoWave();
+          this.spawnNextUfoWaveMember();
+        }
+      }
+
+      const active=[];
+      if(this.ufo)active.push(this.ufo);
+      for(const extra of this.ufoExtras)active.push(extra);
+      for(const u of active){
+        if(this.isUfoActive(u))this.updateSingleUfo(u,dt);
+      }
+    }
+    updateSingleUfo(u,dt){
+      if(!u)return false;
       u.px=u.x;u.py=u.y;
       const age=this.fxClock-Number(u.born||0);
       if(age>24)u.exiting=true;
@@ -2599,8 +2741,8 @@
           }
         }
 
-        // IA ligera: cada 120 ms suma un vector de evitacion. Maximo 5
-        // asteroides normales y solo una pasada por meteoritos/giant.
+        // IA ligera: mantiene la evitación existente y suma una separación
+        // suave entre OVNIs para que un enjambre no se dibuje uno encima de otro.
         let avoidX=0,avoidY=0;
         const avoid=(h,radius,extra,weight)=>{
           if(!h)return;
@@ -2613,6 +2755,8 @@
         for(const a of this.asteroids)avoid(a,Number(a.r)||ASTEROID_RADIUS,125,3.2);
         for(const m of this.meteors)avoid(m,SMALL_METEOR_RADIUS,85,2.2);
         if(this.giant)avoid(this.giant,GIANT_RADIUS,170,4.5);
+        if(this.ufo&&this.ufo!==u)avoid(this.ufo,UFO_RADIUS,36,1.25);
+        for(const other of this.ufoExtras)if(other!==u)avoid(other,UFO_RADIUS,36,1.25);
 
         if(u.entered){
           if(u.x<100)avoidX+=2.5;else if(u.x>W-100)avoidX-=2.5;
@@ -2629,15 +2773,13 @@
       u.x+=u.vx*dt;u.y+=u.vy*dt;
       if(u.x>-UFO_RADIUS&&u.x<W+UFO_RADIUS&&u.y>-UFO_RADIUS&&u.y<H+UFO_RADIUS)u.entered=true;
 
-      // V21.53: paridad con online. Una bengala destruye el OVNI,
-      // consume la bengala y mantiene la recompensa habitual del OVNI.
       for(let f=this.flares.length-1;f>=0;f--){
         const flare=this.flares[f];
         if(!flare||!sweptCircles(u,UFO_RADIUS,flare,FLARE_RADIUS,false))continue;
         const ownerIndex=Number(flare.owner);
         this.flares.splice(f,1);
-        this.destroyUfo(ownerIndex);
-        return;
+        this.destroyUfo(ownerIndex,u);
+        return false;
       }
 
       const bounceFrom=(h,radius,retention=.88)=>{
@@ -2663,11 +2805,8 @@
       }
       if(this.giant)bounceFrom(this.giant,GIANT_RADIUS,.82);
 
-      // La embestida es peligrosa para la nave, pero el OVNI rebota y sigue.
+      // La embestida mantiene la regla actual: puede matar, pero el OVNI rebota.
       for(const p of this.players){
-        // V21.28: para una embestida letal exigimos solape real en este tick.
-        // A 60 Hz el OVNI no atraviesa una nave; evita muertes entre snapshots
-        // que visualmente puedan parecer que no llegaron a tocarse.
         if(!p||p.dead||!circles(u,UFO_RADIUS,p,SHIP_RADIUS))continue;
         if(p.shield>0||p.protection>0){
           this.emitShipImpact(p,u,false);
@@ -2683,9 +2822,10 @@
       }
 
       if(u.entered&&u.exiting&&(u.x<-160||u.x>W+160||u.y<-160||u.y>H+160)){
-        this.ufo=null;
-        this.nextUfo=rand(UFO_REPEAT_MIN,UFO_REPEAT_MAX);
+        this.removeUfo(u);
+        return false;
       }
+      return true;
     }
     shipCollisions(){
       for(const p of this.players){
@@ -2741,6 +2881,13 @@
       }
     }
     publicState(){
+      const ufoStates=[];
+      if(this.ufo)ufoStates.push(this.ufo);
+      for(const extra of this.ufoExtras)ufoStates.push(extra);
+      const serializedUfos=ufoStates.map(u=>({
+        id:u.id,x:round1(u.x),y:round1(u.y),vx:round1(u.vx),vy:round1(u.vy),
+        hp:Math.max(0,Math.round(Number(u.hp)||0))
+      }));
       return{
         t:'state',seq:++this.seq,code:'LOCAL',mode:'cpu',started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
@@ -2752,7 +2899,8 @@
         pickups:this.pickups.map((p,idx)=>({id:p.id,type:p.type,x:round1(p.x),y:round1(p.y+Math.cos(p.phase)*3),expiresIn:(idx===0&&this.pickups.length>=5)?round2(Math.max(0,this.nextPickup)):null})),
         meteors:this.meteors.map(m=>({id:m.id,type:m.type,x:round1(m.x),y:round1(m.y),a:round1(m.angle)})),
         giant:this.giant?{x:round1(this.giant.x),y:round1(this.giant.y)}:null,
-        ufo:this.ufo?{id:this.ufo.id,x:round1(this.ufo.x),y:round1(this.ufo.y),vx:round1(this.ufo.vx),vy:round1(this.ufo.vy),hp:Math.max(0,Math.round(Number(this.ufo.hp)||0))}:null,
+        ufo:serializedUfos[0]||null,
+        ufos:serializedUfos,
         shower:round2(this.showerLeft),
         nextShower:this.showerLeft>0?0:round1(Math.max(0,Math.min(this.firstShower,this.nextShower||999999)))
       };
