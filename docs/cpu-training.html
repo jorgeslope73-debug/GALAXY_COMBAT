@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Galaxy Combat · Entrenamiento CPU</title>
 <script src="config.js"></script>
-<script src="local-cpu.js?v=V21.26"></script>
+<script src="local-cpu.js?v=V21.66"></script>
 <style>
 :root{color-scheme:dark;--bg:#060813;--panel:#101526;--line:#283451;--text:#eef6ff;--muted:#92a4bf;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#16243e 0,#070914 42%,#03050a 100%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
@@ -54,6 +54,17 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
         <button id="allTrainingToggle" class="control-master" type="button">PARAR TODO</button>
         <span id="learningControlStatus" class="muted">—</span>
       </div>
+    </section>
+
+    <section class="panel">
+      <div class="label" style="margin-bottom:9px">Copia de seguridad del aprendizaje</div>
+      <div class="controls">
+        <button id="downloadBrainBackup" class="control-master" type="button">DESCARGAR BACKUP</button>
+        <button id="restoreBrainBackup" type="button">RESTAURAR BACKUP</button>
+        <input id="brainBackupFile" class="hidden" type="file" accept=".json,application/json">
+        <span id="brainBackupStatus" class="muted">Guarda y restaura el Brain completo directamente en Neon.</span>
+      </div>
+      <p class="muted" style="margin:9px 0 0;font-size:12px">La restauración requiere doble confirmación. Antes de reemplazar el Brain, el servidor devuelve una copia de seguridad automática del estado anterior.</p>
     </section>
 
     <section class="panel">
@@ -120,6 +131,58 @@ async function json(path,options={}){
   let d={};try{d=await r.json()}catch(_){}
   if(!r.ok){const e=new Error(d.message||d.code||('HTTP '+r.status));e.code=d.code;throw e}
   return d;
+}
+function backupFileName(prefix='GALAXY_COMBAT_CPU_BRAIN'){
+  const d=new Date(),pad=n=>String(n).padStart(2,'0');
+  return prefix+'_'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+'-'+pad(d.getMinutes())+'-'+pad(d.getSeconds())+'.json';
+}
+function downloadJsonFile(data,name){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function downloadBrainBackup(){
+  const status=$('brainBackupStatus');
+  status.textContent='PREPARANDO BACKUP…';
+  try{
+    const data=await json('/api/cpu-training/brain-backup');
+    downloadJsonFile(data,backupFileName());
+    status.textContent='BACKUP DESCARGADO';
+    status.className='ok';
+    log('Backup completo del aprendizaje descargado.');
+  }catch(e){
+    status.textContent='ERROR AL DESCARGAR';
+    status.className='bad';
+    log('ERROR descargando backup: '+e.message);
+  }
+}
+async function restoreBrainBackupFile(file){
+  const status=$('brainBackupStatus');
+  let backup;
+  try{backup=JSON.parse(await file.text())}catch(_){status.textContent='ARCHIVO JSON NO VALIDO';status.className='bad';return}
+  if(!backup||backup.format!=='galaxy-combat-cpu-brain-backup'||Number(backup.formatVersion)!==1){
+    status.textContent='NO ES UN BACKUP DE GALAXY COMBAT';status.className='bad';return;
+  }
+  const version=Number(backup.brain&&backup.brain.version)||'?';
+  if(!confirm('Vas a restaurar el Brain V'+version+' y reemplazar el aprendizaje actual de Neon. ¿Continuar?'))return;
+  if(!confirm('ULTIMA CONFIRMACION: se reemplazara el aprendizaje actual. ¿RESTAURAR AHORA?'))return;
+  status.textContent='RESTAURANDO EN NEON…';status.className='muted';
+  try{
+    const d=await json('/api/cpu-training/brain-restore',{method:'POST',body:JSON.stringify(backup)});
+    if(d.safetyBackup)downloadJsonFile(d.safetyBackup,backupFileName('ANTES_DE_RESTAURAR_CPU_BRAIN'));
+    status.textContent='RESTAURADO · BRAIN V'+(d.version||version);
+    status.className='ok';
+    $('brainVersion').textContent=d.version||version;
+    $('totalMatches').textContent=d.trainingMatches||0;
+    if(d.safetyBackup)log('Copia automática del estado anterior descargada.');
+    log('Backup restaurado directamente en Neon · Brain V'+(d.version||version)+'.');
+    const fresh=await json('/api/cpu-brain');
+    if(sim)sim.brain=fresh.brain||sim.brain;
+  }catch(e){
+    status.textContent='ERROR AL RESTAURAR';status.className='bad';
+    log('ERROR restaurando backup: '+e.message);
+  }
 }
 function applyLearningControl(control){
   const c=control&&typeof control==='object'?control:{};
@@ -252,6 +315,9 @@ function frame(now){
   }else if(now-lastPaint>120){draw();lastPaint=now}
   requestAnimationFrame(frame);
 }
+$('downloadBrainBackup').addEventListener('click',downloadBrainBackup);
+$('restoreBrainBackup').addEventListener('click',()=>{$('brainBackupFile').value='';$('brainBackupFile').click();});
+$('brainBackupFile').addEventListener('change',e=>{const file=e.target.files&&e.target.files[0];if(file)restoreBrainBackupFile(file);});
 $('pause').addEventListener('click',()=>{
   if(!autoTrainingEnabled)return;
   manualPaused=!manualPaused;
