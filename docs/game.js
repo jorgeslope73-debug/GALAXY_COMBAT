@@ -2944,6 +2944,22 @@
         }
       }
       updateLeaderAnnouncement(m,now);
+
+      // V21.65: aviso de OVNI exclusivamente local. Cada cliente lo deduce del
+      // primer snapshot en el que aparece un OVNI; no se envia ningun evento por red.
+      if(roomCode!=='LOCAL'){
+        const oldUfos=state?(Array.isArray(state.ufos)?state.ufos:(state.ufo?[state.ufo]:[])):[];
+        const newUfos=Array.isArray(m.ufos)?m.ufos:(m.ufo?[m.ufo]:[]);
+        const oldIds=new Set(oldUfos.filter(Boolean).map(u=>String(u.id)));
+        const appeared=newUfos.some(u=>u&&u.id!=null&&!oldIds.has(String(u.id)));
+        if(appeared){
+          playNoticeStart=now;
+          playNoticeUntil=now+2200;
+          playNoticeText=tr('ufoIdentifiedNotice');
+          playNoticeKind='ufo';
+        }
+      }
+
       const oldLocal=state&&Array.isArray(state.players)?state.players.find(p=>p.i===myIndex):null;
       const newLocal=Array.isArray(m.players)?m.players.find(p=>p.i===myIndex):null;
       if(Array.isArray(m.players)){
