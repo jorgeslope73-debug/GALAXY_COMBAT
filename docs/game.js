@@ -103,7 +103,7 @@
   // los controles a 30 Hz; interpolacion/extrapolacion mantienen la fluidez.
   const NET_FRAME_MS=1000/20;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),flares:new Map(),meteors:new Map(),ufo:new Map()};
-  let ufoVisualAngle=null,ufoVisualAt=0,ufoVisualId=null;
+  // V21.61: la rotacion de OVNIs se calcula directamente por id/tiempo.
   // V20.98 GAME FEEL: todo este estado es exclusivamente local de render.
   // No modifica snapshots, fisica, colisiones, IA ni red.
   const pickupVisualBorn=new Map();
@@ -2377,7 +2377,8 @@
     for(const p of snapshot.pickups||[])previousLookup.pickups.set(p.id,p);
     for(const f of snapshot.flares||[])previousLookup.flares.set(f.id,f);
     for(const m of snapshot.meteors||[])previousLookup.meteors.set(m.id,m);
-    if(snapshot.ufo&&snapshot.ufo.id!=null)previousLookup.ufo.set(snapshot.ufo.id,snapshot.ufo);
+    const snapshotUfos=Array.isArray(snapshot.ufos)?snapshot.ufos:(snapshot.ufo?[snapshot.ufo]:[]);
+    for(const u of snapshotUfos)if(u&&u.id!=null)previousLookup.ufo.set(u.id,u);
   }
   function syncVoicePlayers(players,force=false){
     if(!voice)return;
@@ -2831,7 +2832,15 @@
           const op=state&&Array.isArray(state.players)?state.players.find(p=>Number(p.i)===idx):null;
           const oldCamo=Number(op&&op.camo)||0;
           const newCamo=Number(np&&np.camo)||0;
-          if(newCamo>0&&oldCamo<=0){invisibleHudUntil[idx]=now+2000;invisibleNoticeIndex=idx;invisibleNoticeUntil=now+2000;}
+          if(newCamo>0&&oldCamo<=0){
+            invisibleHudUntil[idx]=now+2000;
+            // V21.61: el jugador local ya recibe su aviso de FANTASMA abajo.
+            // El cartel grande superior queda solo para avisar de rivales.
+            if(idx!==Number(myIndex)){
+              invisibleNoticeIndex=idx;
+              invisibleNoticeUntil=now+2000;
+            }
+          }
 
           // V21.18: aviso local cuando cualquier jugador alcanza 4/5.
           // No se envia por red; cada cliente lo deduce del snapshot recibido.
@@ -5187,22 +5196,18 @@
       drawGiantEntryWarning({x:giantX,y:giantY},now);
       drawImageCentered(images.giant,giantX,giantY,270,0,1);
     }
-    if(state.ufo){
-      const oldUfo=previousLookup.ufo.get(state.ufo.id);
-      const ufoX=oldUfo?lerp(oldUfo.x,state.ufo.x,blend):state.ufo.x;
-      const ufoY=oldUfo?lerp(oldUfo.y,state.ufo.y,blend):state.ufo.y;
-      // V21.32: la rotacion del OVNI es puramente visual y constante.
-      // No sigue vx/vy ni afecta a su trayectoria, IA, fisica o colisiones.
-      if(ufoVisualId!==state.ufo.id||ufoVisualAngle===null){
-        ufoVisualId=state.ufo.id;
-        ufoVisualAngle=0;
-        ufoVisualAt=now;
-      }else{
-        const dt=Math.min(.05,Math.max(0,(now-ufoVisualAt)/1000));
-        ufoVisualAt=now;
-        ufoVisualAngle=(ufoVisualAngle+72*dt)%360;
+    {
+      const visibleUfos=Array.isArray(state.ufos)?state.ufos:(state.ufo?[state.ufo]:[]);
+      for(const ufo of visibleUfos){
+        if(!ufo)continue;
+        const oldUfo=previousLookup.ufo.get(ufo.id);
+        const ufoX=oldUfo?lerp(oldUfo.x,ufo.x,blend):ufo.x;
+        const ufoY=oldUfo?lerp(oldUfo.y,ufo.y,blend):ufo.y;
+        // V21.61: cada OVNI gira de forma visual e independiente.
+        // La fase depende de su id; no toca trayectoria, IA ni colisiones.
+        const ufoAngle=(now*.072+(Number(ufo.id)||0)*37)%360;
+        drawImageCentered(images.ufo,ufoX,ufoY,56,ufoAngle,1);
       }
-      drawImageCentered(images.ufo,ufoX,ufoY,56,ufoVisualAngle,1);
     }
     detectGiantAsteroidDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
