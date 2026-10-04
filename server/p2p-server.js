@@ -749,6 +749,71 @@ async function authApi(req,res,url){
     });
     return true;
   }
+  // V21.66: copia/restauracion privada del aprendizaje completo de la CPU.
+  if(url==='/api/cpu-training/brain-backup'&&req.method==='GET'){
+    const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
+    const [{rows:brainRows},{rows:statsRows},control]=await Promise.all([
+      db.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 LIMIT 1'),
+      db.query('SELECT matches,local_matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 LIMIT 1'),
+      getCpuLearningControl()
+    ]);
+    const br=brainRows[0]||{version:1,brain:{version:1,strategies:[],candidates:[]},updated_at:null};
+    const st=statsRows[0]||{matches:0,local_matches:0,updated_at:null};
+    const brain=normalizeCpuBrain(br.brain);
+    sendJson(res,200,{
+      ok:true,
+      format:'galaxy-combat-cpu-brain-backup',
+      formatVersion:1,
+      exportedAt:new Date().toISOString(),
+      brain:{version:Number(br.version)||brain.version||1,data:brain,updatedAt:br.updated_at||null},
+      training:{matches:Number(st.matches)||0,localMatches:Number(st.local_matches)||0,updatedAt:st.updated_at||null},
+      control
+    });
+    return true;
+  }
+  if(url==='/api/cpu-training/brain-restore'&&req.method==='POST'){
+    const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
+    let body;try{body=await readJsonBody(req,131072);}catch(_){sendJson(res,400,{ok:false,code:'BAD_BACKUP',message:'Backup no valido.'});return true;}
+    if(!body||body.format!=='galaxy-combat-cpu-brain-backup'||Number(body.formatVersion)!==1||!body.brain||!body.brain.data){
+      sendJson(res,400,{ok:false,code:'BAD_BACKUP',message:'El archivo no es un backup valido de Galaxy Combat.'});return true;
+    }
+    const restored=normalizeCpuBrain(body.brain.data);
+    const requestedVersion=Math.max(1,Number(body.brain.version)||Number(restored.version)||1);
+    restored.version=requestedVersion;
+    const bytes=Buffer.byteLength(JSON.stringify(restored),'utf8');
+    if(bytes>CPU_BRAIN_MAX_BYTES){sendJson(res,400,{ok:false,code:'BACKUP_TOO_LARGE'});return true;}
+    const matches=Math.max(0,Math.min(100000000,Math.round(Number(body.training&&body.training.matches)||0)));
+    const localMatches=Math.max(0,Math.min(100000000,Math.round(Number(body.training&&body.training.localMatches)||0)));
+    const autoTrainingEnabled=!(body.control&&body.control.autoTrainingEnabled===false);
+    const localHardEnabled=!(body.control&&body.control.localHardEnabled===false);
+    const client=await db.connect();
+    try{
+      await client.query('BEGIN');
+      const beforeBrain=await client.query('SELECT version,brain,updated_at FROM galaxy_cpu_brain WHERE id=1 FOR UPDATE');
+      const beforeStats=await client.query('SELECT matches,local_matches,updated_at FROM galaxy_cpu_training_stats WHERE id=1 FOR UPDATE');
+      const beforeControl=await getCpuLearningControl(client);
+      await client.query('UPDATE galaxy_cpu_brain SET version=$1,brain=$2::jsonb,updated_at=NOW() WHERE id=1',[requestedVersion,JSON.stringify(restored)]);
+      await client.query('UPDATE galaxy_cpu_training_stats SET matches=$1,local_matches=$2,updated_at=NOW() WHERE id=1',[matches,localMatches]);
+      await client.query('UPDATE galaxy_cpu_learning_control SET auto_training_enabled=$1,local_hard_enabled=$2,updated_at=NOW() WHERE id=1',[autoTrainingEnabled,localHardEnabled]);
+      await client.query('COMMIT');
+      const old=beforeBrain.rows[0]||{};
+      const oldStats=beforeStats.rows[0]||{};
+      sendJson(res,200,{
+        ok:true,version:requestedVersion,bytes,trainingMatches:matches,localMatches,
+        safetyBackup:{
+          format:'galaxy-combat-cpu-brain-backup',formatVersion:1,exportedAt:new Date().toISOString(),
+          brain:{version:Number(old.version)||1,data:normalizeCpuBrain(old.brain),updatedAt:old.updated_at||null},
+          training:{matches:Number(oldStats.matches)||0,localMatches:Number(oldStats.local_matches)||0,updatedAt:oldStats.updated_at||null},
+          control:beforeControl
+        }
+      });
+    }catch(err){
+      try{await client.query('ROLLBACK');}catch(_){}
+      console.error('[Galaxy Combat P2P] Error restaurando CPU brain:',err&&err.message||err);
+      sendJson(res,500,{ok:false,code:'CPU_RESTORE_ERROR'});
+    }finally{client.release();}
+    return true;
+  }
   if(url==='/api/cpu-training/control'&&req.method==='POST'){
     const allowed=await requireTrainingAdmin(req,res);if(!allowed)return true;
     let body;try{body=await readJsonBody(req,4096);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
