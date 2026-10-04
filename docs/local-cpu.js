@@ -384,14 +384,49 @@
       const threatening=dist<115||((closing>18||dist<180)&&ttc<=2.2&&closest<105);
       if(!threatening)return null;
       const forward=dirFromRot(cpu.rot);
-      const side=(forward.x*dy-forward.y*dx)>=0?0:1;
-      return{meteor:m,dist,closing,ttc,closest,side};
+      // V21.63: el lado se calcula con el punto de maxima aproximacion,
+      // no solo con la posicion actual del meteorito. Cero bucles extra.
+      const sx=closest>10?cx:dx,sy=closest>10?cy:dy;
+      const side=(forward.x*sy-forward.y*sx)>=0?0:1;
+      return{meteor:m,dist,closing,ttc,closest,side,cx,cy,rvx,rvy};
     }
     meteorLearningContext(cpu,threat){
       const side=threat&&threat.side?1:0;
       const velocity=threat&&threat.closing>130?1:0;
       const distance=threat&&threat.dist<190?0:1;
       return 'meteor-s'+side+'-v'+velocity+'-d'+distance;
+    }
+    meteorSafetyControl(cpu,threat){
+      if(!cpu||!threat)return null;
+      const imminent=(threat.dist<118)||(threat.ttc>0&&threat.ttc<.78&&threat.closest<82);
+      if(!imminent)return null;
+
+      // Vector de escape: alejarnos del meteorito en el punto donde ambas
+      // trayectorias estarian mas cerca. Si el cruce es casi perfecto usamos
+      // la perpendicular a la velocidad relativa que exige menor giro.
+      let ex=-Number(threat.cx||0),ey=-Number(threat.cy||0);
+      if(Math.hypot(ex,ey)<10){
+        const rvx=Number(threat.rvx)||0,rvy=Number(threat.rvy)||0;
+        let ax=-rvy,ay=rvx;
+        const al=Math.hypot(ax,ay)||1;ax/=al;ay/=al;
+        const forward=dirFromRot(cpu.rot);
+        if(forward.x*ax+forward.y*ay<0){ax=-ax;ay=-ay;}
+        ex=ax;ey=ay;
+      }else{
+        const el=Math.hypot(ex,ey)||1;ex/=el;ey/=el;
+      }
+
+      const targetRot=(Math.atan2(-ex,-ey)*180/Math.PI+360)%360;
+      const err=((targetRot-cpu.rot+540)%360)-180;
+      const absErr=Math.abs(err);
+
+      // Primero gira/frena; solo vuelve a acelerar cuando ya apunta claramente
+      // hacia la salida. Esto evita seguir empujando la nave hacia el cruce.
+      return{
+        turn:clamp(err/34,-1,1),
+        thrust:absErr<30&&threat.dist>72,
+        fire:false
+      };
     }
     recordLearning(cpu,context,action){
       if(!this.learningEnabled||this.difficulty!=='dificil'||!cpu||!cpu.cpu)return;
@@ -744,6 +779,11 @@
       }
       if(!threat)return null;
 
+      // V21.63: una amenaza realmente inmediata se resuelve con geometria
+      // determinista. Solo opera sobre el meteorito ya elegido: coste minimo.
+      const safety=this.meteorSafetyControl(cpu,threat);
+      if(safety)return safety;
+
       if(!cpu.meteorDecision||cpu.meteorDecision.meteorId!==threat.meteor.id){
         if(cpu.meteorDecision)this.settleMeteorDecision(cpu,.25);
         const context=this.meteorLearningContext(cpu,threat);
@@ -751,9 +791,14 @@
         let action=threat.side===0?'meteor_right':'meteor_left';
         if(threat.dist<135&&threat.closing>170)action='meteor_brake';
         if(this.difficulty==='dificil'){
-          const hasLearned=!!(this.brain&&Array.isArray(this.brain.strategies)&&this.brain.strategies.some(e=>e&&e.context===context&&actions.includes(e.action)));
-          if(hasLearned)action=this.chooseBrainAction(context,actions,this.trainingMode?.30:.14);
-          else if(Math.random()<(this.trainingMode?.34:.16))action=actions[randint(0,actions.length-1)];
+          const learned=actions
+            .map(a=>({action:a,score:this.brainScore(context,a)}))
+            .sort((a,b)=>b.score-a.score);
+          const hasLearned=learned.length&&learned[0].score!==0;
+          // En partida real no hay exploracion aleatoria de supervivencia.
+          // El azar se conserva exclusivamente en el entrenamiento autonomo.
+          if(hasLearned)action=learned[0].action;
+          else if(this.trainingMode&&Math.random()<.34)action=actions[randint(0,actions.length-1)];
         }
         cpu.meteorDecision={meteorId:threat.meteor.id,context,action,started:this.fxClock};
       }
