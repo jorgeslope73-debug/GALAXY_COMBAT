@@ -1,4 +1,4 @@
-const VERSION = 'V21.59-campaign-destination-text';
+const VERSION = 'V21.60-ufo-sprite';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
