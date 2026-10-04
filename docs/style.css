@@ -426,3 +426,77 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   .player-change-notice .player-leave-copy{font-size:24px}
   .player-change-notice .player-leave-detail{font-size:7px}
 }
+
+
+/* V21.64: ranking acumulado entre repeticiones de una misma sala online. */
+#victory .session-ranking{
+  width:min(420px,100%);
+  box-sizing:border-box;
+  margin:12px auto 16px;
+  padding:10px;
+  border:1px solid rgba(216,167,255,.34);
+  border-radius:8px;
+  background:rgba(7,4,20,.66);
+}
+#victory .session-ranking.hidden{display:none!important}
+#victory .session-ranking-title{
+  margin:0 0 8px;
+  color:rgba(245,236,255,.86);
+  font:800 12px/1.2 Arial,Helvetica,sans-serif;
+  letter-spacing:.10em;
+  text-align:center;
+}
+#victory .session-ranking-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+#victory .session-ranking-row{
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  min-height:34px;
+  padding:5px 8px;
+  box-sizing:border-box;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:6px;
+  background:rgba(255,255,255,.035);
+}
+#victory .session-ranking-row.is-leader{
+  border-color:rgba(255,220,70,.58);
+  background:rgba(255,220,70,.075);
+}
+#victory .session-ranking-position{
+  font:900 14px/1 Arial,Helvetica,sans-serif;
+  text-align:center;
+  color:#fff;
+}
+#victory .session-ranking-position .cup{
+  display:block;
+  font-size:20px;
+  line-height:1;
+}
+#victory .session-ranking-name{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:800 13px/1.2 Arial,Helvetica,sans-serif;
+  text-align:left;
+}
+#victory .session-ranking-wins{
+  white-space:nowrap;
+  color:rgba(250,247,255,.88);
+  font:800 11px/1.2 Arial,Helvetica,sans-serif;
+  letter-spacing:.02em;
+  text-align:right;
+}
+@media (pointer:coarse),(max-width:900px){
+  #victory .session-ranking{margin:8px auto 11px;padding:8px}
+  #victory .session-ranking-row{grid-template-columns:30px minmax(0,1fr) auto;min-height:31px;padding:4px 6px}
+  #victory .session-ranking-position{font-size:12px}
+  #victory .session-ranking-position .cup{font-size:18px}
+  #victory .session-ranking-name{font-size:12px}
+  #victory .session-ranking-wins{font-size:10px}
+}
