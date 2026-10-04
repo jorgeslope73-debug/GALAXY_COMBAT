@@ -114,6 +114,9 @@
     pickupVisualBorn.clear();gameFeelFxSeen.clear();
     shipHitFlashUntil.fill(0);
     cameraShakeStart=0;cameraShakeUntil=0;cameraShakePower=0;cameraShakeSeed=0;
+    ufoEmitAt.clear();
+    for(const particle of ufoParticles)particle.life=0;
+    ufoFxCursor=0;ufoFxLastAt=0;
     playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';
     pickupNoticeStart=0;pickupNoticeUntil=0;pickupNoticeText='';
     specialHelpStart=0;specialHelpUntil=0;specialHelpText='';
@@ -419,6 +422,18 @@
   const rocketActiveScratch=new Set();
   const rocketEmitAt=new Map();
   let rocketFxCursor=0,rocketFxLastAt=0;
+
+  // V21.62 LocalFX: estela circular multicolor del OVNI, 100% visual/local.
+  // Solo lee posicion/velocidad recibidas; no toca fisica, IA, colisiones ni red.
+  const UFO_FX_MAX=isMobile?72:160;
+  const UFO_FX_INTERVAL=isMobile?58:38;
+  const UFO_FX_COLORS=['#ff39d6','#38a8ff','#48ff72','#ffe24a'];
+  const ufoParticles=Array.from({length:UFO_FX_MAX},()=>({
+    life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0,color:0
+  }));
+  const ufoEmitAt=new Map();
+  const ufoActiveScratch=new Set();
+  let ufoFxCursor=0,ufoFxLastAt=0;
 
   function clearEngineTrailOwner(owner){
     for(const particle of engineParticles){
@@ -730,6 +745,109 @@
       const radius=Math.max(.6,particle.size*(.25+.75*t));
       ctx.globalAlpha=Math.min(.9,t*.9);
       ctx.fillStyle=t>.58?'#ffd36a':'#ff6b3d';
+      ctx.beginPath();
+      ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function spawnUfoParticle(ufo,x,y,vx,vy,now,lane){
+    const speed=Math.hypot(vx,vy);
+    if(speed<4)return;
+
+    const dx=vx/speed,dy=vy/speed;
+    const backX=-dx,backY=-dy;
+    const sideX=-dy,sideY=dx;
+    const idPhase=(Number(ufo&&ufo.id)||0)*37;
+    // Misma cadencia angular visual del platillo: el punto de salida recorre
+    // lateralmente su parte trasera y genera la sensacion de giro circular.
+    const phase=(now*.072+idPhase+(lane?180:0))*Math.PI/180;
+    const wave=Math.sin(phase),spin=Math.cos(phase);
+
+    const particle=ufoParticles[ufoFxCursor];
+    ufoFxCursor=(ufoFxCursor+1)%UFO_FX_MAX;
+
+    const rear=16+Math.random()*5;
+    const rim=9+Math.random()*6;
+    particle.x=x+backX*rear+sideX*wave*rim;
+    particle.y=y+backY*rear+sideY*wave*rim;
+
+    const exhaust=38+Math.random()*42;
+    const curl=spin*(24+Math.random()*20)+(Math.random()-.5)*10;
+    particle.vx=backX*exhaust+sideX*curl;
+    particle.vy=backY*exhaust+sideY*curl;
+
+    particle.maxLife=.36+Math.random()*.28;
+    particle.life=particle.maxLife;
+    particle.size=(isMobile?1.75:1.35)+Math.random()*(isMobile?1.95:1.75);
+    particle.color=Math.floor(Math.random()*UFO_FX_COLORS.length);
+  }
+
+  function updateUfoLocalFx(now,ufos,blend){
+    const active=ufoActiveScratch;
+    active.clear();
+
+    for(const ufo of (Array.isArray(ufos)?ufos:[])){
+      if(!ufo||ufo.id==null)continue;
+      const id=String(ufo.id);
+      active.add(id);
+
+      const old=previousLookup.ufo.get(ufo.id);
+      const x=old?lerp(old.x,ufo.x,blend):Number(ufo.x)||0;
+      const y=old?lerp(old.y,ufo.y,blend):Number(ufo.y)||0;
+      let vx=Number(ufo.vx)||0,vy=Number(ufo.vy)||0;
+
+      // Respaldo puramente visual por si un snapshot antiguo no trae velocidad.
+      if(Math.hypot(vx,vy)<4&&old){
+        const factor=1000/Math.max(20,smoothedStateInterval||NET_FRAME_MS);
+        vx=(Number(ufo.x)-Number(old.x))*factor;
+        vy=(Number(ufo.y)-Number(old.y))*factor;
+      }
+      if(Math.hypot(vx,vy)<4)continue;
+
+      const last=Number(ufoEmitAt.get(id))||0;
+      if(now-last<UFO_FX_INTERVAL)continue;
+      ufoEmitAt.set(id,now);
+
+      spawnUfoParticle(ufo,x,y,vx,vy,now,0);
+      if(!isMobile)spawnUfoParticle(ufo,x,y,vx,vy,now,1);
+    }
+
+    for(const id of ufoEmitAt.keys()){
+      if(!active.has(id))ufoEmitAt.delete(id);
+    }
+  }
+
+  function drawUfoParticles(now){
+    if(!ufoFxLastAt){ufoFxLastAt=now;return;}
+    const elapsed=now-ufoFxLastAt;
+    ufoFxLastAt=now;
+
+    // Evita recuperar una estela vieja tras menu, cambio de pestaña o pausa.
+    if(elapsed>300){
+      for(const particle of ufoParticles)particle.life=0;
+      return;
+    }
+    const dt=Math.min(.05,Math.max(0,elapsed/1000));
+    if(dt<=0)return;
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(const particle of ufoParticles){
+      if(particle.life<=0)continue;
+      particle.life-=dt;
+      if(particle.life<=0)continue;
+
+      particle.x+=particle.vx*dt;
+      particle.y+=particle.vy*dt;
+      particle.vx*=Math.pow(.70,dt);
+      particle.vy*=Math.pow(.70,dt);
+
+      const t=particle.life/particle.maxLife;
+      const radius=Math.max(.3,particle.size*(.16+.84*t));
+      ctx.globalAlpha=Math.min(.82,t*.86);
+      ctx.fillStyle=UFO_FX_COLORS[particle.color]||UFO_FX_COLORS[0];
       ctx.beginPath();
       ctx.arc(particle.x,particle.y,radius,0,Math.PI*2);
       ctx.fill();
@@ -5198,6 +5316,10 @@
     }
     {
       const visibleUfos=Array.isArray(state.ufos)?state.ufos:(state.ufo?[state.ufo]:[]);
+      // V21.62: el rastro se genera y evoluciona solo en este cliente.
+      // Se pinta antes del PNG para quedar por detras del platillo.
+      updateUfoLocalFx(now,visibleUfos,blend);
+      drawUfoParticles(now);
       for(const ufo of visibleUfos){
         if(!ufo)continue;
         const oldUfo=previousLookup.ufo.get(ufo.id);
