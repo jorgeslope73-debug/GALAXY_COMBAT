@@ -2354,10 +2354,11 @@
         }
         b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;
       }
-      // V21.49: unica intercepcion entre proyectiles:
-      // una BALA NORMAL puede destruir un MISIL enemigo. Bala-bala y
-      // misil-misil se atraviesan. Los pickups/objetos flotantes no participan
-      // en ninguna colision de proyectiles.
+      // V21.74: intercepcion entre proyectiles enemigos.
+      // Bala normal <-> misil: se destruyen ambos.
+      // Misil <-> misil: se destruyen ambos al cruzarse.
+      // Bala <-> bala sigue sin colision. Los proyectiles del mismo jugador
+      // tampoco chocan entre si para evitar autointercepciones.
       if(this.bullets.length>1){
         const destroyedProjectiles=this.destroyedProjectileScratch;
         destroyedProjectiles.clear();
@@ -2369,14 +2370,24 @@
             if(!b||destroyedProjectiles.has(b))continue;
             if(Number(a.owner)===Number(b.owner))continue;
 
-            // Exactamente uno debe ser misil y el otro bala normal.
-            if(!!a.guided===!!b.guided)continue;
+            const aMissile=!!a.guided,bMissile=!!b.guided;
+            // Dos balas normales se atraviesan.
+            if(!aMissile&&!bMissile)continue;
 
-            const missile=a.guided?a:b;
-            const bullet=a.guided?b:a;
+            if(aMissile&&bMissile){
+              if(!sweptCircles(a,MISSILE_HIT_RADIUS,b,MISSILE_HIT_RADIUS,false))continue;
+              destroyedProjectiles.add(a);
+              destroyedProjectiles.add(b);
+              const hitX=(a.x+b.x)*.5,hitY=(a.y+b.y)*.5;
+              this.emitRocketDisintegrateAt(hitX,hitY,Number(a.owner)||0);
+              this.emit({t:'sound',kind:'sparkle'});
+              break;
+            }
+
+            const missile=aMissile?a:b;
+            const bullet=aMissile?b:a;
             if(!sweptCircles(missile,MISSILE_HIT_RADIUS,bullet,BULLET_RADIUS,false))continue;
 
-            // La bala se consume al interceptar el misil.
             destroyedProjectiles.add(missile);
             destroyedProjectiles.add(bullet);
             const hitX=(missile.x+bullet.x)*.5,hitY=(missile.y+bullet.y)*.5;
