@@ -265,15 +265,17 @@
 
   const CONTROL_FLARE_GUIDE = {
     es: {
+      joystick:"JOYSTICK (PC): activa JOYSTICK en el menú y conecta el mando. Stick izquierdo o cruceta izquierda/derecha: girar. R2 / RT: acelerar. Botón 1: disparar; mantenerlo pulsado sigue disparando sin gastar habilidades. Botón 4: lanzar bengalas. Botón 3: activar la ONDA EXPANSIVA. Las bengalas y la onda requieren recoger su mejora; cada pulsación usa una carga de la habilidad elegida. R1 / RB: mantener para hablar, con MICRO activado. Los botones frontales se numeran del 1 al 4.",
       visual:{mobileTitle:'MOVIL · BOTONES',turn:'GIRAR',fire:'DISPARO',oneTap:'1 TOQUE',bullet:'BALA',doubleTap:'2 TOQUES',flares:'BENGALAS',shockwave:'ONDA EXPANSIVA',specialPriority:'ONDA primero · luego BENGALAS',hold:'MANTENER',accelerate:'ACELERAR',pcTitle:'PC · TECLADO',pcTap:'TOQUE',pcHold:'MANTENER',wait:'1 s entre bengalas'},
       pc:'PC: A / D o flechas para girar; W para acelerar; CTRL o ESPACIO para disparar. Mantén disparo para usar el arma especial: si llevas ESFERA se activa primero la ONDA EXPANSIVA; si no, se lanzan bengalas. ESC sale de la partida.',
       mobile:'Movil: horizontal. Flechas de la izquierda para girar. En la derecha: un toque dispara, doble toque usa el arma especial y mantener pulsado acelera. Si llevas ESFERA y bengalas, el doble toque activa primero la ONDA EXPANSIVA; despues podras seguir usando las bengalas acumuladas.',
-      tip:'La ESFERA y las bengalas usan el mismo gesto especial. La ONDA EXPANSIVA tiene prioridad y no consume las bengalas que tengas guardadas.',
+      tip:'En teclado y móvil, la ESFERA y las bengalas usan el mismo gesto especial: la ONDA EXPANSIVA tiene prioridad y conserva las bengalas. En joystick, el botón 4 lanza bengalas y el botón 3 activa la onda de forma independiente.',
       flare:['flare','BENGALAS','Cada carga despliega tres bengalas durante 3 s. Entre un lanzamiento y el siguiente debe pasar al menos 1 s, aunque lleves varias cargas. Desvian misiles, bloquean balas, pueden romper escudos o destruir naves al chocar; si tu bengala destruye a un rival, esa baja se suma a tu marcador. Tambien destruyen los meteoritos pequenos de la lluvia. Si chocan con el meteorito gigante, la bengala explota pero el gigante sigue. PC: mantén disparo; movil: doble toque rapido. No necesitan municion ni arma cargada.'],
       shockwave:['shockwave','ESFERA · ONDA EXPANSIVA','Mejora rara y no acumulable: solo puedes llevar 1 carga. Se indica con un pequeno circulo en la parte trasera de la nave. PC: mantén disparo; movil: doble toque rapido, igual que las bengalas. Si tienes esfera y bengalas, la ONDA tiene prioridad y las bengalas quedan guardadas para despues. La onda se expande hasta 30 m. Destruye naves sin escudo; si una nave lleva escudo, rompe el escudo pero la nave sobrevive. Respeta la proteccion de aparicion. Tambien deshace balas, misiles guiados y bengalas desplegadas, destruye meteoritos pequenos de la lluvia y aparta los asteroides normales y el meteorito gigante sin destruirlos.'],
       hazard:'Meteorito pequeno: se destruyen los dos. Meteorito gigante: la bengala explota y desaparece, pero el gigante sigue intacto.'
     },
     en: {
+      joystick:"JOYSTICK (PC): enable JOYSTICK in the menu and connect your controller. Left stick or left/right D-pad: turn. R2 / RT: accelerate. Button 1: fire; holding it keeps firing without using special abilities. Button 4: deploy flares. Button 3: activate the SHOCKWAVE. Collect the corresponding upgrade first; each press uses one charge of the selected ability. R1 / RB: hold to talk with the microphone enabled. Face buttons are numbered 1 to 4.",
       visual:{mobileTitle:'MOBILE · BUTTONS',turn:'TURN',fire:'FIRE',oneTap:'1 TAP',bullet:'SHOT',doubleTap:'2 TAPS',flares:'FLARES',shockwave:'SHOCKWAVE',specialPriority:'SHOCKWAVE first · then FLARES',hold:'HOLD',accelerate:'ACCELERATE',pcTitle:'PC · KEYBOARD',pcTap:'TAP',pcHold:'HOLD',wait:'1 s between flares'},
       pc:'PC: A / D or arrow keys to turn; W to accelerate; CTRL or SPACE to fire. Hold fire to deploy flares. ESC leaves the match.',
       mobile:'Mobile: landscape. Use the left arrows to turn. On the right: tap to fire, double tap for flares, hold to accelerate.',
@@ -283,6 +285,7 @@
       hazard:'Small meteor: both are destroyed. Giant meteor: the flare explodes and disappears, but the giant meteor is unaffected.'
     },
     it: {
+      joystick:"JOYSTICK (PC): attiva JOYSTICK nel menu e collega il controller. Stick sinistro o croce direzionale sinistra/destra: girare. R2 / RT: accelerare. Pulsante 1: sparare; tenendolo premuto continui a sparare senza usare abilità speciali. Pulsante 4: lanciare bengala. Pulsante 3: attivare l ONDA ESPANSIVA. Raccogli prima il potenziamento corrispondente; ogni pressione usa una carica dell abilità scelta. R1 / RB: tieni premuto per parlare con il microfono attivo. I pulsanti frontali sono numerati da 1 a 4.",
       visual:{mobileTitle:'MOBILE · PULSANTI',turn:'GIRA',fire:'SPARO',oneTap:'1 TOCCO',bullet:'COLPO',doubleTap:'2 TOCCHI RAPIDI',flares:'BENGALA',shockwave:'ONDA ESPANSIVA',specialPriority:'ONDA prima · poi BENGALA',hold:'TIENI PREMUTO',accelerate:'ACCELERA',pcTitle:'PC · TASTIERA',pcTap:'TOCCO BREVE',pcHold:'TIENI 0,22 s',wait:'1 s tra i lanci'},
       pc:'PC: A / D o frecce sinistra / destra per girare; W o freccia su per accelerare. CTRL o SPAZIO: tocco breve = sparo normale; tieni premuto per circa 0,22 s = lancia le bengala equipaggiate. Le bengala funzionano anche con 0 munizioni o arma non carica. ESC esce dalla partita.',
       mobile:'Mobile: gioca in orizzontale e usa solo i pulsanti touch. Le frecce nella meta sinistra fanno girare la nave. Nella meta destra: tocco rapido = sparo normale; due tocchi rapidi consecutivi (entro circa 0,35 s) = bengala; tieni premuto = accelera. Le bengala non richiedono un colpo carico.',
@@ -292,6 +295,7 @@
       hazard:'Meteorite piccolo: si distruggono entrambi. Meteorite gigante: la bengala esplode e scompare, ma il gigante resta intatto.'
     },
     fr: {
+      joystick:"JOYSTICK (PC) : active JOYSTICK dans le menu et connecte la manette. Stick gauche ou croix directionnelle gauche/droite : tourner. R2 / RT : accélérer. Bouton 1 : tirer; maintenir continue le tir sans utiliser les capacités spéciales. Bouton 4 : déployer les leurres. Bouton 3 : activer l ONDE DE CHOC. Ramasse d abord le bonus correspondant; chaque pression utilise une charge de la capacité choisie. R1 / RB : maintenir pour parler avec le micro activé. Les boutons de façade sont numérotés de 1 à 4.",
       visual:{mobileTitle:'MOBILE · BOUTONS',turn:'TOURNER',fire:'TIR',oneTap:'1 TOUCHE',bullet:'TIR',doubleTap:'2 TOUCHES RAPIDES',flares:'LEURRES',shockwave:'ONDE DE CHOC',specialPriority:'ONDE d abord · puis LEURRES',hold:'MAINTENIR',accelerate:'ACCELERER',pcTitle:'PC · CLAVIER',pcTap:'APPUI BREF',pcHold:'MAINTENIR 0,22 s',wait:'1 s entre les lancers'},
       pc:'PC : A / D ou fleches gauche / droite pour tourner; W ou fleche haut pour accelerer. CTRL ou ESPACE : appui bref = tir normal; maintenir environ 0,22 s = deployer les leurres equipes. Les leurres fonctionnent meme avec 0 munition ou une arme non chargee. ESC quitte la partie.',
       mobile:'Mobile : joue en paysage et utilise uniquement les boutons tactiles. Les fleches de la moitie gauche font tourner le vaisseau. A droite : touche rapide = tir normal; deux touches rapides successives (environ 0,35 s) = deployer les leurres; maintenir = accelerer. Les leurres ne demandent pas de munition chargee.',
@@ -301,6 +305,7 @@
       hazard:'Petite meteorite : les deux sont detruits. Meteorite geant : le leurre explose et disparait, mais le geant reste intact.'
     },
     de: {
+      joystick:"JOYSTICK (PC): JOYSTICK im Menü aktivieren und den Controller verbinden. Linker Stick oder Steuerkreuz links/rechts: drehen. R2 / RT: beschleunigen. Taste 1: feuern; gedrückt halten feuert weiter, ohne Spezialfähigkeiten zu verbrauchen. Taste 4: Flares ausstoßen. Taste 3: SCHOCKWELLE aktivieren. Zuerst das entsprechende Upgrade einsammeln; jeder Tastendruck verbraucht eine Ladung der gewählten Fähigkeit. R1 / RB: mit aktiviertem Mikrofon zum Sprechen gedrückt halten. Die Fronttasten sind von 1 bis 4 nummeriert.",
       visual:{mobileTitle:'MOBIL · TASTEN',turn:'DREHEN',fire:'FEUER',oneTap:'1 TIPP',bullet:'SCHUSS',doubleTap:'2 SCHNELLE TIPPS',flares:'FLARES',shockwave:'SCHOCKWELLE',specialPriority:'SCHOCKWELLE zuerst · dann FLARES',hold:'HALTEN',accelerate:'BESCHLEUNIGEN',pcTitle:'PC · TASTATUR',pcTap:'KURZ DRUECKEN',pcHold:'0,22 s HALTEN',wait:'1 s zwischen Ausloesungen'},
       pc:'PC: A / D oder Pfeil links / rechts zum Drehen; W oder Pfeil hoch zum Beschleunigen. CTRL oder LEERTASTE: kurz tippen = normal feuern; etwa 0,22 s halten = ausgeruestete Flares ausstossen. Flares funktionieren auch mit 0 Munition oder ungeladener Waffe. ESC verlaesst das Spiel.',
       mobile:'Mobil: im Querformat spielen und nur die Touch-Tasten verwenden. Die Pfeile auf der linken Haelfte drehen das Schiff. Rechts: kurz tippen = normal feuern; zweimal schnell hintereinander tippen (ca. innerhalb 0,35 s) = Flares; halten = beschleunigen. Flares brauchen keine geladene Munition.',
@@ -421,6 +426,7 @@
         if(guide){
           controls.body[0]=guide.pc;
           controls.body[1]=guide.mobile;
+          if(guide.joystick)controls.body.splice(2,0,guide.joystick);
           controls.controlVisual=guide.visual||null;
           if(Array.isArray(controls.tips)&&controls.tips.length)controls.tips[0]=guide.tip;
         }
