@@ -2824,6 +2824,37 @@
       for(const u of active){
         if(this.isUfoActive(u))this.updateSingleUfo(u,dt);
       }
+
+      // V21.68: red de seguridad geométrica. Si dos OVNIs llegan a tocarse
+      // pese a la anticipación, se separan suavemente sin explosión ni daño.
+      // Máximo 3 parejas, por lo que el coste es despreciable.
+      for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
+        const a=active[i],b=active[j];
+        if(!this.isUfoActive(a)||!this.isUfoActive(b))continue;
+        const dx=(Number(b.x)||0)-(Number(a.x)||0);
+        const dy=(Number(b.y)||0)-(Number(a.y)||0);
+        const d2=dx*dx+dy*dy;
+        const minDist=UFO_RADIUS*2+6;
+        if(d2>=minDist*minDist)continue;
+        let nx,ny,d=Math.sqrt(d2);
+        if(d<1){
+          const side=Number(a.id)<Number(b.id)?1:-1;
+          nx=side;ny=0;d=1;
+        }else{nx=dx/d;ny=dy/d;}
+        const push=(minDist-d)*.5+2;
+        a.x-=nx*push;a.y-=ny*push;
+        b.x+=nx*push;b.y+=ny*push;
+
+        // Quitamos únicamente la velocidad con la que se aproximan entre sí.
+        const rvx=(Number(b.vx)||0)-(Number(a.vx)||0);
+        const rvy=(Number(b.vy)||0)-(Number(a.vy)||0);
+        const closing=rvx*nx+rvy*ny;
+        if(closing<0){
+          const impulse=-closing*.34;
+          a.vx-=nx*impulse;a.vy-=ny*impulse;
+          b.vx+=nx*impulse;b.vy+=ny*impulse;
+        }
+      }
     }
     updateSingleUfo(u,dt){
       if(!u)return false;
@@ -2886,8 +2917,47 @@
         for(const a of this.asteroids)avoid(a,Number(a.r)||ASTEROID_RADIUS,125,3.2);
         for(const m of this.meteors)avoid(m,SMALL_METEOR_RADIUS,85,2.2);
         if(this.giant)avoid(this.giant,GIANT_RADIUS,170,4.5);
-        if(this.ufo&&this.ufo!==u)avoid(this.ufo,UFO_RADIUS,36,1.25);
-        for(const other of this.ufoExtras)if(other!==u)avoid(other,UFO_RADIUS,36,1.25);
+        // V21.68: separación predictiva entre OVNIs. Además de la distancia
+        // actual, mira dónde estarán más cerca durante el próximo segundo.
+        // Con un máximo de 3 OVNIs son como mucho 3 comparaciones por maniobra.
+        const avoidUfo=(other)=>{
+          if(!other||other===u||!this.isUfoActive(other))return;
+          const rx=(Number(other.x)||0)-(Number(u.x)||0);
+          const ry=(Number(other.y)||0)-(Number(u.y)||0);
+          const d2=rx*rx+ry*ry;
+          const rvx=(Number(other.vx)||0)-(Number(u.vx)||0);
+          const rvy=(Number(other.vy)||0)-(Number(u.vy)||0);
+          const vv=rvx*rvx+rvy*rvy;
+          let t=0;
+          if(vv>9)t=clamp(-(rx*rvx+ry*rvy)/vv,0,1.05);
+          const cx=rx+rvx*t,cy=ry+rvy*t;
+          const closest2=cx*cx+cy*cy;
+          const soft=UFO_RADIUS*2+54;
+          const hard=UFO_RADIUS*2+14;
+          if(d2>soft*soft&&closest2>soft*soft)return;
+
+          let ax=-cx,ay=-cy;
+          if(ax*ax+ay*ay<64){
+            // Cruce casi perfecto: cada pareja elige lados opuestos de forma
+            // determinista para no decidir la misma maniobra.
+            const side=Number(u.id)<Number(other.id)?1:-1;
+            ax=-rvy*side;ay=rvx*side;
+            if(ax*ax+ay*ay<16){ax=side;ay=.35*side;}
+          }
+          const al=Math.hypot(ax,ay)||1;
+          ax/=al;ay/=al;
+          const current=Math.sqrt(d2)||1;
+          const closest=Math.sqrt(closest2)||1;
+          const urgency=Math.max(
+            0,
+            (soft-Math.min(current,closest))/soft
+          );
+          const weight=(current<hard?5.4:3.3)*urgency;
+          avoidX+=ax*weight;
+          avoidY+=ay*weight;
+        };
+        if(this.ufo&&this.ufo!==u)avoidUfo(this.ufo);
+        for(const other of this.ufoExtras)if(other!==u)avoidUfo(other);
 
         if(u.entered){
           if(u.x<100)avoidX+=2.5;else if(u.x>W-100)avoidX-=2.5;
