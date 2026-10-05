@@ -5336,6 +5336,8 @@
     if(!state){drawOnlineStartAnnouncement(now);return;}
 
     const nowSec=now/1000;
+    // Extrapolacion corta compartida por proyectiles y avisos de misiles.
+    const age=Math.min(.05,Math.max(0,(now-lastStateTime)/1000));
     const blend=interpolationAlpha(now);
     const prev=previousState||state;
     localizedTargetOwners.fill(-1);
@@ -5366,6 +5368,29 @@
     // pero meteoritos, asteroides, naves, balas y mejoras pasan por encima.
     drawGhostStatus(now);
     drawBrutalAnnouncement(now);
+    // V21.71: los textos de aviso se dibujan antes que los jugadores.
+    drawIncomingMissileWarning(now,age,blend,'label');
+    drawPenaltyAnnouncement(now);
+    drawLeaderAnnouncement(now);
+    drawPlayNotice(now);
+    drawPickupNotice(now);
+    drawSpecialHelp(now);
+    drawNearWinWarning(now);
+    drawHuntAnnouncement(now);
+    drawInvisibleModeNotice(now);
+    if(state.shower>0){
+      const pulse=.58+.42*(.5+.5*Math.sin(now*.005));
+      ctx.save();
+      ctx.globalAlpha=pulse;
+      ctx.font=isMobile?'38px Flashback,Arial':'28px Flashback,Arial';
+      ctx.textAlign='center';
+      ctx.fillStyle='rgb(255,170,70)';
+      ctx.shadowColor='rgba(255,135,35,.65)';
+      ctx.shadowBlur=8+5*(1-pulse);
+      ctx.fillText(tr('meteorShower'),W/2,185);
+      ctx.restore();
+    }
+    drawOnlineStartAnnouncement(now);
 
     for(const a of state.asteroids){
       const old=previousLookup.asteroids.get(a.id);
@@ -5417,9 +5442,6 @@
     detectGiantAsteroidDebris(now,state.giant,state.asteroids);
     drawRockDebris(now);
 
-    // Las balas ya traen velocidad: una extrapolacion muy corta evita el efecto
-    // de avance a saltos sin alterar nunca la posicion autoritativa del servidor.
-    const age=Math.min(.05,Math.max(0,(now-lastStateTime)/1000));
 
     // V21.47: la flecha se pinta ANTES del combate para que misiles,
     // disparos, particulas y naves queden visualmente por encima.
@@ -5479,29 +5501,6 @@
     }
     if(impactFX)impactFX.draw(ctx,now);
     drawHud(now);
-    // V21.47: solo el texto de 2 s queda en la capa de interfaz.
-    drawIncomingMissileWarning(now,age,blend,'label');
-    drawPenaltyAnnouncement(now);
-    drawLeaderAnnouncement(now);
-    drawPlayNotice(now);
-    drawPickupNotice(now);
-    drawSpecialHelp(now);
-    drawNearWinWarning(now);
-    drawHuntAnnouncement(now);
-    drawInvisibleModeNotice(now);
-    if(state.shower>0){
-      const pulse=.58+.42*(.5+.5*Math.sin(now*.005));
-      ctx.save();
-      ctx.globalAlpha=pulse;
-      ctx.font=isMobile?'38px Flashback,Arial':'28px Flashback,Arial';
-      ctx.textAlign='center';
-      ctx.fillStyle='rgb(255,170,70)';
-      ctx.shadowColor='rgba(255,135,35,.65)';
-      ctx.shadowBlur=8+5*(1-pulse);
-      ctx.fillText(tr('meteorShower'),W/2,185);
-      ctx.restore();
-    }
-    drawOnlineStartAnnouncement(now);
     if(perfStats){
       const r=perfStats.report;
       ctx.save();
