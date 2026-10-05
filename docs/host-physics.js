@@ -369,7 +369,7 @@
       return true;
     }
     stop(){this.started=false;this.lastNow=0;this.accumulator=0;}
-    setControl(index,turn,thrust,fire){
+    setControl(index,turn,thrust,fire,actions={}){
       const i=Number(index),p=this.players.find(x=>x.index===i);
       // V20.8: una plaza CPU nunca acepta controles externos. Cuando el roster
       // confirme el relevo se crea una entidad humana nueva y desde ese momento
@@ -379,7 +379,7 @@
       // necesitan generar un objeto nuevo en cada paquete.
       let c=this.controls.get(i);
       if(!c){c={turn:0,thrust:false,fire:false};this.controls.set(i,c);}
-      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;
+      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;c.directFire=actions.directFire===true;c.flare=actions.flare===true;c.shock=actions.shock===true;
       p.lastControlAt=Date.now();
       return true;
     }
@@ -464,7 +464,7 @@
     }
     handleMessage(msg){
       if(!msg||typeof msg!=='object')return true;
-      if(msg.t==='ctrl'){this.setControl(msg.i,msg.turn,msg.thrust,msg.fire);return true;}
+      if(msg.t==='ctrl'){this.setControl(msg.i,msg.turn,msg.thrust,msg.fire,msg);return true;}
       if(msg.t==='restart'){
         if(this.restart()){
           this.emit({t:'restarted',rankRound:this.rankRound});
@@ -866,6 +866,15 @@
           }
         }
         this.smartCpuFlare(p);
+        return fireNow;
+      }
+      // Una carga por pulsacion; el disparo del mando no usa el gesto especial.
+      const flare=!!(c&&c.flare),shock=!!(c&&c.shock);
+      if(flare&&!p.joystickFlareHeld)this.deployFlares(p);
+      if(shock&&!p.joystickShockHeld)this.deployShockwave(p);
+      p.joystickFlareHeld=flare;p.joystickShockHeld=shock;
+      if(c&&c.directFire){
+        p.specialReleaseLock=false;p.flareHold=0;p.flareGesture=false;
         return fireNow;
       }
       if(p.specialReleaseLock){

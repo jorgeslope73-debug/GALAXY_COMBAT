@@ -1106,18 +1106,18 @@
       return true;
     }
     stop(){this.started=false;this.lastNow=0;this.accumulator=0;}
-    setControl(turn,thrust,fire){
+    setControl(turn,thrust,fire,actions={}){
       const p=this.players[0];
       if(!p)return false;
       let c=this.controls.get(0);
       if(!c){c={turn:0,thrust:false,fire:false};this.controls.set(0,c);}
-      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;
+      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;c.directFire=actions.directFire===true;c.flare=actions.flare===true;c.shock=actions.shock===true;
       p.lastControlAt=Date.now();
       return true;
     }
     handleMessage(msg){
       if(!msg||typeof msg!=='object')return true;
-      if(msg.t==='ctrl'){this.setControl(msg.turn,msg.thrust,msg.fire);return true;}
+      if(msg.t==='ctrl'){this.setControl(msg.turn,msg.thrust,msg.fire,msg);return true;}
       if(msg.t==='restart'){
         if(Number.isFinite(Number(msg.level)))this.campaignLevel=clamp(Math.round(Number(msg.level)||1),1,CAMPAIGN_LEVELS);
         if(this.restart()){
@@ -1469,6 +1469,15 @@
           }
         }
         this.smartCpuFlare(p);
+        return fireNow;
+      }
+      // Una carga por pulsacion; el disparo del mando no usa el gesto especial.
+      const flare=!!(c&&c.flare),shock=!!(c&&c.shock);
+      if(flare&&!p.joystickFlareHeld)this.deployFlares(p);
+      if(shock&&!p.joystickShockHeld)this.deployShockwave(p);
+      p.joystickFlareHeld=flare;p.joystickShockHeld=shock;
+      if(c&&c.directFire){
+        p.specialReleaseLock=false;p.flareHold=0;p.flareGesture=false;
         return fireNow;
       }
       if(p.specialReleaseLock){

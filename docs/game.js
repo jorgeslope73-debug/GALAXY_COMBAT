@@ -246,6 +246,7 @@
   let pendingStateRaw=null;
   let lastControlSentAt=0;
   let lastSentControlTurn=NaN,lastSentControlThrust=false,lastSentControlFire=false;
+  let lastSentJoystickActions='';
   let lastPaintAt=0;
   let lastStateProcessedAt=0;
   const CONTROL_SEND_MS=1000/30;
@@ -1513,15 +1514,13 @@
     return pad;
   }
   function joystickControls(){
-    if(isMobile)return {active:false,turn:0,thrust:false,fire:false,ptt:false};
+    if(isMobile)return {active:false,turn:0,thrust:false,fire:false,flare:false,shock:false,ptt:false};
     const pad=findJoystick();
-    if(!pad)return {active:false,turn:0,thrust:false,fire:false,ptt:false};
+    if(!pad)return {active:false,turn:0,thrust:false,fire:false,flare:false,shock:false,ptt:false};
     const dead=.18;
     const axisX=Number(pad.axes&&pad.axes.length>0?pad.axes[0]:0)||0;
-    const axisY=Number(pad.axes&&pad.axes.length>1?pad.axes[1]:0)||0;
     const dpadLeft=!!(pad.buttons&&pad.buttons[14]&&pad.buttons[14].pressed);
     const dpadRight=!!(pad.buttons&&pad.buttons[15]&&pad.buttons[15].pressed);
-    const dpadUp=!!(pad.buttons&&pad.buttons[12]&&pad.buttons[12].pressed);
     let turn=0;
     if(dpadLeft||dpadRight)turn=(dpadLeft?1:0)-(dpadRight?1:0);
     else if(Math.abs(axisX)>dead){
@@ -1529,17 +1528,14 @@
       // Gamepad: izquierda=-1. Fisica Galaxy: izquierda=+1.
       turn=-Math.sign(axisX)*Math.min(1,normalized);
     }
-    // V20.38: L1/LB y L2/LT aceleran. Conservamos stick hacia delante y
-    // D-pad arriba como alternativas para no quitar ningun control existente.
-    const leftBumper=!!(pad.buttons&&pad.buttons[4]&&(pad.buttons[4].pressed||Number(pad.buttons[4].value)>.5));
-    const leftTrigger=!!(pad.buttons&&pad.buttons[6]&&(pad.buttons[6].pressed||Number(pad.buttons[6].value)>.28));
-    const thrust=dpadUp||axisY<-.28||leftBumper||leftTrigger;
-    // A/Cross o gatillo derecho RT/R2 disparan.
-    const buttonA=!!(pad.buttons&&pad.buttons[0]&&pad.buttons[0].pressed);
-    const rightTrigger=!!(pad.buttons&&pad.buttons[7]&&(pad.buttons[7].pressed||Number(pad.buttons[7].value)>.28));
-    // R1/RB (boton 5) queda reservado para pulsar-y-hablar con el micro activo.
-    const ptt=!!(pad.buttons&&pad.buttons[5]&&(pad.buttons[5].pressed||Number(pad.buttons[5].value)>.5));
-    return {active:true,turn,thrust,fire:buttonA||rightTrigger,ptt};
+    // Botones frontales numerados desde 1; Gamepad API usa indices desde 0.
+    const pressed=(index,threshold=.5)=>!!(pad.buttons&&pad.buttons[index]&&(pad.buttons[index].pressed||Number(pad.buttons[index].value)>threshold));
+    const thrust=pressed(7,.28); // R2 / RT
+    const fire=pressed(0); // boton 1
+    const flare=pressed(3); // boton 4
+    const shock=pressed(2); // boton 3
+    const ptt=pressed(5); // R1 / RB
+    return {active:true,turn,thrust,fire,flare,shock,ptt};
   }
   function updateControlHelp(){
     if(!controlHelpEl)return;
@@ -1547,9 +1543,13 @@
       controlHelpEl.innerHTML=
         '<span><span>'+tr('rotateControl')+'</span> <b>STICK IZQ.</b></span>'+
         '<i aria-hidden="true"></i>'+
-        '<span><span>'+tr('accelerate')+'</span> <b>L1 / L2</b></span>'+
+        '<span><span>'+tr('accelerate')+'</span> <b>R2 / RT</b></span>'+
         '<i aria-hidden="true"></i>'+
-        '<span><span>'+tr('fire')+'</span> <b>A / RT</b></span>'+
+        '<span><span>'+tr('fire')+'</span> <b>1</b></span>'+
+        '<i aria-hidden="true"></i>'+
+        '<span><span>'+tr('pickupFlare')+'</span> <b>4</b></span>'+
+        '<i aria-hidden="true"></i>'+
+        '<span><span>'+tr('pickupShockwave')+'</span> <b>3</b></span>'+
         '<i aria-hidden="true"></i>'+
         '<span><span>'+tr('talk')+'</span> <b>R1</b></span>';
     }else{
@@ -1569,7 +1569,7 @@
     // El estado se comunica por color para mantener exactamente el mismo ancho que AUDIO.
     joystickToggleButton.textContent='JOYSTICK';
     joystickToggleButton.title=joystickEnabled
-      ?(joystickConnected?'Joystick activo: L1/L2 acelera, A/RT dispara y R1 habla.':'Joystick activo: conecta un mando. L1/L2 acelera, A/RT dispara y R1 habla.')
+      ?(joystickConnected?'Joystick activo: R2 acelera, 1 dispara, 4 lanza bengalas, 3 activa onda expansiva y R1 habla.':'Joystick activo: conecta un mando. R2 acelera, 1 dispara, 4 lanza bengalas, 3 activa onda expansiva y R1 habla.')
       :'Activar control con mando estandar';
     updateControlHelp();
   }
@@ -2063,7 +2063,7 @@
     if(p2p||typeof window.GalaxyP2P!=='function')return p2p;
     p2p=new window.GalaxyP2P({
       sendSignal:o=>{if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}return false;},
-      onControl:(i,m)=>{if(hostPhysics)hostPhysics.setControl(i,m.turn,m.thrust,m.fire);},
+      onControl:(i,m)=>{if(hostPhysics)hostPhysics.setControl(i,m.turn,m.thrust,m.fire,m);},
       onState:m=>{
         const now=performance.now();
         const gap=lastP2PStateAt?now-lastP2PStateAt:Infinity;
@@ -2357,7 +2357,7 @@
         return;
       }
       if(m&&m.t==='fallback-ctrl'){
-        if(isHost&&hostPhysics)hostPhysics.setControl(Number(m.from),Number(m.turn)||0,!!m.thrust,!!m.fire);
+        if(isHost&&hostPhysics)hostPhysics.setControl(Number(m.from),Number(m.turn)||0,!!m.thrust,!!m.fire,m);
         return;
       }
       if(m&&m.t==='fallback-action'){
@@ -2383,8 +2383,8 @@
     if(!inGame){setServerReady(false);if(!wakeStartedAt)wakeStartedAt=Date.now();wakeStatus();connect();}
     return false;
   }
-  function sendControl(turn,thrust,fire){
-    if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire);return true;}
+  function sendControl(turn,thrust,fire,actions={}){
+    if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire,actions);return true;}
     if(inGame&&p2p){
       const now=performance.now();
       if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
@@ -2394,17 +2394,17 @@
           // salida WebSocket esta congestionada. El siguiente heartbeat enviara
           // el estado actual y evita una cola de giros/disparos atrasados.
           if(Number(ws.bufferedAmount||0)>32*1024)return false;
-          try{ws.send(JSON.stringify({t:'fallback-ctrl',turn,thrust:!!thrust,fire:!!fire}));return true;}catch(_){return false;}
+          try{ws.send(JSON.stringify({t:'fallback-ctrl',turn,thrust:!!thrust,fire:!!fire,...actions}));return true;}catch(_){return false;}
         }
         return false;
       }
-      return p2p.sendControl(turn,thrust,fire);
+      return p2p.sendControl(turn,thrust,fire,actions);
     }
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     // Los controles caducan enseguida. Si la salida esta congestionada, es
     // mejor omitir uno y mandar el mas reciente 33 ms despues que acumular lag.
     if(Number(ws.bufferedAmount||0)>32*1024)return false;
-    try{ws.send(JSON.stringify({t:'ctrl',turn,thrust,fire}));return true;}catch(_){return false;}
+    try{ws.send(JSON.stringify({t:'ctrl',turn,thrust,fire,...actions}));return true;}catch(_){return false;}
   }
   function flushPendingState(force=false,stamp=performance.now()){
     if(!pendingStateRaw)return false;
@@ -2449,17 +2449,20 @@
     const touchFire=isMobile&&!mobileKeyboardActive?mobileFire:false;
     const thrust=touchThrust||keys.has('KeyW')||keys.has('ArrowUp')||(pad.active&&pad.thrust);
     const fire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight')||(pad.active&&pad.fire);
+    const legacyFire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
+    const actions={directFire:!!(pad.active&&pad.fire&&!legacyFire),flare:!!(pad.active&&pad.flare),shock:!!(pad.active&&pad.shock)};
+    const joystickActions=JSON.stringify(actions);
     if(Math.abs(rawTurn-lastControlTurn)>0.001){
       lastControlTurnChangedAt=now;
       lastControlTurn=rawTurn;
     }
     lastControlThrust=thrust;
-    const changed=!Number.isFinite(lastSentControlTurn)||turn!==lastSentControlTurn||thrust!==lastSentControlThrust||fire!==lastSentControlFire;
+    const changed=!Number.isFinite(lastSentControlTurn)||turn!==lastSentControlTurn||thrust!==lastSentControlThrust||fire!==lastSentControlFire||joystickActions!==lastSentJoystickActions;
     const elapsed=lastControlSentAt?now-lastControlSentAt:Infinity;
     if((changed&&elapsed>=CONTROL_SEND_MS-1)||elapsed>=CONTROL_HEARTBEAT_MS){
-      if(sendControl(turn,thrust,fire)){
+      if(sendControl(turn,thrust,fire,actions)){
         lastControlSentAt=now;
-        lastSentControlTurn=turn;lastSentControlThrust=thrust;lastSentControlFire=fire;
+        lastSentControlTurn=turn;lastSentControlThrust=thrust;lastSentControlFire=fire;lastSentJoystickActions=joystickActions;
       }
     }
   }
