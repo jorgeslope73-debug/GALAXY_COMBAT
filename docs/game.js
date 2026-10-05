@@ -226,6 +226,7 @@
   let onlineReadyRedCache=null,onlineReadyOrangeCache=null,onlineGoCache=null;
   let huntFxStart=0,huntFxUntil=0,huntText='',huntCpuAmmo=false,huntCpuBonus=0,huntCpuIndices=[],huntCpuAmmoTotals=new Map();
   let pendingVictoryIndex=null,victoryShowTimer=null;
+  let victoryHudScoreShownAt=null;
   // V21.64: victorias acumuladas mientras el jugador permanezca en la misma
   // sesion online. Se reinician solo al volver al menu principal.
   const onlineSessionWins=new Map();
@@ -3163,7 +3164,13 @@
     }
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
-    else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
+    else if(m.t==='victory'){
+      // V21.72: la CPU emite VICTORY antes de publicar el snapshot final.
+      // Leemos ese estado ya confirmado para preparar primero la ultima baja.
+      if(localCpuActive&&localCpu)handle(localCpu.publicState());
+      if(state)state.winner=m.winner;
+      queueVictory(m.winner);
+    }
     else if(m.t==='restarted'){
       const restartRound=roomCode==='LOCAL'?localCampaignLevel:Math.max(1,Number(m.rankRound)||(hostPhysics&&hostPhysics.rankRound)||currentMatchBackgroundRound+1);
       if(roomCode!=='LOCAL'&&restartRound<=lastRestartedRound)return;
@@ -3333,6 +3340,7 @@
   function beginGame(preparingOnline=false,backgroundRound=0){
     // En CPU el nivel decide el fondo: 1=fondo, 2=fondo02, 3=fondo03, 4=fondo04, 5=fondo05.
     // Online conserva su sincronizacion autoritativa por rankRound.
+    victoryHudScoreShownAt=null;
     if(roomCode==='LOCAL')selectLocalCampaignBackground(localCampaignLevel);
     else if(Number(backgroundRound)>0)selectMatchBackgroundForRound(backgroundRound);
     else if(!roomCode)selectNextMatchBackground();
@@ -3342,28 +3350,38 @@
     if(!inGame||!Number.isInteger(winnerIndex)||winnerIndex<0||winnerIndex>3)return;
     // El mismo VICTORY puede llegar por P2P y por el respaldo fiable WebSocket.
     // Si ya esta programado, no reiniciamos el temporizador.
-    if(pendingVictoryIndex===winnerIndex&&victoryShowTimer)return;
+    if(pendingVictoryIndex===winnerIndex)return;
     pendingVictoryIndex=winnerIndex;
+    victoryHudScoreShownAt=null;
     clearTimeout(victoryShowTimer);victoryShowTimer=null;
     maybeScheduleVictory();
   }
-  function maybeScheduleVictory(){
-    // V19.79: VICTORY es un evento autoritativo del host. No esperamos a que el
-    // ultimo snapshot descartable contenga tambien el 5/5: en movil ese paquete
-    // podia perderse y dejar la pantalla de ganador esperando indefinidamente.
-    if(pendingVictoryIndex===null||!inGame||victoryShowTimer)return;
-    const now=performance.now();
-    // Si la baja ganadora es nuestra, el HUD mantiene 4/5 durante dos segundos.
-    // Esperamos a que el contador cambie realmente a 5/5 y dejamos ver el pop
-    // antes de cubrir la partida con la celebracion final.
+  function victoryDisplayDelay(now){
     let delay=700;
     if(Number(pendingVictoryIndex)===Number(myIndex)&&killScorePendingValue!==null){
-      delay=Math.max(0,killScoreFxStart-now)+650;
+      delay=Math.max(delay,killScoreFxStart-now+650);
     }
+    if(roomCode==='LOCAL'&&Number(pendingVictoryIndex)===Number(myIndex)){
+      // Esperar a un fotograma que haya mostrado 5/5, tambien tras volver
+      // de una pestaña en segundo plano o recibir un estado retrasado.
+      if(victoryHudScoreShownAt===null)return Math.max(100,killScoreFxStart-now);
+      return Math.max(0,victoryHudScoreShownAt+650-now);
+    }
+    return delay;
+  }
+  function maybeScheduleVictory(){
+    if(pendingVictoryIndex===null||!inGame||victoryShowTimer)return;
     const winnerIndex=pendingVictoryIndex;
+    const delay=victoryDisplayDelay(performance.now());
     victoryShowTimer=setTimeout(()=>{
       victoryShowTimer=null;
       if(pendingVictoryIndex!==winnerIndex||!inGame)return;
+      const now=performance.now();
+      // El snapshot final puede llegar DESPUES de programar el cartel.
+      // Revalidar aqui impide que un temporizador antiguo lo adelante.
+      const scoreStillPending=Number(winnerIndex)===Number(myIndex)&&killScorePendingValue!==null&&now<killScoreFxStart+650;
+      const localHudStillPending=roomCode==='LOCAL'&&Number(winnerIndex)===Number(myIndex)&&(victoryHudScoreShownAt===null||now<victoryHudScoreShownAt+650);
+      if(scoreStillPending||localHudStillPending){maybeScheduleVictory();return;}
       pendingVictoryIndex=null;
       showVictory(winnerIndex);
     },delay);
@@ -4489,6 +4507,9 @@
         }
       }
       const killText=hudKillText(p,state.scoreToWin,displayedKills);
+      if(Number(p.i)===Number(pendingVictoryIndex)&&pendingVictoryIndex!==null&&displayedKills>=(Number(state.scoreToWin)||5)&&victoryHudScoreShownAt===null){
+        victoryHudScoreShownAt=now;
+      }
       if(localCrashScoreFx){
         // Explosion local del contador cuando una colision propia resta una baja.
         // El nuevo valor ya viene del servidor; aqui solo reforzamos visualmente
