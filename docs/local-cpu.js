@@ -1002,7 +1002,7 @@
         x:0,y:0,rot:0,vx:0,vy:0,thrust:false,
         bullets:5,cadence:30,speed:1,kills:0,deaths:0,
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,spawnFx:SPAWN_MATERIALIZE_SECONDS,spawnAnchorX:0,spawnAnchorY:0,
-        guided:false,guidedTarget:-1,guidedAmmo:0,flare:0,flareHold:0,flareGesture:false,specialReleaseLock:false,shockwave:false,shockReachAt:0,shockExplodeAt:0,shockOwner:-1,nextShockLearning:0,
+        guided:false,guidedTarget:-1,guidedAmmo:0,joystickRocketHeld:false,flare:0,flareHold:0,flareGesture:false,specialReleaseLock:false,shockwave:false,shockReachAt:0,shockExplodeAt:0,shockOwner:-1,nextShockLearning:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
         cpuFireDelay:cpu?CPU_ARMED_WARNING_SECONDS:0,
         difficulty:this.difficulty,
@@ -1111,7 +1111,7 @@
       if(!p)return false;
       let c=this.controls.get(0);
       if(!c){c={turn:0,thrust:false,fire:false};this.controls.set(0,c);}
-      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;c.directFire=actions.directFire===true;c.flare=actions.flare===true;c.shock=actions.shock===true;
+      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;c.directFire=actions.directFire===true;c.rocket=actions.rocket===true;c.flare=actions.flare===true;c.shock=actions.shock===true;
       p.lastControlAt=Date.now();
       return true;
     }
@@ -1173,7 +1173,7 @@
       this.resetAsteroids();
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
-        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.nextShockLearning=0;
+        p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.nextShockLearning=0;
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
         if(p.cpu){
@@ -1283,7 +1283,7 @@
       // derrotado repartido en el punto de muerte. Entorno/meteoritos no dejan botin.
       if(attacker&&attacker!==victim)this.dropDefeatedLoadout(victim);
 
-      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.guidedAmmo=0;victim.flareHold=0;victim.flareGesture=false;victim.specialReleaseLock=false;victim.shockwave=false;victim.shockReachAt=0;victim.shockExplodeAt=0;victim.shockOwner=-1;
+      victim.bullets=0;victim.cadence=30;victim.speed=1;victim.shield=0;victim.camo=0;victim.reload=0;victim.guided=false;victim.guidedTarget=-1;victim.guidedAmmo=0;victim.joystickRocketHeld=false;victim.flareHold=0;victim.flareGesture=false;victim.specialReleaseLock=false;victim.shockwave=false;victim.shockReachAt=0;victim.shockExplodeAt=0;victim.shockOwner=-1;
       this.noDeathTime=0;this.emitShipImpact(victim,null,true);this.emit({t:'sound',kind:'impact'});
       if(attacker&&attacker!==victim){
         attacker.kills++;
@@ -1314,7 +1314,7 @@
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
-      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.nextShockLearning=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.nextShockLearning=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
       if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.flarePending=null;p.nextFlareDecision=0;p.easyNextDecision=0;p.easyControl=null;}
     }
     deployShockwave(p){
@@ -2217,6 +2217,9 @@
         // generaba con la rotacion ya modificada; en maniobras/evitacion podia
         // salir desviada. Ahora solo dispara si el morro final apunta de verdad
         // a un rival visible dentro del alcance.
+        const rocketHeld=!!(c&&c.rocket);
+        const rocketNow=!p.cpu&&rocketHeld&&!p.joystickRocketHeld;
+        p.joystickRocketHeld=rocketHeld;
         let fireNow=this.resolveFireWithFlare(p,c,dt);
         if(p.cpu&&fireNow){
           fireNow=false;
@@ -2232,11 +2235,12 @@
             if(dot>=Math.cos(fireAngle*Math.PI/180)){fireNow=true;break;}
           }
         }
-        if(fireNow&&p.bullets>0&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
-          const guided=!!p.guided,guidedTarget=guided?p.guidedTarget:-1;
-          // V21.48: el misil empieza mas lento con cadencia basica y gana
-          // velocidad en cada mejora. La cadencia maxima supera ligeramente
-          // el antiguo tope de 550 sin acercarse a la velocidad de una bala.
+        const rocketReady=rocketNow&&!!p.guided;
+        if((fireNow||rocketReady)&&p.bullets>0&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
+          // V21.73: el disparo normal del mando no consume el cohete. L2 lo
+          // dispara aparte; teclado, movil y CPU conservan el comportamiento previo.
+          const guided=rocketReady?true:((c&&c.directFire)?false:!!p.guided);
+          const guidedTarget=guided?p.guidedTarget:-1;
           const cadence=Number(p.cadence)||30;
           const guidedSpeed=cadence>=30?400:(cadence>=20?460:(cadence>=10?520:580));
           const projectileSpeed=guided?guidedSpeed:this.bulletSpeed(p);

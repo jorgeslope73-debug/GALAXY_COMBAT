@@ -349,8 +349,40 @@
   const cpuButton=document.getElementById('cpu');
   const audioToggleButton=document.getElementById('enableAudio');
   const joystickToggleButton=document.getElementById('enableJoystick');
+  const joystickConfigButton=document.getElementById('configureJoystick');
+  const joystickConfigDialog=document.getElementById('joystickConfigDialog');
+  const joystickConfigTitle=document.getElementById('joystickConfigTitle');
+  const joystickConfigStep=document.getElementById('joystickConfigStep');
+  const joystickConfigAction=document.getElementById('joystickConfigAction');
+  const joystickConfigHint=document.getElementById('joystickConfigHint');
+  const joystickConfigCurrent=document.getElementById('joystickConfigCurrent');
+  const joystickConfigClose=document.getElementById('joystickConfigClose');
+  const joystickConfigReset=document.getElementById('joystickConfigReset');
+  const joystickConfigCancel=document.getElementById('joystickConfigCancel');
   const controlHelpEl=document.getElementById('controlHelp');
   const JOYSTICK_STORAGE_KEY='galaxyCombatJoystickV1';
+  const JOYSTICK_MAP_STORAGE_KEY='galaxyCombatJoystickMapV1';
+  const DEFAULT_JOYSTICK_MAP=Object.freeze({
+    turnAxis:0,turnScale:-1,turnLeft:14,turnRight:15,
+    thrust:0,fire:7,rocket:6,flare:4,shock:3,ptt:5
+  });
+  const JOYSTICK_CONFIG_STEPS=[
+    {field:'thrust',text:'accelerate'},
+    {field:'fire',text:'fire'},
+    {field:'rocket',text:'rocket'},
+    {field:'flare',text:'flare'},
+    {field:'shock',text:'shock'}
+  ];
+  const JOYSTICK_CONFIG_TEXT={
+    es:{configure:'CONFIGURAR',title:'CONFIGURAR MANDO',connect:'CONECTA UN MANDO Y PULSA UN BOTON',move:'MOVER',moveLeft:'MUEVE EL STICK HACIA LA IZQUIERDA O PULSA IZQUIERDA EN LA CRUCETA',moveRight:'AHORA PULSA DERECHA EN LA CRUCETA',accelerate:'ACELERAR',fire:'DISPARO',rocket:'COHETES',flare:'BENGALAS',shock:'HONDA EXPANSIVA',press:'PULSA EL BOTON QUE QUIERAS ASIGNAR',reset:'RESTAURAR',cancel:'CANCELAR',saved:'CONFIGURACION GUARDADA',step:'PASO',voice:'VOZ'},
+    en:{configure:'CONFIGURE',title:'CONFIGURE CONTROLLER',connect:'CONNECT A CONTROLLER AND PRESS A BUTTON',move:'MOVE',moveLeft:'MOVE THE STICK LEFT OR PRESS LEFT ON THE D-PAD',moveRight:'NOW PRESS RIGHT ON THE D-PAD',accelerate:'THRUST',fire:'FIRE',rocket:'ROCKETS',flare:'FLARES',shock:'SHOCKWAVE',press:'PRESS THE BUTTON YOU WANT TO ASSIGN',reset:'RESET',cancel:'CANCEL',saved:'CONFIGURATION SAVED',step:'STEP',voice:'VOICE'},
+    it:{configure:'CONFIGURA',title:'CONFIGURA CONTROLLER',connect:'COLLEGA UN CONTROLLER E PREMI UN PULSANTE',move:'MUOVI',moveLeft:'MUOVI LO STICK A SINISTRA O PREMI SINISTRA SUL D-PAD',moveRight:'ORA PREMI DESTRA SUL D-PAD',accelerate:'ACCELERA',fire:'SPARO',rocket:'RAZZI',flare:'BENGALA',shock:'ONDA ESPANSIVA',press:'PREMI IL PULSANTE DA ASSEGNARE',reset:'RIPRISTINA',cancel:'ANNULLA',saved:'CONFIGURAZIONE SALVATA',step:'PASSO',voice:'VOCE'},
+    fr:{configure:'CONFIGURER',title:'CONFIGURER MANETTE',connect:'CONNECTE UNE MANETTE ET APPUIE SUR UN BOUTON',move:'TOURNER',moveLeft:'POUSSE LE STICK A GAUCHE OU APPUIE A GAUCHE SUR LA CROIX',moveRight:'APPUIE MAINTENANT A DROITE SUR LA CROIX',accelerate:'ACCELERER',fire:'TIR',rocket:'ROQUETTES',flare:'LEURRES',shock:'ONDE DE CHOC',press:'APPUIE SUR LE BOUTON A ASSIGNER',reset:'REINITIALISER',cancel:'ANNULER',saved:'CONFIGURATION ENREGISTREE',step:'ETAPE',voice:'VOIX'},
+    de:{configure:'KONFIGURIEREN',title:'CONTROLLER KONFIGURIEREN',connect:'CONTROLLER VERBINDEN UND EINE TASTE DRUECKEN',move:'DREHEN',moveLeft:'STICK NACH LINKS BEWEGEN ODER LINKS AM STEUERKREUZ DRUECKEN',moveRight:'JETZT RECHTS AM STEUERKREUZ DRUECKEN',accelerate:'BESCHLEUNIGEN',fire:'FEUERN',rocket:'RAKETEN',flare:'FLARES',shock:'SCHOCKWELLE',press:'GEWUENSCHTE TASTE DRUECKEN',reset:'ZURUECKSETZEN',cancel:'ABBRECHEN',saved:'KONFIGURATION GESPEICHERT',step:'SCHRITT',voice:'SPRACHE'}
+  };
+  let joystickMap={...DEFAULT_JOYSTICK_MAP};
+  let joystickConfigDraft=null,joystickConfigActive=false,joystickConfigStepIndex=0,joystickConfigTurnStage='left';
+  let joystickConfigPrevButtons=[],joystickConfigNeutralAxes=[],joystickConfigPadIndex=-1,joystickConfigRaf=0,joystickConfigCloseTimer=null;
   let joystickEnabled=false;
   let joystickIndex=-1;
   let joystickConnected=false;
@@ -1481,8 +1513,9 @@
     return audioUnlocked;
   }
   function loadJoystickPreference(){
-    // V20.40: JOYSTICK solo existe en PC. En movil/tablet queda siempre
-    // desactivado y el boton se oculta por completo.
+    // V21.73: el modo sigue siendo solo PC, pero el mapa personalizado se
+    // conserva en este navegador aunque JOYSTICK empiece desactivado.
+    loadJoystickMap();
     joystickEnabled=false;
     if(isMobile&&joystickToggleButton){
       joystickToggleButton.style.display='none';
@@ -1492,6 +1525,186 @@
   }
   function saveJoystickPreference(){
     try{localStorage.setItem(JOYSTICK_STORAGE_KEY,joystickEnabled?'1':'0');}catch(_){}
+  }
+  function validJoyIndex(value,fallback,max=63){
+    const n=Number(value);
+    return Number.isInteger(n)&&n>=-1&&n<=max?n:fallback;
+  }
+  function loadJoystickMap(){
+    joystickMap={...DEFAULT_JOYSTICK_MAP};
+    try{
+      const raw=localStorage.getItem(JOYSTICK_MAP_STORAGE_KEY);
+      if(!raw)return;
+      const saved=JSON.parse(raw);
+      if(!saved||typeof saved!=='object')return;
+      joystickMap={
+        turnAxis:validJoyIndex(saved.turnAxis,DEFAULT_JOYSTICK_MAP.turnAxis,31),
+        turnScale:Number(saved.turnScale)===1?1:-1,
+        turnLeft:validJoyIndex(saved.turnLeft,DEFAULT_JOYSTICK_MAP.turnLeft),
+        turnRight:validJoyIndex(saved.turnRight,DEFAULT_JOYSTICK_MAP.turnRight),
+        thrust:validJoyIndex(saved.thrust,DEFAULT_JOYSTICK_MAP.thrust),
+        fire:validJoyIndex(saved.fire,DEFAULT_JOYSTICK_MAP.fire),
+        rocket:validJoyIndex(saved.rocket,DEFAULT_JOYSTICK_MAP.rocket),
+        flare:validJoyIndex(saved.flare,DEFAULT_JOYSTICK_MAP.flare),
+        shock:validJoyIndex(saved.shock,DEFAULT_JOYSTICK_MAP.shock),
+        ptt:validJoyIndex(saved.ptt,DEFAULT_JOYSTICK_MAP.ptt)
+      };
+    }catch(_){joystickMap={...DEFAULT_JOYSTICK_MAP};}
+  }
+  function saveJoystickMap(){
+    try{localStorage.setItem(JOYSTICK_MAP_STORAGE_KEY,JSON.stringify(joystickMap));}catch(_){}
+  }
+  function joystickConfigText(){
+    const lang=String(document.documentElement.lang||'es').slice(0,2).toLowerCase();
+    return JOYSTICK_CONFIG_TEXT[lang]||JOYSTICK_CONFIG_TEXT.en;
+  }
+  function joystickButtonPressed(pad,index,threshold=.35){
+    if(!pad||!Number.isInteger(index)||index<0)return false;
+    const b=pad.buttons&&pad.buttons[index];
+    return !!(b&&(b.pressed||Number(b.value)>threshold));
+  }
+  function joystickButtonLabel(index){
+    const labels={0:'1',1:'2',2:'3',3:'4',4:'L1 / LB',5:'R1 / RB',6:'L2 / LT',7:'R2 / RT',8:'SELECT',9:'START',10:'L3',11:'R3',12:'DPAD ARRIBA',13:'DPAD ABAJO',14:'DPAD IZQ.',15:'DPAD DER.',16:'HOME'};
+    return Object.prototype.hasOwnProperty.call(labels,index)?labels[index]:'B'+(Number(index)+1);
+  }
+  function joystickTurnLabel(map=joystickMap){
+    if(Number(map.turnAxis)>=0)return Number(map.turnAxis)===0?'STICK IZQ.':'EJE '+(Number(map.turnAxis)+1);
+    return joystickButtonLabel(map.turnLeft)+' / '+joystickButtonLabel(map.turnRight);
+  }
+  function joystickMapSummary(map=joystickMap){
+    const t=joystickConfigText();
+    return t.move+': '+joystickTurnLabel(map)+' · '+t.accelerate+': '+joystickButtonLabel(map.thrust)+' · '+t.fire+': '+joystickButtonLabel(map.fire)+' · '+t.rocket+': '+joystickButtonLabel(map.rocket)+' · '+t.flare+': '+joystickButtonLabel(map.flare)+' · '+t.shock+': '+joystickButtonLabel(map.shock)+' · '+t.voice+': '+joystickButtonLabel(map.ptt);
+  }
+  function seedJoystickConfigInput(pad){
+    joystickConfigPadIndex=pad&&Number.isInteger(pad.index)?pad.index:-1;
+    joystickConfigPrevButtons=pad&&pad.buttons?Array.from(pad.buttons,b=>!!(b&&(b.pressed||Number(b.value)>.55))):[];
+    joystickConfigNeutralAxes=pad&&pad.axes?Array.from(pad.axes,a=>Number(a)||0):[];
+  }
+  function renderJoystickConfig(){
+    if(!joystickConfigDialog)return;
+    const t=joystickConfigText();
+    if(joystickConfigTitle)joystickConfigTitle.textContent=t.title;
+    if(joystickConfigReset)joystickConfigReset.textContent=t.reset;
+    if(joystickConfigCancel)joystickConfigCancel.textContent=t.cancel;
+    const pad=findJoystick();
+    if(!joystickConfigDraft)joystickConfigDraft={...joystickMap};
+    if(joystickConfigStepIndex>=6){
+      if(joystickConfigStep)joystickConfigStep.textContent='';
+      if(joystickConfigAction)joystickConfigAction.textContent='✓ '+t.saved;
+      if(joystickConfigHint)joystickConfigHint.textContent=joystickMapSummary(joystickMap);
+    }else if(!pad){
+      if(joystickConfigStep)joystickConfigStep.textContent=t.step+' '+(joystickConfigStepIndex+1)+'/6';
+      if(joystickConfigAction)joystickConfigAction.textContent=t.connect;
+      if(joystickConfigHint)joystickConfigHint.textContent='';
+    }else if(joystickConfigStepIndex===0){
+      if(joystickConfigStep)joystickConfigStep.textContent=t.step+' 1/6';
+      if(joystickConfigAction)joystickConfigAction.textContent=t.move;
+      if(joystickConfigHint)joystickConfigHint.textContent=joystickConfigTurnStage==='right'?t.moveRight:t.moveLeft;
+    }else{
+      const step=JOYSTICK_CONFIG_STEPS[joystickConfigStepIndex-1];
+      if(joystickConfigStep)joystickConfigStep.textContent=t.step+' '+(joystickConfigStepIndex+1)+'/6';
+      if(joystickConfigAction)joystickConfigAction.textContent=t[step.text];
+      if(joystickConfigHint)joystickConfigHint.textContent=t.press;
+    }
+    if(joystickConfigCurrent)joystickConfigCurrent.textContent=joystickMapSummary(joystickConfigDraft);
+  }
+  function finishJoystickConfig(){
+    if(!joystickConfigDraft)return;
+    joystickMap={...joystickConfigDraft};
+    saveJoystickMap();
+    joystickConfigStepIndex=6;
+    joystickConfigActive=false;
+    if(joystickConfigRaf){cancelAnimationFrame(joystickConfigRaf);joystickConfigRaf=0;}
+    updateJoystickButton();
+    renderJoystickConfig();
+    clearTimeout(joystickConfigCloseTimer);
+    joystickConfigCloseTimer=setTimeout(closeJoystickConfig,900);
+  }
+  function closeJoystickConfig(){
+    joystickConfigActive=false;
+    joystickConfigDraft=null;
+    joystickConfigPadIndex=-1;
+    if(joystickConfigRaf){cancelAnimationFrame(joystickConfigRaf);joystickConfigRaf=0;}
+    clearTimeout(joystickConfigCloseTimer);joystickConfigCloseTimer=null;
+    if(joystickConfigDialog)joystickConfigDialog.classList.add('hidden');
+  }
+  function resetJoystickConfig(){
+    joystickMap={...DEFAULT_JOYSTICK_MAP};
+    joystickConfigDraft={...joystickMap};
+    saveJoystickMap();
+    joystickConfigStepIndex=6;
+    joystickConfigActive=false;
+    updateJoystickButton();
+    renderJoystickConfig();
+    clearTimeout(joystickConfigCloseTimer);
+    joystickConfigCloseTimer=setTimeout(closeJoystickConfig,900);
+  }
+  function pollJoystickConfig(){
+    if(!joystickConfigActive)return;
+    const pad=findJoystick();
+    if(!pad){
+      joystickConfigPadIndex=-1;
+      renderJoystickConfig();
+      joystickConfigRaf=requestAnimationFrame(pollJoystickConfig);
+      return;
+    }
+    if(joystickConfigPadIndex!==pad.index){
+      seedJoystickConfigInput(pad);
+      renderJoystickConfig();
+      joystickConfigRaf=requestAnimationFrame(pollJoystickConfig);
+      return;
+    }
+    const buttons=pad.buttons?Array.from(pad.buttons,b=>!!(b&&(b.pressed||Number(b.value)>.55))):[];
+    const rising=[];
+    for(let i=0;i<buttons.length;i++)if(buttons[i]&&!joystickConfigPrevButtons[i])rising.push(i);
+
+    if(joystickConfigStepIndex===0&&joystickConfigTurnStage==='left'){
+      let capturedAxis=false;
+      if(pad.axes){
+        for(let i=0;i<pad.axes.length;i++){
+          const value=Number(pad.axes[i])||0,neutral=Number(joystickConfigNeutralAxes[i])||0;
+          if(Math.abs(neutral)<.30&&Math.abs(value)>.65){
+            joystickConfigDraft.turnAxis=i;
+            joystickConfigDraft.turnScale=value<0?-1:1;
+            joystickConfigDraft.turnLeft=-1;joystickConfigDraft.turnRight=-1;
+            joystickConfigStepIndex=1;joystickConfigTurnStage='';
+            capturedAxis=true;break;
+          }
+        }
+      }
+      if(!capturedAxis&&rising.length){
+        joystickConfigDraft.turnAxis=-1;
+        joystickConfigDraft.turnLeft=rising[0];
+        joystickConfigDraft.turnRight=-1;
+        joystickConfigTurnStage='right';
+      }
+      if(capturedAxis||rising.length)renderJoystickConfig();
+    }else if(joystickConfigStepIndex===0&&joystickConfigTurnStage==='right'){
+      const candidate=rising.find(i=>i!==joystickConfigDraft.turnLeft);
+      if(Number.isInteger(candidate)){
+        joystickConfigDraft.turnRight=candidate;
+        joystickConfigStepIndex=1;joystickConfigTurnStage='';
+        renderJoystickConfig();
+      }
+    }else if(joystickConfigStepIndex>0&&joystickConfigStepIndex<6&&rising.length){
+      const step=JOYSTICK_CONFIG_STEPS[joystickConfigStepIndex-1];
+      joystickConfigDraft[step.field]=rising[0];
+      joystickConfigStepIndex++;
+      if(joystickConfigStepIndex>=6){finishJoystickConfig();return;}
+      renderJoystickConfig();
+    }
+    joystickConfigPrevButtons=buttons;
+    joystickConfigRaf=requestAnimationFrame(pollJoystickConfig);
+  }
+  function openJoystickConfig(){
+    if(isMobile||!joystickEnabled||!joystickConfigDialog)return;
+    joystickConfigDraft={...joystickMap};
+    joystickConfigStepIndex=0;joystickConfigTurnStage='left';joystickConfigActive=true;
+    joystickConfigDialog.classList.remove('hidden');
+    seedJoystickConfigInput(findJoystick());
+    renderJoystickConfig();
+    if(joystickConfigRaf)cancelAnimationFrame(joystickConfigRaf);
+    joystickConfigRaf=requestAnimationFrame(pollJoystickConfig);
   }
   function findJoystick(){
     if(!joystickEnabled||typeof navigator.getGamepads!=='function'){
@@ -1515,44 +1728,50 @@
     return pad;
   }
   function joystickControls(){
-    if(isMobile)return {active:false,turn:0,thrust:false,fire:false,flare:false,shock:false,ptt:false};
+    if(isMobile)return {active:false,turn:0,thrust:false,fire:false,rocket:false,flare:false,shock:false,ptt:false};
     const pad=findJoystick();
-    if(!pad)return {active:false,turn:0,thrust:false,fire:false,flare:false,shock:false,ptt:false};
+    if(!pad)return {active:false,turn:0,thrust:false,fire:false,rocket:false,flare:false,shock:false,ptt:false};
     const dead=.18;
-    const axisX=Number(pad.axes&&pad.axes.length>0?pad.axes[0]:0)||0;
-    const dpadLeft=!!(pad.buttons&&pad.buttons[14]&&pad.buttons[14].pressed);
-    const dpadRight=!!(pad.buttons&&pad.buttons[15]&&pad.buttons[15].pressed);
+    const dpadLeft=joystickButtonPressed(pad,joystickMap.turnLeft);
+    const dpadRight=joystickButtonPressed(pad,joystickMap.turnRight);
     let turn=0;
-    if(dpadLeft||dpadRight)turn=(dpadLeft?1:0)-(dpadRight?1:0);
-    else if(Math.abs(axisX)>dead){
-      const normalized=(Math.abs(axisX)-dead)/(1-dead);
-      // Gamepad: izquierda=-1. Fisica Galaxy: izquierda=+1.
-      turn=-Math.sign(axisX)*Math.min(1,normalized);
+    if(Number(joystickMap.turnAxis)<0&&(dpadLeft||dpadRight)){
+      turn=(dpadLeft?1:0)-(dpadRight?1:0);
+    }else if(Number(joystickMap.turnAxis)>=0){
+      const axisX=Number(pad.axes&&pad.axes.length>joystickMap.turnAxis?pad.axes[joystickMap.turnAxis]:0)||0;
+      if(Math.abs(axisX)>dead){
+        const normalized=(Math.abs(axisX)-dead)/(1-dead);
+        turn=Math.sign(axisX)*(Number(joystickMap.turnScale)||-1)*Math.min(1,normalized);
+      }else if(dpadLeft||dpadRight){
+        turn=(dpadLeft?1:0)-(dpadRight?1:0);
+      }
     }
-    // Botones frontales numerados desde 1; Gamepad API usa indices desde 0.
-    const pressed=(index,threshold=.5)=>!!(pad.buttons&&pad.buttons[index]&&(pad.buttons[index].pressed||Number(pad.buttons[index].value)>threshold));
-    const thrust=pressed(7,.28); // R2 / RT
-    const fire=pressed(0); // boton 1
-    const flare=pressed(3); // boton 4
-    const shock=pressed(2); // boton 3
-    const ptt=pressed(5); // R1 / RB
-    return {active:true,turn,thrust,fire,flare,shock,ptt};
+    const thrust=joystickButtonPressed(pad,joystickMap.thrust);
+    const fire=joystickButtonPressed(pad,joystickMap.fire);
+    const rocket=joystickButtonPressed(pad,joystickMap.rocket);
+    const flare=joystickButtonPressed(pad,joystickMap.flare);
+    const shock=joystickButtonPressed(pad,joystickMap.shock);
+    const ptt=joystickButtonPressed(pad,joystickMap.ptt);
+    return {active:true,turn,thrust,fire,rocket,flare,shock,ptt};
   }
   function updateControlHelp(){
     if(!controlHelpEl)return;
     if(joystickEnabled){
+      const t=joystickConfigText();
       controlHelpEl.innerHTML=
-        '<span><span>'+tr('rotateControl')+'</span> <b>STICK IZQ.</b></span>'+
+        '<span><span>'+tr('rotateControl')+'</span> <b>'+joystickTurnLabel()+'</b></span>'+
         '<i aria-hidden="true"></i>'+
-        '<span><span>'+tr('accelerate')+'</span> <b>R2 / RT</b></span>'+
+        '<span><span>'+tr('accelerate')+'</span> <b>'+joystickButtonLabel(joystickMap.thrust)+'</b></span>'+
         '<i aria-hidden="true"></i>'+
-        '<span><span>'+tr('fire')+'</span> <b>1</b></span>'+
+        '<span><span>'+tr('fire')+'</span> <b>'+joystickButtonLabel(joystickMap.fire)+'</b></span>'+
         '<i aria-hidden="true"></i>'+
-        '<span><span>'+tr('pickupFlare')+'</span> <b>4</b></span>'+
+        '<span><span>'+t.rocket+'</span> <b>'+joystickButtonLabel(joystickMap.rocket)+'</b></span>'+
         '<i aria-hidden="true"></i>'+
-        '<span><span>'+tr('pickupShockwave')+'</span> <b>3</b></span>'+
+        '<span><span>'+t.flare+'</span> <b>'+joystickButtonLabel(joystickMap.flare)+'</b></span>'+
         '<i aria-hidden="true"></i>'+
-        '<span><span>'+tr('talk')+'</span> <b>R1</b></span>';
+        '<span><span>'+t.shock+'</span> <b>'+joystickButtonLabel(joystickMap.shock)+'</b></span>'+
+        '<i aria-hidden="true"></i>'+
+        '<span><span>'+tr('talk')+'</span> <b>'+joystickButtonLabel(joystickMap.ptt)+'</b></span>';
     }else{
       controlHelpEl.innerHTML=
         '<span><span>'+tr('rotateControl')+'</span> <b>A / D</b> <span>'+tr('orArrows')+'</span></span>'+
@@ -1565,12 +1784,17 @@
   function updateJoystickButton(){
     if(!joystickToggleButton)return;
     findJoystick();
+    const t=joystickConfigText();
     joystickToggleButton.classList.toggle('active',joystickEnabled);
     joystickToggleButton.setAttribute('aria-pressed',joystickEnabled?'true':'false');
-    // El estado se comunica por color para mantener exactamente el mismo ancho que AUDIO.
     joystickToggleButton.textContent='JOYSTICK';
+    if(joystickConfigButton){
+      joystickConfigButton.classList.toggle('hidden',!joystickEnabled);
+      joystickConfigButton.textContent=t.configure;
+      joystickConfigButton.title=t.title;
+    }
     joystickToggleButton.title=joystickEnabled
-      ?(joystickConnected?'Joystick activo: R2 acelera, 1 dispara, 4 lanza bengalas, 3 activa onda expansiva y R1 habla.':'Joystick activo: conecta un mando. R2 acelera, 1 dispara, 4 lanza bengalas, 3 activa onda expansiva y R1 habla.')
+      ?(joystickConnected?'Joystick activo. '+joystickMapSummary():'Joystick activo: conecta un mando. '+joystickMapSummary())
       :'Activar control con mando estandar';
     updateControlHelp();
   }
@@ -1578,7 +1802,7 @@
     try{window.dispatchEvent(new CustomEvent('galaxy-joystickchange',{detail:{enabled:joystickEnabled,connected:joystickConnected}}));}catch(_){}
   }
   window.GalaxyJoystickEnabled=()=>!isMobile&&!!joystickEnabled;
-  window.addEventListener('galaxy-languagechange',updateControlHelp);
+  window.addEventListener('galaxy-languagechange',()=>{updateJoystickButton();if(joystickConfigDialog&&!joystickConfigDialog.classList.contains('hidden'))renderJoystickConfig();});
   function toggleJoystick(){
     if(isMobile)return;
     joystickEnabled=!joystickEnabled;
@@ -2451,7 +2675,7 @@
     const thrust=touchThrust||keys.has('KeyW')||keys.has('ArrowUp')||(pad.active&&pad.thrust);
     const fire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight')||(pad.active&&pad.fire);
     const legacyFire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
-    const actions={directFire:!!(pad.active&&pad.fire&&!legacyFire),flare:!!(pad.active&&pad.flare),shock:!!(pad.active&&pad.shock)};
+    const actions={directFire:!!(pad.active&&pad.fire&&!legacyFire),rocket:!!(pad.active&&pad.rocket),flare:!!(pad.active&&pad.flare),shock:!!(pad.active&&pad.shock)};
     const joystickActions=JSON.stringify(actions);
     if(Math.abs(rawTurn-lastControlTurn)>0.001){
       lastControlTurnChangedAt=now;
@@ -3512,6 +3736,11 @@
   notifyJoystickVoiceUi();
   if(audioToggleButton)audioToggleButton.addEventListener('click',toggleGameAudio);
   if(joystickToggleButton)joystickToggleButton.addEventListener('click',toggleJoystick);
+  if(joystickConfigButton)joystickConfigButton.addEventListener('click',openJoystickConfig);
+  if(joystickConfigClose)joystickConfigClose.addEventListener('click',closeJoystickConfig);
+  if(joystickConfigCancel)joystickConfigCancel.addEventListener('click',closeJoystickConfig);
+  if(joystickConfigReset)joystickConfigReset.addEventListener('click',resetJoystickConfig);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&joystickConfigDialog&&!joystickConfigDialog.classList.contains('hidden'))closeJoystickConfig();});
   window.addEventListener('gamepadconnected',e=>{
     if(!joystickEnabled)return;
     joystickIndex=Number.isInteger(e.gamepad&&e.gamepad.index)?e.gamepad.index:-1;

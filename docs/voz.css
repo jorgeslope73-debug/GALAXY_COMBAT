@@ -206,3 +206,47 @@ html.handheld-device #menu #enableJoystick{display:none!important}
 @media (pointer:coarse){
   #menu #enableJoystick{display:none!important}
 }
+
+
+/* V21.73: configurador de mando. Solo aparece al activar JOYSTICK en PC. */
+#configureJoystick{
+  width:112px!important;min-width:112px!important;max-width:112px!important;
+  flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  height:30px!important;min-height:30px!important;padding:0 9px!important;border-radius:4px!important;
+  box-sizing:border-box!important;line-height:1!important;border:1px solid rgba(116,170,235,.68)!important;
+  background:rgba(28,58,92,.92)!important;color:#e9f4ff!important;
+  font-family:'Flashback',Arial,sans-serif!important;font-size:9px!important;letter-spacing:.045em!important;
+  cursor:pointer!important;box-shadow:0 0 10px rgba(54,130,220,.24)!important;white-space:nowrap!important;
+}
+#configureJoystick:hover{background:rgba(38,78,122,.96)!important;border-color:#9fd0ff!important}
+#configureJoystick.hidden{display:none!important}
+html.handheld-device #menu #configureJoystick{display:none!important}
+@media (pointer:coarse){#menu #configureJoystick{display:none!important}}
+
+.joystick-config-dialog{
+  position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:rgba(3,5,11,.82);backdrop-filter:blur(5px);
+}
+.joystick-config-dialog.hidden{display:none!important}
+.joystick-config-card{
+  position:relative;width:min(520px,92vw);padding:28px 28px 24px;border:1px solid rgba(128,200,255,.56);
+  border-radius:14px;background:linear-gradient(180deg,rgba(16,28,48,.98),rgba(8,13,24,.99));
+  color:#f3f8ff;text-align:center;box-shadow:0 20px 70px rgba(0,0,0,.58),0 0 30px rgba(53,142,220,.14);
+  font-family:Arial,Helvetica,sans-serif;
+}
+.joystick-config-close{
+  position:absolute;right:12px;top:10px;width:32px;height:32px;border:0;background:transparent;color:#fff;
+  font:700 28px/1 Arial;cursor:pointer;opacity:.78;
+}
+.joystick-config-kicker{font:800 11px/1 Arial;letter-spacing:.24em;color:#83cfff;margin-bottom:8px}
+.joystick-config-card h2{margin:0 0 18px;font:900 24px/1.1 Arial;letter-spacing:.04em}
+.joystick-config-step{font:800 11px/1 Arial;letter-spacing:.12em;color:#91a8c6;margin-bottom:10px}
+.joystick-config-action{font:900 26px/1.1 Arial;color:#fff;margin-bottom:10px;text-shadow:0 0 16px rgba(102,191,255,.22)}
+.joystick-config-hint{min-height:38px;margin:0 auto 16px;max-width:430px;font:700 13px/1.45 Arial;color:#cfe8ff}
+.joystick-config-current{margin:0 auto 18px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,.055);font:700 10px/1.45 Arial;color:#aebdd1}
+.joystick-config-actions{display:flex;gap:10px;justify-content:center}
+.joystick-config-actions button{
+  min-width:120px;height:34px;padding:0 14px;border-radius:6px;border:1px solid rgba(160,190,220,.46);
+  background:#263447;color:#eef6ff;font:800 10px/1 Arial;letter-spacing:.05em;cursor:pointer;
+}
+.joystick-config-actions button:hover{background:#344a66;border-color:#9ac9f3}
