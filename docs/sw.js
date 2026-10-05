@@ -1,4 +1,4 @@
-const VERSION = 'V21.63-joystick-controls';
+const VERSION = 'V21.69-joystick-controls';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
