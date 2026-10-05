@@ -1008,9 +1008,81 @@
         fire:!!(control&&control.fire)
       };
     }
+    // V21.67: capa de seguridad predictiva muy barata para CPU online.
+    // Solo interviene ante una trayectoria real de choque y no modifica
+    // aprendizaje, fisica, colisiones ni red.
+    cpuRockSafetyControl(cpu){
+      if(!cpu||cpu.dead||cpu.protection>0)return null;
+      let best=null,bestRisk=Infinity;
+
+      const consider=(hazard,radius,kind)=>{
+        if(!hazard)return;
+        const dx=(Number(hazard.x)||0)-(Number(cpu.x)||0);
+        const dy=(Number(hazard.y)||0)-(Number(cpu.y)||0);
+        const d2=dx*dx+dy*dy;
+        const maxRange=kind==='giant'?760:560;
+        if(d2>maxRange*maxRange)return;
+
+        const rvx=(Number(hazard.vx)||0)-(Number(cpu.vx)||0);
+        const rvy=(Number(hazard.vy)||0)-(Number(cpu.vy)||0);
+        const vv=rvx*rvx+rvy*rvy;
+        const dot=dx*rvx+dy*rvy;
+        const safe=SHIP_RADIUS+Math.max(8,Number(radius)||0)+(kind==='meteor'?26:36);
+        const near=safe+72;
+
+        if(dot>=0&&d2>near*near)return;
+
+        let ttc=0,cx=dx,cy=dy;
+        if(vv>16){
+          ttc=clamp(-dot/vv,0,1.75);
+          cx=dx+rvx*ttc;
+          cy=dy+rvy*ttc;
+        }
+        const closest2=cx*cx+cy*cy;
+        const trigger=safe+34;
+        if(closest2>trigger*trigger&&d2>near*near)return;
+
+        const risk=ttc*145+closest2/(safe*safe)*32+d2/(maxRange*maxRange)*18;
+        if(risk<bestRisk){
+          bestRisk=risk;
+          best={d2,rvx,rvy,ttc,cx,cy,safe};
+        }
+      };
+
+      for(const a of this.asteroids)consider(a,a.r||ASTEROID_RADIUS,'asteroid');
+      for(const m of this.meteors)consider(m,m.r||SMALL_METEOR_RADIUS,'meteor');
+      if(this.giant)consider(this.giant,this.giant.r||GIANT_RADIUS,'giant');
+      if(!best)return null;
+
+      let ex=-best.cx,ey=-best.cy;
+      const el2=ex*ex+ey*ey;
+      if(el2<100){
+        let ax=-best.rvy,ay=best.rvx;
+        const al=Math.hypot(ax,ay)||1;ax/=al;ay/=al;
+        const forward=dirFromRot(cpu.rot);
+        if(forward.x*ax+forward.y*ay<0){ax=-ax;ay=-ay;}
+        ex=ax;ey=ay;
+      }else{
+        const el=Math.sqrt(el2)||1;ex/=el;ey/=el;
+      }
+
+      const targetRot=(Math.atan2(-ex,-ey)*180/Math.PI+360)%360;
+      const err=((targetRot-cpu.rot+540)%360)-180;
+      const absErr=Math.abs(err);
+      const closeLimit=best.safe+42;
+      const emergency=best.d2<closeLimit*closeLimit||best.ttc<.42;
+      return{
+        turn:clamp(err/30,-1,1),
+        thrust:!emergency&&absErr<24,
+        fire:false
+      };
+    }
+
     chooseCpuControls(cpu){
       let rival=null,best=Infinity;
       if(cpu.dead)return IDLE_CONTROL;
+      const rockSafety=this.cpuRockSafetyControl(cpu);
+      if(rockSafety)return rockSafety;
       const huntGrace=this.huntThresholdActive&&this.fxClock<this.huntStartsAt;
       if(this.huntThresholdActive&&this.fxClock>=this.huntStartsAt){
         const target=this.players.find(p=>p.index===this.huntTargetIndex&&!p.cpu&&!p.dead&&p.camo<=0);
