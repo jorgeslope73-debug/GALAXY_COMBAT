@@ -232,14 +232,14 @@
       }catch(err){console.warn('[Galaxy P2P] signaling',err);}
       return false;
     }
-    sendControl(turn,thrust,fire){
-      if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire});return true;}
+    sendControl(turn,thrust,fire,actions={}){
+      if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire,...actions});return true;}
       const rec=this.peers.get(0)||[...this.peers.values()].find(x=>x.open);
       if(!rec||!rec.dc||rec.dc.readyState!=='open')return false;
       // Los controles son efimeros: con cola alta descartamos el antiguo y el
       // siguiente heartbeat enviara el estado mas reciente, evitando input lag.
       if(Number(rec.dc.bufferedAmount||0)>32*1024)return false;
-      try{rec.dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire}));return true;}catch(_){return false;}
+      try{rec.dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire,...actions}));return true;}catch(_){return false;}
     }
     flushBroadcastState(){
       if(!this.isHost||!this.pendingBroadcastState)return false;

@@ -1229,7 +1229,7 @@ wss.on('connection',(ws,req)=>{
     }
     if(m.t==='fallback-ctrl'){
       const host=r.players.find(p=>p.i===0);
-      if(x.i!==0&&host&&host.ws)send(host.ws,{t:'fallback-ctrl',from:x.i,turn:Number(m.turn)||0,thrust:!!m.thrust,fire:!!m.fire});
+      if(x.i!==0&&host&&host.ws)send(host.ws,{t:'fallback-ctrl',from:x.i,turn:Number(m.turn)||0,thrust:!!m.thrust,fire:!!m.fire,directFire:m.directFire===true,flare:m.flare===true,shock:m.shock===true});
       return;
     }
     if(m.t==='fallback-state'){

@@ -1,0 +1,62 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const game=fs.readFileSync('docs/game.js','utf8');
+const joystick=game.slice(game.indexOf('  function joystickControls(){'),game.indexOf('  function updateControlHelp(){'));
+let pad={axes:[0,0],buttons:Array.from({length:16},()=>({pressed:false,value:0}))};
+const input=vm.createContext({isMobile:false,findJoystick:()=>pad});
+vm.runInContext(joystick,input);
+const read=()=>vm.runInContext('joystickControls()',input);
+for(const [index,action] of [[7,'thrust'],[0,'fire'],[3,'flare'],[2,'shock'],[5,'ptt']]){
+  pad.buttons[index]={pressed:true,value:1};
+  const control=read();
+  for(const key of ['thrust','fire','flare','shock','ptt'])assert.equal(control[key],key===action);
+  pad.buttons[index]={pressed:false,value:0};
+}
+pad.buttons[7].value=.29;assert.equal(read().thrust,true);
+pad.buttons[7].value=.2;assert.equal(read().thrust,false);pad.buttons[7].value=0;
+pad.axes[0]=-1;assert.equal(read().turn,1);
+pad.axes[0]=1;assert.equal(read().turn,-1);
+pad.axes[0]=.1;assert.equal(read().turn,0);
+pad=null;assert.equal(read().active,false);
+
+for(const [path,name,host] of [['docs/local-cpu.js','GalaxyLocalCpu',false],['docs/host-physics.js','GalaxyHostPhysics',true]]){
+  const context=vm.createContext({window:{},console,Date,Math,performance});
+  vm.runInContext(fs.readFileSync(path,'utf8'),context);
+  const proto=context.window[name].prototype;
+  const p={index:0,cpu:false,dead:false,flare:3,shockwave:true};
+  const engine=Object.create(proto);
+  engine.players=[p];engine.controls=new Map();
+  let flareCount=0,shockCount=0;
+  engine.deployFlares=player=>{if(!player.flare)return false;player.flare--;flareCount++;return true;};
+  engine.deployShockwave=player=>{if(!player.shockwave)return false;player.shockwave=false;shockCount++;return true;};
+  const set=(fire,actions={})=>host?engine.setControl(0,0,false,fire,actions):engine.setControl(0,false,fire,actions);
+  const tick=()=>engine.resolveFireWithFlare(p,engine.controls.get(0),1/60);
+  set(true,{directFire:true});
+  for(let i=0;i<60;i++)assert.equal(tick(),true);
+  assert.equal(flareCount,0);assert.equal(shockCount,0);
+  set(false,{flare:true});
+  for(let i=0;i<60;i++)tick();
+  assert.equal(flareCount,1);assert.equal(shockCount,0);assert.equal(p.shockwave,true);
+  set(false);tick();set(false,{flare:true});tick();assert.equal(flareCount,2);
+  set(false,{shock:true});tick();assert.equal(shockCount,1);assert.equal(p.flare,1);
+  for(let i=0;i<60;i++)tick();assert.equal(shockCount,1);
+  set(false);tick();p.shockwave=true;
+  set(true);assert.equal(tick(),false);
+  for(let i=0;i<20;i++)tick();
+  assert.equal(shockCount,2);assert.equal(p.flare,1);
+  set(false);tick();
+  set(true,{directFire:true,flare:true});assert.equal(tick(),true);assert.equal(flareCount,3);
+}
+const context=vm.createContext({window:{},console});
+vm.runInContext(fs.readFileSync('docs/p2p-network.js','utf8'),context);
+const proto=context.window.GalaxyP2P.prototype;
+let received;
+const net={isHost:true,myIndex:0,onControl:(i,m)=>{received=m;}};
+proto.sendControl.call(net,0,true,true,{directFire:true,flare:true,shock:true});
+assert.equal(received.flare,true);assert.equal(received.shock,true);assert.equal(received.directFire,true);
+net.isHost=false;net.peers=new Map([[0,{open:true,dc:{readyState:'open',bufferedAmount:0,send:raw=>{received=JSON.parse(raw);}}}]]);
+proto.sendControl.call(net,0,true,true,{directFire:true,flare:true,shock:true});
+assert.equal(received.flare,true);assert.equal(received.shock,true);assert.equal(received.directFire,true);
+console.log('Joystick OK: botones, disparo continuo, habilidades independientes, teclado y transporte P2P.');
