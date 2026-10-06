@@ -340,6 +340,7 @@
       this.asteroids.splice(index,1);
       if(isSmall){
         this.emitExplosionAt(Number.isFinite(Number(impactX))?Number(impactX):x,Number.isFinite(Number(impactY))?Number(impactY):y,Number.isInteger(ownerIndex)?ownerIndex:-1);
+        this.emitAsteroidDustAt(Number.isFinite(Number(impactX))?Number(impactX):x,Number.isFinite(Number(impactY))?Number(impactY):y,Number.isInteger(ownerIndex)?ownerIndex:-1);
         this.emit({t:'sound',kind:'impact'});
         return true;
       }
@@ -364,15 +365,37 @@
           id:uid(),x:fx,y:fy,px:fx,py:fy,rot:rand(0,360),type:Number(asteroid.type)||1,
           vx:vx*.62+splitX*sideSpeed-impactNormal.x*impactKick,
           vy:vy*.62+splitY*sideSpeed-impactNormal.y*impactKick,
-          r:fragmentRadius,fragment:true,fragmentGroup,fragmentPairReleased:false,exiting:false,exitDelay:rand(10,16)
+          r:fragmentRadius,fragment:true,fragmentGroup,fragmentPairReleased:false,exiting:false,exitDelay:-1
         });
       }
       this.emitExplosionAt(x,y,Number.isInteger(ownerIndex)?ownerIndex:-1);
+      this.emitAsteroidDustAt(
+        Number.isFinite(Number(impactX))?Number(impactX):x,
+        Number.isFinite(Number(impactY))?Number(impactY):y,
+        Number.isInteger(ownerIndex)?ownerIndex:-1
+      );
       this.emit({t:'sound',kind:'impact'});
       return true;
     }
+    asteroidPopulationUnits(){
+      let normal=0;
+      const groups=new Set();
+      for(const a of this.asteroids){
+        if(!a)continue;
+        if(a.fragment===true){
+          if(a.fragmentGroup)groups.add(String(a.fragmentGroup));
+          else groups.add('fragment-'+String(a.id));
+        }else if(!a.exiting)normal++;
+      }
+      return normal+groups.size;
+    }
+    normalAsteroidCount(){
+      let count=0;
+      for(const a of this.asteroids)if(a&&a.fragment!==true&&!a.exiting)count++;
+      return count;
+    }
     spawnProgressiveAsteroid(){
-      if(this.asteroids.length>=ASTEROID_MAX_ACTIVE){
+      if(this.asteroidPopulationUnits()>=ASTEROID_MAX_ACTIVE){
         const profile=this.hazardProfile();
         this.asteroidRampComplete=true;
         this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
@@ -383,7 +406,7 @@
       const profile=this.hazardProfile();
       this.spawnAsteroidFromEdge(this.nextAsteroidIndex);
       this.nextAsteroidIndex++;
-      if(this.asteroids.length>=ASTEROID_MAX_ACTIVE){
+      if(this.asteroidPopulationUnits()>=ASTEROID_MAX_ACTIVE){
         this.asteroidRampComplete=true;
         this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
         this.nextAsteroidSpawn=999999;
@@ -404,7 +427,7 @@
       a.exiting=true;a.exitDelay=-1;a.vx=n.x*90;a.vy=n.y*90;
     }
     chooseAsteroidPopulation(){
-      const current=this.asteroids.length;
+      const current=this.asteroidPopulationUnits();
       const profile=this.hazardProfile();
       const minAsteroids=clamp(Math.round(Number(profile.asteroidMin)||1),1,ASTEROID_MAX_ACTIVE);
       let target=randint(minAsteroids,ASTEROID_MAX_ACTIVE);
@@ -416,7 +439,7 @@
       this.asteroidTargetCount=target;
       this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
       if(target<current){
-        const pool=this.asteroids.slice();
+        const pool=this.asteroids.filter(a=>a&&a.fragment!==true&&!a.exiting);
         for(let i=pool.length-1;i>0;i--){
           const j=randint(0,i),tmp=pool[i];pool[i]=pool[j];pool[j]=tmp;
         }
@@ -698,6 +721,15 @@
       this.fxEvents.push({
         id:++this.fxSeq,i,x:+x.toFixed(1),y:+y.toFixed(1),
         kind:'disintegrate',hidden:false,at:this.fxClock
+      });
+      if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
+    }
+    emitAsteroidDustAt(x,y,ownerIndex=0){
+      if(!Number.isFinite(x)||!Number.isFinite(y))return;
+      const i=Number.isInteger(ownerIndex)&&ownerIndex>=0&&ownerIndex<4?ownerIndex:0;
+      this.fxEvents.push({
+        id:++this.fxSeq,i,x:+x.toFixed(1),y:+y.toFixed(1),
+        kind:'asteroidDust',hidden:false,at:this.fxClock
       });
       if(this.fxEvents.length>32)this.fxEvents.splice(0,this.fxEvents.length-32);
     }
@@ -1537,8 +1569,18 @@
           if(a.x<-220||a.x>W+220||a.y<-220||a.y>H+220)this.asteroids.splice(i,1);
           continue;
         }
-        if(a.x<-190&&a.vx<0)a.vx*=-1;else if(a.x>W+190&&a.vx>0)a.vx*=-1;
-        if(a.y<-190&&a.vy<0)a.vy*=-1;else if(a.y>H+190&&a.vy>0)a.vy*=-1;
+        if(a.fragment===true){
+          // V21.90: los fragmentos de misil no rebotan en el borde ni vuelven.
+          // Al salir desaparecen; su grupo sigue ocupando una unidad hasta que
+          // desaparece el ultimo fragmento.
+          if(a.x<-70||a.x>W+70||a.y<-70||a.y>H+70){
+            this.asteroids.splice(i,1);
+            continue;
+          }
+        }else{
+          if(a.x<-190&&a.vx<0)a.vx*=-1;else if(a.x>W+190&&a.vx>0)a.vx*=-1;
+          if(a.y<-190&&a.vy<0)a.vy*=-1;else if(a.y>H+190&&a.vy>0)a.vy*=-1;
+        }
       }
       const collidableAsteroids=this.asteroids.filter(a=>a&&!a.exiting);
       for(let i=0;i<collidableAsteroids.length;i++)for(let j=i+1;j<collidableAsteroids.length;j++){
