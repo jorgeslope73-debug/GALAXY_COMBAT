@@ -1,5 +1,7 @@
 'use strict';
 (() => {
+  const PHYSICS_CORE=window.GalaxyPhysicsCore;
+  if(!PHYSICS_CORE)throw new Error('GalaxyPhysicsCore no cargado');
   const W=1920,H=1080,TICK_HZ=60,DT=1/TICK_HZ,STEP_MS=1000/TICK_HZ;
   const DRAG_PER_TICK=Math.pow(0.35,DT);
   const IDLE_CONTROL=Object.freeze({turn:0,thrust:false,fire:false});
@@ -885,63 +887,10 @@
       });
     }
     resolveAsteroidPairCollision(a,b){
-      if(!a||!b||a.exiting||b.exiting)return false;
-      const ra=Number(a.r)||ASTEROID_RADIUS,rb=Number(b.r)||ASTEROID_RADIUS;
-      const dx=b.x-a.x,dy=b.y-a.y,minDist=ra+rb,d2=dx*dx+dy*dy;
-      // Fragmentos hermanos: no se resuelven como choque mientras aun estan
-      // separandose tras la rotura. En cuanto alcanzan distancia de contacto,
-      // se libera la pareja y desde entonces vuelven a colisionar normalmente.
-      if(a.fragmentGroup&&a.fragmentGroup===b.fragmentGroup){
-        if(!a.fragmentPairReleased||!b.fragmentPairReleased){
-          if(d2>=(minDist+2)*(minDist+2)){
-            a.fragmentPairReleased=true;b.fragmentPairReleased=true;
-          }else return false;
-        }
-      }
-      if(d2>=minDist*minDist)return false;
-      const d=Math.sqrt(d2)||.0001,nx=dx/d,ny=dy/d;
-      const overlap=minDist-d;
-      const massA=Math.max(1,ra*ra),massB=Math.max(1,rb*rb);
-      const invA=1/massA,invB=1/massB,invSum=invA+invB;
-      // Correccion completa del solape: evita que dos rocas queden vibrando
-      // varios frames una dentro de otra.
-      const correction=(overlap+.6)/invSum;
-      a.x-=nx*correction*invA;a.y-=ny*correction*invA;
-      b.x+=nx*correction*invB;b.y+=ny*correction*invB;
-      // Impulso elastico amortiguado solo si se estan acercando.
-      const rvx=b.vx-a.vx,rvy=b.vy-a.vy;
-      const closing=rvx*nx+rvy*ny;
-      if(closing<0){
-        const restitution=.84;
-        const impulse=-(1+restitution)*closing/invSum;
-        a.vx-=impulse*invA*nx;a.vy-=impulse*invA*ny;
-        b.vx+=impulse*invB*nx;b.vy+=impulse*invB*ny;
-      }
-      // Limite de seguridad para que impactos encadenados no disparen velocidades.
-      for(const rock of [a,b]){
-        const speed=Math.hypot(rock.vx,rock.vy);
-        if(speed>190){rock.vx*=190/speed;rock.vy*=190/speed;}
-      }
-      return true;
+      return PHYSICS_CORE.resolveAsteroidPairCollision(a,b,ASTEROID_RADIUS,190);
     }
     resolveGiantAsteroidCollision(g,a){
-      if(!g||!a||a.exiting)return false;
-      const ar=Number(a.r)||ASTEROID_RADIUS;
-      const dx=a.x-g.x,dy=a.y-g.y,minDist=GIANT_RADIUS+ar,d2=dx*dx+dy*dy;
-      if(d2>=minDist*minDist)return false;
-      const d=Math.sqrt(d2)||.0001,nx=dx/d,ny=dy/d;
-      const overlap=minDist-d;
-      a.x+=nx*(overlap+1.2);a.y+=ny*(overlap+1.2);
-      const rvx=a.vx-g.vx,rvy=a.vy-g.vy,closing=rvx*nx+rvy*ny;
-      if(closing<0){
-        const bounce=-(1.58)*closing;
-        a.vx+=nx*bounce;a.vy+=ny*bounce;
-      }else{
-        a.vx+=nx*12;a.vy+=ny*12;
-      }
-      const speed=Math.hypot(a.vx,a.vy);
-      if(speed>190){a.vx*=190/speed;a.vy*=190/speed;}
-      return true;
+      return PHYSICS_CORE.resolveGiantAsteroidCollision(g,a,GIANT_RADIUS,ASTEROID_RADIUS,190);
     }
     splitAsteroidByMissile(asteroid,ownerIndex=-1,impactX=null,impactY=null){
       if(!asteroid)return false;
@@ -1671,25 +1620,10 @@
       }
     }
     guidedTargetFor(p){
-      if(!p||p.dead)return -1;
-      const forward=dirFromRot(p.rot);
-      // V21.91: la adquisicion de misil solo ocurre dentro de un cono frontal
-      // total de 60 grados: +/-30 grados respecto al morro de la nave.
-      // Una vez lanzado, el proyectil conserva su target; salir del cono no
-      // cambia ese objetivo. Solo las bengalas pueden desviarlo despues.
-      const minAlign=.8660254038; // cos(30 grados)
-      let bestIndex=-1,bestAlign=-2,bestDistance=Infinity;
-      for(const target of this.players){
-        if(!target||target.index===p.index||target.dead)continue;
-        const dx=target.x-p.x,dy=target.y-p.y,distance=Math.hypot(dx,dy);
-        if(distance<1)continue;
-        const align=(forward.x*dx+forward.y*dy)/distance;
-        if(align<minAlign)continue;
-        if(align>bestAlign+1e-6||(Math.abs(align-bestAlign)<=1e-6&&distance<bestDistance)){
-          bestAlign=align;bestDistance=distance;bestIndex=target.index;
-        }
-      }
-      return bestIndex;
+      // Adquisicion comun: cono frontal total de 60 grados (+/-30).
+      // Una vez lanzado, el misil mantiene su target; las bengalas siguen
+      // gestionandose despues dentro de updateBullets().
+      return PHYSICS_CORE.guidedTargetFor(p,this.players,dirFromRot);
     }
     cpuOpeningCollisionAvoidance(cpu,control){
       if(!cpu||!cpu.cpu||cpu.dead||(cpu.difficulty||this.difficulty)!=='dificil'||this.fxClock>8)return null;
