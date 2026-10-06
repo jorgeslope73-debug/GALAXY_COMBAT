@@ -1103,17 +1103,18 @@
     guidedTargetFor(p){
       if(!p||p.dead)return -1;
       const forward=dirFromRot(p.rot);
-      // La mira puede revelar FANTASMAS solo dentro de un cono frontal de 60
-      // grados (aprox. +/-30). Los rivales visibles conservan el comportamiento
-      // anterior y pueden ser elegidos aunque esten fuera de ese cono.
-      const ghostMinAlign=.8660254038;
+      // V21.91: la adquisicion de misil solo ocurre dentro de un cono frontal
+      // total de 60 grados: +/-30 grados respecto al morro de la nave.
+      // Una vez lanzado, el proyectil conserva su target; salir del cono no
+      // cambia ese objetivo. Solo las bengalas pueden desviarlo despues.
+      const minAlign=.8660254038; // cos(30 grados)
       let bestIndex=-1,bestAlign=-2,bestDistance=Infinity;
       for(const target of this.players){
         if(!target||target.index===p.index||target.dead)continue;
         const dx=target.x-p.x,dy=target.y-p.y,distance=Math.hypot(dx,dy);
         if(distance<1)continue;
         const align=(forward.x*dx+forward.y*dy)/distance;
-        if(target.camo>0&&align<ghostMinAlign)continue;
+        if(align<minAlign)continue;
         if(align>bestAlign+1e-6||(Math.abs(align-bestAlign)<=1e-6&&distance<bestDistance)){
           bestAlign=align;bestDistance=distance;bestIndex=target.index;
         }
