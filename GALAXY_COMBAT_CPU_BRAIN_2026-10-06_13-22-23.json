@@ -1,0 +1,789 @@
+{
+  "ok": true,
+  "format": "galaxy-combat-cpu-brain-backup",
+  "formatVersion": 1,
+  "exportedAt": "2026-10-06T11:22:23.613Z",
+  "brain": {
+    "version": 243,
+    "data": {
+      "version": 243,
+      "strategies": [
+        {
+          "context": "a1-s0-d1-e1",
+          "action": "resource",
+          "samples": 11,
+          "total": -11.8
+        },
+        {
+          "context": "a0-s1-d0-e0",
+          "action": "resource",
+          "samples": 23,
+          "total": -14.500000000000002
+        },
+        {
+          "context": "meteor-s0-v1-d1",
+          "action": "meteor_left",
+          "samples": 170,
+          "total": 59.11899999999999
+        },
+        {
+          "context": "a2-s0-d1-e0",
+          "action": "resource",
+          "samples": 152,
+          "total": -12.750000000000009
+        },
+        {
+          "context": "a0-s0-d0-e0",
+          "action": "evade",
+          "samples": 357,
+          "total": 3.9500000000000117
+        },
+        {
+          "context": "a0-s1-d0-e0",
+          "action": "evade",
+          "samples": 100,
+          "total": -87.70000000000002
+        },
+        {
+          "context": "a2-s0-d1-e0",
+          "action": "attack",
+          "samples": 489,
+          "total": -150.4000000000001
+        },
+        {
+          "context": "a1-s0-d0-e1",
+          "action": "evade",
+          "samples": 37,
+          "total": -18.5
+        },
+        {
+          "context": "a2-s0-d0-e0",
+          "action": "attack",
+          "samples": 789,
+          "total": -455.89999999999986
+        },
+        {
+          "context": "a2-s0-d0-e0",
+          "action": "resource",
+          "samples": 233,
+          "total": -105.25000000000001
+        },
+        {
+          "context": "meteor-s1-v0-d1",
+          "action": "meteor_left",
+          "samples": 10,
+          "total": 0.8990000000000001
+        },
+        {
+          "context": "a2-s0-d0-e0",
+          "action": "evade",
+          "samples": 436,
+          "total": -50.94999999999993
+        },
+        {
+          "context": "a2-s1-d0-e0",
+          "action": "attack",
+          "samples": 26,
+          "total": 20.4
+        },
+        {
+          "context": "meteor-s1-v0-d1",
+          "action": "meteor_brake",
+          "samples": 10,
+          "total": 1.0500000000000003
+        },
+        {
+          "context": "a2-s0-d2-e0",
+          "action": "attack",
+          "samples": 250,
+          "total": -21.800000000000004
+        },
+        {
+          "context": "a1-s1-d0-e0",
+          "action": "attack",
+          "samples": 19,
+          "total": -5.75
+        },
+        {
+          "context": "meteor-s1-v0-d0",
+          "action": "meteor_right",
+          "samples": 109,
+          "total": 35.81199999999999
+        },
+        {
+          "context": "meteor-s1-v1-d0",
+          "action": "meteor_left",
+          "samples": 41,
+          "total": -7.769
+        },
+        {
+          "context": "a1-s0-d0-e0",
+          "action": "evade",
+          "samples": 135,
+          "total": -0.650000000000003
+        },
+        {
+          "context": "meteor-s1-v1-d1",
+          "action": "meteor_brake",
+          "samples": 66,
+          "total": 13.748
+        },
+        {
+          "context": "meteor-s0-v1-d0",
+          "action": "meteor_left",
+          "samples": 53,
+          "total": 0.7309999999999992
+        },
+        {
+          "context": "a2-s0-d2-e0",
+          "action": "resource",
+          "samples": 39,
+          "total": 16.65
+        },
+        {
+          "context": "a1-s0-d0-e0",
+          "action": "attack",
+          "samples": 279,
+          "total": -147.8500000000001
+        },
+        {
+          "context": "a0-s1-d1-e0",
+          "action": "evade",
+          "samples": 22,
+          "total": -0.09999999999999876
+        },
+        {
+          "context": "meteor-s1-v1-d1",
+          "action": "meteor_left",
+          "samples": 98,
+          "total": 18.646000000000008
+        },
+        {
+          "context": "meteor-s0-v1-d1",
+          "action": "meteor_right",
+          "samples": 89,
+          "total": 18.051000000000002
+        },
+        {
+          "context": "meteor-s0-v1-d0",
+          "action": "meteor_brake",
+          "samples": 13,
+          "total": -7.62
+        },
+        {
+          "context": "meteor-s1-v0-d0",
+          "action": "meteor_left",
+          "samples": 17,
+          "total": 4.321
+        },
+        {
+          "context": "meteor-s0-v1-d0",
+          "action": "meteor_right",
+          "samples": 37,
+          "total": -12.971
+        },
+        {
+          "context": "meteor-s1-v1-d0",
+          "action": "meteor_brake",
+          "samples": 23,
+          "total": -3.2760000000000016
+        },
+        {
+          "context": "meteor-s1-v1-d0",
+          "action": "meteor_right",
+          "samples": 17,
+          "total": -5.76
+        },
+        {
+          "context": "meteor-s0-v0-d0",
+          "action": "meteor_brake",
+          "samples": 118,
+          "total": 28.427
+        },
+        {
+          "context": "meteor-s0-v0-d0",
+          "action": "meteor_right",
+          "samples": 24,
+          "total": 0.9949999999999999
+        },
+        {
+          "context": "meteor-s0-v0-d0",
+          "action": "meteor_left",
+          "samples": 31,
+          "total": 12.01
+        },
+        {
+          "context": "meteor-s0-v1-d1",
+          "action": "meteor_brake",
+          "samples": 37,
+          "total": 6.499999999999999
+        },
+        {
+          "context": "meteor-s0-v0-d1",
+          "action": "meteor_left",
+          "samples": 16,
+          "total": 5.8999999999999995
+        },
+        {
+          "context": "meteor-s1-v0-d0",
+          "action": "meteor_brake",
+          "samples": 52,
+          "total": 12.669999999999996
+        },
+        {
+          "context": "meteor-s0-v0-d1",
+          "action": "meteor_right",
+          "samples": 19,
+          "total": 3.4
+        },
+        {
+          "context": "meteor-s1-v1-d1",
+          "action": "meteor_right",
+          "samples": 152,
+          "total": 47.04299999999998
+        },
+        {
+          "context": "a1-s0-d1-e0",
+          "action": "evade",
+          "samples": 22,
+          "total": -11.949999999999998
+        },
+        {
+          "context": "flare-p-d0-s0-e0",
+          "action": "flare_use",
+          "samples": 342,
+          "total": 143.39000000000007
+        },
+        {
+          "context": "flare-p-d1-s0-e0",
+          "action": "flare_keep",
+          "samples": 34,
+          "total": 5.762
+        },
+        {
+          "context": "a1-s0-d2-e0",
+          "action": "resource",
+          "samples": 74,
+          "total": -52.400000000000006
+        },
+        {
+          "context": "a1-s0-d1-e0",
+          "action": "resource",
+          "samples": 160,
+          "total": -111.89999999999998
+        },
+        {
+          "context": "a1-s0-d0-e0",
+          "action": "resource",
+          "samples": 209,
+          "total": -198.74999999999997
+        },
+        {
+          "context": "flare-p-d0-s0-e0",
+          "action": "flare_keep",
+          "samples": 28,
+          "total": 5.562
+        },
+        {
+          "context": "a1-s0-d2-e0",
+          "action": "attack",
+          "samples": 124,
+          "total": -68.35000000000001
+        },
+        {
+          "context": "flare-g-d1-s0-e0",
+          "action": "flare_use",
+          "samples": 18,
+          "total": 19.700000000000003
+        },
+        {
+          "context": "flare-p-d0-s0-e1",
+          "action": "flare_use",
+          "samples": 12,
+          "total": 9.160000000000002
+        },
+        {
+          "context": "a1-s0-d1-e0",
+          "action": "attack",
+          "samples": 211,
+          "total": -0.6000000000000014
+        },
+        {
+          "context": "flare-b-d0-s0-e0",
+          "action": "flare_use",
+          "samples": 58,
+          "total": 1.6800000000000002
+        },
+        {
+          "context": "flare-g-d2-s0-e0",
+          "action": "flare_keep",
+          "samples": 3,
+          "total": -2.16
+        },
+        {
+          "context": "a2-s0-d0-e1",
+          "action": "evade",
+          "samples": 2,
+          "total": -4
+        },
+        {
+          "context": "a0-s0-d1-e0",
+          "action": "evade",
+          "samples": 303,
+          "total": 89.85000000000004
+        },
+        {
+          "context": "flare-b-d1-s0-e0",
+          "action": "flare_keep",
+          "samples": 9,
+          "total": -7.518
+        },
+        {
+          "context": "a2-s0-d1-e0",
+          "action": "evade",
+          "samples": 124,
+          "total": 18.599999999999998
+        },
+        {
+          "context": "flare-p-d1-s0-e0",
+          "action": "flare_use",
+          "samples": 127,
+          "total": 60.08799999999995
+        },
+        {
+          "context": "flare-g-d0-s0-e0",
+          "action": "flare_use",
+          "samples": 3,
+          "total": 4.050000000000001
+        },
+        {
+          "context": "flare-g-d2-s0-e0",
+          "action": "flare_use",
+          "samples": 23,
+          "total": 21.85000000000001
+        },
+        {
+          "context": "flare-p-d1-s0-e1",
+          "action": "flare_keep",
+          "samples": 3,
+          "total": -0.25999999999999995
+        },
+        {
+          "context": "flare-b-d1-s0-e0",
+          "action": "flare_use",
+          "samples": 73,
+          "total": 8.93
+        },
+        {
+          "context": "flare-p-d1-s0-e1",
+          "action": "flare_use",
+          "samples": 12,
+          "total": 3.3099999999999996
+        },
+        {
+          "context": "flare-b-d0-s0-e0",
+          "action": "flare_keep",
+          "samples": 3,
+          "total": -0.7899999999999999
+        },
+        {
+          "context": "a0-s0-d2-e0",
+          "action": "resource",
+          "samples": 7,
+          "total": -5.6
+        },
+        {
+          "context": "a0-s0-d2-e0",
+          "action": "evade",
+          "samples": 93,
+          "total": -15.700000000000006
+        },
+        {
+          "context": "flare-g-d1-s1-e0",
+          "action": "flare_use",
+          "samples": 3,
+          "total": 4.050000000000001
+        },
+        {
+          "context": "a0-s0-d0-e0",
+          "action": "resource",
+          "samples": 35,
+          "total": -8.599999999999998
+        },
+        {
+          "context": "meteor-s0-v0-d1",
+          "action": "meteor_brake",
+          "samples": 15,
+          "total": 5.198999999999999
+        },
+        {
+          "context": "a0-s0-d1-e0",
+          "action": "resource",
+          "samples": 49,
+          "total": -7.649999999999999
+        },
+        {
+          "context": "a2-s0-d0-e1",
+          "action": "attack",
+          "samples": 1,
+          "total": -2
+        },
+        {
+          "context": "a1-s0-d1-e1",
+          "action": "evade",
+          "samples": 1,
+          "total": -2
+        },
+        {
+          "context": "a1-s0-d2-e1",
+          "action": "evade",
+          "samples": 1,
+          "total": -2
+        },
+        {
+          "context": "flare-g-d1-s0-e0",
+          "action": "flare_keep",
+          "samples": 2,
+          "total": -3.1
+        },
+        {
+          "context": "flare-p-d0-s1-e1",
+          "action": "flare_use",
+          "samples": 1,
+          "total": 1.55
+        },
+        {
+          "context": "a2-s1-d1-e0",
+          "action": "attack",
+          "samples": 5,
+          "total": 9.2
+        },
+        {
+          "context": "meteor-s1-v0-d1",
+          "action": "meteor_right",
+          "samples": 7,
+          "total": 2.95
+        },
+        {
+          "context": "flare-p-d0-s1-e0",
+          "action": "flare_keep",
+          "samples": 1,
+          "total": 0.34
+        },
+        {
+          "context": "a2-s0-d2-e0",
+          "action": "evade",
+          "samples": 16,
+          "total": 2.2
+        },
+        {
+          "context": "a0-s0-d0-e1",
+          "action": "evade",
+          "samples": 8,
+          "total": 4.2
+        },
+        {
+          "context": "a1-s0-d2-e0",
+          "action": "evade",
+          "samples": 12,
+          "total": -1.5499999999999998
+        },
+        {
+          "context": "flare-b-d2-s0-e0",
+          "action": "flare_keep",
+          "samples": 2,
+          "total": -1.31
+        },
+        {
+          "context": "a0-s0-d1-e1",
+          "action": "evade",
+          "samples": 8,
+          "total": 4.2
+        },
+        {
+          "context": "a2-s0-d0-e1",
+          "action": "resource",
+          "samples": 5,
+          "total": -3.15
+        },
+        {
+          "context": "shock-train-single",
+          "action": "shock_use",
+          "samples": 44,
+          "total": -14.55
+        },
+        {
+          "context": "shock-train-asteroid",
+          "action": "shock_use",
+          "samples": 15,
+          "total": -3.6
+        },
+        {
+          "context": "shock-train-bullet",
+          "action": "shock_use",
+          "samples": 14,
+          "total": -8.2
+        },
+        {
+          "context": "shock-train-bullet",
+          "action": "shock_keep",
+          "samples": 1,
+          "total": -0.75
+        },
+        {
+          "context": "a0-s1-d2-e0",
+          "action": "evade",
+          "samples": 1,
+          "total": 2
+        },
+        {
+          "context": "shock-train-missile",
+          "action": "shock_keep",
+          "samples": 4,
+          "total": -1
+        },
+        {
+          "context": "shock-train-single",
+          "action": "shock_keep",
+          "samples": 35,
+          "total": -11.850000000000005
+        },
+        {
+          "context": "flare-b-d2-s0-e0",
+          "action": "flare_use",
+          "samples": 1,
+          "total": 0.95
+        },
+        {
+          "context": "shock-train-missile",
+          "action": "shock_use",
+          "samples": 4,
+          "total": -0.7999999999999998
+        },
+        {
+          "context": "shock-train-multi",
+          "action": "shock_use",
+          "samples": 3,
+          "total": -0.8
+        },
+        {
+          "context": "flare-g-d2-s1-e0",
+          "action": "flare_use",
+          "samples": 1,
+          "total": 1.35
+        },
+        {
+          "context": "flare-p-d0-s1-e0",
+          "action": "flare_use",
+          "samples": 1,
+          "total": 0.58
+        }
+      ],
+      "candidates": [
+        {
+          "context": "a0-s1-d0-e1",
+          "action": "evade",
+          "samples": 2,
+          "total": -2.4
+        },
+        {
+          "context": "a2-s0-d2-e1",
+          "action": "evade",
+          "samples": 3,
+          "total": -6
+        },
+        {
+          "context": "a0-s1-d1-e1",
+          "action": "evade",
+          "samples": 3,
+          "total": -3.8
+        },
+        {
+          "context": "a0-s0-d0-e1",
+          "action": "resource",
+          "samples": 3,
+          "total": -2
+        },
+        {
+          "context": "meteor-s0-v0-d1",
+          "action": "meteor_brake",
+          "samples": 4,
+          "total": -0.55
+        },
+        {
+          "context": "a2-s1-d1-e0",
+          "action": "attack",
+          "samples": 3,
+          "total": 0.6000000000000001
+        },
+        {
+          "context": "meteor-s1-v0-d1",
+          "action": "meteor_right",
+          "samples": 3,
+          "total": 1.35
+        },
+        {
+          "context": "open3",
+          "action": "scatter",
+          "samples": 4,
+          "total": -5.6
+        },
+        {
+          "context": "a1-s1-d1-e0",
+          "action": "resource",
+          "samples": 4,
+          "total": -2.4
+        },
+        {
+          "context": "a1-s0-d0-e1",
+          "action": "attack",
+          "samples": 4,
+          "total": 7.2
+        },
+        {
+          "context": "a1-s0-d2-e1",
+          "action": "resource",
+          "samples": 5,
+          "total": -9
+        },
+        {
+          "context": "a2-s1-d2-e0",
+          "action": "attack",
+          "samples": 5,
+          "total": -7
+        },
+        {
+          "context": "a0-s1-d2-e0",
+          "action": "evade",
+          "samples": 6,
+          "total": -10.200000000000001
+        },
+        {
+          "context": "a0-s0-d0-e1",
+          "action": "evade",
+          "samples": 7,
+          "total": -14
+        },
+        {
+          "context": "a2-s0-d1-e1",
+          "action": "evade",
+          "samples": 13,
+          "total": -26
+        },
+        {
+          "context": "a2-s0-d0-e1",
+          "action": "evade",
+          "samples": 20,
+          "total": -30
+        },
+        {
+          "context": "a0-s1-d1-e0",
+          "action": "resource",
+          "samples": 20,
+          "total": -28.6
+        },
+        {
+          "context": "a1-s0-d2-e0",
+          "action": "attack",
+          "samples": 26,
+          "total": -32.05
+        },
+        {
+          "context": "a1-s0-d1-e1",
+          "action": "evade",
+          "samples": 27,
+          "total": -45.15
+        },
+        {
+          "context": "a0-s0-d2-e1",
+          "action": "evade",
+          "samples": 27,
+          "total": -45
+        },
+        {
+          "context": "a1-s0-d0-e1",
+          "action": "resource",
+          "samples": 33,
+          "total": -43.599999999999994
+        },
+        {
+          "context": "a1-s0-d0-e0",
+          "action": "resource",
+          "samples": 54,
+          "total": -72.69999999999999
+        },
+        {
+          "context": "a0-s0-d2-e0",
+          "action": "resource",
+          "samples": 51,
+          "total": -84.39999999999999
+        },
+        {
+          "context": "a1-s0-d1-e0",
+          "action": "resource",
+          "samples": 62,
+          "total": -85.69999999999999
+        },
+        {
+          "context": "a0-s0-d1-e1",
+          "action": "evade",
+          "samples": 62,
+          "total": -104.45
+        },
+        {
+          "context": "a2-s0-d1-e0",
+          "action": "evade",
+          "samples": 80,
+          "total": -87.4
+        },
+        {
+          "context": "a1-s0-d1-e0",
+          "action": "attack",
+          "samples": 88,
+          "total": -108.99999999999997
+        },
+        {
+          "context": "a1-s0-d2-e0",
+          "action": "resource",
+          "samples": 102,
+          "total": -161.14999999999998
+        },
+        {
+          "context": "a0-s0-d2-e0",
+          "action": "evade",
+          "samples": 103,
+          "total": -147.39999999999998
+        },
+        {
+          "context": "a0-s0-d0-e0",
+          "action": "resource",
+          "samples": 134,
+          "total": -164.60000000000002
+        },
+        {
+          "context": "a0-s0-d1-e0",
+          "action": "evade",
+          "samples": 164,
+          "total": -188.70000000000002
+        },
+        {
+          "context": "a0-s0-d1-e0",
+          "action": "resource",
+          "samples": 5,
+          "total": -9
+        }
+      ]
+    },
+    "updatedAt": "2026-10-04T19:23:45.119Z"
+  },
+  "training": {
+    "matches": 109,
+    "localMatches": 100,
+    "updatedAt": "2026-10-04T19:23:45.119Z"
+  },
+  "control": {
+    "autoTrainingEnabled": false,
+    "localHardEnabled": false,
+    "updatedAt": "2026-10-04T19:23:51.859Z"
+  }
+}
