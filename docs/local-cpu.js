@@ -931,7 +931,7 @@
       if(speed>190){a.vx*=190/speed;a.vy*=190/speed;}
       return true;
     }
-    splitAsteroidByMissile(asteroid,ownerIndex=-1){
+    splitAsteroidByMissile(asteroid,ownerIndex=-1,impactX=null,impactY=null){
       if(!asteroid)return false;
       const index=this.asteroids.indexOf(asteroid);
       if(index<0)return false;
@@ -941,22 +941,30 @@
       const vx=Number(asteroid.vx)||0,vy=Number(asteroid.vy)||0;
       this.asteroids.splice(index,1);
       if(isSmall){
-        this.emitExplosionAt(x,y,Number.isInteger(ownerIndex)?ownerIndex:-1);
+        this.emitExplosionAt(Number.isFinite(Number(impactX))?Number(impactX):x,Number.isFinite(Number(impactY))?Number(impactY):y,Number.isInteger(ownerIndex)?ownerIndex:-1);
         this.emit({t:'sound',kind:'impact'});
         return true;
       }
-      const forward=normalize(vx||1,vy||0);
-      const px=-forward.y,py=forward.x;
+      // V21.87: la fractura nace en el lado exacto donde impacta el misil.
+      // La normal va desde el centro del asteroide hacia el punto de impacto;
+      // la linea de separacion es perpendicular a esa normal.
+      const hitX=Number.isFinite(Number(impactX))?Number(impactX):x;
+      const hitY=Number.isFinite(Number(impactY))?Number(impactY):y;
+      let impactNormal=normalize(hitX-x,hitY-y);
+      if(Math.abs(impactNormal.x)+Math.abs(impactNormal.y)<.001)impactNormal=normalize(-(vx||1),-(vy||0));
+      const splitX=-impactNormal.y,splitY=impactNormal.x;
       const fragmentRadius=28;
       for(const sign of [-1,1]){
         const sideSpeed=sign*rand(70,100);
-        const forwardBoost=rand(10,32);
-        const fx=x+px*sign*(fragmentRadius+7);
-        const fy=y+py*sign*(fragmentRadius+7);
+        // Empuje alejandose ligeramente del punto de impacto para que la rotura
+        // visual parezca causada por el golpe y no por el movimiento previo.
+        const impactKick=rand(34,58);
+        const fx=x+splitX*sign*(fragmentRadius+7)-impactNormal.x*6;
+        const fy=y+splitY*sign*(fragmentRadius+7)-impactNormal.y*6;
         this.asteroids.push({
           id:uid(),x:fx,y:fy,px:fx,py:fy,rot:rand(0,360),type:Number(asteroid.type)||1,
-          vx:vx*.62+px*sideSpeed+forward.x*forwardBoost,
-          vy:vy*.62+py*sideSpeed+forward.y*forwardBoost,
+          vx:vx*.62+splitX*sideSpeed-impactNormal.x*impactKick,
+          vy:vy*.62+splitY*sideSpeed-impactNormal.y*impactKick,
           r:fragmentRadius,fragment:true,exiting:false,exitDelay:rand(10,16)
         });
       }
@@ -2550,7 +2558,7 @@
             if(b.guided){
               this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
               this.emit({t:'sound',kind:'sparkle'});
-              this.splitAsteroidByMissile(a,Number(b.owner));
+              this.splitAsteroidByMissile(a,Number(b.owner),b.x,b.y);
             }
             remove=true;break;
           }
