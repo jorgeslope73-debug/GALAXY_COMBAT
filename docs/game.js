@@ -1325,11 +1325,13 @@
       }
       soundPools[key]={items,next:0};
     }
-    sounds.music=new Audio('assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION);
-    sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
-  }else{
-    sounds.music=null;
   }
+  // V22.04: la musica del menu usa un elemento HTMLAudio independiente.
+  // Los efectos siguen usando WebAudio. En iPhone esto evita que la musica
+  // dependa de que el AudioContext del juego haya sido desbloqueado por el micro.
+  sounds.music=new Audio('assets/sonido/musica.mp3?v='+AUDIO_ASSET_VERSION);
+  sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
+  sounds.music.setAttribute('playsinline','');
 
   let audioCtx=null,masterGain=null,fxGain=null,musicGain=null;
   let webAudioLoadPromise=null,webMusicLoadPromise=null,webMusicSource=null,webMusicIdleHandle=0;
@@ -1555,7 +1557,6 @@
       ensureAudioContext();
       const ok=await loadWebAudio();
       audioUnlocked=!!ok;
-      if(ok)warmWebMusicWhenIdle();
       return audioUnlocked;
     }
     if(audioUnlocked)return true;
@@ -1989,17 +1990,12 @@
   }
   function startMusic(){
     if(!gameAudioEnabled||!menu||menu.classList.contains('hidden'))return;
-    if(useWebAudio){
-      ensureAudioContext();
-      if(playWebMusic())return;
-      // No decodificar 2,9 MB de musica justo en el gesto que puede arrancar
-      // una partida. Primero quedan listos los efectos y la musica se calienta
-      // en tiempo ocioso mientras el usuario sigue en el menu.
-      loadWebAudio().then(ok=>{if(ok)warmWebMusicWhenIdle();});
-      return;
-    }
     if(!sounds.music||!sounds.music.paused)return;
-    sounds.music.play().then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
+    // V22.04: la musica no depende del micro ni del AudioContext de efectos.
+    // Si iOS exige gesto, el primer toque del menu vuelve a intentar play().
+    const p=sounds.music.play();
+    if(p&&typeof p.then==='function')p.then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
+    else musicStarted=true;
   }
   function stopMusic(){
     if(webMusicIdleHandle){
@@ -3853,22 +3849,22 @@
   }
 
   postAnalyticsEvent('visit');
-  function unlockAudioFromUserGesture(e){
-    // V22.00: AUDIO y MICRO son controles independientes. Tocar MICRO no
-    // puede arrancar musica/efectos; el boton AUDIO ya gestiona su propio gesto.
-    const target=e&&e.target;
-    if(target&&target.closest&&target.closest('#enableVoice'))return;
+  function unlockAudioFromUserGesture(){
     if(!gameAudioEnabled)return;
-    // La musica se arranca directamente en el gesto; esto es importante en
-    // Safari/iOS, donde un play() posterior a un await puede quedar bloqueado.
+    // V22.04: AUDIO y MICRO siguen siendo independientes, pero cualquier primer
+    // gesto del menu sirve para cumplir la politica de autoplay de iOS.
+    // La captura hace que funcione incluso si el boton MICRO detiene bubbling.
     startMusic();
     unlockGameAudio();
   }
-  menu.addEventListener('pointerdown',unlockAudioFromUserGesture,{passive:true});
-  menu.addEventListener('touchstart',unlockAudioFromUserGesture,{passive:true});
-  menu.addEventListener('click',unlockAudioFromUserGesture);
-  menu.addEventListener('keydown',unlockAudioFromUserGesture);
+  menu.addEventListener('pointerdown',unlockAudioFromUserGesture,{passive:true,capture:true});
+  menu.addEventListener('touchstart',unlockAudioFromUserGesture,{passive:true,capture:true});
+  menu.addEventListener('click',unlockAudioFromUserGesture,true);
+  menu.addEventListener('keydown',unlockAudioFromUserGesture,true);
   updateAudioButton();
+  // Primer intento inmediato: en navegadores que permiten reanudar audio
+  // sonara al abrir el menu; en iOS se reintentara en el primer gesto.
+  startMusic();
   loadJoystickPreference();
   updateJoystickButton();
   notifyJoystickVoiceUi();
