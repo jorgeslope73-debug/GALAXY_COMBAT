@@ -38,6 +38,7 @@ const local=read('docs/local-cpu.js');
 const host=read('docs/host-physics.js');
 const game=read('docs/game.js');
 const p2p=read('docs/p2p-network.js');
+const core=read('docs/physics-core.js');
 const errors=[];
 
 for(const [label,src] of [['local',local],['online',host]]){
@@ -45,8 +46,7 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(/\[[^\]]*,\s*5\]/.test(starts))fail(errors,label+': el meteorito pequeno solitario tipo 5 ha vuelto a ASTEROID_STARTS');
 
   const target=method(src,'guidedTargetFor');
-  if(!target.includes('const minAlign=.8660254038'))fail(errors,label+': falta el cono de adquisicion de misil +/-30 grados');
-  if(!target.includes('if(align<minAlign)continue;'))fail(errors,label+': el target puede adquirirse fuera del cono de 60 grados');
+  if(!target.includes('PHYSICS_CORE.guidedTargetFor'))fail(errors,label+': guidedTargetFor ya no delega en physics-core');
 
   const bullets=method(src,'updateBullets');
   if(!bullets.includes('this.splitAsteroidByMissile(a,Number(b.owner),b.x,b.y)'))fail(errors,label+': misil contra asteroide no usa punto real de impacto');
@@ -78,6 +78,11 @@ if(hostReset.includes('this.giant=null'))fail(errors,'online: resetHazardCycle v
 const hostGiant=method(host,'updateGiant');
 if(!hostGiant.includes('if(!this.giant&&!giantEnabled)return;'))fail(errors,'online: falta conservar el gigante cuando termina su fase');
 if(!hostGiant.includes('this.nextGiant=giantEnabled?rand(130,190):999999'))fail(errors,'online: la salida del gigante no respeta si la fase sigue habilitada');
+
+if(!core.includes('const TARGET_MIN_ALIGN=.8660254038'))fail(errors,'core: falta el cono de adquisicion +/-30 grados');
+if(!core.includes('if(align<minAlign)continue;'))fail(errors,'core: la adquisicion puede aceptar objetivos fuera del cono');
+if(!core.includes('resolveAsteroidPairCollision'))fail(errors,'core: falta resolver colision asteroide-asteroide');
+if(!core.includes('resolveGiantAsteroidCollision'))fail(errors,'core: falta resolver colision gigante-asteroide');
 
 if(!game.includes('const ASTEROID_DUST_MAX=isMobile?24:36'))fail(errors,'render: el polvo de asteroide ha perdido su pool fijo');
 if(!game.includes("}else if(e.kind==='asteroidDust'){"))fail(errors,'render: falta consumir el FX local de polvo');
