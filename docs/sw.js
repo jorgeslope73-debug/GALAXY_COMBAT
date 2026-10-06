@@ -1,4 +1,4 @@
-const VERSION = 'V21.95-shared-physics-core';
+const VERSION = 'V21.96-shared-fracture';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
