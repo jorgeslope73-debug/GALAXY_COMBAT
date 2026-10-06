@@ -21,6 +21,11 @@
       this.send=typeof send==='function'?send:()=>false;
       this.isMobile=!!isMobile;
       this.enabled=false;
+      // V22.03 mobile: "selected" is the user's VOICE choice in the menu.
+      // It is deliberately separate from "enabled", which means the microphone
+      // capture is actually open. This keeps iOS getUserMedia from changing the
+      // menu music/audio session just by toggling VOICE.
+      this.selected=false;
       this.enabling=false;
       this.localStream=null;
       this.localTrack=null;
@@ -62,13 +67,22 @@
 
     bindUI(){
       if(this.enableButton){
-        // V22.02 movil: tocar VOZ nunca debe llegar a los gestores de audio
-        // del menu. El boton solo solicita/cierra el microfono.
+        // V22.03 mobile: VOICE is only a preference while we are in the menu.
+        // We do NOT keep getUserMedia open there because iOS changes the browser
+        // audio session while a microphone capture is alive, which can alter the
+        // apparent music level. Actual microphone capture starts only after
+        // entering an online room, once menu music has stopped.
         const blockGameAudioGesture=e=>{e.stopPropagation();};
         this.enableButton.addEventListener('pointerdown',blockGameAudioGesture,{passive:true});
         this.enableButton.addEventListener('touchstart',blockGameAudioGesture,{passive:true});
         this.enableButton.addEventListener('click',async e=>{
           e.preventDefault();e.stopPropagation();
+          if(this.isMobile){
+            this.selected=!this.selected;
+            if(!this.selected&&this.enabled)this.disable();
+            else this.refreshUI();
+            return;
+          }
           if(this.enabled)this.disable();
           else await this.enable();
         });
@@ -233,6 +247,7 @@
 
         await rtcPromise;
         this.enabled=true;
+        if(this.isMobile)this.selected=true;
         captureTrack.addEventListener('ended',()=>this.disable(false),{once:true});
         this.setStatus(tr('voiceEnabled'));
         this.refreshUI();
@@ -250,6 +265,7 @@
         if(this.captureStream&&this.captureStream!==this.localStream){for(const t of this.captureStream.getTracks()){try{t.stop();}catch(_){}}}
         this.localTrack=null;this.localStream=null;this.captureStream=null;
         this.closeAudioGraph();
+        if(this.isMobile)this.selected=false;
         this.setStatus(tr('microphoneDenied'));
         console.warn('[Galaxy Combat Voice] No se pudo abrir el microfono.',err);
         return false;
@@ -300,8 +316,19 @@
       this.refreshUI();
     }
 
+    async startSelectedForSession(){
+      if(!this.isMobile||!this.selected||this.cpuMode||this.localIndex===null)return false;
+      if(this.enabled)return true;
+      return await this.enable();
+    }
+
     clearSession(){
       if(this.enabled&&this.localIndex!==null)this.send({t:'voice-offline'});
+      const keepSelected=this.selected;
+      // Close the real microphone before returning to the menu, but preserve the
+      // user's VOICE choice so the button remains selected for the next room.
+      if(this.isMobile&&this.enabled)this.disable(false);
+      this.selected=keepSelected;
       this.localIndex=null;this.roomCode='';this.cpuMode=false;
       this.readyPeers.clear();this.peerPlayers.clear();this.remoteTalking.clear();
       this.closeAllPeers();
@@ -563,23 +590,24 @@
     refreshUI(){
       const inRoom=this.localIndex!==null;
       const joystickActive=typeof window.GalaxyJoystickEnabled==='function'&&window.GalaxyJoystickEnabled();
+      const voiceSelected=this.isMobile?this.selected:this.enabled;
       if(this.enableButton){
         if(joystickActive){
-          this.enableButton.textContent=this.enabled?'MICRO ACTIVO · R1':'ACTIVAR MICRO · R1';
-          this.enableButton.title=this.enabled?'Mantén R1 para hablar':'Activa el micro; después mantén R1 para hablar';
+          this.enableButton.textContent=voiceSelected?'MICRO ACTIVO · R1':'ACTIVAR MICRO · R1';
+          this.enableButton.title=voiceSelected?'Mantén R1 para hablar':'Activa el micro; después mantén R1 para hablar';
           this.enableButton.setAttribute('aria-label',this.enableButton.title);
         }else{
-          this.enableButton.textContent=this.enabled?tr('voiceActive'):tr('activateVoice');
+          this.enableButton.textContent=voiceSelected?tr('voiceActive'):tr('activateVoice');
           this.enableButton.title='';
           this.enableButton.removeAttribute('aria-label');
         }
-        this.enableButton.classList.toggle('active',this.enabled);
+        this.enableButton.classList.toggle('active',voiceSelected);
       }
       if(this.activationTipEl){
         this.activationTipEl.textContent=joystickActive?'MANTÉN R1 PARA HABLAR':tr('voiceKeyTip');
       }
       if(this.statusEl&&!this.enabling){
-        this.statusEl.textContent=this.enabled?tr('voiceEnabled'):tr('voiceDisabled');
+        this.statusEl.textContent=voiceSelected?tr('voiceEnabled'):tr('voiceDisabled');
       }
       if(this.pttButton){
         const show=this.isMobile&&inRoom&&!this.cpuMode&&this.enabled;
