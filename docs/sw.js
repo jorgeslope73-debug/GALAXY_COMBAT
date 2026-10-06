@@ -1,4 +1,4 @@
-const VERSION = 'V21.93-giant-phase-exit';
+const VERSION = 'V21.95-shared-physics-core';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
@@ -18,6 +18,7 @@ const SHELL_FILES = [
   './auth.js',
   './impactos.js',
   './voz.js',
+  './physics-core.js',
   './local-cpu.js',
   './host-physics.js',
   './p2p-network.js',
