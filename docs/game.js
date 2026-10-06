@@ -1316,6 +1316,7 @@
   const useWebAudio=!!AudioContextCtor;
   const gameVolume=isMobile?0.45:0.75;
   let gameAudioEnabled=true,audioUnlocked=false;
+  window.GalaxyGameAudioEnabled=()=>gameAudioEnabled;
   const soundPools={};
   if(!useWebAudio){
     for(const [key,def] of Object.entries(soundDefs)){
@@ -1959,6 +1960,7 @@
   function toggleGameAudio(){
     gameAudioEnabled=!gameAudioEnabled;
     updateAudioButton();
+    window.dispatchEvent(new CustomEvent('galaxy-gameaudiochange',{detail:{enabled:gameAudioEnabled}}));
     if(gameAudioEnabled){
       // Este click es tambien un gesto valido para iOS.
       startMusic();
@@ -3852,7 +3854,11 @@
   }
 
   postAnalyticsEvent('visit');
-  function unlockAudioFromUserGesture(){
+  function unlockAudioFromUserGesture(e){
+    // V22.00: AUDIO y MICRO son controles independientes. Tocar MICRO no
+    // puede arrancar musica/efectos; el boton AUDIO ya gestiona su propio gesto.
+    const target=e&&e.target;
+    if(target&&target.closest&&target.closest('#enableVoice,#enableAudio'))return;
     if(!gameAudioEnabled)return;
     // La musica se arranca directamente en el gesto; esto es importante en
     // Safari/iOS, donde un play() posterior a un await puede quedar bloqueado.
