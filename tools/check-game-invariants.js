@@ -53,8 +53,7 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(bullets.includes('splitGiantMeteor'))fail(errors,label+': el meteorito gigante vuelve a fragmentarse por misil');
 
   const split=method(src,'splitAsteroidByMissile');
-  if(!split.includes('type:Number(asteroid.type)||1'))fail(errors,label+': los fragmentos no conservan la textura del asteroide original');
-  if(!split.includes('fragment:true'))fail(errors,label+': los fragmentos no estan marcados como temporales');
+  if(!split.includes('PHYSICS_CORE.asteroidMissileFracture'))fail(errors,label+': la fragmentacion ya no delega en physics-core');
 
   const asteroids=method(src,'updateAsteroids');
   if(asteroids.includes('collidableAsteroids=this.asteroids.filter'))fail(errors,label+': ha vuelto una asignacion filter() al bucle de colisiones de 60 Hz');
@@ -83,6 +82,10 @@ if(!core.includes('const TARGET_MIN_ALIGN=.8660254038'))fail(errors,'core: falta
 if(!core.includes('if(align<minAlign)continue;'))fail(errors,'core: la adquisicion puede aceptar objetivos fuera del cono');
 if(!core.includes('resolveAsteroidPairCollision'))fail(errors,'core: falta resolver colision asteroide-asteroide');
 if(!core.includes('resolveGiantAsteroidCollision'))fail(errors,'core: falta resolver colision gigante-asteroide');
+if(!core.includes('function asteroidMissileFracture'))fail(errors,'core: falta la fragmentacion compartida por misil');
+if(!core.includes('type:Number(asteroid.type)||1'))fail(errors,'core: los fragmentos no conservan la textura original');
+if(!core.includes('fragment:true'))fail(errors,'core: los fragmentos no quedan marcados como temporales');
+if(local.includes('[...this.asteroids]')||host.includes('[...this.asteroids]'))fail(errors,'fisica: ha vuelto la copia temporal [...this.asteroids] en ruta caliente');
 
 if(!game.includes('const ASTEROID_DUST_MAX=isMobile?24:36'))fail(errors,'render: el polvo de asteroide ha perdido su pool fijo');
 if(!game.includes("}else if(e.kind==='asteroidDust'){"))fail(errors,'render: falta consumir el FX local de polvo');
