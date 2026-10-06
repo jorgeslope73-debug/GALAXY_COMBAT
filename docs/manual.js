@@ -426,7 +426,7 @@
         if(guide){
           controls.body[0]=guide.pc;
           controls.body[1]=guide.mobile;
-          if(guide.joystick)controls.body.splice(2,0,guide.joystick);
+          controls.joystickGraphic=true;
           controls.controlVisual=guide.visual||null;
           if(Array.isArray(controls.tips)&&controls.tips.length)controls.tips[0]=guide.tip;
         }
@@ -499,28 +499,35 @@
     return '<span class="manual-vector-icon manual-eye-icon" aria-hidden="true"><i></i></span>';
   }
   function renderControlVisual(section){
-    const v=section&&section.controlVisual;
-    if(!v)return '';
-    const bullet='assets/sprites/municion1.png';
-    const flare='assets/sprites/bengalahud.png';
-    const shock='<span aria-hidden="true" style="display:inline-flex;width:30px;height:30px;border:2px solid #9edcff;border-radius:50%;align-items:center;justify-content:center;color:#fff;font-size:18px;line-height:1;box-shadow:0 0 8px rgba(158,220,255,.65)">●</span>';
-    const fireKey='<span class="manual-demo-fire">'+escapeHtml(v.fire)+'</span>';
-    return '<div class="manual-control-visual">'
-      +'<div class="manual-control-visual-title">'+escapeHtml(v.mobileTitle)+'</div>'
-      +'<div class="manual-phone-demo">'
-        +'<div class="manual-phone-turn"><div class="manual-demo-arrows"><span>◀</span><span>▶</span></div><b>'+escapeHtml(v.turn)+'</b></div>'
-        +'<div class="manual-phone-fire">'+fireKey+'<small>'+escapeHtml(v.hold)+' = '+escapeHtml(v.accelerate)+'</small></div>'
+    if(!section||!section.joystickGraphic)return '';
+    const lang=language();
+    const copy={
+      es:{title:'MANDO / JOYSTICK',config:'CONFIGURABLE',saved:'Puedes reasignar estos controles con CONFIGURAR. Se guardan en este navegador.',turn:'GIRAR',thrust:'ACELERAR',fire:'DISPARO',rocket:'COHETE',flares:'BENGALAS',wave:'HONDA',talk:'MICRO'},
+      en:{title:'CONTROLLER / JOYSTICK',config:'CONFIGURABLE',saved:'Use CONFIGURE to reassign these controls. They are saved in this browser.',turn:'TURN',thrust:'THRUST',fire:'FIRE',rocket:'ROCKET',flares:'FLARES',wave:'SHOCKWAVE',talk:'MIC'},
+      it:{title:'CONTROLLER / JOYSTICK',config:'CONFIGURABILE',saved:'Puoi riassegnare questi comandi con CONFIGURA. Vengono salvati nel browser.',turn:'GIRA',thrust:'ACCELERA',fire:'SPARO',rocket:'RAZZO',flares:'BENGALA',wave:'ONDA',talk:'MICRO'},
+      fr:{title:'MANETTE / JOYSTICK',config:'CONFIGURABLE',saved:'Utilise CONFIGURER pour réassigner ces commandes. Elles sont enregistrées dans ce navigateur.',turn:'TOURNER',thrust:'ACCÉLÉRER',fire:'TIR',rocket:'ROQUETTE',flares:'LEURRES',wave:'ONDE',talk:'MICRO'},
+      de:{title:'CONTROLLER / JOYSTICK',config:'KONFIGURIERBAR',saved:'Mit KONFIGURIEREN kannst du diese Belegung ändern. Sie wird in diesem Browser gespeichert.',turn:'DREHEN',thrust:'BESCHLEUNIGEN',fire:'FEUERN',rocket:'RAKETE',flares:'FLARES',wave:'SCHOCKWELLE',talk:'MIKRO'}
+    }[lang]||null;
+    const t=copy||{title:'MANDO / JOYSTICK',config:'CONFIGURABLE',saved:'Puedes reasignar estos controles con CONFIGURAR.',turn:'GIRAR',thrust:'ACELERAR',fire:'DISPARO',rocket:'COHETE',flares:'BENGALAS',wave:'HONDA',talk:'MICRO'};
+    return '<div class="manual-control-visual manual-gamepad-visual">'
+      +'<div class="manual-gamepad-head"><strong>'+escapeHtml(t.title)+'</strong><span>'+escapeHtml(t.config)+'</span></div>'
+      +'<div class="manual-gamepad-wrap">'
+        +'<div class="manual-gamepad-shoulders left"><span><b>L2</b>'+escapeHtml(t.rocket)+'</span><span><b>L1</b>'+escapeHtml(t.flares)+'</span></div>'
+        +'<div class="manual-gamepad-shoulders right"><span><b>R1</b>'+escapeHtml(t.talk)+'</span><span><b>R2</b>'+escapeHtml(t.fire)+'</span></div>'
+        +'<div class="manual-gamepad" aria-label="'+escapeHtml(t.title)+'">'
+          +'<div class="manual-gamepad-grip left"></div><div class="manual-gamepad-grip right"></div>'
+          +'<div class="manual-gamepad-stick"><i></i><small>'+escapeHtml(t.turn)+'</small></div>'
+          +'<div class="manual-gamepad-dpad"><i></i><small>'+escapeHtml(t.turn)+'</small></div>'
+          +'<div class="manual-gamepad-center"><span>GALAXY</span><b>CONFIGURAR</b></div>'
+          +'<div class="manual-gamepad-buttons">'
+            +'<span class="b1"><b>1</b><small>'+escapeHtml(t.thrust)+'</small></span>'
+            +'<span class="b2"><b>2</b></span>'
+            +'<span class="b3"><b>3</b></span>'
+            +'<span class="b4"><b>4</b><small>'+escapeHtml(t.wave)+'</small></span>'
+          +'</div>'
+        +'</div>'
       +'</div>'
-      +'<div class="manual-action-examples">'
-        +'<div class="manual-action-example shot"><div class="manual-action-input">'+fireKey+'<span class="manual-action-count">×1</span></div><span class="manual-action-arrow">→</span><div class="manual-action-result"><img src="'+bullet+'" alt=""><strong>'+escapeHtml(v.bullet)+'</strong><small>'+escapeHtml(v.oneTap)+'</small></div></div>'
-        +'<div class="manual-action-example flare"><div class="manual-action-input">'+fireKey+'<span class="manual-action-plus">+</span>'+fireKey+'</div><span class="manual-action-arrow">→</span><div class="manual-action-result">'+shock+'<strong>'+escapeHtml(v.shockwave||'ONDA')+'</strong><small>'+escapeHtml(v.doubleTap)+'</small><span class="manual-action-plus">+</span><img src="'+flare+'" alt=""><strong>'+escapeHtml(v.flares)+'</strong><em>'+escapeHtml(v.specialPriority||v.wait)+'</em></div></div>'
-        +'<div class="manual-action-example thrust"><div class="manual-action-input">'+fireKey+'<span class="manual-hold-mark">'+escapeHtml(v.hold)+'</span></div><span class="manual-action-arrow">→</span><div class="manual-action-result manual-action-text"><strong>'+escapeHtml(v.accelerate)+'</strong></div></div>'
-      +'</div>'
-      +'<div class="manual-pc-demo"><strong>'+escapeHtml(v.pcTitle)+'</strong>'
-        +'<div><span class="manual-keycap">A</span><span class="manual-key-or">/</span><span class="manual-keycap">D</span><span class="manual-key-or">·</span><span class="manual-keycap" aria-label="izquierda">←</span><span class="manual-key-or">/</span><span class="manual-keycap" aria-label="derecha">→</span><span class="manual-action-arrow">→</span><b>'+escapeHtml(v.turn)+'</b></div>'
-        +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcTap)+'</span><span class="manual-action-arrow">→</span><img src="'+bullet+'" alt=""><b>'+escapeHtml(v.bullet)+'</b></div>'
-        +'<div><span class="manual-keycap">CTRL</span><span class="manual-key-or">/</span><span class="manual-keycap">ESPACIO</span><span>'+escapeHtml(v.pcHold)+'</span><span class="manual-action-arrow">→</span>'+shock+'<b>'+escapeHtml(v.shockwave||'ONDA')+'</b><span class="manual-key-or">/</span><img src="'+flare+'" alt=""><b>'+escapeHtml(v.flares)+'</b><small>'+escapeHtml(v.specialPriority||'')+'</small></div>'
-      +'</div>'
+      +'<p class="manual-gamepad-note">'+escapeHtml(t.saved)+'</p>'
     +'</div>';
   }
 
