@@ -270,21 +270,20 @@
         vx:n.x*80,vy:n.y*80,r:ASTEROID_RADIUS,exiting:false,exitDelay:-1
       });
     }
-    asteroidRockCollisionRadius(a){
-      const r=Number(a&&a.r)||ASTEROID_RADIUS;
-      // V21.88: los PNG tienen margen transparente. Para choques roca-roca
-      // usamos un radio menor que el geometrico para que el contacto coincida
-      // con lo que se ve en pantalla.
-      return r*(a&&a.fragment===true?.72:.82);
-    }
     resolveAsteroidPairCollision(a,b){
-      if(!a||!b)return false;
-      if(a&&b&&a.fragmentGroup&&a.fragmentGroup===b.fragmentGroup){
-        const until=Math.max(Number(a.fragmentGraceUntil)||0,Number(b.fragmentGraceUntil)||0);
-        if(this.fxClock<until)return false;
-      }
-      const ra=this.asteroidRockCollisionRadius(a),rb=this.asteroidRockCollisionRadius(b);
+      if(!a||!b||a.exiting||b.exiting)return false;
+      const ra=Number(a.r)||ASTEROID_RADIUS,rb=Number(b.r)||ASTEROID_RADIUS;
       const dx=b.x-a.x,dy=b.y-a.y,minDist=ra+rb,d2=dx*dx+dy*dy;
+      // Fragmentos hermanos: no se resuelven como choque mientras aun estan
+      // separandose tras la rotura. En cuanto alcanzan distancia de contacto,
+      // se libera la pareja y desde entonces vuelven a colisionar normalmente.
+      if(a.fragmentGroup&&a.fragmentGroup===b.fragmentGroup){
+        if(!a.fragmentPairReleased||!b.fragmentPairReleased){
+          if(d2>=(minDist+2)*(minDist+2)){
+            a.fragmentPairReleased=true;b.fragmentPairReleased=true;
+          }else return false;
+        }
+      }
       if(d2>=minDist*minDist)return false;
       const d=Math.sqrt(d2)||.0001,nx=dx/d,ny=dy/d;
       const overlap=minDist-d;
@@ -312,10 +311,9 @@
       return true;
     }
     resolveGiantAsteroidCollision(g,a){
-      if(!g||!a)return false;
-      const ar=this.asteroidRockCollisionRadius(a);
-      const giantContactRadius=GIANT_RADIUS*.88;
-      const dx=a.x-g.x,dy=a.y-g.y,minDist=giantContactRadius+ar,d2=dx*dx+dy*dy;
+      if(!g||!a||a.exiting)return false;
+      const ar=Number(a.r)||ASTEROID_RADIUS;
+      const dx=a.x-g.x,dy=a.y-g.y,minDist=GIANT_RADIUS+ar,d2=dx*dx+dy*dy;
       if(d2>=minDist*minDist)return false;
       const d=Math.sqrt(d2)||.0001,nx=dx/d,ny=dy/d;
       const overlap=minDist-d;
@@ -355,19 +353,18 @@
       const splitX=-impactNormal.y,splitY=impactNormal.x;
       const fragmentRadius=28;
       const fragmentGroup='split-'+uid();
-      const fragmentGraceUntil=this.fxClock+.38;
       for(const sign of [-1,1]){
         const sideSpeed=sign*rand(70,100);
         // Empuje alejandose ligeramente del punto de impacto para que la rotura
         // visual parezca causada por el golpe y no por el movimiento previo.
         const impactKick=rand(34,58);
-        const fx=x+splitX*sign*(fragmentRadius*.72)-impactNormal.x*5;
-        const fy=y+splitY*sign*(fragmentRadius*.72)-impactNormal.y*5;
+        const fx=x+splitX*sign*fragmentRadius-impactNormal.x*5;
+        const fy=y+splitY*sign*fragmentRadius-impactNormal.y*5;
         this.asteroids.push({
           id:uid(),x:fx,y:fy,px:fx,py:fy,rot:rand(0,360),type:Number(asteroid.type)||1,
           vx:vx*.62+splitX*sideSpeed-impactNormal.x*impactKick,
           vy:vy*.62+splitY*sideSpeed-impactNormal.y*impactKick,
-          r:fragmentRadius,fragment:true,fragmentGroup,fragmentGraceUntil,exiting:false,exitDelay:rand(10,16)
+          r:fragmentRadius,fragment:true,fragmentGroup,fragmentPairReleased:false,exiting:false,exitDelay:rand(10,16)
         });
       }
       this.emitExplosionAt(x,y,Number.isInteger(ownerIndex)?ownerIndex:-1);
@@ -1543,12 +1540,13 @@
         if(a.x<-190&&a.vx<0)a.vx*=-1;else if(a.x>W+190&&a.vx>0)a.vx*=-1;
         if(a.y<-190&&a.vy<0)a.vy*=-1;else if(a.y>H+190&&a.vy>0)a.vy*=-1;
       }
-      for(let i=0;i<this.asteroids.length;i++)for(let j=i+1;j<this.asteroids.length;j++){
-        this.resolveAsteroidPairCollision(this.asteroids[i],this.asteroids[j]);
+      const collidableAsteroids=this.asteroids.filter(a=>a&&!a.exiting);
+      for(let i=0;i<collidableAsteroids.length;i++)for(let j=i+1;j<collidableAsteroids.length;j++){
+        this.resolveAsteroidPairCollision(collidableAsteroids[i],collidableAsteroids[j]);
       }
       for(let i=this.pickups.length-1;i>=0;i--){
         const pk=this.pickups[i];
-        for(const a of this.asteroids)if(circles(a,a.r,pk,PICKUP_RADIUS)){this.pickups.splice(i,1);break;}
+        for(const a of this.asteroids)if(!a.exiting&&circles(a,a.r,pk,PICKUP_RADIUS)){this.pickups.splice(i,1);break;}
       }
     }
     updateBullets(dt){
