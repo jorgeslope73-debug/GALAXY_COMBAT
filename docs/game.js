@@ -3225,6 +3225,7 @@
       saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players||(m.cpu?2:1));
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(Array.isArray(m.players))syncVoicePlayers(m.players,true);}
       roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');
+      if(voice&&typeof voice.startSelectedForSession==='function')voice.startSelectedForSession();
       if(m.started){lobby.classList.add('hidden');beginGame();}
       else if(!m.cpu)lobby.classList.remove('hidden');
     }
@@ -3234,7 +3235,7 @@
       if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
       updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
-      if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);
+      if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(typeof voice.startSelectedForSession==='function')voice.startSelectedForSession();}
       if(m.started&&isHost&&!hostPhysics&&!inGame){
         clearResumeSession();playerToken='';
         alert(sinTildes(tr('resumeFailed')));
