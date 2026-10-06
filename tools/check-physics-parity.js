@@ -14,6 +14,11 @@ const SHARED_METHODS=[
   // onda y hazards con progresión quedan fuera porque tienen diferencias
   // intencionadas entre ambos motores.
   'bulletSpeed',
+  'resolveAsteroidPairCollision',
+  'resolveGiantAsteroidCollision',
+  'splitAsteroidByMissile',
+  'asteroidPopulationUnits',
+  'normalAsteroidCount',
   'updateAsteroids',
   'updateFlares',
   'guidedTargetFor',
