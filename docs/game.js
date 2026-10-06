@@ -321,7 +321,7 @@
       v.ready=false;v.x=0;v.y=0;v.r=0;v.vx=0;v.vy=0;v.lastAt=0;
     }
   }
-  const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,localErrMax:0,report:{fps:0,long:0,max:0,frame:0,parse:0,localErr:0,heap:-1,players:0,bullets:0,flares:0,asteroids:0,meteors:0,pickups:0,impacts:0,wsBuf:0,p2pBuf:0,p2pPeers:0,queue:0}}:null;
+  const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,localErrMax:0,report:{fps:0,long:0,max:0,frame:0,parse:0,localErr:0,heap:-1,players:0,bullets:0,flares:0,asteroids:0,meteors:0,pickups:0,impacts:0,wsBuf:0,p2pBuf:0,p2pPeers:0,queue:0,physicsTickAvg:0,physicsTickMax:0,physicsDrops:0}}:null;
   // Cadencia de pintado adaptativa. El antiguo umbral fijo de 10,5 ms podia
   // convertir un monitor de 100/110 Hz en ~50/55 FPS. Medimos el RAF real y
   // usamos un divisor entero estable: 60/75/100 Hz pintan cada RAF; 120/144/
@@ -369,6 +369,16 @@
   function collectPerfDebugSnapshot(){
     const s=state||{};
     let p2pBuf=0,p2pPeers=0,p2pQueued=0;
+    let physicsTickAvg=0,physicsTickMax=0,physicsDrops=0;
+    const physics=localCpuActive?localCpu:(isHost?hostPhysics:null);
+    if(physics&&typeof physics.takePerfDebug==='function'){
+      const pr=physics.takePerfDebug();
+      if(pr){
+        physicsTickAvg=Number(pr.tickAvg)||0;
+        physicsTickMax=Number(pr.tickMax)||0;
+        physicsDrops=Number(pr.catchupDrops)||0;
+      }
+    }
     if(p2p&&p2p.peers&&typeof p2p.peers.values==='function'){
       for(const rec of p2p.peers.values()){
         const dc=rec&&rec.dc;
@@ -392,7 +402,8 @@
       impacts:impactFX&&Array.isArray(impactFX.bursts)?impactFX.bursts.length:0,
       wsBuf:ws&&ws.readyState===WebSocket.OPEN?Number(ws.bufferedAmount||0):0,
       p2pBuf,p2pPeers,
-      queue:(pendingStateRaw?1:0)+p2pQueued
+      queue:(pendingStateRaw?1:0)+p2pQueued,
+      physicsTickAvg,physicsTickMax,physicsDrops
     };
   }
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
@@ -5889,12 +5900,13 @@
       ctx.setTransform(1,0,0,1,0,0);
       ctx.globalCompositeOperation='source-over';
       ctx.globalAlpha=.82;
-      ctx.fillStyle='rgba(0,0,0,.68)';ctx.fillRect(8,8,520,100);
+      ctx.fillStyle='rgba(0,0,0,.68)';ctx.fillRect(8,8,520,120);
       ctx.globalAlpha=1;ctx.fillStyle='#8dffb0';ctx.font='12px Arial,Helvetica,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
       ctx.fillText(`FPS ${r.fps.toFixed(0)}  FRAME ${r.frame.toFixed(1)}ms  MAX ${r.max.toFixed(1)}ms  >25ms ${r.long}/5s`,16,16);
       ctx.fillText(`JSON ${r.parse.toFixed(2)}ms  ERR ${r.localErr.toFixed(1)}px  HEAP ${r.heap>=0?r.heap.toFixed(1)+' MB':'n/d'}`,16,36);
       ctx.fillText(`OBJ P${r.players} B${r.bullets} F${r.flares} A${r.asteroids} M${r.meteors} PK${r.pickups} FX${r.impacts}`,16,56);
       ctx.fillText(`NET WS ${Math.round(r.wsBuf/1024)} KB  P2P ${Math.round(r.p2pBuf/1024)} KB/${r.p2pPeers} peers  Q ${r.queue}`,16,76);
+      ctx.fillText(`PHYS ${r.physicsTickAvg.toFixed(2)}ms avg  ${r.physicsTickMax.toFixed(2)}ms max  DROPS ${r.physicsDrops}`,16,96);
       ctx.restore();
     }
   }
