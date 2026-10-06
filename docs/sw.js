@@ -1,4 +1,4 @@
-const VERSION = 'V21.79-language-audit';
+const VERSION = 'V21.80-scalable-campaign';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
@@ -13,6 +13,7 @@ const SHELL_FILES = [
   './voz.css',
   './config.js',
   './i18n.js',
+  './campaign-config.js',
   './manual.js',
   './auth.js',
   './impactos.js',
