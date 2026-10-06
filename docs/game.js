@@ -126,6 +126,8 @@
     pickupVisualBorn.clear();gameFeelFxSeen.clear();
     shipHitFlashUntil.fill(0);
     cameraShakeStart=0;cameraShakeUntil=0;cameraShakePower=0;cameraShakeSeed=0;
+    for(const p of asteroidDust)p.life=0;
+    asteroidDustCursor=0;
     ufoEmitAt.clear();
     for(const particle of ufoParticles)particle.life=0;
     ufoFxCursor=0;ufoFxLastAt=0;
@@ -197,6 +199,8 @@
           cameraShakePower=power;
           cameraShakeSeed=(e.id%97)*.37;
         }
+      }else if(e.kind==='asteroidDust'){
+        spawnAsteroidDust(Number(e.x),Number(e.y));
       }
     }
   }
@@ -227,6 +231,40 @@
   let incomingMissileNoticeId=null,incomingMissileNoticeUntil=0;
   let lastLocalKillAt=0,lastSavedNoticeAt=0;
   const shockwaveFx=[];
+  // V21.90: polvo de rotura de asteroide. Pool fijo y exclusivamente visual:
+  // cero colisiones, cero IA y cero entidades sincronizadas.
+  const ASTEROID_DUST_MAX=isMobile?24:36;
+  const asteroidDust=Array.from({length:ASTEROID_DUST_MAX},()=>({life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0}));
+  let asteroidDustCursor=0;
+  function spawnAsteroidDust(x,y){
+    if(!Number.isFinite(x)||!Number.isFinite(y))return;
+    const count=isMobile?8:12;
+    for(let n=0;n<count;n++){
+      const p=asteroidDust[asteroidDustCursor++%asteroidDust.length];
+      const angle=Math.random()*Math.PI*2;
+      const speed=28+Math.random()*72;
+      p.life=p.maxLife=.34+Math.random()*.22;
+      p.x=x+(Math.random()-.5)*10;p.y=y+(Math.random()-.5)*10;
+      p.vx=Math.cos(angle)*speed;p.vy=Math.sin(angle)*speed;
+      p.size=3+Math.random()*7;
+    }
+  }
+  function drawAsteroidDust(dt){
+    ctx.save();
+    for(const p of asteroidDust){
+      if(p.life<=0)continue;
+      p.life=Math.max(0,p.life-dt);
+      if(p.life<=0)continue;
+      const f=p.life/p.maxLife;
+      p.x+=p.vx*dt;p.y+=p.vy*dt;
+      p.vx*=.94;p.vy*=.94;
+      ctx.globalAlpha=Math.min(.58,f*.58);
+      const shade=135+Math.round((1-f)*35);
+      ctx.fillStyle='rgb('+shade+','+shade+','+shade+')';
+      ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.8,p.size*(.55+.45*f)),0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  }
   // V19.28: el titulo BRUTAL se prerenderiza. El shadowBlur grande era caro
   // si se recalculaba en cada frame y podia producir tirones en PC.
   let brutalTitleCache=null,brutalTitleCacheText='',brutalTitleCacheMobile=null;
@@ -5734,6 +5772,7 @@
       ctx.restore();
     }
     drawOnlineStartAnnouncement(now);
+    drawAsteroidDust(Math.min(.033,Math.max(.008,smoothedStateInterval/1000)));
 
     for(const a of state.asteroids){
       const old=previousLookup.asteroids.get(a.id);
