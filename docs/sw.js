@@ -1,4 +1,4 @@
-const VERSION = 'V21.81-victory-joystick';
+const VERSION = 'V21.82-remove-small-normal-asteroid';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
