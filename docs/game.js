@@ -5001,9 +5001,16 @@
         }
         if(roomCode==='LOCAL'){
           ctx.globalAlpha=fadeIn;
+          const worldText=tr('campaignLevelTitle',{level:localCampaignLevel,name:localCampaignWorldName(localCampaignLevel)});
+          ctx.font=isMobile?'900 30px Flashback,Arial':'900 36px Flashback,Arial';
+          ctx.lineWidth=isMobile?7:9;
+          ctx.strokeStyle='rgba(0,0,0,.92)';
           ctx.fillStyle='#9eeaff';
-          ctx.font=isMobile?'24px Flashback,Arial':'19px Flashback,Arial';
-          ctx.fillText(tr('campaignLevelTitle',{level:localCampaignLevel,name:localCampaignWorldName(localCampaignLevel)}),0,92);
+          ctx.shadowColor='rgba(80,220,255,.72)';
+          ctx.shadowBlur=isMobile?12:16;
+          ctx.strokeText(worldText,0,112);
+          ctx.fillText(worldText,0,112);
+          ctx.shadowBlur=0;
         }
       }else{
         const goAge=age-ONLINE_READY_MS;
