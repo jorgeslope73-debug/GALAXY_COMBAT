@@ -3502,7 +3502,7 @@
     else if(m.t==='hunt'){
       huntFxStart=performance.now();
       huntFxUntil=huntFxStart+Math.max(2200,Number(m.graceMs)||0);
-      huntText='A POR '+sinTildes(String(m.name||'JUGADOR')).trim().toUpperCase();
+      huntText=tr('huntTarget',{name:String(m.name||tr('defaultPlayer')).trim()});
       huntCpuAmmo=!!m.cpuAmmo;
       huntCpuBonus=Math.max(0,Number(m.cpuAmmoBonus)||0);
       huntCpuIndices=Array.isArray(m.cpuIndices)?m.cpuIndices.map(Number).filter(Number.isFinite):[];
@@ -5268,7 +5268,7 @@
         ctx.lineWidth=isMobile?4:3;
         ctx.shadowBlur=8;
         ctx.fillStyle='#ffe86b';
-        const ammoLabel=(huntCpuBonus>0?('+'+huntCpuBonus+' '):'')+'BALAS PARA CPU';
+        const ammoLabel=(huntCpuBonus>0?('+'+huntCpuBonus+' '):'')+tr('cpuAmmoLabel');
         ctx.strokeText(ammoLabel,0,isMobile?40:34);
         ctx.fillText(ammoLabel,0,isMobile?40:34);
       }
