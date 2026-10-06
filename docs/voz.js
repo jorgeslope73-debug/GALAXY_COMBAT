@@ -62,6 +62,11 @@
 
     bindUI(){
       if(this.enableButton){
+        // V22.02 movil: tocar VOZ nunca debe llegar a los gestores de audio
+        // del menu. El boton solo solicita/cierra el microfono.
+        const blockGameAudioGesture=e=>{e.stopPropagation();};
+        this.enableButton.addEventListener('pointerdown',blockGameAudioGesture,{passive:true});
+        this.enableButton.addEventListener('touchstart',blockGameAudioGesture,{passive:true});
         this.enableButton.addEventListener('click',async e=>{
           e.preventDefault();e.stopPropagation();
           if(this.enabled)this.disable();
