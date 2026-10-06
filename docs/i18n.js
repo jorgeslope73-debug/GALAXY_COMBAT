@@ -198,6 +198,70 @@
     specialPcHelp:'FEUER GEDRUECKT HALTEN ZUM AKTIVIEREN',
     specialMobileHelp:'ZWEIMAL DIREKT HINTEREINANDER FEUER DRUECKEN'
   });
+
+  Object.assign(dictionaries.es,{huntTarget:'A POR {name}',cpuAmmoLabel:'BALAS PARA CPU'});
+  Object.assign(dictionaries.en,{huntTarget:'GET {name}',cpuAmmoLabel:'CPU AMMO'});
+  Object.assign(dictionaries.it,{huntTarget:'A CACCIA DI {name}',cpuAmmoLabel:'MUNIZIONI CPU'});
+  Object.assign(dictionaries.fr,{huntTarget:'A LA POURSUITE DE {name}',cpuAmmoLabel:'MUNITIONS CPU'});
+  Object.assign(dictionaries.de,{huntTarget:'JAGD AUF {name}',cpuAmmoLabel:'CPU-MUNITION'});
+
+  Object.assign(dictionaries.zh,{
+    abandonMatchConfirm:'你即将离开比赛。确认吗？',
+    shareGame:'分享游戏',
+    shareGameCopied:'链接已复制。把它发送给朋友即可直接打开 Galaxy Combat。',
+    shareGameCopyFailed:'无法复制链接。请复制浏览器地址并发送给朋友。',
+    gameAudioOn:'音频开启',
+    gameAudioOff:'音频关闭',
+    keyThrustCombo:'W / 上方向键',
+    keyFireCombo:'CTRL / 空格',
+    voiceKeyTip:'游戏中按住 V 可以说话',
+    shareRoomShort:'分享',
+    fillCpuHard:'用电脑玩家补满',
+    removeCpuFill:'移除电脑玩家',
+    playerJoinedNotice:'加入比赛',
+    readyNotice:'准备',
+    goNotice:'开始！！！',
+    shareRoomFirst:'请先创建一个在线房间。',
+    shareRoomCopied:'房间链接已复制。把链接发送给朋友，打开后会直接进入房间 {code}。',
+    shareRoomCopyFailed:'无法复制房间链接。',
+    joiningRoom:'正在进入房间 {code}……',
+    joystickActive:'手柄已启用。',
+    joystickConnect:'手柄已启用：请连接手柄。',
+    joystickEnable:'启用标准手柄控制',
+    campaignLevelComplete:'第 {level} 关 · {name} 已完成',
+    campaignLevelTitle:'第 {level} 关 · {name}',
+    campaignWorld1:'星际边境',
+    campaignWorld2:'红色星云',
+    campaignWorld3:'宇宙风暴',
+    campaignWorld4:'星际深渊',
+    campaignWorld5:'最终地平线',
+    campaignLevelLost:'第 {level} 关 · {name} 获胜',
+    continueCampaign:'继续',
+    retryLevel:'重试本关',
+    campaignGameOver:'游戏结束',
+    restartCampaign:'重新开始',
+    campaignChampion:'星际冠军',
+    interstellarTravel:'星际航行',
+    destinationLevel:'目的地 · {name}',
+    giantWarning:'巨型陨石',
+    doubleMove:'双杀',
+    savedMove:'获救',
+    evasionMove:'闪避',
+    flareHitMove:'干扰弹命中',
+    pointBlankMove:'近距离命中',
+    hunterMove:'猎手',
+    shieldBreakMove:'破盾',
+    interceptMove:'拦截',
+    shockCancelMove:'冲击波抵消',
+    shockPerfectMove:'完美冲击波',
+    nearWinWarning:'注意：再击毁一艘即可获胜',
+    shockwaveFirstHelp:'按住射击键激活',
+    flareFirstHelp:'快速按两次射击键激活',
+    specialPcHelp:'按住射击键激活',
+    specialMobileHelp:'快速连续按两次射击键激活',
+    huntTarget:'追击 {name}',
+    cpuAmmoLabel:'电脑弹药'
+  });
    const serverMap={"YA TIENES UNA SALA ACTIVA.":"activeRoomExists","YA ESTAS EN UNA SALA ACTIVA.":"activeRoomExists","LIMITE DE SALAS DE PRUEBA ALCANZADO.":"testRoomLimitReached","Sala no disponible.":"roomUnavailable","Sala llena.":"roomFull","La partida ya no se puede recuperar.":"matchNotRecoverable","Ha pasado el tiempo de reconexión.":"reconnectExpired","El anfitrión cerró la sala.":"hostClosed","El anfitrión perdió la conexión.":"hostDisconnected","La partida se cierra porque solo queda el anfitrion.":"soloHostClosed","La sala anterior fue reemplazada por una nueva sesion.":"previousRoomReplaced"};
   const normalizeLanguage=value=>SUPPORTED.includes(value)?value:'es';
   let language='es';
