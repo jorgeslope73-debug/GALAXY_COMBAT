@@ -1,4 +1,4 @@
-const VERSION = 'V21.98-chinese-complete';
+const VERSION = 'V22.00-audio-voice-separation';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
