@@ -1,4 +1,4 @@
-const VERSION = 'V21.97-chinese';
+const VERSION = 'V21.98-chinese-complete';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
