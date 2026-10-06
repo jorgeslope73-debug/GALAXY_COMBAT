@@ -58,19 +58,6 @@
       this.refreshUI();
       window.addEventListener('galaxy-languagechange',()=>this.refreshUI());
       window.addEventListener('galaxy-joystickchange',()=>this.refreshUI());
-      window.addEventListener('galaxy-gameaudiochange',e=>{
-        const active=!!(e&&e.detail&&e.detail.enabled);
-        // V22.00: el micro nunca enciende ni sustituye al audio del juego.
-        // Si el usuario apaga AUDIO, cerramos la voz y ocultamos el PTT.
-        if(!active&&this.enabled)this.disable();
-        else this.refreshUI();
-      });
-    }
-
-    gameAudioActive(){
-      return typeof window.GalaxyGameAudioEnabled==='function'
-        ?!!window.GalaxyGameAudioEnabled()
-        :true;
     }
 
     bindUI(){
@@ -88,7 +75,7 @@
           this.pttTouchActive=true;
           // V22.00: el PTT movil solo sirve para hablar. El micro se activa
           // expresamente desde el menu y nunca desde el boton de la partida.
-          if(!this.enabled||!this.gameAudioActive()){this.pttTouchActive=false;return;}
+          if(!this.enabled){this.pttTouchActive=false;return;}
           if(this.pttTouchActive)this.setTalking(true);
         };
         const endTouch=e=>{
@@ -109,7 +96,7 @@
           if(e.pointerType==='touch')return;
           e.preventDefault();e.stopPropagation();
           try{this.pttButton.setPointerCapture?.(e.pointerId);}catch(_){}
-          if(!this.enabled||!this.gameAudioActive())return;
+          if(!this.enabled)return;
           this.setTalking(true);
         },{passive:false});
         const endPointer=e=>{
@@ -215,10 +202,6 @@
 
     async enable(){
       if(this.enabled)return true;
-      if(this.isMobile&&!this.gameAudioActive()){
-        this.refreshUI();
-        return false;
-      }
       if(this.enabling)return false;
       if(!navigator.mediaDevices||typeof navigator.mediaDevices.getUserMedia!=='function'){
         this.setStatus(tr('microphoneUnavailable'));
@@ -575,10 +558,7 @@
     refreshUI(){
       const inRoom=this.localIndex!==null;
       const joystickActive=typeof window.GalaxyJoystickEnabled==='function'&&window.GalaxyJoystickEnabled();
-      const gameAudioActive=this.gameAudioActive();
       if(this.enableButton){
-        // En movil, AUDIO es el requisito para ofrecer el micro.
-        this.enableButton.classList.toggle('hidden',this.isMobile&&!gameAudioActive);
         if(joystickActive){
           this.enableButton.textContent=this.enabled?'MICRO ACTIVO · R1':'ACTIVAR MICRO · R1';
           this.enableButton.title=this.enabled?'Mantén R1 para hablar':'Activa el micro; después mantén R1 para hablar';
@@ -597,7 +577,7 @@
         this.statusEl.textContent=this.enabled?tr('voiceEnabled'):tr('voiceDisabled');
       }
       if(this.pttButton){
-        const show=this.isMobile&&inRoom&&!this.cpuMode&&this.enabled&&gameAudioActive;
+        const show=this.isMobile&&inRoom&&!this.cpuMode&&this.enabled;
         this.pttButton.classList.toggle('hidden',!show);
         this.pttButton.textContent=tr('talk');
         this.pttButton.setAttribute('aria-label',tr('holdToTalk'));
