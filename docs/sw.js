@@ -1,4 +1,4 @@
-const VERSION = 'V21.76-ufo-particles';
+const VERSION = 'V21.77-ready-world-label';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
