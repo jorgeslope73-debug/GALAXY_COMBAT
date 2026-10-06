@@ -1316,7 +1316,6 @@
   const useWebAudio=!!AudioContextCtor;
   const gameVolume=isMobile?0.45:0.75;
   let gameAudioEnabled=true,audioUnlocked=false;
-  window.GalaxyGameAudioEnabled=()=>gameAudioEnabled;
   const soundPools={};
   if(!useWebAudio){
     for(const [key,def] of Object.entries(soundDefs)){
@@ -1960,7 +1959,6 @@
   function toggleGameAudio(){
     gameAudioEnabled=!gameAudioEnabled;
     updateAudioButton();
-    window.dispatchEvent(new CustomEvent('galaxy-gameaudiochange',{detail:{enabled:gameAudioEnabled}}));
     if(gameAudioEnabled){
       // Este click es tambien un gesto valido para iOS.
       startMusic();
