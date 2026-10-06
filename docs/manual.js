@@ -259,6 +259,25 @@
         {id:'tips',title:'13. Kampftipps',body:['Verfolge Gegner nicht immer geradlinig: nutze Asteroiden als Deckung und variiere deine Flugbahn.','Prüfe deine Munition, bevor du eine Verfolgung startest.','Ein Schild ist nicht nur defensiv: gegen ein ungeschütztes Schiff kann er eine Rammchance eröffnen.','Geschwindigkeit und Feuerrate sind stark, werden beim Tod aber zurückgesetzt. Manchmal ist Ausweichen besser als ein riskanter Kampf.']},
         {id:'thanks',title:'14. Danke',body:['Danke für dein Interesse an Galaxy Combat.','Ich hoffe, du hast viel Spaß beim Spielen. Wir sehen uns im Kampf!']}
       ]
+    },
+    zh: {
+      button:'说明', title:'游戏说明', subtitle:'快速了解 Galaxy Combat 的操作、武器、道具和在线模式。', close:'关闭', contents:'目录',
+      sections:[
+        {id:'objective',title:'1. 游戏目标',body:['Galaxy Combat 是一款 1 到 4 人太空街机对战游戏。你可以在线与其他玩家对战，也可以挑战电脑。','最先取得 5 次击毁的玩家获胜。','被击毁后会很快重生，但会失去已收集的强化，并获得短暂重生保护。'],tips:['保持移动，静止的飞船很容易被击中。','除了盯住对手，也要注意场上的强化道具。']},
+        {id:'controls',title:'2. 操作',body:['PC：A / D 或方向键转向，W 或上方向键加速，CTRL 或空格射击。','手机：横屏游戏。左侧按钮转向；右侧轻点射击，双击使用特殊武器，按住加速。','语音：PC 按住 V；手机按住屏幕上的麦克风按钮。'],tips:['手柄可以在菜单中通过“配置”重新分配按键。']},
+        {id:'hud',title:'3. HUD、击毁与领先',body:['每名玩家都有与飞船颜色对应的 HUD，可查看弹药、射速、速度和击毁数。','明确领先时，领先玩家的名字会突出显示。']},
+        {id:'weapons',title:'4. 弹药与武器',body:['普通子弹和制导导弹使用独立弹药。','制导导弹只能在飞船前方约 60° 的范围内锁定目标；发射后会继续追踪，除非被干扰弹诱导。','导弹击中普通大型或中型小行星时会把它分裂成两个更小碎片；巨型陨石不会被导弹摧毁。']},
+        {id:'pickups',title:'5. 强化道具',body:['场上会出现弹药、射速、速度、护盾、隐身、制导导弹、干扰弹和冲击波等强化。','死亡会失去大多数已收集的强化。']},
+        {id:'flares',title:'6. 干扰弹与冲击波',body:['干扰弹可以把追踪导弹从目标处引开，并能与部分物体发生碰撞。','冲击波不可累积。它会摧毁附近的子弹、导弹、干扰弹和小型流星，并能破坏护盾。']},
+        {id:'hazards',title:'7. 小行星与流星',body:['普通小行星会在场景中移动并彼此碰撞。','流星雨会周期性出现。巨型陨石会穿过战场，不能被普通武器摧毁。','小行星被导弹打碎后的碎片会离开场景，不会重新返回。']},
+        {id:'cpu',title:'8. 电脑对手',body:['可以选择简单、中等和困难难度。','困难模式会使用已保存的学习数据，并更积极地躲避危险和使用武器。']},
+        {id:'online',title:'9. 在线游戏',body:['可以创建公开或私人房间。私人房间通过代码或分享链接加入。','房主可以用电脑玩家补满空位；真人加入后可以替换电脑玩家。','在线物理由房主浏览器负责，并通过 P2P 同步给其他玩家。']},
+        {id:'join',title:'10. 加入房间',body:['选择“加入房间”可以查看公开房间，也可以输入私人房间代码。','进入等待大厅后，房主开始比赛。']},
+        {id:'end',title:'11. 比赛结束与再来一局',body:['有人达到 5 次击毁后会显示胜利画面。选择“再来一局”继续，或返回主菜单。','新一局会重置分数、弹药、强化和场景危险。']},
+        {id:'pwa',title:'12. 安装为应用',body:['Galaxy Combat 是 PWA。iPhone/iPad 可在 Safari 中选择“分享”→“添加到主屏幕”；Android/Chrome 可选择“安装应用”或“添加到主屏幕”。','从主屏幕图标启动时会更接近原生应用体验。推荐横屏游玩。']},
+        {id:'tips',title:'13. 战斗技巧',body:['不要一直直线追击，利用小行星做掩护并改变航线。','追击前检查弹药。','有优势时不必冒险硬拼，保存护盾、速度和射速强化往往更重要。']},
+        {id:'thanks',title:'14. 谢谢',body:['感谢你游玩 Galaxy Combat。','祝你玩得开心，战场上见！']}
+      ]
     }
   };
 
@@ -313,6 +332,16 @@
       flare:['flare','FLARES','Jede Ladung setzt drei Flares fuer 3 s aus. Vor der naechsten Ladung desselben Schiffs muss mindestens 1 s vergehen, auch wenn mehrere Ladungen vorhanden sind. Sie lenken Lenkraketen ab, blockieren Schuesse, koennen Schilde brechen oder Schiffe bei Kontakt zerstoeren; zerstoert dein Flare einen Gegner, wird dir der Abschuss gutgeschrieben. Sie zerstoeren auch kleine Meteore des Schauers. Treffen sie den Riesenmeteor, explodiert die Flare, der Riesenmeteor fliegt weiter. PC: Feuer halten; mobil: schneller Doppeltipp. Keine Munition oder geladene Waffe erforderlich.'],
       shockwave:['shockwave','SPHAERE · SCHOCKWELLE','Seltenes, nicht stapelbares Upgrade: nur 1 Ladung kann getragen werden. Ein kleiner Kreis hinter dem Schiff zeigt die Ladung an. PC: Feuer halten; mobil: schneller Doppeltipp. Sind auch Flares vorhanden, hat die Schockwelle Vorrang und die Flares bleiben gespeichert. Radius 30 m: zerstoert Schiffe ohne Schild; bei Schild wird nur der Schild zerstoert und das Schiff ueberlebt. Respawn-Schutz bleibt wirksam. Die Welle entfernt auch Kugeln, Lenkraketen und aktive Flares, zerstoert kleine Meteore und stoesst normale Asteroiden sowie den Riesenmeteor weg, ohne sie zu zerstoeren.'],
       hazard:'Kleiner Meteor: beide werden zerstoert. Riesenmeteor: die Flare explodiert und verschwindet, der Riesenmeteor bleibt unbeschaedigt.'
+    },
+    zh: {
+      joystick:"手柄（PC）：启用 JOYSTICK 并连接手柄。默认：左摇杆/方向键=转向；按钮1=加速；R2/RT=普通射击；L2/LT=发射制导导弹；L1/LB=干扰弹；按钮4=冲击波；R1/RB=按住说话。启用手柄后可使用“配置”重新分配按键，设置会保存在此浏览器。",
+      visual:{mobileTitle:'手机 · 按钮',turn:'转向',fire:'射击',oneTap:'轻点一次',bullet:'子弹',doubleTap:'快速双击',flares:'干扰弹',shockwave:'冲击波',specialPriority:'先冲击波 · 后干扰弹',hold:'按住',accelerate:'加速',pcTitle:'PC · 键盘',pcTap:'轻按',pcHold:'按住',wait:'干扰弹之间有冷却'},
+      pc:'PC：A / D 或方向键转向，W 加速，CTRL 或空格普通射击。特殊武器按当前装备规则使用；ESC 退出比赛。',
+      mobile:'手机：横屏。左侧按钮转向；右侧轻点普通射击，快速双击使用特殊武器，按住加速。',
+      tip:'键盘和手机使用共享的特殊操作；手柄的普通射击、导弹、干扰弹和冲击波是独立按键并且可以配置。',
+      flare:['flare','干扰弹','用于诱导来袭的制导导弹，也可以影响部分物体。'],
+      shockwave:['shockwave','冲击波','不可累积。清除附近弹丸和小型流星，并可破坏护盾。'],
+      hazard:'小型流星：可被摧毁。巨型陨石：干扰弹或导弹不会摧毁它。'
     }
   };
 
@@ -410,6 +439,25 @@
       weaponStates: [
         ['assets/sprites/coete1.png','WAFFE NICHT GELADEN','Die Kuppel ist aus. Die Waffe ist noch nicht geladen und kann nicht feuern.'],
         ['assets/sprites/coete1f.png','WAFFE BEREIT','Die Kuppel leuchtet gruen: Die Waffe ist geladen und schussbereit.']
+      ]
+    },
+    zh: {
+      noticeLabel:'重要',
+      controlsNotice:'重要：不加速时飞船不会向前推进。飞船具有惯性和滑行效果，移动时需要不断通过转向修正航线。',
+      onlineNotice:'即使只有你一个真人也可以马上开始：创建公开房间并选择“用电脑玩家补满”。真人加入后会逐步替换电脑玩家，无需重新开始比赛。',
+      hudDiagramTitle:'HUD 快速说明',
+      hudDiagramAlt:'显示弹药、射速、速度和击毁数的 HUD。',
+      hudDiagramCaption:'玩家 HUD 主要信息示例。',
+      hudLegend:[
+        ['弹药','当前可用的普通子弹数量。'],
+        ['射速','蓝色指示条显示射击间隔，强化后射击更快。'],
+        ['速度','显示飞船速度强化等级。'],
+        ['击毁','显示你的击毁数与获胜目标。']
+      ],
+      weaponStateTitle:'飞船武器状态',
+      weaponStates:[
+        ['assets/sprites/coete1.png','武器未就绪','指示灯熄灭，武器尚未准备好。'],
+        ['assets/sprites/coete1f.png','武器就绪','绿色指示灯亮起，武器已准备好。']
       ]
     }
   };
