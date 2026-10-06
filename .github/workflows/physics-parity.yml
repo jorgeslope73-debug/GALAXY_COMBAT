@@ -6,6 +6,8 @@ on:
       - 'docs/host-physics.js'
       - 'docs/local-cpu.js'
       - 'tools/check-physics-parity.js'
+      - 'tools/check-game-invariants.js'
+      - 'tools/check-game-invariants.js'
       - '.github/workflows/physics-parity.yml'
   pull_request:
     paths:
@@ -24,3 +26,5 @@ jobs:
         uses: actions/checkout@v4
       - name: Check host/local shared physics parity
         run: node tools/check-physics-parity.js
+      - name: Check gameplay and performance invariants
+        run: node tools/check-game-invariants.js
