@@ -1,4 +1,4 @@
-const VERSION = 'V21.87-impact-fracture';
+const VERSION = 'V21.88-rock-collisions';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
