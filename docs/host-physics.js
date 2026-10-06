@@ -197,7 +197,8 @@
     resetHazardCycle(){
       this.hazardCycleAge=0;
       this.meteors=[];
-      this.giant=null;
+      // V21.93: el reinicio del ciclo tampoco hace desaparecer un gigante
+      // que ya este atravesando la escena; terminara su salida normalmente.
       this.ufo=null;
       this.showerLeft=0;
       this.nextMeteor=0;
@@ -227,7 +228,9 @@
       if(stage.shower&&this.firstShower>900000&&this.nextShower<=0)this.firstShower=rand(18,28);
       if(!stage.shower){this.firstShower=999999;this.nextShower=0;this.showerLeft=0;this.meteors=[];}
       if(stage.giant&&this.nextGiant>900000&&!this.giant)this.nextGiant=rand(12,24);
-      if(!stage.giant){this.nextGiant=999999;this.giant=null;}
+      // V21.93: al terminar una fase con gigante no borramos el que ya esta
+      // cruzando la pantalla. Solo bloqueamos nuevas apariciones.
+      if(!stage.giant)this.nextGiant=999999;
       if(stage.ufo&&this.nextUfo>900000&&!this.ufo)this.nextUfo=rand(18,32);
       if(!stage.ufo){this.nextUfo=999999;this.ufo=null;}
     }
@@ -1969,7 +1972,11 @@
       }
     }
     updateGiant(dt){
-      if(!this.hazardStage().giant){this.giant=null;return;}
+      const giantEnabled=this.hazardStage().giant;
+      // V21.93: un gigante ya presente termina siempre su recorrido aunque
+      // la fase ambiental haya pasado a descanso. Si no existe y la fase no
+      // permite gigantes, simplemente no se genera ninguno nuevo.
+      if(!this.giant&&!giantEnabled)return;
       if(!this.giant){
         this.nextGiant-=dt;
         if(this.nextGiant<=0){
@@ -1996,7 +2003,10 @@
       for(const p of this.players)if(!p.dead&&sweptCircles(g,GIANT_RADIUS,p,SHIP_RADIUS,false)){if(p.shield>0||p.protection>0){this.emitShipImpact(p,g,false);const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}
       for(const a of this.asteroids)this.resolveGiantAsteroidCollision(g,a);
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
-      if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){this.giant=null;this.nextGiant=rand(130,190);}
+      if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){
+        this.giant=null;
+        this.nextGiant=giantEnabled?rand(130,190):999999;
+      }
     }
     spawnUfo(){
       if(this.ufo)return false;
