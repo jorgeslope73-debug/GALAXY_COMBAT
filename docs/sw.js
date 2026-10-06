@@ -1,4 +1,4 @@
-const VERSION = 'V21.82-remove-small-normal-asteroid';
+const VERSION = 'V21.83-giant-split-collisions';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
