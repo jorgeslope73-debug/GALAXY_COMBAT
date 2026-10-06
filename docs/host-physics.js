@@ -270,8 +270,88 @@
         vx:n.x*80,vy:n.y*80,r:ASTEROID_RADIUS,exiting:false,exitDelay:-1
       });
     }
+    resolveAsteroidPairCollision(a,b){
+      if(!a||!b)return false;
+      const ra=Number(a.r)||ASTEROID_RADIUS,rb=Number(b.r)||ASTEROID_RADIUS;
+      const dx=b.x-a.x,dy=b.y-a.y,minDist=ra+rb,d2=dx*dx+dy*dy;
+      if(d2>=minDist*minDist)return false;
+      const d=Math.sqrt(d2)||.0001,nx=dx/d,ny=dy/d;
+      const overlap=minDist-d;
+      const massA=Math.max(1,ra*ra),massB=Math.max(1,rb*rb);
+      const invA=1/massA,invB=1/massB,invSum=invA+invB;
+      // Correccion completa del solape: evita que dos rocas queden vibrando
+      // varios frames una dentro de otra.
+      const correction=(overlap+.6)/invSum;
+      a.x-=nx*correction*invA;a.y-=ny*correction*invA;
+      b.x+=nx*correction*invB;b.y+=ny*correction*invB;
+      // Impulso elastico amortiguado solo si se estan acercando.
+      const rvx=b.vx-a.vx,rvy=b.vy-a.vy;
+      const closing=rvx*nx+rvy*ny;
+      if(closing<0){
+        const restitution=.84;
+        const impulse=-(1+restitution)*closing/invSum;
+        a.vx-=impulse*invA*nx;a.vy-=impulse*invA*ny;
+        b.vx+=impulse*invB*nx;b.vy+=impulse*invB*ny;
+      }
+      // Limite de seguridad para que impactos encadenados no disparen velocidades.
+      for(const rock of [a,b]){
+        const speed=Math.hypot(rock.vx,rock.vy);
+        if(speed>190){rock.vx*=190/speed;rock.vy*=190/speed;}
+      }
+      return true;
+    }
+    resolveGiantAsteroidCollision(g,a){
+      if(!g||!a)return false;
+      const ar=Number(a.r)||ASTEROID_RADIUS;
+      const dx=a.x-g.x,dy=a.y-g.y,minDist=GIANT_RADIUS+ar,d2=dx*dx+dy*dy;
+      if(d2>=minDist*minDist)return false;
+      const d=Math.sqrt(d2)||.0001,nx=dx/d,ny=dy/d;
+      const overlap=minDist-d;
+      a.x+=nx*(overlap+1.2);a.y+=ny*(overlap+1.2);
+      const rvx=a.vx-g.vx,rvy=a.vy-g.vy,closing=rvx*nx+rvy*ny;
+      if(closing<0){
+        const bounce=-(1.58)*closing;
+        a.vx+=nx*bounce;a.vy+=ny*bounce;
+      }else{
+        a.vx+=nx*12;a.vy+=ny*12;
+      }
+      const speed=Math.hypot(a.vx,a.vy);
+      if(speed>190){a.vx*=190/speed;a.vy*=190/speed;}
+      return true;
+    }
+    splitGiantMeteor(ownerIndex=-1){
+      const g=this.giant;
+      if(!g)return false;
+      const forward=normalize(Number(g.vx)||1,Number(g.vy)||0);
+      const px=-forward.y,py=forward.x;
+      const fragmentRadius=28;
+      for(const sign of [-1,1]){
+        const sideSpeed=sign*rand(78,108);
+        const forwardBoost=rand(18,42);
+        const x=g.x+px*sign*(fragmentRadius+18);
+        const y=g.y+py*sign*(fragmentRadius+18);
+        this.asteroids.push({
+          id:uid(),x,y,px:x,py:y,rot:rand(0,360),type:5,
+          vx:g.vx*.72+px*sideSpeed+forward.x*forwardBoost,
+          vy:g.vy*.72+py*sideSpeed+forward.y*forwardBoost,
+          r:fragmentRadius,fragment:true,exiting:false,exitDelay:rand(12,18)
+        });
+      }
+      this.emitExplosionAt(g.x,g.y,Number.isInteger(ownerIndex)?ownerIndex:-1);
+      this.emit({t:'sound',kind:'impact'});
+      this.giant=null;
+      this.nextGiant=rand(130,190);
+      return true;
+    }
     spawnProgressiveAsteroid(){
-      if(this.asteroids.length>=ASTEROID_MAX_ACTIVE)return;
+      if(this.asteroids.length>=ASTEROID_MAX_ACTIVE){
+        const profile=this.hazardProfile();
+        this.asteroidRampComplete=true;
+        this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+        this.nextAsteroidSpawn=999999;
+        this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
+        return;
+      }
       const profile=this.hazardProfile();
       this.spawnAsteroidFromEdge(this.nextAsteroidIndex);
       this.nextAsteroidIndex++;
@@ -1424,12 +1504,7 @@
         if(a.y<-190&&a.vy<0)a.vy*=-1;else if(a.y>H+190&&a.vy>0)a.vy*=-1;
       }
       for(let i=0;i<this.asteroids.length;i++)for(let j=i+1;j<this.asteroids.length;j++){
-        const a=this.asteroids[i],b=this.asteroids[j];
-        if(circles(a,a.r,b,b.r)){
-          const n=normalize(b.x-a.x,b.y-a.y),rel=(a.vx-b.vx)*n.x+(a.vy-b.vy)*n.y;
-          if(rel>0){const an=a.vx*n.x+a.vy*n.y,bn=b.vx*n.x+b.vy*n.y;a.vx+=(bn-an)*n.x;a.vy+=(bn-an)*n.y;b.vx+=(an-bn)*n.x;b.vy+=(an-bn)*n.y;}
-          a.x-=n.x*2;b.x+=n.x*2;a.y-=n.y*2;b.y+=n.y*2;
-        }
+        this.resolveAsteroidPairCollision(this.asteroids[i],this.asteroids[j]);
       }
       for(let i=this.pickups.length-1;i>=0;i--){
         const pk=this.pickups[i];
@@ -1655,8 +1730,14 @@
           }
         }
         if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){
-          if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-          remove=true;this.emit({t:'sound',kind:b.guided?'sparkle':'impact'});
+          if(b.guided){
+            this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
+            this.emit({t:'sound',kind:'sparkle'});
+            this.splitGiantMeteor(Number(b.owner));
+          }else{
+            this.emit({t:'sound',kind:'impact'});
+          }
+          remove=true;
         }
         if(!remove)for(let m=this.meteors.length-1;m>=0;m--){
           const meteor=this.meteors[m];
@@ -1825,7 +1906,7 @@
         this.flares.splice(f,1);
       }
       for(const p of this.players)if(!p.dead&&sweptCircles(g,GIANT_RADIUS,p,SHIP_RADIUS,false)){if(p.shield>0||p.protection>0){this.emitShipImpact(p,g,false);const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}
-      for(const a of this.asteroids)if(circles(g,GIANT_RADIUS,a,a.r)){const n=normalize(a.x-g.x,a.y-g.y);a.vx+=n.x*25;a.vy+=n.y*25;a.x+=n.x*5;a.y+=n.y*5;}
+      for(const a of this.asteroids)this.resolveGiantAsteroidCollision(g,a);
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
       if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){this.giant=null;this.nextGiant=rand(130,190);}
     }
