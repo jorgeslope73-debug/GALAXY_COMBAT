@@ -14,7 +14,8 @@
     en:{ranking:'RANKING',position:'PLACE',player:'PLAYER',wins:'WINS',losses:'LOSSES',played:'MATCHES',back:'← BACK',loading:'LOADING...',empty:'THERE ARE NO PLAYERS IN THE RANKING YET.',error:'THE RANKING COULD NOT BE LOADED.'},
     it:{ranking:'CLASSIFICA',position:'POS.',player:'GIOCATORE',wins:'VITTORIE',losses:'SCONFITTE',played:'PARTITE',back:'← INDIETRO',loading:'CARICAMENTO...',empty:'NON CI SONO ANCORA GIOCATORI IN CLASSIFICA.',error:'IMPOSSIBILE CARICARE LA CLASSIFICA.'},
     fr:{ranking:'CLASSEMENT',position:'PLACE',player:'JOUEUR',wins:'VICTOIRES',losses:'DEFAITES',played:'PARTIES',back:'← RETOUR',loading:'CHARGEMENT...',empty:'AUCUN JOUEUR DANS LE CLASSEMENT POUR LE MOMENT.',error:'IMPOSSIBLE DE CHARGER LE CLASSEMENT.'},
-    de:{ranking:'RANGLISTE',position:'PLATZ',player:'SPIELER',wins:'SIEGE',losses:'NIEDERLAGEN',played:'SPIELE',back:'← ZURUCK',loading:'LADEN...',empty:'NOCH KEINE SPIELER IN DER RANGLISTE.',error:'RANGLISTE KONNTE NICHT GELADEN WERDEN.'}
+    de:{ranking:'RANGLISTE',position:'PLATZ',player:'SPIELER',wins:'SIEGE',losses:'NIEDERLAGEN',played:'SPIELE',back:'← ZURUCK',loading:'LADEN...',empty:'NOCH KEINE SPIELER IN DER RANGLISTE.',error:'RANGLISTE KONNTE NICHT GELADEN WERDEN.'},
+    zh:{ranking:'排名',position:'名次',player:'玩家',wins:'胜场',losses:'负场',played:'比赛',back:'← 返回',loading:'加载中……',empty:'排行榜中还没有玩家。',error:'无法加载排行榜。'}
   };
   function lang(){const l=window.GalaxyI18n&&GalaxyI18n.getLanguage?GalaxyI18n.getLanguage():'es';return text[l]?l:'es';}
   function tr(k){return text[lang()][k]||text.es[k]||k;}
