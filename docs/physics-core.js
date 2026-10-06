@@ -92,10 +92,59 @@
     return bestIndex;
   }
 
+  function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
+    if(!asteroid)return null;
+    const defaultRadius=Number(opts.defaultRadius)||45;
+    const fragmentRadius=Number(opts.fragmentRadius)||28;
+    const rand=typeof opts.rand==='function'?opts.rand:((a,b)=>a+Math.random()*(b-a));
+    const uid=typeof opts.uid==='function'?opts.uid:(()=>Math.floor(Math.random()*1e9));
+
+    const radius=Number(asteroid.r)||defaultRadius;
+    const x=Number(asteroid.x)||0,y=Number(asteroid.y)||0;
+    const vx=Number(asteroid.vx)||0,vy=Number(asteroid.vy)||0;
+    const hitX=Number.isFinite(Number(impactX))?Number(impactX):x;
+    const hitY=Number.isFinite(Number(impactY))?Number(impactY):y;
+    const isSmall=radius<=30||asteroid.fragment===true;
+
+    if(isSmall){
+      return {destroyOnly:true,x,y,hitX,hitY,fragments:[]};
+    }
+
+    let nx=hitX-x,ny=hitY-y;
+    let len=Math.hypot(nx,ny);
+    if(len<.001){
+      nx=-(vx||1);ny=-(vy||0);
+      len=Math.hypot(nx,ny)||1;
+    }
+    nx/=len;ny/=len;
+
+    const splitX=-ny,splitY=nx;
+    const fragmentGroup='split-'+uid();
+    const fragments=[];
+
+    for(const sign of [-1,1]){
+      const sideSpeed=sign*rand(70,100);
+      const impactKick=rand(34,58);
+      const fx=x+splitX*sign*fragmentRadius-nx*5;
+      const fy=y+splitY*sign*fragmentRadius-ny*5;
+      fragments.push({
+        id:uid(),x:fx,y:fy,px:fx,py:fy,rot:rand(0,360),
+        type:Number(asteroid.type)||1,
+        vx:vx*.62+splitX*sideSpeed-nx*impactKick,
+        vy:vy*.62+splitY*sideSpeed-ny*impactKick,
+        r:fragmentRadius,fragment:true,fragmentGroup,
+        fragmentPairReleased:false,exiting:false,exitDelay:-1
+      });
+    }
+
+    return {destroyOnly:false,x,y,hitX,hitY,fragments};
+  }
+
   window.GalaxyPhysicsCore=Object.freeze({
     TARGET_MIN_ALIGN,
     resolveAsteroidPairCollision,
     resolveGiantAsteroidCollision,
-    guidedTargetFor
+    guidedTargetFor,
+    asteroidMissileFracture
   });
 })();
