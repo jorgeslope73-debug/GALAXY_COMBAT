@@ -1,4 +1,4 @@
-const VERSION = 'V21.86-same-texture-fragments';
+const VERSION = 'V21.87-impact-fracture';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
