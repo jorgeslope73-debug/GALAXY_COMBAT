@@ -171,6 +171,8 @@
       this.lastNow=0;
       this.accumulator=0;
       this.tickCount=0;
+      this.perfDebug=typeof location!=='undefined'&&new URLSearchParams(location.search).get('debug')==='1';
+      this.perfTickMs=0;this.perfTickMax=0;this.perfTicks=0;this.perfCatchupDrops=0;
       this.brain=null;
       this.trainingMode=false;
       this.learningEnabled=true;
@@ -1225,7 +1227,13 @@
       this.accumulator+=Math.min(100,elapsed);
       let steps=0,publishState=false;
       while(this.accumulator>=STEP_MS&&steps<5){
+        const perfStart=this.perfDebug?performance.now():0;
         this.update(DT);
+        if(this.perfDebug){
+          const tickMs=performance.now()-perfStart;
+          this.perfTickMs+=tickMs;this.perfTicks++;
+          if(tickMs>this.perfTickMax)this.perfTickMax=tickMs;
+        }
         this.accumulator-=STEP_MS;
         this.tickCount++;
         // V20.16 PERF: publicar estado cada 3 ticks = 20 snapshots/s.
@@ -1234,7 +1242,10 @@
         steps++;
         if(this.finished)break;
       }
-      if(steps===5&&this.accumulator>=STEP_MS)this.accumulator%=STEP_MS;
+      if(steps===5&&this.accumulator>=STEP_MS){
+        if(this.perfDebug)this.perfCatchupDrops++;
+        this.accumulator%=STEP_MS;
+      }
       // Si el navegador llega tarde podemos recuperar varios ticks de fisica
       // en esta llamada. Construir un snapshot por cada tick recuperado creaba
       // arrays/objetos temporales justo cuando el frame ya iba retrasado.
@@ -2390,9 +2401,16 @@
           if(a.y<-190&&a.vy<0)a.vy*=-1;else if(a.y>H+190&&a.vy>0)a.vy*=-1;
         }
       }
-      const collidableAsteroids=this.asteroids.filter(a=>a&&!a.exiting);
-      for(let i=0;i<collidableAsteroids.length;i++)for(let j=i+1;j<collidableAsteroids.length;j++){
-        this.resolveAsteroidPairCollision(collidableAsteroids[i],collidableAsteroids[j]);
+      // V21.92 PERF: no crear un array filter() 60 veces por segundo.
+      // Recorremos el array real y saltamos los asteroides que ya estan saliendo.
+      for(let i=0;i<this.asteroids.length;i++){
+        const a=this.asteroids[i];
+        if(!a||a.exiting)continue;
+        for(let j=i+1;j<this.asteroids.length;j++){
+          const b=this.asteroids[j];
+          if(!b||b.exiting)continue;
+          this.resolveAsteroidPairCollision(a,b);
+        }
       }
       for(let i=this.pickups.length-1;i>=0;i--){
         const pk=this.pickups[i];
@@ -3215,7 +3233,27 @@
         else{const n=normalize(wrapDelta(a.x-b.x,W),wrapDelta(a.y-b.y,H));a.vx=n.x*120;a.vy=n.y*120;b.vx=-n.x*120;b.vy=-n.y*120;}
       }
     }
+    takePerfDebug(){
+      if(!this.perfDebug)return null;
+      const report={
+        tickAvg:this.perfTicks?this.perfTickMs/this.perfTicks:0,
+        tickMax:this.perfTickMax,
+        catchupDrops:this.perfCatchupDrops
+      };
+      this.perfTickMs=0;this.perfTickMax=0;this.perfTicks=0;this.perfCatchupDrops=0;
+      return report;
+    }
     publicState(){
+      // V21.92: compactar FX locales antiguos igual que online. Evita que
+      // eventos invisibles sigan serializandose hasta llenar el limite de 32.
+      if(this.fxEvents.length){
+        let write=0;
+        for(let read=0;read<this.fxEvents.length;read++){
+          const e=this.fxEvents[read];
+          if(e&&this.fxClock-Number(e.at)<=2)this.fxEvents[write++]=e;
+        }
+        if(write!==this.fxEvents.length)this.fxEvents.length=write;
+      }
       const ufoStates=[];
       if(this.ufo)ufoStates.push(this.ufo);
       for(const extra of this.ufoExtras)ufoStates.push(extra);
