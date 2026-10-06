@@ -3856,7 +3856,7 @@
     // V22.00: AUDIO y MICRO son controles independientes. Tocar MICRO no
     // puede arrancar musica/efectos; el boton AUDIO ya gestiona su propio gesto.
     const target=e&&e.target;
-    if(target&&target.closest&&target.closest('#enableVoice,#enableAudio'))return;
+    if(target&&target.closest&&target.closest('#enableVoice'))return;
     if(!gameAudioEnabled)return;
     // La musica se arranca directamente en el gesto; esto es importante en
     // Safari/iOS, donde un play() posterior a un await puede quedar bloqueado.
@@ -3871,7 +3871,29 @@
   loadJoystickPreference();
   updateJoystickButton();
   notifyJoystickVoiceUi();
-  if(audioToggleButton)audioToggleButton.addEventListener('click',toggleGameAudio);
+  if(audioToggleButton){
+    if(isMobile){
+      let audioTouchHandled=false;
+      const handleMobileAudioToggle=e=>{
+        e.preventDefault();
+        e.stopPropagation();
+        if(audioTouchHandled)return;
+        audioTouchHandled=true;
+        toggleGameAudio();
+        setTimeout(()=>{audioTouchHandled=false;},220);
+      };
+      audioToggleButton.addEventListener('pointerdown',handleMobileAudioToggle,{passive:false});
+      audioToggleButton.addEventListener('touchstart',e=>{
+        // iOS puede emitir touchstart antes del pointerdown. Gestionamos solo
+        // si PointerEvent no esta disponible para evitar doble cambio.
+        if(window.PointerEvent)return;
+        handleMobileAudioToggle(e);
+      },{passive:false});
+      audioToggleButton.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
+    }else{
+      audioToggleButton.addEventListener('click',toggleGameAudio);
+    }
+  }
   if(joystickToggleButton)joystickToggleButton.addEventListener('click',toggleJoystick);
   if(joystickConfigButton)joystickConfigButton.addEventListener('click',openJoystickConfig);
   if(joystickConfigClose)joystickConfigClose.addEventListener('click',closeJoystickConfig);
