@@ -2411,3 +2411,50 @@ html.handheld-device #menu.submenu-open > #buildVersion{
   color:#f2eaff;
 }
 html.menu-first-loading body{overflow:hidden}
+
+
+/* V21.75: esquema grafico del mando en el manual. */
+#menu .manual-gamepad-visual{padding:15px 16px 14px}
+#menu .manual-gamepad-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+#menu .manual-gamepad-head strong{color:#f3ddff;font:900 12px/1 Arial,Helvetica,sans-serif;letter-spacing:.12em}
+#menu .manual-gamepad-head span{padding:5px 9px;border:1px solid rgba(112,255,177,.48);border-radius:999px;background:rgba(31,108,68,.22);color:#aaffcf;font:900 9px/1 Arial,Helvetica,sans-serif;letter-spacing:.1em}
+#menu .manual-gamepad-wrap{position:relative;max-width:660px;margin:0 auto;padding:54px 18px 6px}
+#menu .manual-gamepad{position:relative;width:min(520px,88%);height:250px;margin:0 auto;border:2px solid rgba(205,185,224,.42);border-radius:38% 38% 34% 34% / 30% 30% 52% 52%;background:linear-gradient(180deg,#2d2538 0%,#17131e 58%,#0d0a12 100%);box-shadow:inset 0 0 0 2px rgba(255,255,255,.025),inset 0 -18px 30px rgba(0,0,0,.45),0 18px 30px rgba(0,0,0,.28)}
+#menu .manual-gamepad-grip{position:absolute;bottom:-42px;width:128px;height:112px;border:2px solid rgba(205,185,224,.34);background:linear-gradient(180deg,#18131f,#0c0910);z-index:-1}
+#menu .manual-gamepad-grip.left{left:26px;transform:rotate(18deg);border-radius:30px 22px 56px 58px}
+#menu .manual-gamepad-grip.right{right:26px;transform:rotate(-18deg);border-radius:22px 30px 58px 56px}
+#menu .manual-gamepad-shoulders{position:absolute;top:0;display:flex;gap:8px;z-index:3}
+#menu .manual-gamepad-shoulders.left{left:7%}
+#menu .manual-gamepad-shoulders.right{right:7%;flex-direction:row-reverse}
+#menu .manual-gamepad-shoulders span{min-width:74px;padding:7px 8px;border:1px solid rgba(255,255,255,.16);border-radius:9px;background:linear-gradient(180deg,#3b3046,#18131f);color:#d8c8e4;text-align:center;font:800 9px/1.1 Arial,Helvetica,sans-serif;box-shadow:0 5px 10px rgba(0,0,0,.24)}
+#menu .manual-gamepad-shoulders b{display:block;margin-bottom:4px;color:#fff;font-size:12px}
+#menu .manual-gamepad-stick{position:absolute;left:76px;top:68px;width:76px;height:76px;border:8px solid #0a080d;border-radius:50%;background:radial-gradient(circle at 38% 32%,#484052 0 14%,#211b28 45%,#0d0a10 100%);box-shadow:0 0 0 2px rgba(255,255,255,.12)}
+#menu .manual-gamepad-stick i{position:absolute;inset:17px;border:1px solid rgba(255,255,255,.14);border-radius:50%}
+#menu .manual-gamepad-stick small,#menu .manual-gamepad-dpad small{position:absolute;left:50%;top:calc(100% + 12px);transform:translateX(-50%);color:#9feaff;font:900 9px/1 Arial,Helvetica,sans-serif;letter-spacing:.08em;white-space:nowrap}
+#menu .manual-gamepad-dpad{position:absolute;left:160px;bottom:48px;width:76px;height:76px}
+#menu .manual-gamepad-dpad i,#menu .manual-gamepad-dpad i:after{position:absolute;content:"";left:27px;top:4px;width:22px;height:68px;border-radius:5px;background:#0a080d;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+#menu .manual-gamepad-dpad i:after{left:-23px;top:23px;transform:rotate(90deg)}
+#menu .manual-gamepad-center{position:absolute;left:50%;top:74px;transform:translateX(-50%);width:112px;text-align:center}
+#menu .manual-gamepad-center span{display:block;color:#8d8198;font:800 8px/1 Arial,Helvetica,sans-serif;letter-spacing:.18em}
+#menu .manual-gamepad-center b{display:inline-block;margin-top:22px;padding:7px 9px;border:1px solid rgba(112,255,177,.48);border-radius:8px;background:rgba(31,108,68,.24);color:#b9ffd8;font:900 9px/1 Arial,Helvetica,sans-serif;letter-spacing:.07em}
+#menu .manual-gamepad-buttons{position:absolute;right:58px;top:56px;width:130px;height:130px}
+#menu .manual-gamepad-buttons span{position:absolute;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.16);border-radius:50%;background:radial-gradient(circle at 35% 28%,#5b4d67,#241c2c 60%,#100c14);color:#fff;box-shadow:0 5px 9px rgba(0,0,0,.34)}
+#menu .manual-gamepad-buttons span b{font:900 15px/1 Arial,Helvetica,sans-serif}
+#menu .manual-gamepad-buttons span small{position:absolute;color:#ffd761;font:900 8px/1 Arial,Helvetica,sans-serif;letter-spacing:.05em;white-space:nowrap}
+#menu .manual-gamepad-buttons .b1{left:43px;bottom:0}
+#menu .manual-gamepad-buttons .b1 small{top:50px;left:50%;transform:translateX(-50%)}
+#menu .manual-gamepad-buttons .b2{left:0;top:43px}
+#menu .manual-gamepad-buttons .b3{right:0;top:43px}
+#menu .manual-gamepad-buttons .b4{left:43px;top:0}
+#menu .manual-gamepad-buttons .b4 small{bottom:50px;left:50%;transform:translateX(-50%)}
+#menu .manual-gamepad-note{margin:18px 0 0!important;text-align:center;color:#cdbed7!important;font:700 11px/1.4 Arial,Helvetica,sans-serif!important}
+@media (max-width:720px){
+  #menu .manual-gamepad-wrap{padding:48px 4px 8px}
+  #menu .manual-gamepad{width:94%;height:210px}
+  #menu .manual-gamepad-shoulders span{min-width:58px;padding:6px 5px;font-size:7px}
+  #menu .manual-gamepad-shoulders b{font-size:10px}
+  #menu .manual-gamepad-stick{left:42px;top:58px;width:62px;height:62px}
+  #menu .manual-gamepad-dpad{left:112px;bottom:34px;transform:scale(.84)}
+  #menu .manual-gamepad-buttons{right:32px;top:46px;transform:scale(.86)}
+  #menu .manual-gamepad-center{top:64px;transform:translateX(-50%) scale(.88)}
+}
