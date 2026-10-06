@@ -462,8 +462,8 @@
 
   // V21.62 LocalFX: estela circular multicolor del OVNI, 100% visual/local.
   // Solo lee posicion/velocidad recibidas; no toca fisica, IA, colisiones ni red.
-  const UFO_FX_MAX=isMobile?72:160;
-  const UFO_FX_INTERVAL=isMobile?58:38;
+  const UFO_FX_MAX=isMobile?104:224;
+  const UFO_FX_INTERVAL=isMobile?46:30;
   const UFO_FX_COLORS=['#ff39d6','#38a8ff','#48ff72','#ffe24a'];
   const ufoParticles=Array.from({length:UFO_FX_MAX},()=>({
     life:0,maxLife:0,x:0,y:0,vx:0,vy:0,size:0,color:0
@@ -799,7 +799,7 @@
     const idPhase=(Number(ufo&&ufo.id)||0)*37;
     // Misma cadencia angular visual del platillo: el punto de salida recorre
     // lateralmente su parte trasera y genera la sensacion de giro circular.
-    const phase=(now*.072+idPhase+(lane?180:0))*Math.PI/180;
+    const phase=(now*.072+idPhase+(lane===1?120:(lane===2?240:0)))*Math.PI/180;
     const wave=Math.sin(phase),spin=Math.cos(phase);
 
     const particle=ufoParticles[ufoFxCursor];
@@ -811,11 +811,11 @@
     particle.y=y+backY*rear+sideY*wave*rim;
 
     const exhaust=38+Math.random()*42;
-    const curl=spin*(24+Math.random()*20)+(Math.random()-.5)*10;
+    const curl=spin*(28+Math.random()*24)+(Math.random()-.5)*14;
     particle.vx=backX*exhaust+sideX*curl;
     particle.vy=backY*exhaust+sideY*curl;
 
-    particle.maxLife=.36+Math.random()*.28;
+    particle.maxLife=.60+Math.random()*.45;
     particle.life=particle.maxLife;
     particle.size=(isMobile?1.75:1.35)+Math.random()*(isMobile?1.95:1.75);
     particle.color=Math.floor(Math.random()*UFO_FX_COLORS.length);
@@ -848,7 +848,8 @@
       ufoEmitAt.set(id,now);
 
       spawnUfoParticle(ufo,x,y,vx,vy,now,0);
-      if(!isMobile)spawnUfoParticle(ufo,x,y,vx,vy,now,1);
+      spawnUfoParticle(ufo,x,y,vx,vy,now,1);
+      if(!isMobile)spawnUfoParticle(ufo,x,y,vx,vy,now,2);
     }
 
     for(const id of ufoEmitAt.keys()){
