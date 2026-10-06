@@ -1795,15 +1795,15 @@
       joystickConfigButton.title=t.title;
     }
     joystickToggleButton.title=joystickEnabled
-      ?(joystickConnected?'Joystick activo. '+joystickMapSummary():'Joystick activo: conecta un mando. '+joystickMapSummary())
-      :'Activar control con mando estandar';
+      ?(joystickConnected?tr('joystickActive')+' '+joystickMapSummary():tr('joystickConnect')+' '+joystickMapSummary())
+      :tr('joystickEnable');
     updateControlHelp();
   }
   function notifyJoystickVoiceUi(){
     try{window.dispatchEvent(new CustomEvent('galaxy-joystickchange',{detail:{enabled:joystickEnabled,connected:joystickConnected}}));}catch(_){}
   }
   window.GalaxyJoystickEnabled=()=>!isMobile&&!!joystickEnabled;
-  window.addEventListener('galaxy-languagechange',()=>{updateJoystickButton();if(joystickConfigDialog&&!joystickConfigDialog.classList.contains('hidden'))renderJoystickConfig();});
+  window.addEventListener('galaxy-languagechange',()=>{warmOnlineStartCaches(true);updateJoystickButton();if(joystickConfigDialog&&!joystickConfigDialog.classList.contains('hidden'))renderJoystickConfig();});
   function toggleJoystick(){
     if(isMobile)return;
     joystickEnabled=!joystickEnabled;
@@ -2259,21 +2259,21 @@
   }
   async function shareCurrentRoom(){
     if(!roomCode||roomCode==='LOCAL'){
-      showShareToast('PRIMERO CREA UNA PARTIDA ONLINE.');
+      showShareToast(tr('shareRoomFirst'));
       return;
     }
     const url=cleanGameUrl(roomCode);
     const ok=await copyTextToClipboard(url);
     showShareToast(ok
-      ? 'PARTIDA COPIADA. MANDA EL LINK A TU AMIGO: AL ABRIRLO ENTRARA DIRECTAMENTE EN LA SALA '+roomCode+'.'
-      : 'NO SE PUDO COPIAR EL LINK DE LA PARTIDA.');
+      ? tr('shareRoomCopied',{code:roomCode})
+      : tr('shareRoomCopyFailed'));
   }
   function joinSharedRoomDirect(){
     if(!sharedRoomCode||sharedRoomJoinStarted||roomCode||inGame)return false;
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     sharedRoomJoinStarted=true;
     closeRoomDialogs();
-    statusEl.textContent='ENTRANDO EN LA SALA '+sharedRoomCode+'...';
+    statusEl.textContent=tr('joiningRoom',{code:sharedRoomCode});
     send({
       t:'join',
       name:sinTildes(campoNombre.value),
@@ -4906,9 +4906,9 @@
   }
   function warmOnlineStartCaches(force=false){
     if(force){onlineReadyRedCache=null;onlineReadyOrangeCache=null;onlineGoCache=null;}
-    if(!onlineReadyRedCache)onlineReadyRedCache=buildOnlineStartTitleCache('PREPARADOS','#ff2b24','rgba(255,35,20,.98)',126,14);
-    if(!onlineReadyOrangeCache)onlineReadyOrangeCache=buildOnlineStartTitleCache('PREPARADOS','#ff8a20','rgba(255,115,20,.98)',126,14);
-    if(!onlineGoCache)onlineGoCache=buildOnlineStartTitleCache('VAMOS!!!','#54ff63','rgba(55,255,95,.98)',178,16);
+    if(!onlineReadyRedCache)onlineReadyRedCache=buildOnlineStartTitleCache(tr('readyNotice'),'#ff2b24','rgba(255,35,20,.98)',126,14);
+    if(!onlineReadyOrangeCache)onlineReadyOrangeCache=buildOnlineStartTitleCache(tr('readyNotice'),'#ff8a20','rgba(255,115,20,.98)',126,14);
+    if(!onlineGoCache)onlineGoCache=buildOnlineStartTitleCache(tr('goNotice'),'#54ff63','rgba(55,255,95,.98)',178,16);
     return !!(onlineReadyRedCache&&onlineReadyOrangeCache&&onlineGoCache);
   }
   function clearGameCanvas(){
