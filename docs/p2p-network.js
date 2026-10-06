@@ -232,9 +232,13 @@
       }catch(err){console.warn('[Galaxy P2P] signaling',err);}
       return false;
     }
+    firstOpenPeer(){
+      for(const rec of this.peers.values())if(rec&&rec.open)return rec;
+      return null;
+    }
     sendControl(turn,thrust,fire,actions={}){
       if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire,...actions});return true;}
-      const rec=this.peers.get(0)||[...this.peers.values()].find(x=>x.open);
+      const rec=this.peers.get(0)||this.firstOpenPeer();
       if(!rec||!rec.dc||rec.dc.readyState!=='open')return false;
       // Los controles son efimeros: con cola alta descartamos el antiguo y el
       // siguiente heartbeat enviara el estado mas reciente, evitando input lag.
@@ -275,7 +279,7 @@
     }
     sendAction(action){
       if(this.isHost){this.onEvent({t:'p2p-action',from:this.myIndex,action});return true;}
-      const rec=this.peers.get(0)||[...this.peers.values()].find(x=>x.open);
+      const rec=this.peers.get(0)||this.firstOpenPeer();
       if(!rec||!rec.dc||rec.dc.readyState!=='open')return false;
       try{rec.dc.send(JSON.stringify({t:'action',action}));return true;}catch(_){return false;}
     }
