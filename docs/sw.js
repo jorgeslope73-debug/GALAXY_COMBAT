@@ -1,4 +1,4 @@
-const VERSION = 'V22.01-independent-voice-audio';
+const VERSION = 'V22.02-mobile-audio-voice-fix';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
