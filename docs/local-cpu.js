@@ -931,29 +931,37 @@
       if(speed>190){a.vx*=190/speed;a.vy*=190/speed;}
       return true;
     }
-    splitGiantMeteor(ownerIndex=-1){
-      const g=this.giant;
-      if(!g)return false;
-      const forward=normalize(Number(g.vx)||1,Number(g.vy)||0);
+    splitAsteroidByMissile(asteroid,ownerIndex=-1){
+      if(!asteroid)return false;
+      const index=this.asteroids.indexOf(asteroid);
+      if(index<0)return false;
+      const radius=Number(asteroid.r)||ASTEROID_RADIUS;
+      const isSmall=radius<=30||asteroid.fragment===true||Number(asteroid.type)===5;
+      const x=asteroid.x,y=asteroid.y;
+      const vx=Number(asteroid.vx)||0,vy=Number(asteroid.vy)||0;
+      this.asteroids.splice(index,1);
+      if(isSmall){
+        this.emitExplosionAt(x,y,Number.isInteger(ownerIndex)?ownerIndex:-1);
+        this.emit({t:'sound',kind:'impact'});
+        return true;
+      }
+      const forward=normalize(vx||1,vy||0);
       const px=-forward.y,py=forward.x;
       const fragmentRadius=28;
       for(const sign of [-1,1]){
-        const sideSpeed=sign*rand(78,108);
-        const forwardBoost=rand(18,42);
-        const x=g.x+px*sign*(fragmentRadius+18);
-        const y=g.y+py*sign*(fragmentRadius+18);
+        const sideSpeed=sign*rand(70,100);
+        const forwardBoost=rand(10,32);
+        const fx=x+px*sign*(fragmentRadius+7);
+        const fy=y+py*sign*(fragmentRadius+7);
         this.asteroids.push({
-          id:uid(),x,y,px:x,py:y,rot:rand(0,360),type:5,
-          vx:g.vx*.72+px*sideSpeed+forward.x*forwardBoost,
-          vy:g.vy*.72+py*sideSpeed+forward.y*forwardBoost,
-          r:fragmentRadius,fragment:true,exiting:false,exitDelay:rand(12,18)
+          id:uid(),x:fx,y:fy,px:fx,py:fy,rot:rand(0,360),type:5,
+          vx:vx*.62+px*sideSpeed+forward.x*forwardBoost,
+          vy:vy*.62+py*sideSpeed+forward.y*forwardBoost,
+          r:fragmentRadius,fragment:true,exiting:false,exitDelay:rand(10,16)
         });
       }
-      this.emitExplosionAt(g.x,g.y,Number.isInteger(ownerIndex)?ownerIndex:-1);
+      this.emitExplosionAt(x,y,Number.isInteger(ownerIndex)?ownerIndex:-1);
       this.emit({t:'sound',kind:'impact'});
-      this.giant=null;
-      const profile=this.hazardProfile();
-      this.nextGiant=this.trainingMode?rand(130,190):rand(profile.giantRepeatMin,profile.giantRepeatMax);
       return true;
     }
     spawnProgressiveAsteroid(){
@@ -2066,7 +2074,7 @@
       const guidedReady=!!(cpu.guided&&Number.isInteger(cpu.guidedTarget)&&cpu.guidedTarget>=0);
       const firingArc=guidedReady&&this.difficulty==='dificil'?30:7;
       const inFiringArc=Math.abs(aimErr)<firingArc&&distance<1350;
-      const fire=cpu.bullets>0&&cpu.reload<=0&&inFiringArc&&(huntActive||!rivalDangerous)&&(!rivalHasShockwave||distance>SHOCKWAVE_SAFE_DISTANCE);
+      const fire=(cpu.bullets>0||Number(cpu.guidedAmmo)>0)&&cpu.reload<=0&&inFiringArc&&(huntActive||!rivalDangerous)&&(!rivalHasShockwave||distance>SHOCKWAVE_SAFE_DISTANCE);
       return{turn,thrust,fire};
     }
     update(dt){
@@ -2272,18 +2280,27 @@
             if(dot>=Math.cos(fireAngle*Math.PI/180)){fireNow=true;break;}
           }
         }
-        const rocketReady=rocketNow&&!!p.guided;
-        if((fireNow||rocketReady)&&p.bullets>0&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
-          // V21.73: el disparo normal del mando no consume el cohete. L2 lo
-          // dispara aparte; teclado, movil y CPU conservan el comportamiento previo.
-          const guided=rocketReady?true:((c&&c.directFire)?false:!!p.guided);
+        const rocketReady=rocketNow&&Number(p.guidedAmmo)>0;
+        const guided=rocketReady?true:((c&&c.directFire)?false:!!p.guided);
+        const hasAmmo=guided?Number(p.guidedAmmo)>0:Number(p.bullets)>0;
+        if((fireNow||rocketReady)&&hasAmmo&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
+          // V21.85: balas y misiles son reservas independientes.
+          // Ambos usan este mismo reload, por tanto comparten la misma cadencia.
           const guidedTarget=guided?p.guidedTarget:-1;
           const cadence=Number(p.cadence)||30;
           const guidedSpeed=cadence>=30?400:(cadence>=20?460:(cadence>=10?520:580));
           const projectileSpeed=guided?guidedSpeed:this.bulletSpeed(p);
           this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false,baseSpeed:guided?guidedSpeed:projectileSpeed});
-          if(guided){p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1);p.guided=p.guidedAmmo>0;p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;}
-          p.bullets--;p.reload=this.reloadTime(p);if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;this.emit({t:'sound',kind:'laser'});
+          if(guided){
+            p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1);
+            p.guided=p.guidedAmmo>0;
+            p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;
+          }else{
+            p.bullets=Math.max(0,(Number(p.bullets)||0)-1);
+          }
+          p.reload=this.reloadTime(p);
+          if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;
+          this.emit({t:'sound',kind:'laser'});
         }
       }
       this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updateExtraUfoProjectileHits();this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
@@ -2528,11 +2545,12 @@
           if(hitUfo.hp<=0)this.destroyUfo(Number(b.owner));
           remove=true;
         }
-        if(!remove)for(const a of this.asteroids){
+        if(!remove)for(const a of [...this.asteroids]){
           if(sweptCircles(b,BULLET_RADIUS,a,a.r,false)){
             if(b.guided){
               this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
               this.emit({t:'sound',kind:'sparkle'});
+              this.splitAsteroidByMissile(a,Number(b.owner));
             }
             remove=true;break;
           }
@@ -2541,7 +2559,6 @@
           if(b.guided){
             this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
             this.emit({t:'sound',kind:'sparkle'});
-            this.splitGiantMeteor(Number(b.owner));
           }else{
             this.emit({t:'sound',kind:'impact'});
           }
@@ -2607,16 +2624,8 @@
             }
             else if(pk.type==='cadence')p.cadence=Math.max(1,p.cadence-10);
             else if(pk.type==='mira'){
-              if(p.bullets<=0){
-                p.bullets=1;
-                p.reload=Math.max(p.reload,this.reloadTime(p));
-              }
+              // V21.85: los misiles se acumulan en su propio contador.
               p.guidedAmmo=(Number(p.guidedAmmo)||0)+1;
-              if(p.bullets<p.guidedAmmo){
-                const hadBullets=p.bullets>0;
-                p.bullets=p.guidedAmmo;
-                if(!hadBullets)p.reload=Math.max(p.reload,this.reloadTime(p));
-              }
               p.guided=true;p.guidedTarget=this.guidedTargetFor(p);
             }
             else if(pk.type==='flare')p.flare=(Number(p.flare)||0)+1;
