@@ -324,7 +324,7 @@
       const index=this.asteroids.indexOf(asteroid);
       if(index<0)return false;
       const radius=Number(asteroid.r)||ASTEROID_RADIUS;
-      const isSmall=radius<=30||asteroid.fragment===true||Number(asteroid.type)===5;
+      const isSmall=radius<=30||asteroid.fragment===true;
       const x=asteroid.x,y=asteroid.y;
       const vx=Number(asteroid.vx)||0,vy=Number(asteroid.vy)||0;
       this.asteroids.splice(index,1);
@@ -342,7 +342,7 @@
         const fx=x+px*sign*(fragmentRadius+7);
         const fy=y+py*sign*(fragmentRadius+7);
         this.asteroids.push({
-          id:uid(),x:fx,y:fy,px:fx,py:fy,rot:rand(0,360),type:5,
+          id:uid(),x:fx,y:fy,px:fx,py:fy,rot:rand(0,360),type:Number(asteroid.type)||1,
           vx:vx*.62+px*sideSpeed+forward.x*forwardBoost,
           vy:vy*.62+py*sideSpeed+forward.y*forwardBoost,
           r:fragmentRadius,fragment:true,exiting:false,exitDelay:rand(10,16)
@@ -2166,7 +2166,7 @@
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
         players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),shock:!!p.shockwave,dead:p.dead,respawn:round3(p.respawn)})),
-        asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type})),
+        asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type,r:round1(Number(a.r)||ASTEROID_RADIUS),fragment:!!a.fragment})),
         bullets:this.bullets.map(b=>({id:b.id,o:b.owner,owner:b.owner,x:round1(b.x),y:round1(b.y),vx:round1(b.vx),vy:round1(b.vy),g:!!b.guided,guided:!!b.guided,gt:(!b.decoyed&&Number.isInteger(b.target))?b.target:-1,target:(!b.decoyed&&Number.isInteger(b.target))?b.target:-1,wt:(!b.decoyed&&b.guided&&Number.isInteger(b.target))?b.target:-1})),
         flares:this.flares.map(f=>({id:f.id,o:f.owner,x:round1(f.x),y:round1(f.y),a:round1(f.angle),life:round2(Math.max(0,f.life))})),
         pickups:this.pickups.map((p,idx)=>({id:p.id,type:p.type,x:round1(p.x),y:round1(p.y+Math.cos(p.phase)*3),expiresIn:(idx===0&&this.pickups.length>=5)?round2(Math.max(0,this.nextPickup)):null})),
