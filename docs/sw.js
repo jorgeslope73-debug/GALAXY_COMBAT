@@ -1,4 +1,4 @@
-const VERSION = 'V21.83-giant-split-collisions';
+const VERSION = 'V21.84-joystick-persistence';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
