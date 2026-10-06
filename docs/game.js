@@ -8,18 +8,30 @@
   const trServer=text=>i18n?i18n.translateServerText(text):String(text==null?'':text);
   const canvas=document.getElementById('game');
   const useStaticPcBackground=!isMobile;
-  // V20.76: cada partida rota entre cinco fondos JPG optimizados.
-  const MATCH_BACKGROUNDS=[
+  // V21.80: campaña CPU definida por datos. Los cinco niveles actuales
+  // conservan exactamente sus fondos y nombres, pero la longitud de campaña
+  // deja de depender de constantes repartidas por el juego.
+  const CAMPAIGN=window.GalaxyCampaign||null;
+  const FALLBACK_MATCH_BACKGROUNDS=[
     {file:'assets/sprites/fondo.jpg',mobileKey:'bg',stars:true},
     {file:'assets/sprites/fondo02.jpg',mobileKey:'bg02',stars:false},
     {file:'assets/sprites/fondo03.jpg',mobileKey:'bg03',stars:false},
     {file:'assets/sprites/fondo04.jpg',mobileKey:'bg04',stars:false},
     {file:'assets/sprites/fondo05.jpg',mobileKey:'bg05',stars:false}
   ];
-  const LOCAL_CAMPAIGN_WORLD_KEYS=['campaignWorld1','campaignWorld2','campaignWorld3','campaignWorld4','campaignWorld5'];
+  const MATCH_BACKGROUNDS=CAMPAIGN&&Array.isArray(CAMPAIGN.levels)&&CAMPAIGN.levels.length
+    ?CAMPAIGN.levels.map(level=>({...level.background}))
+    :FALLBACK_MATCH_BACKGROUNDS;
+  const LOCAL_CAMPAIGN_LEVELS=CAMPAIGN&&Number(CAMPAIGN.count)>0?Number(CAMPAIGN.count):MATCH_BACKGROUNDS.length;
+  const FALLBACK_WORLD_KEYS=['campaignWorld1','campaignWorld2','campaignWorld3','campaignWorld4','campaignWorld5'];
+  function localCampaignConfig(level){
+    if(CAMPAIGN&&typeof CAMPAIGN.getLevel==='function')return CAMPAIGN.getLevel(level);
+    const safe=Math.max(1,Math.min(LOCAL_CAMPAIGN_LEVELS,Math.round(Number(level)||1)));
+    return {id:safe,nameKey:FALLBACK_WORLD_KEYS[safe-1]||FALLBACK_WORLD_KEYS[FALLBACK_WORLD_KEYS.length-1],background:MATCH_BACKGROUNDS[safe-1]||MATCH_BACKGROUNDS[0]};
+  }
   function localCampaignWorldName(level){
-    const safe=Math.max(1,Math.min(LOCAL_CAMPAIGN_WORLD_KEYS.length,Math.round(Number(level)||1)));
-    return tr(LOCAL_CAMPAIGN_WORLD_KEYS[safe-1]);
+    const cfg=localCampaignConfig(level);
+    return tr(cfg&&cfg.nameKey?cfg.nameKey:'campaignWorld1');
   }
   let matchBackgroundCursor=-1,currentMatchBackground=0,currentMatchBackgroundRound=0;
   if(useStaticPcBackground){
@@ -3417,7 +3429,7 @@
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function selectLocalCampaignBackground(level){
-    const safeLevel=clamp(Math.round(Number(level)||1),1,MATCH_BACKGROUNDS.length);
+    const safeLevel=clamp(Math.round(Number(level)||1),1,LOCAL_CAMPAIGN_LEVELS);
     const index=safeLevel-1;
     currentMatchBackgroundRound=0;
     matchBackgroundCursor=index;
@@ -3676,7 +3688,7 @@
     localCampaignComplete=false;
     localCampaignGameOver=false;
 
-    if(localCampaign&&humanWon&&localCampaignLevel>=MATCH_BACKGROUNDS.length){
+    if(localCampaign&&humanWon&&localCampaignLevel>=LOCAL_CAMPAIGN_LEVELS){
       victoryText.textContent=tr('campaignChampion');
       localCampaignComplete=true;
       if(restartBtn){restartBtn.disabled=false;restartBtn.classList.add('hidden');}
@@ -3896,7 +3908,7 @@
         return;
       }
       if(wasContinue){
-        const nextLevel=Math.min(MATCH_BACKGROUNDS.length,localCampaignLevel+1);
+        const nextLevel=Math.min(LOCAL_CAMPAIGN_LEVELS,localCampaignLevel+1);
         restartMatchBtn.textContent=tr('interstellarTravel');
         const travelled=await runInterstellarTravel(nextLevel);
         if(!travelled||roomCode!=='LOCAL'||!localCpuActive)return;
@@ -4942,7 +4954,7 @@
   }
   function prepareMatchBackground(rankRound){
     const index=roomCode==='LOCAL'
-      ?clamp(Math.round(Number(localCampaignLevel)||1)-1,0,MATCH_BACKGROUNDS.length-1)
+      ?clamp(Math.round(Number(localCampaignLevel)||1)-1,0,LOCAL_CAMPAIGN_LEVELS-1)
       :(Math.max(1,Number(rankRound)||1)-1)%MATCH_BACKGROUNDS.length;
     const cfg=MATCH_BACKGROUNDS[index];
     if(imageDecodePromises[cfg.mobileKey])return imageDecodePromises[cfg.mobileKey];
