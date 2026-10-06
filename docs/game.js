@@ -374,6 +374,7 @@
   const controlHelpEl=document.getElementById('controlHelp');
   const JOYSTICK_STORAGE_KEY='galaxyCombatJoystickV1';
   const JOYSTICK_MAP_STORAGE_KEY='galaxyCombatJoystickMapV1';
+  const JOYSTICK_MAP_COOKIE_KEY='galaxyCombatJoystickMapV1';
   const DEFAULT_JOYSTICK_MAP=Object.freeze({
     turnAxis:0,turnScale:-1,turnLeft:14,turnRight:15,
     thrust:0,fire:7,rocket:6,flare:4,shock:3,ptt:5
@@ -1545,10 +1546,31 @@
     const n=Number(value);
     return Number.isInteger(n)&&n>=-1&&n<=max?n:fallback;
   }
+  function readJoystickMapCookie(){
+    try{
+      const prefix=JOYSTICK_MAP_COOKIE_KEY+'=';
+      const parts=String(document.cookie||'').split(';');
+      for(const part of parts){
+        const item=part.trim();
+        if(item.startsWith(prefix))return decodeURIComponent(item.slice(prefix.length));
+      }
+    }catch(_){}
+    return '';
+  }
+  function writeJoystickMapCookie(raw){
+    try{
+      // Diez anos. La clave no contiene numero de version del juego, por lo que
+      // las actualizaciones de Galaxy Combat no invalidan la configuracion.
+      document.cookie=JOYSTICK_MAP_COOKIE_KEY+'='+encodeURIComponent(raw)+'; Max-Age=315360000; Path=/; SameSite=Lax';
+    }catch(_){}
+  }
   function loadJoystickMap(){
     joystickMap={...DEFAULT_JOYSTICK_MAP};
     try{
-      const raw=localStorage.getItem(JOYSTICK_MAP_STORAGE_KEY);
+      // localStorage es la fuente principal. La cookie actua como respaldo
+      // persistente ante limpiezas/migraciones puntuales de la PWA.
+      let raw=localStorage.getItem(JOYSTICK_MAP_STORAGE_KEY);
+      if(!raw)raw=readJoystickMapCookie();
       if(!raw)return;
       const saved=JSON.parse(raw);
       if(!saved||typeof saved!=='object')return;
@@ -1564,10 +1586,16 @@
         shock:validJoyIndex(saved.shock,DEFAULT_JOYSTICK_MAP.shock),
         ptt:validJoyIndex(saved.ptt,DEFAULT_JOYSTICK_MAP.ptt)
       };
+      // Autorrecuperacion: si vino de cookie, reponer tambien localStorage.
+      const normalized=JSON.stringify(joystickMap);
+      try{localStorage.setItem(JOYSTICK_MAP_STORAGE_KEY,normalized);}catch(_){}
+      writeJoystickMapCookie(normalized);
     }catch(_){joystickMap={...DEFAULT_JOYSTICK_MAP};}
   }
   function saveJoystickMap(){
-    try{localStorage.setItem(JOYSTICK_MAP_STORAGE_KEY,JSON.stringify(joystickMap));}catch(_){}
+    const raw=JSON.stringify(joystickMap);
+    try{localStorage.setItem(JOYSTICK_MAP_STORAGE_KEY,raw);}catch(_){}
+    writeJoystickMapCookie(raw);
   }
   function joystickConfigText(){
     const lang=String(document.documentElement.lang||'es').slice(0,2).toLowerCase();
