@@ -398,6 +398,8 @@
   let joystickEnabled=false;
   let joystickIndex=-1;
   let joystickConnected=false;
+  // V21.81: controles del mando en la pantalla de victoria/fin de nivel.
+  let victoryJoystickPrevFire=false,victoryJoystickPrevMenu=false,victoryJoystickLastActionAt=0;
   let joystickVoiceHeld=false;
   const serverButtons=['create','join'].map(id=>document.getElementById(id));
   if(cpuButton)cpuButton.disabled=false;
@@ -1767,6 +1769,46 @@
     const ptt=joystickButtonPressed(pad,joystickMap.ptt);
     return {active:true,turn,thrust,fire,rocket,flare,shock,ptt};
   }
+  function resetVictoryJoystickControls(){
+    victoryJoystickPrevFire=false;
+    victoryJoystickPrevMenu=false;
+    victoryJoystickLastActionAt=0;
+  }
+  function pumpVictoryJoystick(now){
+    if(!joystickEnabled||isMobile||victory.classList.contains('hidden')){
+      resetVictoryJoystickControls();
+      return;
+    }
+    const pad=joystickControls();
+    if(!pad.active){
+      resetVictoryJoystickControls();
+      return;
+    }
+    const fireNow=!!pad.fire;
+    // Boton fisico 3 = indice Gamepad 2. No depende del mapa configurable:
+    // se reserva como acceso consistente a MENU PRINCIPAL en fin de partida.
+    const rawPad=(navigator.getGamepads&&joystickIndex>=0)?navigator.getGamepads()[joystickIndex]:null;
+    const menuNow=joystickButtonPressed(rawPad,2);
+    const firePressed=fireNow&&!victoryJoystickPrevFire;
+    const menuPressed=menuNow&&!victoryJoystickPrevMenu;
+    victoryJoystickPrevFire=fireNow;
+    victoryJoystickPrevMenu=menuNow;
+    if(now-victoryJoystickLastActionAt<300)return;
+
+    if(menuPressed){
+      victoryJoystickLastActionAt=now;
+      if(window.confirm(tr('abandonMatchConfirm')))returnToMainMenu();
+      return;
+    }
+    if(firePressed){
+      const restartBtn=document.getElementById('restartMatch');
+      if(restartBtn&&!restartBtn.classList.contains('hidden')&&!restartBtn.disabled){
+        victoryJoystickLastActionAt=now;
+        restartBtn.click();
+      }
+    }
+  }
+
   function updateControlHelp(){
     if(!controlHelpEl)return;
     if(joystickEnabled){
@@ -3726,6 +3768,7 @@
     }
 
     victory.style.setProperty('--winner-color',playerColors[Number(i)]||'#d8a7ff');
+    resetVictoryJoystickControls();
     victory.classList.remove('hidden','winner-celebration');
     void victory.offsetWidth;
     if(!localCampaign||humanWon)victory.classList.add('winner-celebration');
@@ -3844,6 +3887,7 @@
     send({t:'start'});
   });
   function returnToMainMenu(notifyServer=true){
+    resetVictoryJoystickControls();
     cancelInterstellarTravel();
     resetGameFeelVisuals();
     resetOnlineStartCountdown();
@@ -5532,6 +5576,7 @@
       findJoystick();
       if(before!==joystickConnected)updateJoystickButton();
     }
+    pumpVictoryJoystick(now);
     pumpControls(now);
     if(localCpuActive&&localCpu&&!onlinePreparing(now))localCpu.advance(now);
     if(hostPhysics&&isHost&&!onlinePreparing(now))hostPhysics.advance(now);
