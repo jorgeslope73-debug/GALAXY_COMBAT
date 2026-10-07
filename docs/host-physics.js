@@ -4,7 +4,7 @@
   if(!PHYSICS_CORE)throw new Error('GalaxyPhysicsCore no cargado');
   const W=1920,H=1080,TICK_HZ=60,DT=1/TICK_HZ,STEP_MS=1000/TICK_HZ;
   const DRAG_PER_TICK=Math.pow(0.35,DT);
-  const IDLE_CONTROL=Object.freeze({turn:0,thrust:false,fire:false});
+  const IDLE_CONTROL=Object.freeze({turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
   const SCORE_TO_WIN=5;
   const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,MISSILE_HIT_RADIUS=12,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,SPAWN_MATERIALIZE_SECONDS=1.15,BRUTAL_SHOT_DISTANCE=850;
@@ -423,7 +423,7 @@
         if(isCpu)player.difficulty='dificil';
         this.placeAtSpawn(player);
         this.players.push(player);
-        this.controls.set(index,{turn:0,thrust:false,fire:false});
+        this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
       }
       this.players.sort((a,b)=>a.index-b.index);
       this.started=true;this.finished=false;this.winner=null;
@@ -433,15 +433,40 @@
     stop(){this.started=false;this.lastNow=0;this.accumulator=0;}
     setControl(index,turn,thrust,fire,actions={}){
       const i=Number(index),p=this.players.find(x=>x.index===i);
-      // V20.8: una plaza CPU nunca acepta controles externos. Cuando el roster
-      // confirme el relevo se crea una entidad humana nueva y desde ese momento
-      // sus controles si son validos. Evita cualquier solapamiento CPU/humano.
       if(!p||p.cpu)return false;
-      // Reutiliza el objeto de control: los controles llegan ~30 veces/s y no
-      // necesitan generar un objeto nuevo en cada paquete.
       let c=this.controls.get(i);
-      if(!c){c={turn:0,thrust:false,fire:false};this.controls.set(i,c);}
-      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;c.directFire=actions.directFire===true;c.rocket=actions.rocket===true;c.flare=actions.flare===true;c.shock=actions.shock===true;
+      if(!c){c={turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false};this.controls.set(i,c);}
+      const seq=Math.max(0,Number(actions&&actions.controlSeq)||0);
+      if(seq>0){
+        const last=Math.max(0,Number(c.controlSeq)||0);
+        if(seq<=last)return false;
+        c.controlSeq=seq;
+      }
+      c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;c.directFire=actions.directFire===true;
+      c.rocket=actions.rocket===true;c.flare=actions.flare===true;c.shock=actions.shock===true;
+      p.lastControlAt=Date.now();
+      return true;
+    }
+    resetControlSequence(index){
+      const c=this.controls.get(Number(index));
+      if(!c)return false;
+      c.controlSeq=0;
+      c.rocketPulse=false;c.flarePulse=false;c.shockPulse=false;
+      if(c.actionIds)c.actionIds={rocket:0,flare:0,shock:0};
+      return true;
+    }
+    applyInputAction(index,kind,actionId){
+      const i=Number(index),p=this.players.find(x=>x.index===i);
+      if(!p||p.cpu)return false;
+      const action=String(kind||'');
+      if(!['rocket','flare','shock'].includes(action))return false;
+      let c=this.controls.get(i);
+      if(!c){c={turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false};this.controls.set(i,c);}
+      if(!c.actionIds)c.actionIds={rocket:0,flare:0,shock:0};
+      const id=Math.max(1,Number(actionId)||1);
+      if(id<=Math.max(0,Number(c.actionIds[action])||0))return false;
+      c.actionIds[action]=id;
+      c[action+'Pulse']=true;
       p.lastControlAt=Date.now();
       return true;
     }
@@ -480,7 +505,7 @@
         if(!p){
           p=this.makePlayer(index,item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu);
           if(isCpu)p.difficulty='dificil';
-          this.placeAtSpawn(p);this.players.push(p);this.controls.set(index,{turn:0,thrust:false,fire:false});changed=true;continue;
+          this.placeAtSpawn(p);this.players.push(p);this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});changed=true;continue;
         }
         const wasCpu=!!p.cpu;
         const nextName=safeName(item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu?'CPU':'JUGADOR '+(index+1));
@@ -501,7 +526,7 @@
           const slot=this.players.indexOf(p);
           if(slot>=0)this.players[slot]=human;
           else this.players.push(human);
-          this.controls.set(index,{turn:0,thrust:false,fire:false});
+          this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
 
           // Si la CPU sustituida era objetivo de una decision de caza de IA,
           // se recalculara en el siguiente tick usando ya la entidad humana.
@@ -516,7 +541,7 @@
         }
         if(wasCpu!==isCpu||p.name!==nextName){
           p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;p.aiControl=null;
-          p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false});
+          p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
           changed=true;
         }
       }
@@ -585,7 +610,7 @@
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
-        this.controls.set(p.index,{turn:0,thrust:false,fire:false});
+        this.controls.set(p.index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
         this.placeAtSpawn(p);p.dead=false;
       }
       this.started=true;this.lastNow=0;this.accumulator=0;this.tickCount=0;
@@ -948,7 +973,10 @@
         this.smartCpuFlare(p);
         return fireNow;
       }
-      // Una carga por pulsacion; el disparo del mando no usa el gesto especial.
+      // V22.27: las acciones especiales online llegan por reliable una sola vez.
+      if(c&&c.flarePulse)this.deployFlares(p);
+      if(c&&c.shockPulse)this.deployShockwave(p);
+      // Compatibilidad con controles locales/legacy sostenidos.
       const flare=!!(c&&c.flare),shock=!!(c&&c.shock);
       if(flare&&!p.joystickFlareHeld)this.deployFlares(p);
       if(shock&&!p.joystickShockHeld)this.deployShockwave(p);
@@ -1447,7 +1475,7 @@
         p.x=(p.x+p.vx*dt+W)%W;p.y=(p.y+p.vy*dt+H)%H;
         PHYSICS_CORE.refreshGuidedState(p,this.players,dirFromRot);
         const rocketHeld=!!(c&&c.rocket);
-        const rocketNow=!p.cpu&&rocketHeld&&!p.joystickRocketHeld;
+        const rocketNow=!p.cpu&&(!!(c&&c.rocketPulse)||(rocketHeld&&!p.joystickRocketHeld));
         p.joystickRocketHeld=rocketHeld;
         const fireNow=this.resolveFireWithFlare(p,c,dt);
         const projectile=PHYSICS_CORE.tryFireProjectile(
@@ -1459,6 +1487,7 @@
           this.bullets.push(projectile);
           this.emit({t:'sound',kind:'laser'});
         }
+        if(c&&!p.cpu){c.rocketPulse=false;c.flarePulse=false;c.shockPulse=false;}
       }
       this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
     }
