@@ -2442,20 +2442,21 @@
           this.emit({t:'sound',kind:'sparkle'});
         }
         if(!remove){
-          for(let f=this.flares.length-1;f>=0;f--){
-            const flare=this.flares[f];
-            if(sweptCircles(b,BULLET_RADIUS,flare,FLARE_RADIUS,false)){
-              // V19.64: cualquier proyectil queda anulado por una bengala.
-              // El misil conserva su explosion visual; la bala normal simplemente
-              // desaparece junto con la bengala alcanzada.
-              if(Number(flare.owner)!==Number(b.owner))this.emit({t:'intercept',index:Number(flare.owner),guided:!!b.guided});
-              if(b.guided){
-                this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-                this.emit({t:'sound',kind:'sparkle'});
-              }
-              this.flares.splice(f,1);
-              remove=true;break;
+          const flareHit=PHYSICS_CORE.projectileFlareHit(
+            b,this.flares,sweptCircles,BULLET_RADIUS,FLARE_RADIUS
+          );
+          if(flareHit){
+            // Cualquier proyectil queda anulado por una bengala.
+            // El misil conserva explosion visual; la bala normal solo desaparece.
+            if(flareHit.intercept){
+              this.emit({t:'intercept',index:flareHit.flareOwner,guided:flareHit.guided});
             }
+            if(flareHit.guided){
+              this.emitRocketDisintegrateAt(flareHit.impactX,flareHit.impactY,flareHit.projectileOwner);
+              this.emit({t:'sound',kind:'sparkle'});
+            }
+            this.flares.splice(flareHit.index,1);
+            remove=true;
           }
         }
         if(!remove){

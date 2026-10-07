@@ -220,6 +220,29 @@
     return null;
   }
 
+
+  function projectileFlareHit(projectile,flares,sweptCircles,projectileRadius=4,flareRadius=12){
+    if(!projectile||!Array.isArray(flares)||typeof sweptCircles!=='function')return null;
+    for(let i=flares.length-1;i>=0;i--){
+      const flare=flares[i];
+      if(!flare)continue;
+      if(!sweptCircles(projectile,projectileRadius,flare,flareRadius,false))continue;
+      const projectileOwner=Number(projectile.owner);
+      const flareOwner=Number(flare.owner);
+      return {
+        flare,
+        index:i,
+        guided:!!projectile.guided,
+        projectileOwner,
+        flareOwner,
+        intercept:flareOwner!==projectileOwner,
+        impactX:Number(projectile.x)||0,
+        impactY:Number(projectile.y)||0
+      };
+    }
+    return null;
+  }
+
   function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
     if(!asteroid)return null;
     const defaultRadius=Number(opts.defaultRadius)||45;
@@ -282,6 +305,7 @@
     projectileGiantHit,
     projectileMeteorHit,
     projectilePickupHit,
+    projectileFlareHit,
     asteroidMissileFracture
   });
 })();

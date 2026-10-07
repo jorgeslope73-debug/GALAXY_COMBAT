@@ -62,6 +62,10 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(!bullets.includes('PHYSICS_CORE.projectilePickupHit'))fail(errors,label+': colision bala-pickup ya no delega en physics-core');
   if(bullets.includes('for(let p=this.pickups.length-1'))fail(errors,label+': ha vuelto la deteccion inline proyectil-pickup');
   if(!bullets.includes('this.pickups.splice(pickupHit.index,1)'))fail(errors,label+': el pickup impactado ya no se elimina por indice compartido');
+  if(!bullets.includes('PHYSICS_CORE.projectileFlareHit'))fail(errors,label+': colision proyectil-bengala ya no delega en physics-core');
+  if(bullets.includes('for(let f=this.flares.length-1'))fail(errors,label+': ha vuelto la deteccion inline proyectil-bengala');
+  if(!bullets.includes('this.flares.splice(flareHit.index,1)'))fail(errors,label+': la bengala impactada ya no se elimina por indice compartido');
+  if(!bullets.includes("t:'intercept',index:flareHit.flareOwner,guided:flareHit.guided"))fail(errors,label+': se ha perdido el evento de intercepcion de bengala');
   if(bullets.includes('splitGiantMeteor'))fail(errors,label+': el meteorito gigante vuelve a fragmentarse por misil');
 
   const split=method(src,'splitAsteroidByMissile');
@@ -107,6 +111,9 @@ if(!core.includes('function projectileAsteroidHit'))fail(errors,'core: falta la 
 if(!core.includes('function projectileGiantHit'))fail(errors,'core: falta la colision compartida proyectil-gigante');
 if(!core.includes('function projectileMeteorHit'))fail(errors,'core: falta la colision compartida proyectil-lluvia');
 if(!core.includes('function projectilePickupHit'))fail(errors,'core: falta la colision compartida proyectil-pickup');
+if(!core.includes('function projectileFlareHit'))fail(errors,'core: falta la colision compartida proyectil-bengala');
+if(!core.includes('flareRadius=12'))fail(errors,'core: la bengala ha perdido su radio de colision compartido');
+if(!core.includes('intercept:flareOwner!==projectileOwner'))fail(errors,'core: se ha perdido la distincion de bengala propia/ajena');
 if(!core.includes('if(projectile.guided)return null;'))fail(errors,'core: los misiles ya no atraviesan los pickups');
 if(!core.includes('pickupRadius=22'))fail(errors,'core: el pickup ha perdido su radio de colision compartido');
 if(!core.includes('meteorRadius=14'))fail(errors,'core: la lluvia ha perdido su radio de colision compartido');
