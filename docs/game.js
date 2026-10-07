@@ -3328,7 +3328,7 @@
       // tambien durante la victoria/espera entre partidas.
       if(isHost&&hostPhysics&&typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
       syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;
-      playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}${Number(p.i)===Number(hostIndex)?' · HOST':''}</div>`).join('');
+      playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}${p.champion?' · 🏆':''}${Number(p.i)===Number(hostIndex)?' · HOST':''}</div>`).join('');
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
     }
     else if(m.t==='start'){
@@ -3975,7 +3975,7 @@
     isHost=Number(myIndex)===Number(hostIndex);
     cpuFillEnabled=!!m.cpuFill;
     ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
-    playersEl.innerHTML=lobbyPlayers.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}${Number(p.i)===Number(hostIndex)?' · HOST':''}</div>`).join('');
+    playersEl.innerHTML=lobbyPlayers.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}${p.champion?' · 🏆':''}${Number(p.i)===Number(hostIndex)?' · HOST':''}</div>`).join('');
     updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(lobbyPlayers);
     const mini=document.getElementById('seriesRoundMini');if(mini)mini.textContent='';
     const sessionRanking=document.getElementById('sessionRanking');if(sessionRanking)sessionRanking.classList.add('hidden');
