@@ -8,6 +8,8 @@
   const SCORE_TO_WIN=5;
   const SHIP_RADIUS=24,ASTEROID_RADIUS=45,GIANT_RADIUS=135,PICKUP_RADIUS=22,BULLET_RADIUS=4,MISSILE_HIT_RADIUS=12,SMALL_METEOR_RADIUS=14;
   const SPAWN_PROTECTION_SECONDS=3,SPAWN_MATERIALIZE_SECONDS=1.15,BRUTAL_SHOT_DISTANCE=850;
+  // V22.29: memoria anti-bucle de combate. Es estado local de la CPU, no viaja por red.
+  const CPU_QUICK_DEATH_WINDOW=6,CPU_RESPAWN_RETHINK_SECONDS=2,CPU_LOOP_EVASION_BASE=7,CPU_LOOP_EVASION_MAX=12,CPU_LOOP_DECAY_SECONDS=12;
   const FLARE_HOLD_SECONDS=.22,FLARE_LIFE_SECONDS=3,FLARE_LAUNCH_COOLDOWN=.5,FLARE_RADIUS=12,FLARE_DECOY_TRIGGER=700;
   const FLARE_CPU_USE_COOLDOWN=.95,FLARE_CPU_KEEP_COOLDOWN=.42;
   const FLARE_CPU_MISSILE_REACTION_MIN=1,FLARE_CPU_MISSILE_REACTION_MAX=2;
@@ -401,6 +403,8 @@
         reload:0,shield:0,camo:0,protection:SPAWN_PROTECTION_SECONDS,spawnFx:SPAWN_MATERIALIZE_SECONDS,spawnAnchorX:0,spawnAnchorY:0,
         guided:false,guidedTarget:-1,guidedAmmo:0,joystickRocketHeld:false,flare:0,flareHold:0,flareGesture:false,specialReleaseLock:false,shockwave:false,shockReachAt:0,shockExplodeAt:0,shockOwner:-1,flarePending:null,nextFlareDecision:0,nextFlareAllowed:0,
         dead:false,respawn:0,lastControlAt:Date.now(),lastSpawn:null,
+        cpuLastRespawnReadyAt:-1,cpuLastKillerIndex:-1,cpuQuickDeathKillerIndex:-1,cpuQuickDeathStreak:0,cpuLastQuickDeathAt:-999,
+        cpuLoopPressure:0,cpuPendingEvasion:0,cpuEvasionUntil:0,cpuRespawnGuardUntil:0,cpuLoopDecayAt:0,
         cpuFireDelay:cpu?CPU_ARMED_WARNING_SECONDS:0,
         difficulty:this.difficulty,aiControl:null
       };
@@ -540,7 +544,7 @@
           continue;
         }
         if(wasCpu!==isCpu||p.name!==nextName){
-          p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;p.aiControl=null;
+          p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;p.aiControl=null;if(isCpu)this.resetCpuLoopMemory(p);
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
           changed=true;
         }
@@ -609,7 +613,7 @@
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
-        p.lastControlAt=Date.now();p.lastSpawn=null;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+        p.lastControlAt=Date.now();p.lastSpawn=null;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;this.resetCpuLoopMemory(p);
         this.controls.set(p.index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
         this.placeAtSpawn(p);p.dead=false;
       }
@@ -729,10 +733,133 @@
       // pero mantenemos un limite razonable para no cargar la partida.
       while(this.pickups.length>12)this.pickups.shift();
     }
+    resetCpuLoopMemory(p){
+      if(!p)return;
+      p.cpuLastRespawnReadyAt=-1;
+      p.cpuLastKillerIndex=-1;
+      p.cpuQuickDeathKillerIndex=-1;
+      p.cpuQuickDeathStreak=0;
+      p.cpuLastQuickDeathAt=-999;
+      p.cpuLoopPressure=0;
+      p.cpuPendingEvasion=0;
+      p.cpuEvasionUntil=0;
+      p.cpuRespawnGuardUntil=0;
+      p.cpuLoopDecayAt=0;
+    }
+    noteCpuLoopDeath(victim,attacker){
+      if(!victim||!victim.cpu)return;
+      const now=Number(this.fxClock)||0;
+      const attackerIndex=attacker&&attacker!==victim&&Number.isInteger(Number(attacker.index))?Number(attacker.index):-1;
+      victim.cpuLastKillerIndex=attackerIndex;
+
+      const readyAt=Number(victim.cpuLastRespawnReadyAt);
+      const quick=attackerIndex>=0&&Number.isFinite(readyAt)&&readyAt>=0&&now>=readyAt&&now-readyAt<=CPU_QUICK_DEATH_WINDOW;
+      if(!quick){
+        victim.cpuQuickDeathStreak=Math.max(0,(Number(victim.cpuQuickDeathStreak)||0)-1);
+        victim.cpuLoopPressure=Math.max(0,(Number(victim.cpuLoopPressure)||0)-1);
+        victim.cpuPendingEvasion=0;
+        if(victim.cpuQuickDeathStreak===0)victim.cpuQuickDeathKillerIndex=-1;
+        return;
+      }
+
+      const lastQuick=Number(victim.cpuLastQuickDeathAt);
+      const sameSeries=Number(victim.cpuQuickDeathKillerIndex)===attackerIndex&&Number.isFinite(lastQuick)&&now-lastQuick<=22;
+      victim.cpuQuickDeathStreak=sameSeries?(Number(victim.cpuQuickDeathStreak)||0)+1:1;
+      victim.cpuQuickDeathKillerIndex=attackerIndex;
+      victim.cpuLastQuickDeathAt=now;
+
+      if(victim.cpuQuickDeathStreak>=2){
+        victim.cpuLoopPressure=Math.min(4,(Number(victim.cpuLoopPressure)||0)+1);
+        victim.cpuPendingEvasion=Math.min(
+          CPU_LOOP_EVASION_MAX,
+          CPU_LOOP_EVASION_BASE+Math.max(0,victim.cpuLoopPressure-1)*1.5
+        );
+      }else{
+        victim.cpuPendingEvasion=0;
+      }
+    }
+    armCpuLoopRespawn(p){
+      if(!p||!p.cpu)return;
+      const readyAt=(Number(this.fxClock)||0)+SPAWN_MATERIALIZE_SECONDS;
+      p.cpuLastRespawnReadyAt=readyAt;
+      const killerIndex=Number(p.cpuLastKillerIndex);
+      p.cpuRespawnGuardUntil=killerIndex>=0?readyAt+CPU_RESPAWN_RETHINK_SECONDS:0;
+      const pending=Math.max(0,Number(p.cpuPendingEvasion)||0);
+      p.cpuEvasionUntil=pending>0?readyAt+pending:0;
+      p.cpuPendingEvasion=0;
+      p.cpuLoopDecayAt=Math.max(Number(p.cpuLoopDecayAt)||0,readyAt+CPU_LOOP_DECAY_SECONDS);
+    }
+    cpuAntiLoopControl(cpu){
+      if(!cpu||!cpu.cpu||cpu.dead)return null;
+      const now=Number(this.fxClock)||0;
+      if(!Number.isFinite(Number(cpu.cpuLastRespawnReadyAt))||Number(cpu.cpuLastRespawnReadyAt)<0){
+        cpu.cpuLastRespawnReadyAt=now;
+        cpu.cpuLoopDecayAt=now+CPU_LOOP_DECAY_SECONDS;
+      }
+
+      const guardActive=now<Number(cpu.cpuRespawnGuardUntil||0);
+      const evasionActive=now<Number(cpu.cpuEvasionUntil||0);
+      const activeUntil=Math.max(Number(cpu.cpuRespawnGuardUntil)||0,Number(cpu.cpuEvasionUntil)||0);
+
+      if(!guardActive&&!evasionActive){
+        if(now>=Number(cpu.cpuLoopDecayAt||0)){
+          cpu.cpuQuickDeathStreak=Math.max(0,(Number(cpu.cpuQuickDeathStreak)||0)-1);
+          cpu.cpuLoopPressure=Math.max(0,(Number(cpu.cpuLoopPressure)||0)-1);
+          cpu.cpuLoopDecayAt=now+CPU_LOOP_DECAY_SECONDS;
+          if(cpu.cpuQuickDeathStreak===0)cpu.cpuQuickDeathKillerIndex=-1;
+        }
+        return null;
+      }
+
+      // En EVASION la supervivencia sigue mandando: meteoritos y rocas tienen
+      // prioridad sobre la maniobra anti-bucle.
+      const rockSafety=typeof this.cpuRockSafetyControl==='function'?this.cpuRockSafetyControl(cpu):null;
+      if(rockSafety)return rockSafety;
+      if(typeof this.chooseMeteorControls==='function'){
+        const meteorControl=this.chooseMeteorControls(cpu);
+        if(meteorControl)return meteorControl;
+      }
+
+      const targetIndex=evasionActive?Number(cpu.cpuQuickDeathKillerIndex):Number(cpu.cpuLastKillerIndex);
+      const rival=this.players.find(p=>p.index===targetIndex&&!p.dead&&p.camo<=0)||null;
+      if(!rival){
+        const side=(Number(cpu.index)||0)%2===0?1:-1;
+        return{turn:side*.55,thrust:true,fire:false};
+      }
+
+      const dx=wrapDelta(rival.x-cpu.x,W),dy=wrapDelta(rival.y-cpu.y,H);
+      const distance=Math.hypot(dx,dy)||1;
+      const awayX=-dx/distance,awayY=-dy/distance;
+
+      // La perpendicular se calcula con el eje canonico menor-index -> mayor-index.
+      // Asi dos CPU enfrentadas eligen lados globalmente opuestos y se rompe
+      // la simetria muerte -> respawn -> persecucion.
+      const low=Number(cpu.index)<Number(rival.index);
+      const pairX=low?dx:-dx,pairY=low?dy:-dy;
+      const pairLen=Math.hypot(pairX,pairY)||1;
+      const lateralBaseX=-pairY/pairLen,lateralBaseY=pairX/pairLen;
+      const lateralSide=low?1:-1;
+      const lateralX=lateralBaseX*lateralSide,lateralY=lateralBaseY*lateralSide;
+
+      const awayWeight=evasionActive?(distance<900?1.25:.55):.8;
+      const lateralWeight=evasionActive?.95:1.15;
+      const vx=awayX*awayWeight+lateralX*lateralWeight;
+      const vy=awayY*awayWeight+lateralY*lateralWeight;
+      const targetRot=(Math.atan2(-vx,-vy)*180/Math.PI+360)%360;
+      const err=((targetRot-cpu.rot+540)%360)-180;
+
+      if('tactic' in cpu){
+        cpu.tactic='evade';
+        cpu.tacticUntil=Math.max(Number(cpu.tacticUntil)||0,Math.min(activeUntil,now+.7));
+        cpu.resourceTargetId=null;
+      }
+      return{turn:clamp(err/30,-1,1),thrust:Math.abs(err)<68,fire:false};
+    }
     destroyShip(victim,attacker=null,weaponTheft=false,scorePenalty=false){
       if(victim.dead||this.finished)return;
       if(victim.protection>0||victim.shield>0){this.emitShipImpact(victim,attacker,false);return;}
       victim.dead=true;victim.respawn=.7;victim.vx=victim.vy=0;victim.deaths++;
+      this.noteCpuLoopDeath(victim,attacker);
       // V21.28: una onda pertenece a la vida que la lanzo. Si esa nave muere,
       // su frente deja de tener fisica inmediatamente y no puede matar despues
       // de la explosion ni reactivarse cuando la nave reaparece.
@@ -783,6 +910,7 @@
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
       p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.flarePending=null;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      this.armCpuLoopRespawn(p);
     }
     deployShockwave(p){
       if(!p||p.dead||!p.shockwave)return false;
@@ -1185,6 +1313,8 @@
     chooseCpuControls(cpu){
       let rival=null,best=Infinity;
       if(cpu.dead)return IDLE_CONTROL;
+      const antiLoop=this.cpuAntiLoopControl(cpu);
+      if(antiLoop)return antiLoop;
       const rockSafety=this.cpuRockSafetyControl(cpu);
       if(rockSafety)return rockSafety;
       const huntGrace=this.huntThresholdActive&&this.fxClock<this.huntStartsAt;

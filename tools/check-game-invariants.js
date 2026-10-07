@@ -275,6 +275,18 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
+if(!build.includes("const VERSION='V22.29'"))fail(errors,'V22.29: testigo de version no actualizado');
+for(const [label,src] of [['host',host],['local',local]]){
+  if(!src.includes('CPU_QUICK_DEATH_WINDOW=6'))fail(errors,'V22.29 '+label+': falta ventana de muerte rapida');
+  if(!src.includes('CPU_RESPAWN_RETHINK_SECONDS=2'))fail(errors,'V22.29 '+label+': falta proteccion anti-persecucion tras respawn');
+  if(!src.includes('CPU_LOOP_EVASION_BASE=7'))fail(errors,'V22.29 '+label+': falta duracion base de EVASION');
+  if(!src.includes('noteCpuLoopDeath(victim,attacker)'))fail(errors,'V22.29 '+label+': no registra el rival que repite la baja');
+  if(!src.includes('armCpuLoopRespawn(p)'))fail(errors,'V22.29 '+label+': no arma la memoria al reaparecer');
+  if(!src.includes('cpuAntiLoopControl(cpu)'))fail(errors,'V22.29 '+label+': falta control anti-bucle');
+  if(!src.includes('const lateralSide=low?1:-1'))fail(errors,'V22.29 '+label+': falta ruptura lateral determinista de simetria');
+  if(!src.includes('cpuLoopPressure=Math.min(4'))fail(errors,'V22.29 '+label+': falta escalado de huida por reincidencia');
+}
+
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');
 if(!stress.includes('startTraining(null)'))fail(errors,'stress: no usa la simulación real de 4 CPU');
