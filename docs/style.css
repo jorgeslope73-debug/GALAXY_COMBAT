@@ -509,18 +509,22 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   letter-spacing:.08em;
   text-shadow:0 0 8px rgba(255,229,106,.5);
 }
+/* V22.30: composicion final del campeon online. */
 #victory .series-champion{
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:8px;
-  margin:4px auto 14px;
+  width:100%;
+  gap:9px;
+  margin:12px auto 6px;
+  padding-top:10px;
 }
 #victory .series-champion.hidden{display:none!important}
 #victory .series-champion-cup{
-  font-size:clamp(72px,12vw,128px);
-  line-height:.9;
+  font-size:clamp(68px,10vw,112px);
+  line-height:1;
+  margin:4px auto 2px;
   filter:drop-shadow(0 0 18px rgba(255,220,70,.65));
   animation:galaxyChampionCup 1.1s cubic-bezier(.18,.9,.22,1.1) both;
 }
@@ -533,20 +537,29 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   animation:galaxyChampionShip 1.05s ease-out both;
 }
 #victory .series-champion-name{
+  width:min(100%,560px);
   max-width:100%;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font:900 clamp(28px,5vw,52px)/1 'Flashback',Arial,sans-serif;
-  letter-spacing:.06em;
+  padding:0 8px;
+  overflow:visible;
+  text-overflow:clip;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  font:900 clamp(25px,4.6vw,48px)/1.05 'Flashback',Arial,sans-serif;
+  letter-spacing:.045em;
+  text-align:center;
   text-shadow:0 0 12px currentColor;
 }
 #victory.series-champion-mode{
   width:min(620px,94vw);
 }
+#victory.series-champion-mode #victoryText{
+  margin-bottom:0;
+}
 #victory.series-champion-mode #sessionRanking{
-  opacity:.78;
-  transform:scale(.94);
+  opacity:.86;
+  transform:none;
+  margin:10px auto 0;
 }
 @keyframes galaxyChampionCup{
   0%{transform:scale(.2) rotate(-18deg);opacity:0}
@@ -559,15 +572,18 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 }
 @media (pointer:coarse),(max-width:900px){
   #topbar .series-round-mini{font-size:11px}
-  #victory .series-champion-cup{font-size:72px}
+  #victory .series-champion{margin-top:10px;padding-top:8px;gap:7px}
+  #victory .series-champion-cup{font-size:68px;margin-top:3px}
   #victory .series-champion-ship{width:50px;height:50px}
-  #victory .series-champion-name{font-size:26px}
+  #victory .series-champion-name{font-size:clamp(22px,7vw,30px);line-height:1.04;padding:0 4px}
 }
 
 
-/* V22.25: continuar desde la pantalla final del campeón. */
+/* V22.30: CONTINUAR cierra la pantalla y queda debajo de la clasificación. */
 #victory .series-champion-continue{
-  margin-top:12px;
+  display:block;
+  width:min(420px,100%);
+  margin:16px auto 0;
   min-width:180px;
   padding:12px 22px;
   font-weight:900;

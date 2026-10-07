@@ -238,6 +238,12 @@ if(!index.includes('id="seriesChampionContinue"'))fail(errors,'series: falta bot
 if(!game.includes("send({t:'series-continue'})"))fail(errors,'series: botón CONTINUAR no envía la acción');
 if(!game.includes("continueBtn.textContent='CONTINUAR'"))fail(errors,'series: falta estado visual de CONTINUAR');
 if(!style.includes('.series-champion-continue'))fail(errors,'series: falta estilo del botón CONTINUAR');
+const championPos=index.indexOf('id="seriesChampion"');
+const rankingPos=index.indexOf('id="sessionRanking"');
+const continuePos=index.indexOf('id="seriesChampionContinue"');
+if(!(championPos>=0&&rankingPos>championPos&&continuePos>rankingPos))fail(errors,'V22.30 series: CONTINUAR debe quedar debajo de la clasificacion');
+if(!style.includes('overflow-wrap:anywhere'))fail(errors,'V22.30 series: el nombre largo del campeon puede volver a recortarse');
+if(!style.includes('#victory.series-champion-mode #victoryText{\n  margin-bottom:0;'))fail(errors,'V22.30 series: separacion vertical de titulo/copa no protegida');
 
 if(!server.includes('function currentHost(r)'))fail(errors,'host migration: falta resolver host actual');
 if(!server.includes('function promoteHost(r,wss'))fail(errors,'host migration: falta promocion automatica');
@@ -275,7 +281,7 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.29'"))fail(errors,'V22.29: testigo de version no actualizado');
+if(!build.includes("const VERSION='V22.30'"))fail(errors,'V22.30: testigo de version no actualizado');
 for(const [label,src] of [['host',host],['local',local]]){
   if(!src.includes('CPU_QUICK_DEATH_WINDOW=6'))fail(errors,'V22.29 '+label+': falta ventana de muerte rapida');
   if(!src.includes('CPU_RESPAWN_RETHINK_SECONDS=2'))fail(errors,'V22.29 '+label+': falta proteccion anti-persecucion tras respawn');
