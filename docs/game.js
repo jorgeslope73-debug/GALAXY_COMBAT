@@ -3355,7 +3355,7 @@
         if(lastAcceptedStateEpoch>=0&&incomingEpoch<lastAcceptedStateEpoch)return;
         if(incomingEpoch!==lastAcceptedStateEpoch){
           lastAcceptedStateEpoch=incomingEpoch;
-          lastAcceptedStateEpoch=-1;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;
+          lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;
         }
       }
       // Un snapshot de la nueva ronda tambien recupera una cuenta atras si
