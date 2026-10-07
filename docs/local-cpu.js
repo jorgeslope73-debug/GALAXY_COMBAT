@@ -179,6 +179,10 @@
       this.perfTickMs=0;this.perfTickMax=0;this.perfTicks=0;this.perfCatchupDrops=0;
       this.brain=null;
       this.trainingMode=false;
+      // V22.35: perfil de pruebas exclusivo de cpu-training.html.
+      // STANDARD conserva exactamente la simulacion existente; HARD solo se
+      // activa cuando trainingMode=true y nunca afecta al juego local normal.
+      this.trainingTestProfile='standard';
       this.learningEnabled=true;
       this.learningByCpu=new Map();
       this.meteorLearningByCpu=new Map();
@@ -196,12 +200,46 @@
       this.resetAsteroids();
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
+    setTrainingTestProfile(profile='standard'){
+      const next=String(profile||'standard').toLowerCase()==='hard'?'hard':'standard';
+      this.trainingTestProfile=next;
+      return next;
+    }
+    trainingHardMode(){
+      return this.trainingMode&&this.trainingTestProfile==='hard';
+    }
+    trainingAsteroidMaxActive(){
+      return this.trainingHardMode()?9:ASTEROID_MAX_ACTIVE;
+    }
+    applyTrainingHardLoadout(p,respawn=false){
+      if(!p||!this.trainingHardMode())return false;
+      p.bullets=500;
+      p.cadence=1;
+      p.speed=2;
+      p.guidedAmmo=500;
+      p.guided=true;
+      p.guidedTarget=-1;
+      p.reload=respawn?this.reloadTime(p):0;
+      return true;
+    }
     hazardProfile(){
       // V21.80: los parametros ambientales vienen de campaign-config.js.
       // La simulacion no conoce ya niveles concretos.
       const level=clamp(Math.round(Number(this.campaignLevel)||1),1,CAMPAIGN_LEVELS);
       const cfg=CAMPAIGN&&typeof CAMPAIGN.getLevel==='function'?CAMPAIGN.getLevel(level):null;
-      if(cfg&&cfg.hazards)return cfg.hazards;
+      if(cfg&&cfg.hazards){
+        if(!this.trainingHardMode())return cfg.hazards;
+        // HARD: mas asteroides medianos/grandes y gigante mas frecuente.
+        // No se incrementa la lluvia de meteoritos pequenos.
+        return Object.assign({},cfg.hazards,{
+          asteroidMin:7,
+          asteroidInitialMin:.8,asteroidInitialMax:1.8,
+          asteroidRespawnMin:1.0,asteroidRespawnMax:2.4,
+          asteroidPopulationMin:10,asteroidPopulationMax:18,
+          giantFirstMin:14,giantFirstMax:22,
+          giantRepeatMin:28,giantRepeatMax:45
+        });
+      }
       // Respaldo conservador si el fichero de configuracion no llegase a cargar.
       return{
         asteroidMin:1,
@@ -855,13 +893,16 @@
       this.nextAsteroidIndex=1;
       this.nextAsteroidSpawn=rand(profile.asteroidInitialMin,profile.asteroidInitialMax);
       this.asteroidRampComplete=false;
-      this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+      this.asteroidTargetCount=this.trainingAsteroidMaxActive();
       this.nextAsteroidPopulationChange=999999;
     }
     spawnAsteroidFromEdge(templateIndex,fullyRandom=false){
       const idx=clamp(Math.round(Number(templateIndex)||0),0,ASTEROID_STARTS.length-1);
       let [targetX,targetY,rot,type]=ASTEROID_STARTS[idx];
-      const edge=ASTEROID_RADIUS*2;
+      // En HARD mezclamos asteroides medianos con grandes dentro de la misma
+      // coleccion para aumentar densidad sin crear una segunda fisica paralela.
+      const radius=this.trainingHardMode()?(Math.random()<.42?72:ASTEROID_RADIUS):ASTEROID_RADIUS;
+      const edge=Math.max(ASTEROID_RADIUS*2,radius*2);
       let start;
       if(fullyRandom){
         targetX=rand(W*.18,W*.82);
@@ -885,7 +926,7 @@
       const n=normalize(targetX-start.x,targetY-start.y);
       this.asteroids.push({
         id:uid(),x:start.x,y:start.y,rot,type,
-        vx:n.x*80,vy:n.y*80,r:ASTEROID_RADIUS,exiting:false,exitDelay:-1
+        vx:n.x*80,vy:n.y*80,r:radius,exiting:false,exitDelay:-1
       });
     }
     resolveAsteroidPairCollision(a,b){
@@ -936,10 +977,10 @@
       return count;
     }
     spawnProgressiveAsteroid(){
-      if(this.asteroidPopulationUnits()>=ASTEROID_MAX_ACTIVE){
+      if(this.asteroidPopulationUnits()>=this.trainingAsteroidMaxActive()){
         const profile=this.hazardProfile();
         this.asteroidRampComplete=true;
-        this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+        this.asteroidTargetCount=this.trainingAsteroidMaxActive();
         this.nextAsteroidSpawn=999999;
         this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
         return;
@@ -947,9 +988,9 @@
       const profile=this.hazardProfile();
       this.spawnAsteroidFromEdge(this.nextAsteroidIndex);
       this.nextAsteroidIndex++;
-      if(this.asteroidPopulationUnits()>=ASTEROID_MAX_ACTIVE){
+      if(this.asteroidPopulationUnits()>=this.trainingAsteroidMaxActive()){
         this.asteroidRampComplete=true;
-        this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+        this.asteroidTargetCount=this.trainingAsteroidMaxActive();
         this.nextAsteroidSpawn=999999;
         this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
       }else{
@@ -970,11 +1011,12 @@
     chooseAsteroidPopulation(){
       const current=this.asteroidPopulationUnits();
       const profile=this.hazardProfile();
-      const minAsteroids=clamp(Math.round(Number(profile.asteroidMin)||1),1,ASTEROID_MAX_ACTIVE);
-      let target=randint(minAsteroids,ASTEROID_MAX_ACTIVE);
+      const maxAsteroids=this.trainingAsteroidMaxActive();
+      const minAsteroids=clamp(Math.round(Number(profile.asteroidMin)||1),1,maxAsteroids);
+      let target=randint(minAsteroids,maxAsteroids);
       if(target===current){
-        if(minAsteroids===ASTEROID_MAX_ACTIVE)target=ASTEROID_MAX_ACTIVE;
-        else if(current>=ASTEROID_MAX_ACTIVE)target=randint(minAsteroids,ASTEROID_MAX_ACTIVE-1);
+        if(minAsteroids===maxAsteroids)target=maxAsteroids;
+        else if(current>=maxAsteroids)target=randint(minAsteroids,maxAsteroids-1);
         else target=Math.max(minAsteroids,current+1);
       }
       this.asteroidTargetCount=target;
@@ -1106,11 +1148,12 @@
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.ufoExtras=[];this.ufoWaveRemaining=0;this.ufoWaveNext=0;this.ufoWaveSwarm=false;this.ufoWaveSide=-1;this.ufoWaveAnchor=.5;this.ufoWaveSpawned=0;this.ufoWaveTotal=0;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=rand(50,80);this.nextUfo=this.ufoLimit()>0?rand(UFO_FIRST_MIN,UFO_FIRST_MAX):999999;
+      this.noDeathTime=0;this.nextGiant=this.trainingHardMode()?rand(hazard.giantFirstMin,hazard.giantFirstMax):rand(50,80);this.nextUfo=this.ufoLimit()>0?rand(UFO_FIRST_MIN,UFO_FIRST_MAX):999999;
       this.resetAsteroids();
       for(let i=0;i<4;i++){
         const cpu=this.makePlayer(i,'CPU '+(i+1),true);
         cpu.difficulty='dificil';
+        this.applyTrainingHardLoadout(cpu,false);
         const opening=this.chooseBrainAction('open3',['attack','evade','resource','scatter'],i===3?.24:.38);
         cpu.tactic=opening;
         cpu.tacticUntil=rand(i===3?1.8:.9,i===3?3.8:2.6);
@@ -1217,6 +1260,7 @@
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.nextShockLearning=0;
+        this.applyTrainingHardLoadout(p,false);
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;this.resetCpuLoopMemory(p);
         if(p.cpu){
@@ -1490,6 +1534,7 @@
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
       p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.nextShockLearning=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      this.applyTrainingHardLoadout(p,true);
       this.armCpuLoopRespawn(p);
       if(p.cpu){p.resourceTargetId=null;p.meteorDecision=null;p.flareDecision=null;p.flarePending=null;p.nextFlareDecision=0;p.easyNextDecision=0;p.easyControl=null;}
     }
@@ -2842,7 +2887,7 @@
       if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){
         this.giant=null;
         const profile=this.hazardProfile();
-        this.nextGiant=this.trainingMode?rand(130,190):rand(profile.giantRepeatMin,profile.giantRepeatMax);
+        this.nextGiant=this.trainingHardMode()?rand(profile.giantRepeatMin,profile.giantRepeatMax):(this.trainingMode?rand(130,190):rand(profile.giantRepeatMin,profile.giantRepeatMax));
       }
     }
     ufoLimit(){
