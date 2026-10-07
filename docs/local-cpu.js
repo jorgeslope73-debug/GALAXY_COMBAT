@@ -1133,9 +1133,25 @@
       p.lastControlAt=Date.now();
       return true;
     }
+    applyInputAction(kind,actionId){
+      const p=this.players[0];
+      if(!p||p.cpu)return false;
+      const action=String(kind||'');
+      if(!['rocket','flare','shock'].includes(action))return false;
+      let c=this.controls.get(0);
+      if(!c){c={turn:0,thrust:false,fire:false};this.controls.set(0,c);}
+      if(!c.actionIds)c.actionIds={rocket:0,flare:0,shock:0};
+      const id=Math.max(1,Number(actionId)||1);
+      if(id<=Math.max(0,Number(c.actionIds[action])||0))return false;
+      c.actionIds[action]=id;
+      c[action+'Pulse']=true;
+      p.lastControlAt=Date.now();
+      return true;
+    }
     handleMessage(msg){
       if(!msg||typeof msg!=='object')return true;
       if(msg.t==='ctrl'){this.setControl(msg.turn,msg.thrust,msg.fire,msg);return true;}
+      if(msg.t==='input-action'||msg.t==='fallback-input-action'){this.applyInputAction(msg.kind,msg.actionId);return true;}
       if(msg.t==='restart'){
         if(Number.isFinite(Number(msg.level)))this.campaignLevel=clamp(Math.round(Number(msg.level)||1),1,CAMPAIGN_LEVELS);
         if(this.restart()){
@@ -1631,7 +1647,11 @@
         this.smartCpuFlare(p);
         return fireNow;
       }
-      // Una carga por pulsacion; el disparo del mando no usa el gesto especial.
+      // V22.33: cohete, bengalas y onda del joystick siguen siendo acciones
+      // independientes tambien contra CPU. Cada pulsacion fiable se consume una vez.
+      if(c&&c.flarePulse)this.deployFlares(p);
+      if(c&&c.shockPulse)this.deployShockwave(p);
+      // Compatibilidad con el camino sostenido/legacy.
       const flare=!!(c&&c.flare),shock=!!(c&&c.shock);
       if(flare&&!p.joystickFlareHeld)this.deployFlares(p);
       if(shock&&!p.joystickShockHeld)this.deployShockwave(p);
@@ -2360,7 +2380,7 @@
         // salir desviada. Ahora solo dispara si el morro final apunta de verdad
         // a un rival visible dentro del alcance.
         const rocketHeld=!!(c&&c.rocket);
-        const rocketNow=!p.cpu&&rocketHeld&&!p.joystickRocketHeld;
+        const rocketNow=!p.cpu&&(!!(c&&c.rocketPulse)||(rocketHeld&&!p.joystickRocketHeld));
         p.joystickRocketHeld=rocketHeld;
         let fireNow=this.resolveFireWithFlare(p,c,dt);
         if(p.cpu&&fireNow){
@@ -2386,6 +2406,7 @@
           this.bullets.push(projectile);
           this.emit({t:'sound',kind:'laser'});
         }
+        if(c&&!p.cpu){c.rocketPulse=false;c.flarePulse=false;c.shockPulse=false;}
       }
       this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updateExtraUfoProjectileHits();this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
     }
