@@ -180,13 +180,13 @@
       return this.testProfile;
     }
     hardMode(){return this.testProfile==='hard';}
-    asteroidMaxActive(){return this.hardMode()?9:ASTEROID_MAX_ACTIVE;}
+    asteroidMaxActive(){return ASTEROID_MAX_ACTIVE;}
     applyHardLoadout(p,respawn=false){
       if(!p||!this.hardMode())return false;
+      // V22.38: HARD online modifica solo armamento.
       p.bullets=500;
-      p.cadence=1;
-      p.speed=2;
       p.guidedAmmo=500;
+      p.flare=100;
       p.guided=true;
       p.guidedTarget=-1;
       p.reload=respawn?this.reloadTime(p):0;
@@ -194,16 +194,6 @@
     }
     hazardStage(){
       const t=Math.max(0,Number(this.hazardCycleAge)||0);
-      if(this.hardMode()){
-        if(t<60)return {asteroids:5,shower:false,giant:true,ufo:false,rest:false};
-        if(t<120)return {asteroids:6,shower:false,giant:true,ufo:false,rest:false};
-        if(t<165)return {asteroids:7,shower:false,giant:true,ufo:false,rest:false};
-        if(t<195)return {asteroids:6,shower:false,giant:true,ufo:false,rest:true};
-        if(t<240)return {asteroids:7,shower:false,giant:true,ufo:false,rest:false};
-        if(t<285)return {asteroids:8,shower:true,giant:true,ufo:true,rest:false};
-        if(t<315)return {asteroids:7,shower:false,giant:true,ufo:false,rest:true};
-        return {asteroids:9,shower:true,giant:true,ufo:true,rest:false};
-      }
       // Fases con descansos intermedios. El tope estándar sigue siendo 5 asteroides.
       if(t<60)return {asteroids:1,shower:false,giant:false,ufo:false,rest:false};
       if(t<120)return {asteroids:2,shower:false,giant:false,ufo:false,rest:false};
@@ -218,9 +208,9 @@
       const stage=this.hazardStage();
       return{
         asteroidMin:stage.asteroids,
-        asteroidInitialMin:this.hardMode()?.8:12,asteroidInitialMax:this.hardMode()?1.8:18,
-        asteroidRespawnMin:this.hardMode()?1:5,asteroidRespawnMax:this.hardMode()?2.4:11,
-        asteroidPopulationMin:this.hardMode()?10:18,asteroidPopulationMax:this.hardMode()?18:30,
+        asteroidInitialMin:12,asteroidInitialMax:18,
+        asteroidRespawnMin:5,asteroidRespawnMax:11,
+        asteroidPopulationMin:18,asteroidPopulationMax:30,
         firstShowerMin:18,firstShowerMax:28,
         showerRepeatMin:55,showerRepeatMax:85,
         showerDuration:stage.rest?0:7,
@@ -260,7 +250,7 @@
       }
       if(stage.shower&&this.firstShower>900000&&this.nextShower<=0)this.firstShower=rand(18,28);
       if(!stage.shower){this.firstShower=999999;this.nextShower=0;this.showerLeft=0;this.meteors=[];}
-      if(stage.giant&&this.nextGiant>900000&&!this.giant)this.nextGiant=this.hardMode()?rand(6,12):rand(12,24);
+      if(stage.giant&&this.nextGiant>900000&&!this.giant)this.nextGiant=rand(12,24);
       // V21.93: al terminar una fase con gigante no borramos el que ya esta
       // cruzando la pantalla. Solo bloqueamos nuevas apariciones.
       if(!stage.giant)this.nextGiant=999999;
@@ -281,8 +271,8 @@
     spawnAsteroidFromEdge(templateIndex,fullyRandom=false){
       const idx=clamp(Math.round(Number(templateIndex)||0),0,ASTEROID_STARTS.length-1);
       let [targetX,targetY,rot,type]=ASTEROID_STARTS[idx];
-      const radius=this.hardMode()?(Math.random()<.42?72:ASTEROID_RADIUS):ASTEROID_RADIUS;
-      const edge=Math.max(ASTEROID_RADIUS*2,radius*2);
+      const radius=ASTEROID_RADIUS;
+      const edge=ASTEROID_RADIUS*2;
       let start;
       if(fullyRandom){
         targetX=rand(W*.18,W*.82);
@@ -2083,7 +2073,7 @@
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
       if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){
         this.giant=null;
-        this.nextGiant=giantEnabled?(this.hardMode()?rand(35,55):rand(130,190)):999999;
+        this.nextGiant=giantEnabled?rand(130,190):999999;
       }
     }
     spawnUfo(){
