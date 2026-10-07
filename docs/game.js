@@ -2856,7 +2856,6 @@
     return true;
   }
   function sendInputAction(kind,actionId){
-    if(localCpuActive&&localCpu)return false;
     const action=String(kind||'');
     const id=Math.max(1,Number(actionId)||1);
     if(!['rocket','flare','shock'].includes(action))return false;
