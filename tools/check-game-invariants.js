@@ -175,22 +175,22 @@ if(!p2pEvent.includes('rec.reliableDc')||p2pEvent.includes('rec.fastDc'))fail(er
 const p2pAction=method(p2p,'sendAction');
 if(!p2pAction.includes('rec.reliableDc')||p2pAction.includes('rec.fastDc'))fail(errors,'P2P: acciones no usan exclusivamente el canal fiable');
 
-// V22.16: una sola fuente runtime de versión y cache-busting.
+// V22.20: build-version.js sigue siendo la versión canónica, pero index carga
+// scripts estáticos para evitar parser/document.write problemático en Safari iOS.
 const buildVersionMatch=build.match(/const VERSION='(V\d+\.\d+)';/);
 if(!buildVersionMatch)fail(errors,'version: build-version.js no define VERSION');
-if(!index.includes('<script src="build-version.js"></script>'))fail(errors,'version: index.html no carga build-version.js');
-if(!index.includes('window.GALAXY_BUILD.writeHeadAssets()'))fail(errors,'version: index no genera links desde GALAXY_BUILD');
-if(!index.includes('window.GALAXY_BUILD.loadRuntime()'))fail(errors,'version: index no carga runtime desde GALAXY_BUILD');
-if(/[?&]v=V\d+\.\d+/.test(index))fail(errors,'version: index.html vuelve a contener versiones hardcodeadas');
-if(/>V\d+\.\d+<\/div>/.test(index))fail(errors,'version: el testigo visual vuelve a estar hardcodeado');
+const buildVersion=buildVersionMatch?buildVersionMatch[1]:'';
+const indexVersions=[...index.matchAll(/[?&]v=(V\d+\.\d+)/g)].map(m=>m[1]);
+if(!indexVersions.length)fail(errors,'version: index no lleva cache-busting estático');
+if(indexVersions.some(v=>v!==buildVersion))fail(errors,'version: index y build-version.js están desincronizados');
+for(const script of ['build-version.js','config.js','menu-loader.js','menu-decor.js','i18n.js','campaign-config.js','manual.js','impactos.js','voz.js','auth.js','ranking.js','physics-core.js','local-cpu.js','host-physics.js','p2p-network.js','game.js','pwa.js']){
+  if(!index.includes(script+'?v='+buildVersion))fail(errors,'version: falta '+script+' sincronizado en index');
+}
+if(!index.includes("handheld?4000:15000"))fail(errors,'mobile loader: falta fallback independiente en index');
 if(!sw.includes("importScripts('./build-version.js');"))fail(errors,'version: sw.js no importa la fuente central');
 if(/const VERSION\s*=\s*['"]V\d+\.\d+/.test(sw))fail(errors,'version: sw.js vuelve a hardcodear VERSION');
 if(!game.includes("AUDIO_ASSET_VERSION=String(window.GALAXY_BUILD&&window.GALAXY_BUILD.version||'dev')"))fail(errors,'version: audio no usa GALAXY_BUILD');
-if(/AUDIO_ASSET_VERSION\s*=\s*['"]V\d+\.\d+/.test(game))fail(errors,'version: audio vuelve a hardcodear una versión');
-for(const script of ['config.js','menu-loader.js','menu-decor.js','i18n.js','campaign-config.js','manual.js','impactos.js','voz.js','auth.js','ranking.js','physics-core.js','local-cpu.js','host-physics.js','p2p-network.js','game.js','pwa.js']){
-  if(!build.includes("'"+script+"'"))fail(errors,'version: falta '+script+' en el cargador central');
-}
-if(!sw.includes("cache.match(request,{ignoreSearch:true})"))fail(errors,'PWA: falta fallback offline ignorando ?v= centralizado');
+if(!sw.includes("cache.match(request,{ignoreSearch:true})"))fail(errors,'PWA: falta fallback offline ignorando query de versión');
 
 if(!trainingPage.includes('<script src="build-version.js"></script>'))fail(errors,'training: cpu-training.html no usa build-version.js');
 if(!trainingPage.includes("build.versioned(src)"))fail(errors,'training: scripts del entrenamiento no usan la versión central');
@@ -203,9 +203,12 @@ if(!trainingPage.includes("window.GalaxyLocalCpu"))fail(errors,'training: falta 
 
 if(!menuLoader.includes('decodeWithTimeout'))fail(errors,'mobile loader: falta timeout seguro para Image.decode');
 if(!menuLoader.includes('watchdogTimer'))fail(errors,'mobile loader: falta watchdog anti-bloqueo');
-if(!menuLoader.includes('isMobile?12000:18000'))fail(errors,'mobile loader: falta watchdog específico para móvil');
+if(!menuLoader.includes('isMobile?6000:18000'))fail(errors,'mobile loader: falta watchdog específico para móvil');
+if(!menuLoader.includes('},2500):0;'))fail(errors,'mobile loader: falta liberación rápida en móvil');
+if(!menuLoader.includes('if(isMobile)done();else decodeWithTimeout'))fail(errors,'mobile loader: iOS vuelve a esperar Image.decode');
 if(!game.includes('function decodeImageSafely'))fail(errors,'mobile loader: game.js no blinda Image.decode');
 if(!game.includes("reportImageFailure(im,'load timeout')"))fail(errors,'mobile loader: game.js no limita la espera de imágenes');
+if(!read('docs/pwa.js').includes("window.GALAXY_BUILD.versioned('./sw.js')"))fail(errors,'PWA: Service Worker no usa URL versionada');
 
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');

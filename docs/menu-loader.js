@@ -29,12 +29,20 @@
     done=Math.max(done,total);
     if(labelEl)labelEl.textContent='INICIANDO...';
     finishIfReady();
-  },isMobile?12000:18000);
+  },isMobile?6000:18000);
+  const mobileReleaseTimer=isMobile?window.setTimeout(()=>{
+    if(finished)return;
+    registrationComplete=true;
+    done=Math.max(done,total);
+    if(labelEl)labelEl.textContent='INICIANDO...';
+    finishIfReady();
+  },2500):0;
   function finishIfReady(){
     if(finished||!registrationComplete||done<total)return;
     finished=true;
     window.clearTimeout(slowTimer);
     window.clearTimeout(watchdogTimer);
+    if(mobileReleaseTimer)window.clearTimeout(mobileReleaseTimer);
     updateProgress();
     loader.classList.add('is-ready');
     window.setTimeout(()=>{
@@ -77,7 +85,7 @@
       let settled=false;
       const done=()=>{if(settled)return;settled=true;window.clearTimeout(loadTimer);resolve();};
       const loadTimer=window.setTimeout(done,isMobile?8000:12000);
-      im.onload=()=>{decodeWithTimeout(im,isMobile?1200:2500).then(done,done);};
+      im.onload=()=>{if(isMobile)done();else decodeWithTimeout(im,2500).then(done,done);};
       im.onerror=done;
       im.src=src;
     }));

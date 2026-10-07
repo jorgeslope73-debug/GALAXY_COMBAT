@@ -116,9 +116,10 @@
   }
 
   window.addEventListener('load', () => {
-    // URL estable + updateViaCache:none: el navegador compara siempre el
-    // contenido real de sw.js. Asi no hay que mantener aqui una version manual.
-    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+    const swUrl=(window.GALAXY_BUILD&&typeof window.GALAXY_BUILD.versioned==='function')
+      ?window.GALAXY_BUILD.versioned('./sw.js')
+      :'./sw.js?v=V22.20';
+    navigator.serviceWorker.register(swUrl,{updateViaCache:'none',scope:'./'})
       .then(async reg=>{
         try{await reg.update();}catch(_){}
       })

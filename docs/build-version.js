@@ -2,7 +2,7 @@
 (() => {
   // ÚNICA fuente runtime de versión de GALAXY COMBAT.
   // En futuras versiones solo debe cambiar esta línea.
-  const VERSION='V22.19';
+  const VERSION='V22.20';
   const root=typeof self!=='undefined'?self:globalThis;
   const versioned=src=>src+(src.includes('?')?'&':'?')+'v='+encodeURIComponent(VERSION);
 
@@ -74,4 +74,14 @@
     writeHeadAssets,
     loadRuntime
   });
+
+  // El testigo visual no depende ya de loadRuntime().
+  if(typeof document!=='undefined'){
+    const applyBadge=()=>{
+      const badge=document.getElementById('buildVersion');
+      if(badge)badge.textContent=VERSION;
+    };
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',applyBadge,{once:true});
+    else applyBadge();
+  }
 })();
