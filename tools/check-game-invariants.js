@@ -279,6 +279,13 @@ if(!game.includes("window.GalaxyJoystickEnabled=()=>!!joystickEnabled;"))fail(er
 if(voiceCss.includes("html.handheld-device #menu #enableJoystick{display:none!important}"))fail(errors,'V22.40: CSS vuelve a ocultar JOYSTICK en movil');
 if(voiceCss.includes("@media (pointer:coarse){#menu #configureJoystick{display:none!important}}"))fail(errors,'V22.40: CSS vuelve a ocultar CONFIGURAR en movil');
 if(!voiceCss.includes("html.handheld-device #menu #enableJoystick{display:inline-flex!important}"))fail(errors,'V22.40: falta visibilidad explicita de JOYSTICK en iPhone/iPad');
+if(!game.includes("{field:'ptt',text:'voice'}"))fail(errors,'V22.41: MICRO/VOZ no aparece como accion asignable del mando');
+if(!game.includes("const JOYSTICK_CONFIG_TOTAL=JOYSTICK_CONFIG_STEPS.length+1"))fail(errors,'V22.41: configurador no calcula sus 7 pasos');
+if(!game.includes("mobileControls.classList.toggle('joystick-mode',isMobile&&joystickEnabled)"))fail(errors,'V22.41: movil no oculta controles tactiles con JOYSTICK');
+if(!game.includes("mobileGuideMain.classList.toggle('hidden',joystickEnabled)"))fail(errors,'V22.41: movil no oculta aviso de controles con JOYSTICK');
+if(!game.includes("window.GalaxyJoystickVoiceLabel=()=>joystickButtonLabel(joystickMap.ptt)"))fail(errors,'V22.41: UI de voz no conoce boton asignado');
+if(!voice.includes("this.enabled&&!joystickActive"))fail(errors,'V22.41: boton MICRO tactil no se oculta con JOYSTICK');
+if(!style.includes("#mobileControls.joystick-mode{display:none!important}"))fail(errors,'V22.41: falta regla visual para ocultar controles tactiles');
 if(!local.includes("if(c&&c.flarePulse)this.deployFlares(p)"))fail(errors,'input action: local CPU no consume pulso fiable de bengalas');
 if(!local.includes("if(c&&c.shockPulse)this.deployShockwave(p)"))fail(errors,'input action: local CPU no consume pulso fiable de onda');
 if(!local.includes("!!(c&&c.rocketPulse)||(rocketHeld&&!p.joystickRocketHeld)"))fail(errors,'input action: local CPU no consume pulso fiable de cohete');
@@ -320,7 +327,7 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.40'"))fail(errors,'V22.40: testigo de version no actualizado');
+if(!build.includes("const VERSION='V22.41'"))fail(errors,'V22.41: testigo de version no actualizado');
 if(host.includes('cpu.bullets+=4')||local.includes('cpu.bullets+=4'))fail(errors,'V22.31: A POR EL vuelve a regalar balas a las CPU');
 if(!host.includes("cpuAmmo:false,cpuAmmoBonus:0")||!local.includes("cpuAmmo:false,cpuAmmoBonus:0"))fail(errors,'V22.31: A POR EL debe anunciarse sin bonus de municion');
 
