@@ -3925,8 +3925,10 @@
     if(box)box.classList.add('hidden');
     const restartBtn=document.getElementById('restartMatch');
     const backBtn=document.getElementById('back');
+    const continueBtn=document.getElementById('seriesChampionContinue');
     if(restartBtn)restartBtn.classList.remove('hidden');
     if(backBtn)backBtn.classList.remove('hidden');
+    if(continueBtn){continueBtn.classList.add('hidden');continueBtn.disabled=false;continueBtn.textContent='CONTINUAR';}
     victory.classList.remove('series-champion-mode');
   }
   function showOnlineSeriesChampion(index){
@@ -3940,6 +3942,7 @@
     const champShip=document.getElementById('seriesChampionShip');
     const restartBtn=document.getElementById('restartMatch');
     const backBtn=document.getElementById('back');
+    const continueBtn=document.getElementById('seriesChampionContinue');
     if(victoryText)victoryText.textContent='CAMPEON DE LA SERIE';
     if(champName){
       champName.textContent=winner?sinTildes(winner.n):('JUGADOR '+(Number(index)+1));
@@ -3950,6 +3953,7 @@
       champShip.alt=winner?sinTildes(winner.n):'Nave ganadora';
     }
     if(champ)champ.classList.remove('hidden');
+    if(continueBtn){continueBtn.classList.remove('hidden');continueBtn.disabled=false;continueBtn.textContent='CONTINUAR';}
     if(restartBtn)restartBtn.classList.add('hidden');
     if(backBtn)backBtn.classList.add('hidden');
     victory.style.setProperty('--winner-color',playerColors[Number(index)]||'#d8a7ff');
@@ -4248,6 +4252,17 @@
       e.stopPropagation();
     });
   }
+  const seriesChampionContinueBtn=document.getElementById('seriesChampionContinue');
+  if(seriesChampionContinueBtn)seriesChampionContinueBtn.addEventListener('click',()=>{
+    if(roomCode==='LOCAL'||!onlineSeriesComplete)return;
+    seriesChampionContinueBtn.disabled=true;
+    seriesChampionContinueBtn.textContent='VOLVIENDO A SALA...';
+    const ok=send({t:'series-continue'});
+    if(!ok){
+      seriesChampionContinueBtn.disabled=false;
+      seriesChampionContinueBtn.textContent='CONTINUAR';
+    }
+  });
   const restartMatchBtn=document.getElementById('restartMatch');
   if(restartMatchBtn)restartMatchBtn.addEventListener('click',async()=>{
     restartMatchBtn.disabled=true;
