@@ -226,7 +226,7 @@ if(!index.includes('id="seriesChampion"'))fail(errors,'series: falta markup de c
 if(!index.includes('id="seriesRoundMini"'))fail(errors,'series: falta contador de ronda durante partida');
 if(!style.includes('.series-champion-cup'))fail(errors,'series: falta copa grande en CSS');
 if(!style.includes('#victory .series-champion-ship{\n  width:50px;\n  height:50px;'))fail(errors,'series: la nave campeona no mantiene 50x50 px');
-if(!server.includes('scheduleSeriesLobby(r,wss,7000)'))fail(errors,'series: la pantalla de campeon no dura 7 segundos');
+if(!server.includes('scheduleSeriesLobby(r,wss,30000)'))fail(errors,'series: falta retorno automático de seguridad tras CONTINUAR');
 if(!server.includes('lastSeriesChampionToken'))fail(errors,'series: el servidor no conserva la identidad del campeon anterior');
 if(!server.includes('champion:!!(r.lastSeriesChampionToken'))fail(errors,'series: roster humano no marca al campeon');
 if(!server.includes('lastSeriesChampionCpu'))fail(errors,'series: roster CPU no conserva campeon');
