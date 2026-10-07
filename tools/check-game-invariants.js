@@ -271,6 +271,10 @@ if(!local.includes('applyInputAction(kind,actionId)'))fail(errors,'input action:
 if(!game.includes("queueInputAction(kind)"))fail(errors,'input action: cliente no genera actionId');
 if(!game.includes("localCpu.applyInputAction(action,id)"))fail(errors,'input action: cliente no entrega acciones fiables a la fisica local');
 if(game.includes("function sendInputAction(kind,actionId){\n    if(localCpuActive&&localCpu)return false;"))fail(errors,'V22.36: un return temprano vuelve a bloquear cohete/bengala/onda contra CPU');
+if(game.includes("if(isMobile||!joystickEnabled||!joystickConfigDialog)return;"))fail(errors,'V22.39: configurador de joystick vuelve a bloquear movil');
+if(game.includes("if(isMobile)return {active:false,turn:0,thrust:false,fire:false,rocket:false,flare:false,shock:false,ptt:false};"))fail(errors,'V22.39: lectura de joystick vuelve a bloquear movil');
+if(game.includes("if(isMobile)return;\n    joystickEnabled=!joystickEnabled;"))fail(errors,'V22.39: boton JOYSTICK vuelve a bloquear movil');
+if(!game.includes("window.GalaxyJoystickEnabled=()=>!!joystickEnabled;"))fail(errors,'V22.39: estado global del joystick no incluye movil');
 if(!local.includes("if(c&&c.flarePulse)this.deployFlares(p)"))fail(errors,'input action: local CPU no consume pulso fiable de bengalas');
 if(!local.includes("if(c&&c.shockPulse)this.deployShockwave(p)"))fail(errors,'input action: local CPU no consume pulso fiable de onda');
 if(!local.includes("!!(c&&c.rocketPulse)||(rocketHeld&&!p.joystickRocketHeld)"))fail(errors,'input action: local CPU no consume pulso fiable de cohete');
@@ -312,7 +316,7 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.38'"))fail(errors,'V22.38: testigo de version no actualizado');
+if(!build.includes("const VERSION='V22.39'"))fail(errors,'V22.39: testigo de version no actualizado');
 if(host.includes('cpu.bullets+=4')||local.includes('cpu.bullets+=4'))fail(errors,'V22.31: A POR EL vuelve a regalar balas a las CPU');
 if(!host.includes("cpuAmmo:false,cpuAmmoBonus:0")||!local.includes("cpuAmmo:false,cpuAmmoBonus:0"))fail(errors,'V22.31: A POR EL debe anunciarse sin bonus de municion');
 
