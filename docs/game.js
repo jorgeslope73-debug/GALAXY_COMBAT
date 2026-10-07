@@ -2860,6 +2860,12 @@
     const action=String(kind||'');
     const id=Math.max(1,Number(actionId)||1);
     if(!['rocket','flare','shock'].includes(action))return false;
+    // V22.33: en partida local contra CPU las acciones fiables no pasan por P2P/WS.
+    // Se entregan directamente a la fisica local para conservar botones separados.
+    if(localCpuActive&&localCpu){
+      if(typeof localCpu.applyInputAction==='function')return localCpu.applyInputAction(action,id);
+      return false;
+    }
     if(inGame&&p2p){
       const now=performance.now();
       if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
