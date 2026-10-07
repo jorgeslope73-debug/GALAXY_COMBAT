@@ -62,8 +62,9 @@ for(const [label,src] of [['local',local],['online',host]]){
 
   const update=method(src,'update');
   if(update){
-    if(!update.includes('p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1)'))fail(errors,label+': disparar misil no descuenta guidedAmmo');
-    if(!update.includes('p.bullets=Math.max(0,(Number(p.bullets)||0)-1)'))fail(errors,label+': disparar bala no descuenta bullets por separado');
+    if(!update.includes('PHYSICS_CORE.refreshGuidedState'))fail(errors,label+': el estado guided/guidedTarget ya no se refresca desde physics-core');
+    if(!update.includes('PHYSICS_CORE.tryFireProjectile'))fail(errors,label+': la creacion/consumo de proyectiles ya no delega en physics-core');
+    if(update.includes('this.bullets.push({id:uid(),owner:p.index'))fail(errors,label+': ha vuelto la creacion inline de proyectiles');
   }
 
   const pickup=method(src,'updatePickups');
@@ -82,6 +83,14 @@ if(!core.includes('const TARGET_MIN_ALIGN=.8660254038'))fail(errors,'core: falta
 if(!core.includes('if(align<minAlign)continue;'))fail(errors,'core: la adquisicion puede aceptar objetivos fuera del cono');
 if(!core.includes('resolveAsteroidPairCollision'))fail(errors,'core: falta resolver colision asteroide-asteroide');
 if(!core.includes('resolveGiantAsteroidCollision'))fail(errors,'core: falta resolver colision gigante-asteroide');
+if(!core.includes('function reloadTimeFor'))fail(errors,'core: falta la cadencia compartida de disparo');
+if(!core.includes('function bulletSpeedFor'))fail(errors,'core: falta la velocidad compartida de bala');
+if(!core.includes('function guidedProjectileSpeedFor'))fail(errors,'core: falta la velocidad compartida de misil');
+if(!core.includes('function refreshGuidedState'))fail(errors,'core: falta refrescar guided/guidedTarget de forma compartida');
+if(!core.includes('function tryFireProjectile'))fail(errors,'core: falta la creacion compartida de proyectiles');
+if(!core.includes('p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1)'))fail(errors,'core: el misil no consume guidedAmmo en el nucleo compartido');
+if(!core.includes('p.bullets=Math.max(0,(Number(p.bullets)||0)-1)'))fail(errors,'core: la bala no consume bullets en el nucleo compartido');
+if(!core.includes('p.reload=reloadTimeFor(p)'))fail(errors,'core: bala y misil ya no comparten la misma cadencia');
 if(!core.includes('function asteroidMissileFracture'))fail(errors,'core: falta la fragmentacion compartida por misil');
 if(!core.includes('type:Number(asteroid.type)||1'))fail(errors,'core: los fragmentos no conservan la textura original');
 if(!core.includes('fragment:true'))fail(errors,'core: los fragmentos no quedan marcados como temporales');

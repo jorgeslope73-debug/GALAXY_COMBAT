@@ -1,4 +1,4 @@
-const VERSION = 'V22.05-ios-audio-session';
+const VERSION = 'V22.06-shared-fire';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);

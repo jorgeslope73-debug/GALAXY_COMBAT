@@ -92,6 +92,66 @@
     return bestIndex;
   }
 
+
+  function reloadTimeFor(p){
+    const cadence=Number(p&&p.cadence)||30;
+    return Math.max(.5,cadence/8)*.5;
+  }
+
+  function bulletSpeedFor(p){
+    const cadence=Number(p&&p.cadence)||30;
+    return cadence>=30?500:(cadence>=20?750:(cadence>=10?900:1000));
+  }
+
+  function guidedProjectileSpeedFor(p){
+    const cadence=Number(p&&p.cadence)||30;
+    return cadence>=30?400:(cadence>=20?460:(cadence>=10?520:580));
+  }
+
+  function refreshGuidedState(p,players,dirFromRot){
+    if(!p)return -1;
+    p.guided=Number(p.guidedAmmo)>0;
+    p.guidedTarget=p.guided?guidedTargetFor(p,players,dirFromRot):-1;
+    return p.guidedTarget;
+  }
+
+  function tryFireProjectile(p,d,fireNow,rocketNow,directFire,cpuBlocked,players,dirFromRot,uid,cpuFireDelaySeconds=0){
+    if(!p||!d)return null;
+
+    const rocketReady=!!rocketNow&&Number(p.guidedAmmo)>0;
+    const guided=rocketReady?true:(directFire?false:!!p.guided);
+    const hasAmmo=guided?Number(p.guidedAmmo)>0:Number(p.bullets)>0;
+
+    // Mantener exactamente la misma puerta de disparo en local y online:
+    // accion valida, municion de su reserva, recarga terminada y CPU armada.
+    if((!fireNow&&!rocketReady)||!hasAmmo||!(Number(p.reload)<=0)||cpuBlocked)return null;
+
+    const projectileSpeed=guided?guidedProjectileSpeedFor(p):bulletSpeedFor(p);
+    const makeId=typeof uid==='function'?uid:(()=>Math.floor(Math.random()*1e9));
+    const projectile={
+      id:makeId(),owner:p.index,
+      x:p.x+d.x*35,y:p.y+d.y*35,
+      vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,
+      age:0,travel:0,guided,
+      target:guided?p.guidedTarget:-1,
+      flareTarget:-1,decoyed:false,
+      baseSpeed:projectileSpeed
+    };
+
+    // V22.06: balas y misiles consumen siempre su contador independiente.
+    if(guided){
+      p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1);
+      refreshGuidedState(p,players,dirFromRot);
+    }else{
+      p.bullets=Math.max(0,(Number(p.bullets)||0)-1);
+    }
+
+    // Una sola cadencia comun para ambos tipos de proyectil.
+    p.reload=reloadTimeFor(p);
+    if(p.cpu)p.cpuFireDelay=Number(cpuFireDelaySeconds)||0;
+    return projectile;
+  }
+
   function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
     if(!asteroid)return null;
     const defaultRadius=Number(opts.defaultRadius)||45;
@@ -145,6 +205,11 @@
     resolveAsteroidPairCollision,
     resolveGiantAsteroidCollision,
     guidedTargetFor,
+    reloadTimeFor,
+    bulletSpeedFor,
+    guidedProjectileSpeedFor,
+    refreshGuidedState,
+    tryFireProjectile,
     asteroidMissileFracture
   });
 })();

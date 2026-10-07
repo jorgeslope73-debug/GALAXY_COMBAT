@@ -13,6 +13,7 @@ const SHARED_METHODS=[
   // partida local y host online. IA, aprendizaje, campaña, ranking, respawn,
   // onda y hazards con progresión quedan fuera porque tienen diferencias
   // intencionadas entre ambos motores.
+  'reloadTime',
   'bulletSpeed',
   'resolveAsteroidPairCollision',
   'resolveGiantAsteroidCollision',

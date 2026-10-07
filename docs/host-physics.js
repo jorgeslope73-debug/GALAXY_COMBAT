@@ -1444,43 +1444,25 @@
         const vmax=330*p.speed,sp=Math.hypot(p.vx,p.vy);
         if(sp>vmax){p.vx=p.vx/sp*vmax;p.vy=p.vy/sp*vmax;}
         p.x=(p.x+p.vx*dt+W)%W;p.y=(p.y+p.vy*dt+H)%H;
-        p.guided=Number(p.guidedAmmo)>0;
-        p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;
+        PHYSICS_CORE.refreshGuidedState(p,this.players,dirFromRot);
         const rocketHeld=!!(c&&c.rocket);
         const rocketNow=!p.cpu&&rocketHeld&&!p.joystickRocketHeld;
         p.joystickRocketHeld=rocketHeld;
         const fireNow=this.resolveFireWithFlare(p,c,dt);
-        const rocketReady=rocketNow&&Number(p.guidedAmmo)>0;
-        const guided=rocketReady?true:((c&&c.directFire)?false:!!p.guided);
-        const hasAmmo=guided?Number(p.guidedAmmo)>0:Number(p.bullets)>0;
-        if((fireNow||rocketReady)&&hasAmmo&&p.reload<=0&&(!p.cpu||(Number(p.cpuFireDelay)||0)<=0)){
-          // V21.85: balas y misiles son reservas independientes.
-          // Ambos usan este mismo reload, por tanto comparten la misma cadencia.
-          const guidedTarget=guided?p.guidedTarget:-1;
-          const cadence=Number(p.cadence)||30;
-          const guidedSpeed=cadence>=30?400:(cadence>=20?460:(cadence>=10?520:580));
-          const projectileSpeed=guided?guidedSpeed:this.bulletSpeed(p);
-          this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*projectileSpeed,vy:d.y*projectileSpeed,age:0,travel:0,guided,target:guidedTarget,flareTarget:-1,decoyed:false,baseSpeed:guided?guidedSpeed:projectileSpeed});
-          if(guided){
-            p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1);
-            p.guided=p.guidedAmmo>0;
-            p.guidedTarget=p.guided?this.guidedTargetFor(p):-1;
-          }else{
-            p.bullets=Math.max(0,(Number(p.bullets)||0)-1);
-          }
-          p.reload=this.reloadTime(p);
-          if(p.cpu)p.cpuFireDelay=CPU_ARMED_WARNING_SECONDS;
+        const projectile=PHYSICS_CORE.tryFireProjectile(
+          p,d,fireNow,rocketNow,!!(c&&c.directFire),
+          !!(p.cpu&&(Number(p.cpuFireDelay)||0)>0),
+          this.players,dirFromRot,uid,CPU_ARMED_WARNING_SECONDS
+        );
+        if(projectile){
+          this.bullets.push(projectile);
           this.emit({t:'sound',kind:'laser'});
         }
       }
       this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
     }
-    reloadTime(p){
-      // V20.15: la recarga global usa la misma espera reducida que antes
-      // tenia solo el modo FACIL. No altera la velocidad del proyectil.
-      return Math.max(.5,p.cadence/8)*.5;
-    }
-    bulletSpeed(p){return p.cadence>=30?500:p.cadence>=20?750:p.cadence>=10?900:1000;}
+    reloadTime(p){return PHYSICS_CORE.reloadTimeFor(p);}
+    bulletSpeed(p){return PHYSICS_CORE.bulletSpeedFor(p);}
     updateAsteroids(){
       this.updateAsteroidPopulation();
       for(let i=this.asteroids.length-1;i>=0;i--){
