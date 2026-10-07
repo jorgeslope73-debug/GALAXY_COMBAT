@@ -2533,14 +2533,19 @@
             remove=true;
           }
         }
-        if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){
-          if(b.guided){
-            this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-            this.emit({t:'sound',kind:'sparkle'});
-          }else{
-            this.emit({t:'sound',kind:'impact'});
+        if(!remove){
+          const giantHit=PHYSICS_CORE.projectileGiantHit(
+            b,this.giant,sweptCircles,BULLET_RADIUS,GIANT_RADIUS
+          );
+          if(giantHit){
+            if(giantHit.guided){
+              this.emitRocketDisintegrateAt(giantHit.impactX,giantHit.impactY,giantHit.owner);
+              this.emit({t:'sound',kind:'sparkle'});
+            }else{
+              this.emit({t:'sound',kind:'impact'});
+            }
+            remove=true;
           }
-          remove=true;
         }
         if(!remove)for(let m=this.meteors.length-1;m>=0;m--){
           const meteor=this.meteors[m];

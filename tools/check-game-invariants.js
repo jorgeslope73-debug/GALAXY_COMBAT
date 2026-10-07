@@ -52,6 +52,9 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(!bullets.includes('PHYSICS_CORE.projectileAsteroidHit'))fail(errors,label+': colision proyectil-asteroide ya no delega en physics-core');
   if(bullets.includes('for(let aIndex=this.asteroids.length-1'))fail(errors,label+': ha vuelto la deteccion inline proyectil-asteroide');
   if(!bullets.includes('asteroidHit.impactX')||!bullets.includes('asteroidHit.impactY'))fail(errors,label+': misil contra asteroide pierde el punto real de impacto');
+  if(!bullets.includes('PHYSICS_CORE.projectileGiantHit'))fail(errors,label+': colision proyectil-gigante ya no delega en physics-core');
+  if(bullets.includes('sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)'))fail(errors,label+': ha vuelto la deteccion inline proyectil-gigante');
+  if(!bullets.includes('giantHit.impactX')||!bullets.includes('giantHit.impactY'))fail(errors,label+': impacto contra gigante pierde el punto real');
   if(bullets.includes('splitGiantMeteor'))fail(errors,label+': el meteorito gigante vuelve a fragmentarse por misil');
 
   const split=method(src,'splitAsteroidByMissile');
@@ -94,6 +97,8 @@ if(!core.includes('p.guidedAmmo=Math.max(0,(Number(p.guidedAmmo)||0)-1)'))fail(e
 if(!core.includes('p.bullets=Math.max(0,(Number(p.bullets)||0)-1)'))fail(errors,'core: la bala no consume bullets en el nucleo compartido');
 if(!core.includes('p.reload=reloadTimeFor(p)'))fail(errors,'core: bala y misil ya no comparten la misma cadencia');
 if(!core.includes('function projectileAsteroidHit'))fail(errors,'core: falta la colision compartida proyectil-asteroide');
+if(!core.includes('function projectileGiantHit'))fail(errors,'core: falta la colision compartida proyectil-gigante');
+if(!core.includes('guided:!!projectile.guided'))fail(errors,'core: la colision con gigante no conserva el tipo de proyectil');
 if(!core.includes('fracture:!!projectile.guided'))fail(errors,'core: misil contra asteroide ya no activa fragmentacion');
 if(!core.includes('impactX:Number(projectile.x)||0'))fail(errors,'core: falta conservar X real del impacto contra asteroide');
 if(!core.includes('impactY:Number(projectile.y)||0'))fail(errors,'core: falta conservar Y real del impacto contra asteroide');

@@ -172,6 +172,19 @@
     return null;
   }
 
+
+  function projectileGiantHit(projectile,giant,sweptCircles,projectileRadius=4,giantRadius=135){
+    if(!projectile||!giant||typeof sweptCircles!=='function')return null;
+    if(!sweptCircles(projectile,projectileRadius,giant,giantRadius,false))return null;
+    return {
+      giant,
+      guided:!!projectile.guided,
+      owner:Number(projectile.owner),
+      impactX:Number(projectile.x)||0,
+      impactY:Number(projectile.y)||0
+    };
+  }
+
   function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
     if(!asteroid)return null;
     const defaultRadius=Number(opts.defaultRadius)||45;
@@ -231,6 +244,7 @@
     refreshGuidedState,
     tryFireProjectile,
     projectileAsteroidHit,
+    projectileGiantHit,
     asteroidMissileFracture
   });
 })();
