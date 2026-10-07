@@ -232,6 +232,12 @@ if(!server.includes('champion:!!(r.lastSeriesChampionToken'))fail(errors,'series
 if(!server.includes('lastSeriesChampionCpu'))fail(errors,'series: roster CPU no conserva campeon');
 if(!game.includes("p.champion?' · 🏆':''"))fail(errors,'series: la sala no muestra la copa del campeon');
 if(!server.includes("r.lastSeriesChampionToken=''"))fail(errors,'series: la copa no se limpia al iniciar una nueva serie');
+if(!server.includes("m.t==='series-continue'"))fail(errors,'series: servidor no acepta CONTINUAR');
+if(!server.includes('finishSeriesToLobby(r,wss)'))fail(errors,'series: CONTINUAR no vuelve a la sala');
+if(!index.includes('id="seriesChampionContinue"'))fail(errors,'series: falta botón CONTINUAR en la ventana del campeón');
+if(!game.includes("send({t:'series-continue'})"))fail(errors,'series: botón CONTINUAR no envía la acción');
+if(!game.includes("continueBtn.textContent='CONTINUAR'"))fail(errors,'series: falta estado visual de CONTINUAR');
+if(!style.includes('.series-champion-continue'))fail(errors,'series: falta estilo del botón CONTINUAR');
 
 if(!server.includes('function currentHost(r)'))fail(errors,'host migration: falta resolver host actual');
 if(!server.includes('function promoteHost(r,wss'))fail(errors,'host migration: falta promocion automatica');
