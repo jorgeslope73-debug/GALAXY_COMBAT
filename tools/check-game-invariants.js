@@ -277,19 +277,23 @@ if(!local.includes("!!(c&&c.rocketPulse)||(rocketHeld&&!p.joystickRocketHeld)"))
 if(!server.includes("m.t==='fallback-input-action'"))fail(errors,'input action: fallback WS no reenvia acciones fiables');
 if(!core.includes('bounceBodyFromFlare'))fail(errors,'V22.34: falta fisica comun de rebote de bengalas');
 if(!local.includes("this.trainingTestProfile='standard'"))fail(errors,'V22.35: STANDARD no es el perfil privado por defecto');
-if(!local.includes("p.bullets=500"))fail(errors,'V22.35: HARD no carga 500 balas');
-if(!local.includes("p.guidedAmmo=500"))fail(errors,'V22.35: HARD no carga 500 misiles');
-if(!local.includes("p.cadence=1"))fail(errors,'V22.35: HARD no usa cadencia maxima');
-if(!local.includes("p.speed=2"))fail(errors,'V22.35: HARD no usa velocidad maxima');
-if(!local.includes("return this.trainingHardMode()?9:ASTEROID_MAX_ACTIVE"))fail(errors,'V22.35: HARD no aumenta asteroides');
+if(!local.includes("p.bullets=500"))fail(errors,'V22.38: HARD local no carga 500 balas');
+if(!local.includes("p.guidedAmmo=500"))fail(errors,'V22.38: HARD local no carga 500 misiles');
+if(!local.includes("p.flare=100"))fail(errors,'V22.38: HARD local no carga 100 bengalas');
+if(local.includes("p.cadence=1"))fail(errors,'V22.38: HARD local vuelve a alterar cadencia');
+if(local.includes("p.speed=2"))fail(errors,'V22.38: HARD local vuelve a alterar velocidad');
+if(!local.includes("return ASTEROID_MAX_ACTIVE"))fail(errors,'V22.38: HARD local debe conservar densidad estándar');
 const training=read('docs/cpu-training.html');
 if(!training.includes('id="trainingProfileStandard"')||!training.includes('id="trainingProfileHard"'))fail(errors,'V22.35: faltan botones STANDARD/HARD en entrenamiento privado');
 if(!training.includes("TRAINING_TEST_PROFILE_STORAGE='galaxyCpuTestProfileV1'"))fail(errors,'V22.37: HARD no persiste desde entrenamiento');
 if(!game.includes("localCpu.setTrainingTestProfile(privateTestProfile())"))fail(errors,'V22.37: CONTRA LA MAQUINA no carga HARD privado');
 if(!game.includes("hostPhysics.setTestProfile(onlineTestProfile)"))fail(errors,'V22.37: host online no carga HARD privado');
 if(!host.includes("testProfile:this.testProfile"))fail(errors,'V22.37: snapshot online no conserva perfil HARD');
-if(!host.includes("p.bullets=500")||!host.includes("p.guidedAmmo=500"))fail(errors,'V22.37: HARD online no equipa 500 balas/misiles');
-if(!host.includes("return this.hardMode()?9:ASTEROID_MAX_ACTIVE"))fail(errors,'V22.37: HARD online no aumenta asteroides');
+if(!host.includes("p.bullets=500")||!host.includes("p.guidedAmmo=500"))fail(errors,'V22.38: HARD online no equipa 500 balas/misiles');
+if(!host.includes("p.flare=100"))fail(errors,'V22.38: HARD online no equipa 100 bengalas');
+if(host.includes("p.cadence=1"))fail(errors,'V22.38: HARD online vuelve a alterar cadencia');
+if(host.includes("p.speed=2"))fail(errors,'V22.38: HARD online vuelve a alterar velocidad');
+if(!host.includes("asteroidMaxActive(){return ASTEROID_MAX_ACTIVE;}"))fail(errors,'V22.38: HARD online debe conservar densidad estándar');
 if(!local.includes("return this.trainingTestProfile==='hard'"))fail(errors,'V22.37: HARD local sigue limitado a cpu-training');
 for(const [label,src] of [['host',host],['local',local]]){
   if(!src.includes('PHYSICS_CORE.bounceBodyFromFlare(a,f,radius,FLARE_RADIUS,190,105)'))fail(errors,'V22.34 '+label+': bengala no hace rebotar asteroide mediano');
@@ -308,7 +312,7 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.37'"))fail(errors,'V22.37: testigo de version no actualizado');
+if(!build.includes("const VERSION='V22.38'"))fail(errors,'V22.38: testigo de version no actualizado');
 if(host.includes('cpu.bullets+=4')||local.includes('cpu.bullets+=4'))fail(errors,'V22.31: A POR EL vuelve a regalar balas a las CPU');
 if(!host.includes("cpuAmmo:false,cpuAmmoBonus:0")||!local.includes("cpuAmmo:false,cpuAmmoBonus:0"))fail(errors,'V22.31: A POR EL debe anunciarse sin bonus de municion');
 
