@@ -614,11 +614,12 @@
     refreshUI(){
       const inRoom=this.localIndex!==null;
       const joystickActive=typeof window.GalaxyJoystickEnabled==='function'&&window.GalaxyJoystickEnabled();
+      const joystickVoiceLabel=typeof window.GalaxyJoystickVoiceLabel==='function'?window.GalaxyJoystickVoiceLabel():'R1';
       const voiceSelected=this.isMobile?this.selected:this.enabled;
       if(this.enableButton){
         if(joystickActive){
-          this.enableButton.textContent=voiceSelected?'MICRO ACTIVO · R1':'ACTIVAR MICRO · R1';
-          this.enableButton.title=voiceSelected?'Mantén R1 para hablar':'Activa el micro; después mantén R1 para hablar';
+          this.enableButton.textContent=voiceSelected?'MICRO ACTIVO · '+joystickVoiceLabel:'ACTIVAR MICRO · '+joystickVoiceLabel;
+          this.enableButton.title=voiceSelected?'Mantén '+joystickVoiceLabel+' para hablar':'Activa el micro; después mantén '+joystickVoiceLabel+' para hablar';
           this.enableButton.setAttribute('aria-label',this.enableButton.title);
         }else{
           this.enableButton.textContent=voiceSelected?tr('voiceActive'):tr('activateVoice');
@@ -628,13 +629,13 @@
         this.enableButton.classList.toggle('active',voiceSelected);
       }
       if(this.activationTipEl){
-        this.activationTipEl.textContent=joystickActive?'MANTÉN R1 PARA HABLAR':tr('voiceKeyTip');
+        this.activationTipEl.textContent=joystickActive?'MANTÉN '+joystickVoiceLabel+' PARA HABLAR':tr('voiceKeyTip');
       }
       if(this.statusEl&&!this.enabling){
         this.statusEl.textContent=voiceSelected?tr('voiceEnabled'):tr('voiceDisabled');
       }
       if(this.pttButton){
-        const show=this.isMobile&&inRoom&&!this.cpuMode&&this.enabled;
+        const show=this.isMobile&&inRoom&&!this.cpuMode&&this.enabled&&!joystickActive;
         this.pttButton.classList.toggle('hidden',!show);
         this.pttButton.textContent=tr('talk');
         this.pttButton.setAttribute('aria-label',tr('holdToTalk'));
@@ -647,7 +648,7 @@
         this.hintEl.classList.toggle('hidden',!show);
         this.hintEl.textContent=this.talking
           ?tr('voiceHintTalking')
-          :(joystickActive?'R1: HABLAR':tr('voiceHintTalk'));
+          :(joystickActive?joystickVoiceLabel+': HABLAR':tr('voiceHintTalk'));
         this.hintEl.classList.toggle('talking',this.talking);
       }
       this.refreshTalkers();
