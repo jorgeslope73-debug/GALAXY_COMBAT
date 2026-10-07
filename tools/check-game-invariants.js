@@ -255,6 +255,15 @@ if(!host.includes('hostEpoch:this.hostEpoch'))fail(errors,'host epoch: snapshots
 if(!p2p.includes('resetStateOrder()'))fail(errors,'host epoch: P2P no reinicia el orden al cambiar autoridad');
 if(!p2p.includes('lastStateEpoch'))fail(errors,'host epoch: P2P no ordena por epoch');
 if(!game.includes('lastAcceptedStateEpoch'))fail(errors,'host epoch: cliente no protege contra snapshots de host antiguo');
+if(!p2p.includes('controlSeq:seq'))fail(errors,'control seq: P2P no numera controles fast');
+if(!host.includes('if(seq<=last)return false'))fail(errors,'control seq: host no descarta controles antiguos');
+if(!game.includes('controlSeq=0'))fail(errors,'control seq: cliente no mantiene contador monotono');
+if(!server.includes('controlSeq:Math.max(0,Number(m.controlSeq)||0)'))fail(errors,'control seq: fallback WS no conserva secuencia');
+if(!p2p.includes("t:'input-action'"))fail(errors,'input action: falta canal fiable de acciones especiales');
+if(!host.includes('applyInputAction(index,kind,actionId)'))fail(errors,'input action: host no deduplica acciones');
+if(!game.includes("queueInputAction(kind)"))fail(errors,'input action: cliente no genera actionId');
+if(!server.includes("m.t==='fallback-input-action'"))fail(errors,'input action: fallback WS no reenvia acciones fiables');
+if(!game.includes("hostPhysics.resetControlSequence(Number(m.from))"))fail(errors,'control seq: reconexion no reinicia secuencia del jugador');
 
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');
