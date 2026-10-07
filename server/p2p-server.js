@@ -1353,7 +1353,20 @@ wss.on('connection',(ws,req)=>{
     }
     if(m.t==='fallback-ctrl'){
       const host=currentHost(r);
-      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{t:'fallback-ctrl',from:x.i,turn:Number(m.turn)||0,thrust:!!m.thrust,fire:!!m.fire,directFire:m.directFire===true,flare:m.flare===true,shock:m.shock===true});
+      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{
+        t:'fallback-ctrl',from:x.i,
+        controlSeq:Math.max(0,Number(m.controlSeq)||0),
+        turn:Number(m.turn)||0,thrust:!!m.thrust,fire:!!m.fire,directFire:m.directFire===true
+      });
+      return;
+    }
+    if(m.t==='fallback-input-action'){
+      const host=currentHost(r);
+      const kind=String(m.kind||'');
+      const actionId=Math.max(1,Number(m.actionId)||1);
+      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws&&['rocket','flare','shock'].includes(kind)){
+        send(host.ws,{t:'fallback-input-action',from:x.i,kind,actionId});
+      }
       return;
     }
     if(m.t==='fallback-state'){
