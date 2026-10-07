@@ -116,12 +116,13 @@
   }
 
   class GalaxyHostPhysics{
-    constructor({onState,onEvent,code='P2P',rankRound=1,rankHostToken=''}={}){
+    constructor({onState,onEvent,code='P2P',rankRound=1,rankHostToken='',hostEpoch=1}={}){
       this.onState=typeof onState==='function'?onState:()=>{};
       this.onEvent=typeof onEvent==='function'?onEvent:()=>{};
       this.code=String(code||'P2P');
       this.rankRound=Math.max(1,Number(rankRound)||1);
       this.rankHostToken=String(rankHostToken||'');
+      this.hostEpoch=Math.max(1,Number(hostEpoch)||1);
       this.rankReportSent=false;
       this.rankReportAttempts=0;
       this.players=[];
@@ -2140,7 +2141,7 @@
         if(write!==this.fxEvents.length)this.fxEvents.length=write;
       }
       return{
-        t:'state',seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',started:this.started,finished:this.finished,winner:this.winner,
+        t:'state',hostEpoch:this.hostEpoch,seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
         players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),shock:!!p.shockwave,dead:p.dead,respawn:round3(p.respawn)})),
