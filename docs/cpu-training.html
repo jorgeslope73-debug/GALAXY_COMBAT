@@ -4,10 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Galaxy Combat · Entrenamiento CPU</title>
-<script src="config.js"></script>
-<script src="campaign-config.js?v=V21.98-scalable-campaign"></script>
-<script src="physics-core.js?v=V21.98-shared-fracture"></script>
-<script src="local-cpu.js?v=V21.98-training-fix"></script>
+<script src="build-version.js"></script>
+<script>
+(() => {
+  const build=window.GALAXY_BUILD;
+  if(!build||typeof build.versioned!=='function')throw new Error('GALAXY_BUILD no cargado');
+  const scripts=['config.js','campaign-config.js','physics-core.js','local-cpu.js'];
+  document.write(scripts.map(src=>'<script src="'+build.versioned(src)+'"><\/script>').join(''));
+})();
+</script>
 <style>
 :root{color-scheme:dark;--bg:#060813;--panel:#101526;--line:#283451;--text:#eef6ff;--muted:#92a4bf;--cyan:#5ae1ff;--pink:#ff50a5;--green:#5aff78;--yellow:#ffdc46}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#16243e 0,#070914 42%,#03050a 100%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
@@ -40,6 +45,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
   <div id="trainer" class="hidden">
     <div class="cards">
       <div class="card"><div class="label">Acceso</div><div class="value ok">PRIVADO</div></div>
+      <div class="card"><div class="label">Motor</div><div id="engineVersion" class="value">—</div></div>
       <div class="card"><div class="label">Brain</div><div id="brainVersion" class="value">—</div></div>
       <div class="card"><div class="label">Entrenadas total</div><div id="totalMatches" class="value">0</div></div>
       <div class="card"><div class="label">Esta sesión</div><div id="sessionMatches" class="value">0</div></div>
@@ -215,7 +221,7 @@ function updateLearningControlUi(){
     $('pause').textContent='CONTINUAR SESIÓN';
   }else if(sim&&!busy){
     running=true;
-    $('status').textContent='ENTRENANDO · 4 CPU · METEORITOS + BENGALAS';
+    $('status').textContent='ENTRENANDO · 4 CPU · MOTOR '+(window.GALAXY_BUILD&&window.GALAXY_BUILD.version||'dev');
     $('status').className='ok';
     $('pause').textContent='PAUSAR SESIÓN';
   }
@@ -254,6 +260,10 @@ function draw(){
   }
 }
 function startSim(brain){
+  if(!window.GalaxyPhysicsCore)throw new Error('Physics core no cargado en entrenamiento');
+  if(!window.GalaxyLocalCpu)throw new Error('GalaxyLocalCpu no cargado en entrenamiento');
+  const engineVersion=window.GALAXY_BUILD&&window.GALAXY_BUILD.version||'dev';
+  $('engineVersion').textContent=engineVersion;
   sim=new window.GalaxyLocalCpu({
     onState:s=>state=s,
     onEvent:e=>{
@@ -265,7 +275,7 @@ function startSim(brain){
   state=sim.publicState();
   running=autoTrainingEnabled&&!manualPaused;
   updateLearningControlUi();
-  log(autoTrainingEnabled?'Comienza entrenamiento con 4 CPU.':'Simulador preparado, entrenamiento automático PARADO.');
+  log((autoTrainingEnabled?'Comienza entrenamiento con 4 CPU.':'Simulador preparado, entrenamiento automático PARADO.')+' Motor '+(window.GALAXY_BUILD&&window.GALAXY_BUILD.version||'dev')+'.');
 }
 async function finishMatch(winner){
   if(busy)return;

@@ -42,6 +42,7 @@ const core=read('docs/physics-core.js');
 const build=read('docs/build-version.js');
 const index=read('docs/index.html');
 const sw=read('docs/sw.js');
+const trainingPage=read('docs/cpu-training.html');
 const errors=[];
 
 for(const [label,src] of [['local',local],['online',host]]){
@@ -189,6 +190,15 @@ for(const script of ['config.js','menu-loader.js','menu-decor.js','i18n.js','cam
   if(!build.includes("'"+script+"'"))fail(errors,'version: falta '+script+' en el cargador central');
 }
 if(!sw.includes("cache.match(request,{ignoreSearch:true})"))fail(errors,'PWA: falta fallback offline ignorando ?v= centralizado');
+
+if(!trainingPage.includes('<script src="build-version.js"></script>'))fail(errors,'training: cpu-training.html no usa build-version.js');
+if(!trainingPage.includes("build.versioned(src)"))fail(errors,'training: scripts del entrenamiento no usan la versión central');
+if(/[?&]v=V\d+\.\d+/.test(trainingPage))fail(errors,'training: vuelve a haber una versión hardcodeada en cpu-training.html');
+for(const script of ['config.js','campaign-config.js','physics-core.js','local-cpu.js']){
+  if(!trainingPage.includes("'"+script+"'"))fail(errors,'training: falta '+script+' en el runtime del entrenamiento');
+}
+if(!trainingPage.includes("window.GalaxyPhysicsCore"))fail(errors,'training: falta verificación de physics-core');
+if(!trainingPage.includes("window.GalaxyLocalCpu"))fail(errors,'training: falta verificación de GalaxyLocalCpu');
 
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');
