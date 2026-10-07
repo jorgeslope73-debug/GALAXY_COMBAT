@@ -210,14 +210,15 @@
       return this.trainingTestProfile==='hard';
     }
     trainingAsteroidMaxActive(){
-      return this.trainingHardMode()?9:ASTEROID_MAX_ACTIVE;
+      // V22.38: HARD ya no altera peligros ni densidad; solo armamento.
+      return ASTEROID_MAX_ACTIVE;
     }
     applyTrainingHardLoadout(p,respawn=false){
       if(!p||!this.trainingHardMode())return false;
+      // V22.38: HARD modifica solo reservas de armamento.
       p.bullets=500;
-      p.cadence=1;
-      p.speed=2;
       p.guidedAmmo=500;
+      p.flare=100;
       p.guided=true;
       p.guidedTarget=-1;
       p.reload=respawn?this.reloadTime(p):0;
@@ -228,19 +229,7 @@
       // La simulacion no conoce ya niveles concretos.
       const level=clamp(Math.round(Number(this.campaignLevel)||1),1,CAMPAIGN_LEVELS);
       const cfg=CAMPAIGN&&typeof CAMPAIGN.getLevel==='function'?CAMPAIGN.getLevel(level):null;
-      if(cfg&&cfg.hazards){
-        if(!this.trainingHardMode())return cfg.hazards;
-        // HARD: mas asteroides medianos/grandes y gigante mas frecuente.
-        // No se incrementa la lluvia de meteoritos pequenos.
-        return Object.assign({},cfg.hazards,{
-          asteroidMin:7,
-          asteroidInitialMin:.8,asteroidInitialMax:1.8,
-          asteroidRespawnMin:1.0,asteroidRespawnMax:2.4,
-          asteroidPopulationMin:10,asteroidPopulationMax:18,
-          giantFirstMin:14,giantFirstMax:22,
-          giantRepeatMin:28,giantRepeatMax:45
-        });
-      }
+      if(cfg&&cfg.hazards)return cfg.hazards;
       // Respaldo conservador si el fichero de configuracion no llegase a cargar.
       return{
         asteroidMin:1,
@@ -900,10 +889,8 @@
     spawnAsteroidFromEdge(templateIndex,fullyRandom=false){
       const idx=clamp(Math.round(Number(templateIndex)||0),0,ASTEROID_STARTS.length-1);
       let [targetX,targetY,rot,type]=ASTEROID_STARTS[idx];
-      // En HARD mezclamos asteroides medianos con grandes dentro de la misma
-      // coleccion para aumentar densidad sin crear una segunda fisica paralela.
-      const radius=this.trainingHardMode()?(Math.random()<.42?72:ASTEROID_RADIUS):ASTEROID_RADIUS;
-      const edge=Math.max(ASTEROID_RADIUS*2,radius*2);
+      const radius=ASTEROID_RADIUS;
+      const edge=ASTEROID_RADIUS*2;
       let start;
       if(fullyRandom){
         targetX=rand(W*.18,W*.82);
@@ -1151,7 +1138,7 @@
       this.bullets=[];this.flares=[];this.pickups=[];this.meteors=[];this.giant=null;this.ufo=null;this.ufoExtras=[];this.ufoWaveRemaining=0;this.ufoWaveNext=0;this.ufoWaveSwarm=false;this.ufoWaveSide=-1;this.ufoWaveAnchor=.5;this.ufoWaveSpawned=0;this.ufoWaveTotal=0;this.activeShockwaves=[];
       const hazard=this.hazardProfile();
       this.nextPickup=1;this.firstShower=rand(hazard.firstShowerMin,hazard.firstShowerMax);this.showerLeft=0;this.nextMeteor=0;this.nextShower=0;
-      this.noDeathTime=0;this.nextGiant=this.trainingHardMode()?rand(hazard.giantFirstMin,hazard.giantFirstMax):rand(50,80);this.nextUfo=this.ufoLimit()>0?rand(UFO_FIRST_MIN,UFO_FIRST_MAX):999999;
+      this.noDeathTime=0;this.nextGiant=rand(50,80);this.nextUfo=this.ufoLimit()>0?rand(UFO_FIRST_MIN,UFO_FIRST_MAX):999999;
       this.resetAsteroids();
       for(let i=0;i<4;i++){
         const cpu=this.makePlayer(i,'CPU '+(i+1),true);
@@ -2890,7 +2877,7 @@
       if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){
         this.giant=null;
         const profile=this.hazardProfile();
-        this.nextGiant=this.trainingHardMode()?rand(profile.giantRepeatMin,profile.giantRepeatMax):(this.trainingMode?rand(130,190):rand(profile.giantRepeatMin,profile.giantRepeatMax));
+        this.nextGiant=this.trainingMode?rand(130,190):rand(profile.giantRepeatMin,profile.giantRepeatMax);
       }
     }
     ufoLimit(){
