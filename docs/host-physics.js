@@ -1572,48 +1572,18 @@
         }
         b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt;
       }
-      // V21.74: intercepcion entre proyectiles enemigos.
-      // Bala normal <-> misil: se destruyen ambos.
-      // Misil <-> misil: se destruyen ambos al cruzarse.
-      // Bala <-> bala sigue sin colision. Los proyectiles del mismo jugador
-      // tampoco chocan entre si para evitar autointercepciones.
+      // V22.12: reglas de intercepcion centralizadas en physics-core.
+      // Bala-misil y misil-misil destruyen ambos; bala-bala y mismo dueño no chocan.
       if(this.bullets.length>1){
         const destroyedProjectiles=this.destroyedProjectileScratch;
         destroyedProjectiles.clear();
-        for(let i=0;i<this.bullets.length;i++){
-          const a=this.bullets[i];
-          if(!a||destroyedProjectiles.has(a))continue;
-          for(let j=i+1;j<this.bullets.length;j++){
-            const b=this.bullets[j];
-            if(!b||destroyedProjectiles.has(b))continue;
-            if(Number(a.owner)===Number(b.owner))continue;
-
-            const aMissile=!!a.guided,bMissile=!!b.guided;
-            // Dos balas normales se atraviesan.
-            if(!aMissile&&!bMissile)continue;
-
-            if(aMissile&&bMissile){
-              if(!sweptCircles(a,MISSILE_HIT_RADIUS,b,MISSILE_HIT_RADIUS,false))continue;
-              destroyedProjectiles.add(a);
-              destroyedProjectiles.add(b);
-              const hitX=(a.x+b.x)*.5,hitY=(a.y+b.y)*.5;
-              this.emitRocketDisintegrateAt(hitX,hitY,Number(a.owner)||0);
-              this.emit({t:'sound',kind:'sparkle'});
-              break;
-            }
-
-            const missile=aMissile?a:b;
-            const bullet=aMissile?b:a;
-            if(!sweptCircles(missile,MISSILE_HIT_RADIUS,bullet,BULLET_RADIUS,false))continue;
-
-            destroyedProjectiles.add(missile);
-            destroyedProjectiles.add(bullet);
-            const hitX=(missile.x+bullet.x)*.5,hitY=(missile.y+bullet.y)*.5;
-            this.emitRocketDisintegrateAt(hitX,hitY,Number(missile.owner)||0);
+        PHYSICS_CORE.resolveProjectileInterceptions(
+          this.bullets,destroyedProjectiles,sweptCircles,BULLET_RADIUS,MISSILE_HIT_RADIUS,
+          (hitX,hitY,missileOwner)=>{
+            this.emitRocketDisintegrateAt(hitX,hitY,missileOwner);
             this.emit({t:'sound',kind:'sparkle'});
-            break;
           }
-        }
+        );
         if(destroyedProjectiles.size){
           let write=0;
           for(let read=0;read<this.bullets.length;read++){

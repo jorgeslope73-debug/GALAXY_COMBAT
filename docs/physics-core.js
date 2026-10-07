@@ -243,6 +243,54 @@
     return null;
   }
 
+
+  function resolveProjectileInterceptions(projectiles,destroyed,sweptCircles,bulletRadius=4,missileRadius=12,onHit){
+    if(!Array.isArray(projectiles)||projectiles.length<2||!destroyed||typeof destroyed.add!=='function'||typeof sweptCircles!=='function')return 0;
+    const hitCallback=typeof onHit==='function'?onHit:null;
+    let hits=0;
+
+    for(let i=0;i<projectiles.length;i++){
+      const a=projectiles[i];
+      if(!a||destroyed.has(a))continue;
+      for(let j=i+1;j<projectiles.length;j++){
+        const b=projectiles[j];
+        if(!b||destroyed.has(b))continue;
+
+        // Proyectiles del mismo jugador nunca se autointerceptan.
+        if(Number(a.owner)===Number(b.owner))continue;
+
+        const aMissile=!!a.guided,bMissile=!!b.guided;
+        // Dos balas normales se atraviesan.
+        if(!aMissile&&!bMissile)continue;
+
+        let missile=null,hit=false;
+        if(aMissile&&bMissile){
+          hit=sweptCircles(a,missileRadius,b,missileRadius,false);
+          missile=a;
+        }else{
+          missile=aMissile?a:b;
+          const bullet=aMissile?b:a;
+          hit=sweptCircles(missile,missileRadius,bullet,bulletRadius,false);
+        }
+        if(!hit)continue;
+
+        destroyed.add(a);
+        destroyed.add(b);
+        hits++;
+
+        if(hitCallback){
+          hitCallback(
+            (Number(a.x)+Number(b.x))*.5,
+            (Number(a.y)+Number(b.y))*.5,
+            Number(missile&&missile.owner)||0
+          );
+        }
+        break;
+      }
+    }
+    return hits;
+  }
+
   function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
     if(!asteroid)return null;
     const defaultRadius=Number(opts.defaultRadius)||45;
@@ -306,6 +354,7 @@
     projectileMeteorHit,
     projectilePickupHit,
     projectileFlareHit,
+    resolveProjectileInterceptions,
     asteroidMissileFracture
   });
 })();

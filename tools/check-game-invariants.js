@@ -66,6 +66,9 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(bullets.includes('for(let f=this.flares.length-1'))fail(errors,label+': ha vuelto la deteccion inline proyectil-bengala');
   if(!bullets.includes('this.flares.splice(flareHit.index,1)'))fail(errors,label+': la bengala impactada ya no se elimina por indice compartido');
   if(!bullets.includes("t:'intercept',index:flareHit.flareOwner,guided:flareHit.guided"))fail(errors,label+': se ha perdido el evento de intercepcion de bengala');
+  if(!bullets.includes('PHYSICS_CORE.resolveProjectileInterceptions'))fail(errors,label+': intercepcion proyectil-proyectil ya no delega en physics-core');
+  if(bullets.includes('const aMissile=!!a.guided,bMissile=!!b.guided'))fail(errors,label+': han vuelto las reglas inline proyectil-proyectil');
+  if(!bullets.includes('destroyedProjectileScratch'))fail(errors,label+': se ha perdido el scratch Set reutilizable de proyectiles');
   if(bullets.includes('splitGiantMeteor'))fail(errors,label+': el meteorito gigante vuelve a fragmentarse por misil');
 
   const split=method(src,'splitAsteroidByMissile');
@@ -112,6 +115,11 @@ if(!core.includes('function projectileGiantHit'))fail(errors,'core: falta la col
 if(!core.includes('function projectileMeteorHit'))fail(errors,'core: falta la colision compartida proyectil-lluvia');
 if(!core.includes('function projectilePickupHit'))fail(errors,'core: falta la colision compartida proyectil-pickup');
 if(!core.includes('function projectileFlareHit'))fail(errors,'core: falta la colision compartida proyectil-bengala');
+if(!core.includes('function resolveProjectileInterceptions'))fail(errors,'core: falta la intercepcion compartida proyectil-proyectil');
+if(!core.includes('if(Number(a.owner)===Number(b.owner))continue;'))fail(errors,'core: proyectiles del mismo jugador pueden autointerceptarse');
+if(!core.includes('if(!aMissile&&!bMissile)continue;'))fail(errors,'core: dos balas normales ya no se atraviesan');
+if(!core.includes('sweptCircles(a,missileRadius,b,missileRadius,false)'))fail(errors,'core: falta colision misil-misil');
+if(!core.includes('sweptCircles(missile,missileRadius,bullet,bulletRadius,false)'))fail(errors,'core: falta colision bala-misil');
 if(!core.includes('flareRadius=12'))fail(errors,'core: la bengala ha perdido su radio de colision compartido');
 if(!core.includes('intercept:flareOwner!==projectileOwner'))fail(errors,'core: se ha perdido la distincion de bengala propia/ajena');
 if(!core.includes('if(projectile.guided)return null;'))fail(errors,'core: los misiles ya no atraviesan los pickups');
