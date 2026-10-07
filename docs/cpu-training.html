@@ -103,7 +103,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
         <button id="trainingProfileHard" class="profile-off" type="button">HARD</button>
         <span id="trainingProfileStatus" class="muted">ESTÁNDAR · configuración actual</span>
       </div>
-      <p class="muted" style="margin:9px 0 0;font-size:12px">ESTÁNDAR conserva exactamente el juego actual. HARD usa 500 balas, 500 misiles, cadencia máxima, velocidad máxima y más asteroides medianos/grandes. El perfil queda guardado en este navegador: se aplica a CONTRA LA MÁQUINA y, si tú eres el host, también a la sala ONLINE. Al morir se reaparece con el mismo equipamiento HARD.</p>
+      <p class="muted" style="margin:9px 0 0;font-size:12px">ESTÁNDAR conserva exactamente el juego actual. HARD cambia solo el armamento: 500 balas, 500 misiles y 100 bengalas. Cadencia, velocidad y peligros quedan como en ESTÁNDAR. El perfil se aplica a CONTRA LA MÁQUINA y, si tú eres el host, también a la sala ONLINE. Al morir se reaparece con el mismo armamento HARD.</p>
     </section>
 
     <section class="panel">
@@ -258,7 +258,7 @@ function updateTrainingProfileUi(){
   if(standard)standard.className=hardOn?'profile-off':'profile-on';
   if(hard)hard.className=hardOn?'profile-on':'profile-off';
   if(status){
-    status.textContent=hardOn?'HARD · 500 BALAS · 500 MISILES · CADENCIA/VELOCIDAD MÁX. · MÁS ASTEROIDES':'ESTÁNDAR · configuración actual';
+    status.textContent=hardOn?'HARD · 500 BALAS · 500 MISILES · 100 BENGALAS':'ESTÁNDAR · configuración actual';
     status.className=hardOn?'ok':'muted';
   }
 }
