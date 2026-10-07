@@ -248,6 +248,13 @@ if(!game.includes("m.t==='host-migrated'"))fail(errors,'host migration: cliente 
 if(!game.includes('hostIndex=0'))fail(errors,'host migration: cliente no mantiene hostIndex');
 if(!game.includes("ERES EL NUEVO SERVIDOR P2P"))fail(errors,'host migration: falta confirmacion de nuevo host');
 if(!game.includes("handle({t:'restarted',rankRound:round,hostMigration:true})"))fail(errors,'host migration: la ronda actual no se reinicia bajo nuevo host');
+if(!server.includes('hostEpoch:1'))fail(errors,'host epoch: la sala no inicia una autoridad versionada');
+if(!server.includes('r.hostEpoch=Math.max(1,Number(r.hostEpoch)||1)+1'))fail(errors,'host epoch: migrar host no incrementa epoch');
+if(!server.includes('hostEpoch:r.hostEpoch'))fail(errors,'host epoch: servidor no propaga epoch');
+if(!host.includes('hostEpoch:this.hostEpoch'))fail(errors,'host epoch: snapshots no llevan epoch');
+if(!p2p.includes('resetStateOrder()'))fail(errors,'host epoch: P2P no reinicia el orden al cambiar autoridad');
+if(!p2p.includes('lastStateEpoch'))fail(errors,'host epoch: P2P no ordena por epoch');
+if(!game.includes('lastAcceptedStateEpoch'))fail(errors,'host epoch: cliente no protege contra snapshots de host antiguo');
 
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');
