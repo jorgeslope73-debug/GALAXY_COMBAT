@@ -1562,13 +1562,8 @@
       const shouldHunt=!!(huntedHuman&&cpuPlayers.length);
       if(shouldHunt&&!this.huntThresholdActive){
         this.huntThresholdActive=true;this.huntTargetIndex=huntedHuman.index;this.huntStartsAt=this.fxClock+3;this.huntUntil=Infinity;
-        const cpuIndices=[],cpuAmmoTotals=[];
-        for(const cpu of cpuPlayers){
-          cpu.bullets+=4;
-          cpuIndices.push(cpu.index);
-          cpuAmmoTotals.push([cpu.index,cpu.bullets]);
-        }
-        this.emit({t:'hunt',name:huntedHuman.name,duration:0,graceMs:3000,cpuAmmo:true,cpuAmmoBonus:4,cpuIndices,cpuAmmoTotals});
+        // V22.31: A POR EL cambia la prioridad tactica, pero no regala municion.
+        this.emit({t:'hunt',name:huntedHuman.name,duration:0,graceMs:3000,cpuAmmo:false,cpuAmmoBonus:0,cpuIndices:[],cpuAmmoTotals:[]});
       }else if(!shouldHunt&&this.huntThresholdActive){
         this.huntThresholdActive=false;this.huntTargetIndex=-1;this.huntStartsAt=0;this.huntUntil=0;
       }

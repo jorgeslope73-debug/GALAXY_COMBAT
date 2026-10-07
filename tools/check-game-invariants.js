@@ -281,7 +281,10 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.30'"))fail(errors,'V22.30: testigo de version no actualizado');
+if(!build.includes("const VERSION='V22.31'"))fail(errors,'V22.31: testigo de version no actualizado');
+if(host.includes('cpu.bullets+=4')||local.includes('cpu.bullets+=4'))fail(errors,'V22.31: A POR EL vuelve a regalar balas a las CPU');
+if(!host.includes("cpuAmmo:false,cpuAmmoBonus:0")||!local.includes("cpuAmmo:false,cpuAmmoBonus:0"))fail(errors,'V22.31: A POR EL debe anunciarse sin bonus de municion');
+
 for(const [label,src] of [['host',host],['local',local]]){
   if(!src.includes('CPU_QUICK_DEATH_WINDOW=6'))fail(errors,'V22.29 '+label+': falta ventana de muerte rapida');
   if(!src.includes('CPU_RESPAWN_RETHINK_SECONDS=2'))fail(errors,'V22.29 '+label+': falta proteccion anti-persecucion tras respawn');
