@@ -39,6 +39,9 @@ const host=read('docs/host-physics.js');
 const game=read('docs/game.js');
 const p2p=read('docs/p2p-network.js');
 const core=read('docs/physics-core.js');
+const build=read('docs/build-version.js');
+const index=read('docs/index.html');
+const sw=read('docs/sw.js');
 const errors=[];
 
 for(const [label,src] of [['local',local],['online',host]]){
@@ -169,6 +172,23 @@ const p2pEvent=method(p2p,'broadcastEvent');
 if(!p2pEvent.includes('rec.reliableDc')||p2pEvent.includes('rec.fastDc'))fail(errors,'P2P: eventos no usan exclusivamente el canal fiable');
 const p2pAction=method(p2p,'sendAction');
 if(!p2pAction.includes('rec.reliableDc')||p2pAction.includes('rec.fastDc'))fail(errors,'P2P: acciones no usan exclusivamente el canal fiable');
+
+// V22.16: una sola fuente runtime de versión y cache-busting.
+const buildVersionMatch=build.match(/const VERSION='(V\\d+\\.\\d+)';/);
+if(!buildVersionMatch)fail(errors,'version: build-version.js no define VERSION');
+if(!index.includes('<script src="build-version.js"></script>'))fail(errors,'version: index.html no carga build-version.js');
+if(!index.includes('window.GALAXY_BUILD.writeHeadAssets()'))fail(errors,'version: index no genera links desde GALAXY_BUILD');
+if(!index.includes('window.GALAXY_BUILD.loadRuntime()'))fail(errors,'version: index no carga runtime desde GALAXY_BUILD');
+if(/[?&]v=V\\d+\\.\\d+/.test(index))fail(errors,'version: index.html vuelve a contener versiones hardcodeadas');
+if(/>V\\d+\\.\\d+<\\/div>/.test(index))fail(errors,'version: el testigo visual vuelve a estar hardcodeado');
+if(!sw.includes("importScripts('./build-version.js');"))fail(errors,'version: sw.js no importa la fuente central');
+if(/const VERSION\\s*=\\s*['"]V\\d+\\.\\d+/.test(sw))fail(errors,'version: sw.js vuelve a hardcodear VERSION');
+if(!game.includes("AUDIO_ASSET_VERSION=String(window.GALAXY_BUILD&&window.GALAXY_BUILD.version||'dev')"))fail(errors,'version: audio no usa GALAXY_BUILD');
+if(/AUDIO_ASSET_VERSION\\s*=\\s*['"]V\\d+\\.\\d+/.test(game))fail(errors,'version: audio vuelve a hardcodear una versión');
+for(const script of ['config.js','menu-loader.js','menu-decor.js','i18n.js','campaign-config.js','manual.js','impactos.js','voz.js','auth.js','ranking.js','physics-core.js','local-cpu.js','host-physics.js','p2p-network.js','game.js','pwa.js']){
+  if(!build.includes("'"+script+"'"))fail(errors,'version: falta '+script+' en el cargador central');
+}
+if(!sw.includes("cache.match(request,{ignoreSearch:true})"))fail(errors,'PWA: falta fallback offline ignorando ?v= centralizado');
 
 if(errors.length){
   console.error('\nGALAXY COMBAT - FALLO DE INVARIANTES\n');

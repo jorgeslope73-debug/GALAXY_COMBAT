@@ -1,4 +1,5 @@
-const VERSION = 'V22.15-dual-channel';
+importScripts('./build-version.js');
+const VERSION=String(self.GALAXY_BUILD&&self.GALAXY_BUILD.version||'dev');
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
@@ -6,6 +7,7 @@ const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
 const SHELL_FILES = [
   './',
   './index.html',
+  './build-version.js',
   './style.css',
   './menu-portada.css',
   './menu-decor.js',
@@ -16,6 +18,7 @@ const SHELL_FILES = [
   './campaign-config.js',
   './manual.js',
   './auth.js',
+  './ranking.js',
   './impactos.js',
   './voz.js',
   './physics-core.js',
@@ -98,7 +101,7 @@ async function networkFirst(request) {
     if (response && response.ok) await cache.put(request, response.clone());
     return response;
   } catch (error) {
-    const cached = await cache.match(request);
+    const cached = await cache.match(request) || await cache.match(request,{ignoreSearch:true});
     if (cached) return cached;
     if (request.mode === 'navigate') {
       const fallback = await cache.match('./index.html');

@@ -1302,7 +1302,7 @@
     else gameAssetsIdleHandle=setTimeout(run,350);
   }
   warmGameAssetsWhenIdle();
-  const AUDIO_ASSET_VERSION='V22.05';
+  const AUDIO_ASSET_VERSION=String(window.GALAXY_BUILD&&window.GALAXY_BUILD.version||'dev');
   const soundDefs={
     laser:{url:'assets/sonido/laser_1.mp3?v='+AUDIO_ASSET_VERSION,size:8,volume:.55},
     impact:{url:'assets/sonido/impacto1.mp3?v='+AUDIO_ASSET_VERSION,size:5,volume:.75},
