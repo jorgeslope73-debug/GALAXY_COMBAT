@@ -303,6 +303,8 @@
   const inputActionSeq={rocket:0,flare:0,shock:0};
   const inputActionHeld={rocket:false,flare:false,shock:false};
   const pendingInputActions=[];
+  let criticalServerOpSeq=0;
+  const pendingCriticalServerOps=[];
   let lastPaintAt=0;
   let lastStateProcessedAt=0;
   const CONTROL_SEND_MS=1000/30;
@@ -2475,12 +2477,7 @@
         if(m&&m.t==='p2p-input-action'&&isHost&&hostPhysics){
           hostPhysics.applyInputAction(Number(m.from),m.kind,m.actionId);
         }else if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics){
-          if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
-          send({t:'rank-restart'});
-          if(hostPhysics.restart()){
-            p2p.broadcastEvent({t:'restarted',rankRound:hostPhysics.rankRound});
-            handle({t:'restarted',rankRound:hostPhysics.rankRound});
-          }
+          restartOnlineRoundAuthoritatively();
         }else handle(m);
       },
       onPeerState:()=>{}
@@ -2767,14 +2764,21 @@
         return;
       }
       if(m&&m.t==='fallback-action'){
-        if(isHost&&m.action==='restart'&&hostPhysics){
-          if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
-          send({t:'rank-restart'});
-          if(hostPhysics.restart()){
-            if(p2p)p2p.broadcastEvent({t:'restarted',rankRound:hostPhysics.rankRound});
-            sendHostFallbackEvent({t:'restarted',rankRound:hostPhysics.rankRound});
-            handle({t:'restarted',rankRound:hostPhysics.rankRound});
-          }
+        if(isHost&&m.action==='restart'&&hostPhysics)restartOnlineRoundAuthoritatively();
+        return;
+      }
+      if(m&&m.t==='critical-ack'){
+        acknowledgeCriticalServerOp(m.requestId);
+        if(Number.isInteger(Number(m.rankRound))&&Number(m.rankRound)>0){
+          onlineSeriesRound=Math.max(onlineSeriesRound,Number(m.rankRound));
+        }
+        return;
+      }
+      if(m&&m.t==='critical-nack'){
+        // No eliminamos la operación: el servidor indica su ronda actual y se
+        // reintentará tras la siguiente resincronización/reconexión.
+        if(Number.isInteger(Number(m.rankRound))&&Number(m.rankRound)>0){
+          onlineSeriesRound=Math.max(onlineSeriesRound,Number(m.rankRound));
         }
         return;
       }
@@ -2788,6 +2792,68 @@
     if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}
     if(!inGame){setServerReady(false);if(!wakeStartedAt)wakeStartedAt=Date.now();wakeStatus();connect();}
     return false;
+  }
+  function nextCriticalRequestId(kind,round){
+    criticalServerOpSeq++;
+    return [String(hostEpoch||1),String(myIndex??-1),String(kind||'op'),String(Math.max(0,Number(round)||0)),Date.now().toString(36),criticalServerOpSeq.toString(36)].join(':');
+  }
+  function persistCriticalServerOps(){
+    try{
+      if(!roomCode||!playerToken)return;
+      const key='galaxy-critical-'+roomCode+'-'+playerToken;
+      if(pendingCriticalServerOps.length)sessionStorage.setItem(key,JSON.stringify(pendingCriticalServerOps));
+      else sessionStorage.removeItem(key);
+    }catch(_){}
+  }
+  function restoreCriticalServerOps(){
+    if(!roomCode||!playerToken||pendingCriticalServerOps.length)return;
+    try{
+      const key='galaxy-critical-'+roomCode+'-'+playerToken;
+      const raw=sessionStorage.getItem(key);
+      const list=raw?JSON.parse(raw):[];
+      if(Array.isArray(list))for(const op of list){
+        if(op&&typeof op==='object'&&op.requestId&&op.t)pendingCriticalServerOps.push(op);
+      }
+    }catch(_){}
+  }
+  function flushCriticalServerOps(){
+    if(!isHost||!ws||ws.readyState!==WebSocket.OPEN||!pendingCriticalServerOps.length)return false;
+    let sent=false;
+    for(const op of pendingCriticalServerOps){
+      try{ws.send(JSON.stringify(op));sent=true;}catch(_){break;}
+    }
+    return sent;
+  }
+  function queueCriticalServerOp(payload){
+    if(!payload||typeof payload!=='object'||!payload.t)return false;
+    const op={...payload};
+    if(!op.requestId)op.requestId=nextCriticalRequestId(op.t,op.rankRound??op.fromRound??0);
+    pendingCriticalServerOps.push(op);
+    if(pendingCriticalServerOps.length>32)pendingCriticalServerOps.splice(0,pendingCriticalServerOps.length-32);
+    persistCriticalServerOps();
+    flushCriticalServerOps();
+    return true;
+  }
+  function acknowledgeCriticalServerOp(requestId){
+    const id=String(requestId||'');
+    if(!id)return false;
+    const at=pendingCriticalServerOps.findIndex(op=>String(op&&op.requestId||'')===id);
+    if(at<0)return false;
+    pendingCriticalServerOps.splice(at,1);
+    persistCriticalServerOps();
+    return true;
+  }
+  function restartOnlineRoundAuthoritatively(){
+    if(!isHost||!hostPhysics)return false;
+    if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
+    const fromRound=Math.max(1,Number(hostPhysics.rankRound)||1);
+    const targetRound=fromRound+1;
+    queueCriticalServerOp({t:'rank-restart',fromRound,targetRound,rankRound:fromRound});
+    if(!hostPhysics.restart(targetRound))return false;
+    if(p2p)p2p.broadcastEvent({t:'restarted',rankRound:targetRound});
+    sendHostFallbackEvent({t:'restarted',rankRound:targetRound});
+    handle({t:'restarted',rankRound:targetRound});
+    return true;
   }
   function sendInputAction(kind,actionId){
     if(localCpuActive&&localCpu)return false;
@@ -3323,6 +3389,8 @@
       isHost=Number(myIndex)===hostIndex;
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
+      restoreCriticalServerOps();
+      if(isHost)flushCriticalServerOps();
       cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});
       saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players||(m.cpu?2:1));
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(Array.isArray(m.players))syncVoicePlayers(m.players,true);}
@@ -3339,6 +3407,8 @@
       isHost=Number(myIndex)===hostIndex;
       if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
+      restoreCriticalServerOps();
+      if(isHost)flushCriticalServerOps();
       updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(typeof voice.startSelectedForSession==='function')voice.startSelectedForSession();}
@@ -3960,11 +4030,12 @@
     }
   }
   function submitOnlineSeriesRound(winnerIndex,round){
-    if(roomCode==='LOCAL'||!isHost||!ws||ws.readyState!==WebSocket.OPEN)return false;
-    try{
-      ws.send(JSON.stringify({t:'series-round-result',winnerIndex:Number(winnerIndex),rankRound:Math.max(1,Number(round)||1)}));
-      return true;
-    }catch(_){return false;}
+    if(roomCode==='LOCAL'||!isHost)return false;
+    return queueCriticalServerOp({
+      t:'series-round-result',
+      winnerIndex:Number(winnerIndex),
+      rankRound:Math.max(1,Number(round)||1)
+    });
   }
   function renderOnlineSessionRanking(){
     const box=document.getElementById('sessionRanking');
@@ -4298,6 +4369,7 @@
     if(wasLocal)stopLocalCpu();
     if(notifyServer&&!wasLocal&&roomCode)send({t:'leave'});
     if(voice)voice.clearSession();
+    pendingCriticalServerOps.length=0;persistCriticalServerOps();
     stopP2P();
     stopResumeWindow();clearResumeSession();playerToken='';
     inGame=false;clearGameCanvas();setMobileKeyboardActive(false);state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
