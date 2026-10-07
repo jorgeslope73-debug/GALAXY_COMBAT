@@ -37,7 +37,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Check runtime syntax
-        run: node --check docs/p2p-network.js && node --check docs/build-version.js && node --check docs/sw.js
+        run: node --check docs/p2p-network.js && node --check docs/build-version.js && node --check docs/sw.js && node --check tools/check-game-invariants.js
       - name: Check host/local shared physics parity
         run: node tools/check-physics-parity.js
       - name: Check gameplay and performance invariants
