@@ -1714,15 +1714,21 @@
           if(hitUfo.hp<=0)this.destroyUfo(Number(b.owner));
           remove=true;
         }
-        if(!remove)for(let aIndex=this.asteroids.length-1;aIndex>=0;aIndex--){
-          const a=this.asteroids[aIndex];
-          if(!a||!sweptCircles(b,BULLET_RADIUS,a,a.r,false))continue;
-          if(b.guided){
-            this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-            this.emit({t:'sound',kind:'sparkle'});
-            this.splitAsteroidByMissile(a,Number(b.owner),b.x,b.y);
+        if(!remove){
+          const asteroidHit=PHYSICS_CORE.projectileAsteroidHit(b,this.asteroids,sweptCircles,BULLET_RADIUS);
+          if(asteroidHit){
+            if(asteroidHit.fracture){
+              this.emitRocketDisintegrateAt(asteroidHit.impactX,asteroidHit.impactY,asteroidHit.owner);
+              this.emit({t:'sound',kind:'sparkle'});
+              this.splitAsteroidByMissile(
+                asteroidHit.asteroid,
+                asteroidHit.owner,
+                asteroidHit.impactX,
+                asteroidHit.impactY
+              );
+            }
+            remove=true;
           }
-          remove=true;break;
         }
         if(!remove&&this.giant&&sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)){
           if(b.guided){

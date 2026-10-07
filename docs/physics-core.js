@@ -152,6 +152,26 @@
     return projectile;
   }
 
+
+  function projectileAsteroidHit(projectile,asteroids,sweptCircles,projectileRadius=4){
+    if(!projectile||!Array.isArray(asteroids)||typeof sweptCircles!=='function')return null;
+    for(let i=asteroids.length-1;i>=0;i--){
+      const asteroid=asteroids[i];
+      if(!asteroid)continue;
+      const asteroidRadius=Number(asteroid.r)||45;
+      if(!sweptCircles(projectile,projectileRadius,asteroid,asteroidRadius,false))continue;
+      return {
+        asteroid,
+        index:i,
+        fracture:!!projectile.guided,
+        owner:Number(projectile.owner),
+        impactX:Number(projectile.x)||0,
+        impactY:Number(projectile.y)||0
+      };
+    }
+    return null;
+  }
+
   function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
     if(!asteroid)return null;
     const defaultRadius=Number(opts.defaultRadius)||45;
@@ -210,6 +230,7 @@
     guidedProjectileSpeedFor,
     refreshGuidedState,
     tryFireProjectile,
+    projectileAsteroidHit,
     asteroidMissileFracture
   });
 })();
