@@ -44,6 +44,8 @@ const index=read('docs/index.html');
 const sw=read('docs/sw.js');
 const trainingPage=read('docs/cpu-training.html');
 const menuLoader=read('docs/menu-loader.js');
+const server=read('server/p2p-server.js');
+const style=read('docs/style.css');
 const errors=[];
 
 for(const [label,src] of [['local',local],['online',host]]){
@@ -209,6 +211,17 @@ if(!menuLoader.includes('if(isMobile)done();else decodeWithTimeout'))fail(errors
 if(!game.includes('function decodeImageSafely'))fail(errors,'mobile loader: game.js no blinda Image.decode');
 if(!game.includes("reportImageFailure(im,'load timeout')"))fail(errors,'mobile loader: game.js no limita la espera de imágenes');
 if(!read('docs/pwa.js').includes("window.GALAXY_BUILD.versioned('./sw.js')"))fail(errors,'PWA: Service Worker no usa URL versionada');
+
+if(!server.includes("m.t==='series-round-result'"))fail(errors,'series: servidor no registra ganador de ronda');
+if(!server.includes('round>=5&&leaders.length===1'))fail(errors,'series: falta regla de 5 rondas + desempate');
+if(!server.includes("t:'series-lobby'"))fail(errors,'series: falta retorno autoritativo a sala');
+if(!game.includes('ONLINE_SERIES_BASE_ROUNDS=5'))fail(errors,'series: cliente no define serie base de 5 rondas');
+if(!game.includes('showOnlineSeriesChampion'))fail(errors,'series: falta pantalla final de campeon');
+if(!game.includes("assets/sprites/coete'+(Number(index)+1)+'.png'"))fail(errors,'series: falta nave del campeon');
+if(!game.includes("t:'series-round-result'"))fail(errors,'series: host no reporta ganador de ronda');
+if(!index.includes('id="seriesChampion"'))fail(errors,'series: falta markup de campeon');
+if(!index.includes('id="seriesRoundMini"'))fail(errors,'series: falta contador de ronda durante partida');
+if(!style.includes('.series-champion-cup'))fail(errors,'series: falta copa grande en CSS');
 
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');

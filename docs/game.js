@@ -280,6 +280,8 @@
   // V21.64: victorias acumuladas mientras el jugador permanezca en la misma
   // sesion online. Se reinician solo al volver al menu principal.
   const onlineSessionWins=new Map();
+  const ONLINE_SERIES_BASE_ROUNDS=5;
+  let onlineSeriesRound=0,onlineSeriesScoredRound=0,onlineSeriesComplete=false,onlineSeriesChampion=-1,onlineSeriesReturnTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false,activeLocalDifficulty='';
   // V20.92: CONTRA LA MAQUINA pasa a ser una campana de cinco niveles.
@@ -2531,6 +2533,7 @@
       code:roomCode,rankRound,rankHostToken:playerToken,
       onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);sendHostFallbackState(m);},
       onEvent:m=>{
+        if(m&&m.t==='victory')submitOnlineSeriesRound(m.winner,(hostPhysics&&hostPhysics.rankRound)||1);
         handle(m);
         if(p2p)p2p.broadcastEvent(m);
         sendHostFallbackEvent(m,m&&m.t==='victory');
@@ -3251,6 +3254,7 @@
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
+      if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
       cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
       saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players||(m.cpu?2:1));
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(Array.isArray(m.players))syncVoicePlayers(m.players,true);}
@@ -3263,6 +3267,7 @@
       if(!m.started){inGame=false;resetOnlineStartCountdown();clearGameCanvas();}
       roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;
       if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
+      if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
       updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(typeof voice.startSelectedForSession==='function')voice.startSelectedForSession();}
@@ -3298,7 +3303,7 @@
       playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
     }
-    else if(m.t==='start'){lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();if(Array.isArray(m.players))lobbyPlayers=m.players.slice();ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});beginOnlineStartCountdown(m.rankRound);}
+    else if(m.t==='start'){lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();if(Array.isArray(m.players))lobbyPlayers=m.players.slice();onlineSessionWins.clear();onlineSeriesRound=Math.max(1,Number(m.rankRound)||1);onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;if(m.seriesWins)applyOnlineSeriesState(m);ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});beginOnlineStartCountdown(m.rankRound);}
     else if(m.t==='state'){
       // V19.55 OPT1: el DataChannel P2P es no ordenado para reducir latencia.
       // Nunca dejamos que un snapshot antiguo vuelva a mover la escena atras.
@@ -3546,8 +3551,16 @@
         }
       }
     }
+    else if(m.t==='series-state'){
+      applyOnlineSeriesState(m);
+    }
+    else if(m.t==='series-lobby'){
+      enterLobbyAfterSeries(m);
+    }
     else if(m.t==='rank-round'){
       if(isHost&&hostPhysics&&Number.isFinite(Number(m.rankRound)))hostPhysics.rankRound=Number(m.rankRound);
+      onlineSeriesRound=Math.max(1,Number(m.rankRound)||onlineSeriesRound||1);
+      updateOnlineSeriesRoundUi(onlineSeriesRound);
     }
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='cpu-learning'){submitCpuLearning(m.deltas);}
@@ -3561,7 +3574,7 @@
     else if(m.t==='restarted'){
       const restartRound=roomCode==='LOCAL'?localCampaignLevel:Math.max(1,Number(m.rankRound)||(hostPhysics&&hostPhysics.rankRound)||currentMatchBackgroundRound+1);
       if(roomCode!=='LOCAL'&&restartRound<=lastRestartedRound)return;
-      if(roomCode!=='LOCAL')lastRestartedRound=restartRound;
+      if(roomCode!=='LOCAL'){lastRestartedRound=restartRound;onlineSeriesRound=restartRound;updateOnlineSeriesRoundUi(restartRound);}
       resetOnlineStartCountdown();if(impactFX)impactFX.reset();resetGameFeelVisuals();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';brutalShooter='';brutalAmmoBonus=0;brutalCadenceMax=false;brutalTitleKey='brutal';playNoticeStart=0;playNoticeUntil=0;playNoticeText='';playNoticeKind='';lastLocalKillAt=0;lastSavedNoticeAt=0;huntFxStart=0;huntFxUntil=0;huntText='';huntCpuAmmo=false;huntCpuBonus=0;huntCpuIndices=[];huntCpuAmmoTotals.clear();invisibleNoticeIndex=-1;invisibleNoticeUntil=0;victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginOnlineStartCountdown(restartRound);}
     else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){
@@ -3791,6 +3804,54 @@
     const key=onlineSessionPlayerKey(winner);
     onlineSessionWins.set(key,(Number(onlineSessionWins.get(key))||0)+1);
   }
+  function currentOnlineSeriesRound(){
+    return Math.max(1,Number(onlineSeriesRound)||(state&&Number(state.round))||(hostPhysics&&Number(hostPhysics.rankRound))||Number(currentMatchBackgroundRound)||1);
+  }
+  function onlineSeriesRoundLabel(round=currentOnlineSeriesRound()){
+    const r=Math.max(1,Number(round)||1);
+    return r<=ONLINE_SERIES_BASE_ROUNDS?'RONDA '+r+'/'+ONLINE_SERIES_BASE_ROUNDS:'DESEMPATE · RONDA '+r;
+  }
+  function updateOnlineSeriesRoundUi(round=currentOnlineSeriesRound()){
+    if(roomCode==='LOCAL')return;
+    onlineSeriesRound=Math.max(1,Number(round)||1);
+    const mini=document.getElementById('seriesRoundMini');
+    if(mini)mini.textContent=onlineSeriesRoundLabel(onlineSeriesRound);
+    const title=document.getElementById('sessionRankingTitle');
+    if(title)title.textContent='SERIE · '+onlineSeriesRoundLabel(onlineSeriesRound);
+  }
+  function applyOnlineSeriesState(m){
+    if(!m||roomCode==='LOCAL')return;
+    const round=Math.max(0,Number(m.round??m.seriesRound)||0);
+    const wins=Array.isArray(m.wins)?m.wins:(Array.isArray(m.seriesWins)?m.seriesWins:null);
+    if(round>0){onlineSeriesRound=round;onlineSeriesScoredRound=round;}
+    if(wins){
+      onlineSessionWins.clear();
+      for(const p of currentVictoryRoster()){
+        onlineSessionWins.set(onlineSessionPlayerKey(p),Math.max(0,Number(wins[p.i])||0));
+      }
+    }
+    onlineSeriesComplete=!!(m.complete??m.seriesComplete);
+    onlineSeriesChampion=Number.isInteger(Number(m.champion??m.seriesChampion))?Number(m.champion??m.seriesChampion):-1;
+    updateOnlineSeriesRoundUi(onlineSeriesRound||1);
+    renderOnlineSessionRanking();
+    if(onlineSeriesComplete&&onlineSeriesChampion>=0&&!victory.classList.contains('hidden')){
+      showOnlineSeriesChampion(onlineSeriesChampion);
+    }else if(!onlineSeriesComplete&&!victory.classList.contains('hidden')){
+      const restartBtn=document.getElementById('restartMatch');
+      if(restartBtn){
+        restartBtn.classList.remove('hidden');
+        restartBtn.disabled=false;
+        restartBtn.textContent=onlineSeriesRound>=ONLINE_SERIES_BASE_ROUNDS?'DESEMPATE · SIGUIENTE RONDA':'SIGUIENTE RONDA';
+      }
+    }
+  }
+  function submitOnlineSeriesRound(winnerIndex,round){
+    if(roomCode==='LOCAL'||!isHost||!ws||ws.readyState!==WebSocket.OPEN)return false;
+    try{
+      ws.send(JSON.stringify({t:'series-round-result',winnerIndex:Number(winnerIndex),rankRound:Math.max(1,Number(round)||1)}));
+      return true;
+    }catch(_){return false;}
+  }
   function renderOnlineSessionRanking(){
     const box=document.getElementById('sessionRanking');
     const list=document.getElementById('sessionRankingList');
@@ -3800,6 +3861,7 @@
       list.innerHTML='';
       return;
     }
+    updateOnlineSeriesRoundUi(onlineSeriesRound||currentOnlineSeriesRound());
     const rows=currentVictoryRoster().map(p=>({
       ...p,
       wins:Number(onlineSessionWins.get(onlineSessionPlayerKey(p)))||0
@@ -3820,6 +3882,65 @@
       '</div>';
     }).join('');
     box.classList.remove('hidden');
+  }
+  function clearSeriesChampionPresentation(){
+    const box=document.getElementById('seriesChampion');
+    if(box)box.classList.add('hidden');
+    const restartBtn=document.getElementById('restartMatch');
+    const backBtn=document.getElementById('back');
+    if(restartBtn)restartBtn.classList.remove('hidden');
+    if(backBtn)backBtn.classList.remove('hidden');
+    victory.classList.remove('series-champion-mode');
+  }
+  function showOnlineSeriesChampion(index){
+    if(roomCode==='LOCAL')return;
+    onlineSeriesComplete=true;onlineSeriesChampion=Number(index);
+    const roster=currentVictoryRoster();
+    const winner=roster.find(p=>p.i===Number(index))||null;
+    const victoryText=document.getElementById('victoryText');
+    const champ=document.getElementById('seriesChampion');
+    const champName=document.getElementById('seriesChampionName');
+    const champShip=document.getElementById('seriesChampionShip');
+    const restartBtn=document.getElementById('restartMatch');
+    const backBtn=document.getElementById('back');
+    if(victoryText)victoryText.textContent='CAMPEON DE LA SERIE';
+    if(champName){
+      champName.textContent=winner?sinTildes(winner.n):('JUGADOR '+(Number(index)+1));
+      champName.style.color=playerColors[Number(index)]||'#fff';
+    }
+    if(champShip){
+      champShip.src='assets/sprites/coete'+(Number(index)+1)+'.png';
+      champShip.alt=winner?sinTildes(winner.n):'Nave ganadora';
+    }
+    if(champ)champ.classList.remove('hidden');
+    if(restartBtn)restartBtn.classList.add('hidden');
+    if(backBtn)backBtn.classList.add('hidden');
+    victory.style.setProperty('--winner-color',playerColors[Number(index)]||'#d8a7ff');
+    victory.classList.remove('hidden');
+    victory.classList.add('winner-celebration','series-champion-mode');
+  }
+  function enterLobbyAfterSeries(m={}){
+    if(onlineSeriesReturnTimer){clearTimeout(onlineSeriesReturnTimer);onlineSeriesReturnTimer=null;}
+    clearSeriesChampionPresentation();
+    onlineSessionWins.clear();
+    onlineSeriesRound=0;onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
+    resetOnlineStartCountdown();
+    clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
+    inGame=false;
+    if(isHost&&hostPhysics){hostPhysics.stop();hostPhysics=null;}
+    state=null;previousState=null;pendingStateRaw=null;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastRestartedRound=0;
+    resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);
+    topbar.classList.add('hidden');victory.classList.add('hidden');mobileControls.classList.add('hidden');
+    if(mobileExit)mobileExit.classList.add('hidden');
+    resetMobileTouchControls();clearGameCanvas();
+    if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
+    cpuFillEnabled=!!m.cpuFill;
+    ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
+    playersEl.innerHTML=lobbyPlayers.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
+    updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(lobbyPlayers);
+    const mini=document.getElementById('seriesRoundMini');if(mini)mini.textContent='';
+    const sessionRanking=document.getElementById('sessionRanking');if(sessionRanking)sessionRanking.classList.add('hidden');
+    lobby.classList.remove('hidden');
   }
   function showVictory(i){
     if(!inGame)return;
@@ -3859,16 +3980,20 @@
         restartBtn.textContent=localCampaignGameOver?tr('restartCampaign'):tr('retryLevel');
       }
     }else{
-      victoryText.textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});
+      const round=currentOnlineSeriesRound();
+      if(onlineSeriesScoredRound!==round){
+        addOnlineSessionWin(i);
+        onlineSeriesScoredRound=round;
+      }
+      victoryText.textContent=onlineSeriesRoundLabel(round)+' · '+(p?sinTildes(p.n):('JUGADOR '+(Number(i)+1)))+' GANA';
       if(restartBtn){
         restartBtn.classList.remove('hidden');
-        restartBtn.disabled=false;
-        restartBtn.textContent=tr('rematch');
+        restartBtn.disabled=round>=ONLINE_SERIES_BASE_ROUNDS;
+        restartBtn.textContent=round>=ONLINE_SERIES_BASE_ROUNDS?'COMPROBANDO SERIE...':'SIGUIENTE RONDA';
       }
     }
 
     if(!localCampaign){
-      addOnlineSessionWin(i);
       renderOnlineSessionRanking();
     }else{
       const sessionRanking=document.getElementById('sessionRanking');
@@ -3877,9 +4002,11 @@
 
     victory.style.setProperty('--winner-color',playerColors[Number(i)]||'#d8a7ff');
     resetVictoryJoystickControls();
+    clearSeriesChampionPresentation();
     victory.classList.remove('hidden','winner-celebration');
     void victory.offsetWidth;
     if(!localCampaign||humanWon)victory.classList.add('winner-celebration');
+    if(!localCampaign&&onlineSeriesComplete&&onlineSeriesChampion>=0)showOnlineSeriesChampion(onlineSeriesChampion);
   }
 
   postAnalyticsEvent('visit');
@@ -4034,6 +4161,9 @@
     resetGameFeelVisuals();
     resetOnlineStartCountdown();
     onlineSessionWins.clear();
+    onlineSeriesRound=0;onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
+    if(onlineSeriesReturnTimer){clearTimeout(onlineSeriesReturnTimer);onlineSeriesReturnTimer=null;}
+    clearSeriesChampionPresentation();
     const sessionRanking=document.getElementById('sessionRanking');
     const sessionRankingList=document.getElementById('sessionRankingList');
     if(sessionRanking)sessionRanking.classList.add('hidden');
@@ -5159,6 +5289,7 @@
   }
   async function beginOnlineStartCountdown(rankRound=1){
     resetOnlineStartCountdown();
+    if(roomCode!=='LOCAL')updateOnlineSeriesRoundUi(Math.max(1,Number(rankRound)||1));
     const generation=onlineStartGeneration,startingRoom=roomCode;
     onlineStartPending=true;
     await Promise.all([prepareGameAssets(),prepareMatchBackground(rankRound)]);

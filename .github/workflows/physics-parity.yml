@@ -14,6 +14,8 @@ on:
       - 'docs/index.html'
       - 'docs/cpu-training.html'
       - 'docs/sw.js'
+      - 'docs/style.css'
+      - 'server/p2p-server.js'
       - 'tools/check-physics-parity.js'
       - 'tools/check-game-invariants.js'
       - 'tools/stress-game.js'
@@ -31,6 +33,8 @@ on:
       - 'docs/index.html'
       - 'docs/cpu-training.html'
       - 'docs/sw.js'
+      - 'docs/style.css'
+      - 'server/p2p-server.js'
       - 'tools/check-physics-parity.js'
       - 'tools/check-game-invariants.js'
       - 'tools/stress-game.js'
@@ -45,7 +49,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Check runtime syntax
-        run: node --check docs/p2p-network.js && node --check docs/menu-loader.js && node --check docs/game.js && node --check docs/pwa.js && node --check docs/build-version.js && node --check docs/sw.js && node --check tools/check-game-invariants.js && node --check tools/stress-game.js
+        run: node --check docs/p2p-network.js && node --check docs/menu-loader.js && node --check docs/game.js && node --check docs/pwa.js && node --check docs/build-version.js && node --check docs/sw.js && node --check server/p2p-server.js && node --check tools/check-game-invariants.js && node --check tools/stress-game.js
       - name: Check host/local shared physics parity
         run: node tools/check-physics-parity.js
       - name: Check gameplay and performance invariants
