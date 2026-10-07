@@ -1302,7 +1302,7 @@
     else gameAssetsIdleHandle=setTimeout(run,350);
   }
   warmGameAssetsWhenIdle();
-  const AUDIO_ASSET_VERSION='V18.13';
+  const AUDIO_ASSET_VERSION='V22.05';
   const soundDefs={
     laser:{url:'assets/sonido/laser_1.mp3?v='+AUDIO_ASSET_VERSION,size:8,volume:.55},
     impact:{url:'assets/sonido/impacto1.mp3?v='+AUDIO_ASSET_VERSION,size:5,volume:.75},
@@ -1316,6 +1316,20 @@
   const useWebAudio=!!AudioContextCtor;
   const gameVolume=isMobile?0.45:0.75;
   let gameAudioEnabled=true,audioUnlocked=false;
+  // V22.05: en iPhone/iPad WebAudio puede quedar en la sesion "ambient" y
+  // respetar el modo silencio del telefono. Forzamos "playback" mientras no
+  // haya captura de voz para que musica y efectos sean audio multimedia normal.
+  function usePlaybackAudioSession(){
+    if(window.GalaxyVoiceCaptureActive)return false;
+    try{
+      if(navigator.audioSession&&'type' in navigator.audioSession){
+        navigator.audioSession.type='playback';
+        return true;
+      }
+    }catch(_){}
+    return false;
+  }
+  usePlaybackAudioSession();
   const soundPools={};
   if(!useWebAudio){
     for(const [key,def] of Object.entries(soundDefs)){
@@ -1342,6 +1356,7 @@
   }
 
   function ensureAudioContext(){
+    usePlaybackAudioSession();
     if(!useWebAudio)return null;
     if(!audioCtx){
       audioCtx=new AudioContextCtor();
@@ -1990,6 +2005,7 @@
   }
   function startMusic(){
     if(!gameAudioEnabled||!menu||menu.classList.contains('hidden'))return;
+    usePlaybackAudioSession();
     if(!sounds.music||!sounds.music.paused)return;
     // V22.04: la musica no depende del micro ni del AudioContext de efectos.
     // Si iOS exige gesto, el primer toque del menu vuelve a intentar play().
@@ -3865,6 +3881,14 @@
   // Primer intento inmediato: en navegadores que permiten reanudar audio
   // sonara al abrir el menu; en iOS se reintentara en el primer gesto.
   startMusic();
+  // V22.05: al volver a una PWA desde segundo plano iOS puede restaurar una
+  // sesion de audio distinta. Reaplicamos playback sin interferir con VOZ.
+  window.addEventListener('pageshow',()=>{
+    if(gameAudioEnabled&&!window.GalaxyVoiceCaptureActive)usePlaybackAudioSession();
+  });
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden&&gameAudioEnabled&&!window.GalaxyVoiceCaptureActive)usePlaybackAudioSession();
+  });
   loadJoystickPreference();
   updateJoystickButton();
   notifyJoystickVoiceUi();
