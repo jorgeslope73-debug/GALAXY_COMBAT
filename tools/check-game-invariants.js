@@ -225,6 +225,8 @@ if(!game.includes("t:'series-round-result'"))fail(errors,'series: host no report
 if(!index.includes('id="seriesChampion"'))fail(errors,'series: falta markup de campeon');
 if(!index.includes('id="seriesRoundMini"'))fail(errors,'series: falta contador de ronda durante partida');
 if(!style.includes('.series-champion-cup'))fail(errors,'series: falta copa grande en CSS');
+if(!style.includes('#victory .series-champion-ship{\n  width:50px;\n  height:50px;'))fail(errors,'series: la nave campeona no mantiene 50x50 px');
+if(!server.includes('scheduleSeriesLobby(r,wss,7000)'))fail(errors,'series: la pantalla de campeon no dura 7 segundos');
 
 if(!server.includes('function currentHost(r)'))fail(errors,'host migration: falta resolver host actual');
 if(!server.includes('function promoteHost(r,wss'))fail(errors,'host migration: falta promocion automatica');
