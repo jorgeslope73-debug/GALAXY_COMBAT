@@ -373,11 +373,18 @@ function currentHost(r){
   return r.players.find(p=>Number(p.i)===Number(r.hostIndex))||null;
 }
 function roster(r){
-  const out=r.players.map(p=>({i:p.i,n:p.n,cpu:false,registered:!!p.registered,host:Number(p.i)===Number(r.hostIndex)}));
+  const out=r.players.map(p=>({
+    i:p.i,n:p.n,cpu:false,registered:!!p.registered,
+    host:Number(p.i)===Number(r.hostIndex),
+    champion:!!(r.lastSeriesChampionToken&&p.playerToken===r.lastSeriesChampionToken)
+  }));
   if(r.cpuFill){
     const used=new Set(out.map(p=>p.i));
     for(let i=0;i<MAX_PLAYERS;i++){
-      if(!used.has(i))out.push({i,n:'CPU '+(i+1),cpu:true,registered:false,host:false,difficulty:'dificil'});
+      if(!used.has(i))out.push({
+        i,n:'CPU '+(i+1),cpu:true,registered:false,host:false,difficulty:'dificil',
+        champion:!!(r.lastSeriesChampionCpu&&Number(r.lastSeriesChampionIndex)===i)
+      });
     }
   }
   out.sort((a,b)=>a.i-b.i);
@@ -1179,7 +1186,7 @@ wss.on('connection',(ws,req)=>{
         send(ws,{t:'error',message:creator.testMode?'LIMITE DE SALAS DE PRUEBA ALCANZADO.':'YA ESTAS EN UNA SALA ACTIVA.'});
         return;
       }
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
+      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,lastSeriesChampionToken:'',lastSeriesChampionCpu:false,lastSeriesChampionIndex:-1,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
       const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,deviceKey:creator.deviceKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,hostIndex:r.hostIndex,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
@@ -1264,9 +1271,12 @@ wss.on('connection',(ws,req)=>{
       publicUpdate(wss);return;
     }
 
-    const startPlayers=roster(r);
     if(m.t==='start'&&Number(x.i)===Number(r.hostIndex)&&canStartRoom(r)){
+      r.lastSeriesChampionToken='';
+      r.lastSeriesChampionCpu=false;
+      r.lastSeriesChampionIndex=-1;
       resetOnlineSeries(r);
+      const startPlayers=roster(r);
       r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');r.rankRound=1;
       if(db){
         try{
@@ -1295,6 +1305,12 @@ wss.on('connection',(ws,req)=>{
       const complete=round>=5&&leaders.length===1;
       r.seriesComplete=complete;
       r.seriesChampion=complete?leaders[0]:-1;
+      if(complete){
+        const humanWinner=r.players.find(p=>Number(p.i)===Number(r.seriesChampion))||null;
+        r.lastSeriesChampionToken=humanWinner?String(humanWinner.playerToken||''):'';
+        r.lastSeriesChampionCpu=!humanWinner;
+        r.lastSeriesChampionIndex=Number(r.seriesChampion);
+      }
 
       broadcast(r,{t:'series-state',round,wins:r.seriesWins.slice(0,MAX_PLAYERS),complete,champion:r.seriesChampion});
       if(complete)scheduleSeriesLobby(r,wss,7000);
