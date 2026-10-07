@@ -148,6 +148,7 @@
     display:flex;
     align-items:center;
     justify-content:center;
+    flex-wrap:wrap;
     gap:5px;
     margin:4px auto 0;
     min-height:28px;
@@ -198,17 +199,27 @@
     min-width:132px!important;
     max-width:132px!important;
   }
+  #menu #configureJoystick:not(.hidden){
+    width:96px!important;
+    min-width:96px!important;
+    max-width:96px!important;
+    height:28px!important;
+    min-height:28px!important;
+    border-radius:999px!important;
+    font-size:8px!important;
+  }
 }
 
 
-/* V20.40: JOYSTICK es exclusivo de PC. En movil/tablet no existe en el menu. */
-html.handheld-device #menu #enableJoystick{display:none!important}
+/* V22.40: JOYSTICK tambien visible en iPhone/iPad/movil.
+   El boton se muestra aunque aun no haya mando conectado. */
+html.handheld-device #menu #enableJoystick{display:inline-flex!important}
 @media (pointer:coarse){
-  #menu #enableJoystick{display:none!important}
+  #menu #enableJoystick{display:inline-flex!important}
 }
 
 
-/* V21.73: configurador de mando. Solo aparece al activar JOYSTICK en PC. */
+/* V22.40: mismo configurador de mando en PC y movil. */
 #configureJoystick{
   width:112px!important;min-width:112px!important;max-width:112px!important;
   flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
@@ -220,8 +231,8 @@ html.handheld-device #menu #enableJoystick{display:none!important}
 }
 #configureJoystick:hover{background:rgba(38,78,122,.96)!important;border-color:#9fd0ff!important}
 #configureJoystick.hidden{display:none!important}
-html.handheld-device #menu #configureJoystick{display:none!important}
-@media (pointer:coarse){#menu #configureJoystick{display:none!important}}
+html.handheld-device #menu #configureJoystick:not(.hidden){display:inline-flex!important}
+@media (pointer:coarse){#menu #configureJoystick:not(.hidden){display:inline-flex!important}}
 
 .joystick-config-dialog{
   position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;
