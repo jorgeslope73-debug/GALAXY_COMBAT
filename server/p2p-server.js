@@ -406,20 +406,24 @@ function seriesState(r){
     seriesChampion:Number.isInteger(Number(r&&r.seriesChampion))?Number(r.seriesChampion):-1
   };
 }
-function scheduleSeriesLobby(r,wss,delay=4600){
+function finishSeriesToLobby(r,wss){
+  if(!r||rooms.get(r.code)!==r)return false;
+  if(r.seriesLobbyTimer){clearTimeout(r.seriesLobbyTimer);r.seriesLobbyTimer=null;}
+  r.started=false;
+  r.rankRound=0;
+  r.rankRecorded=false;
+  r.rankMatchId=null;
+  resetOnlineSeries(r);
+  const players=roster(r);
+  broadcast(r,{t:'series-lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),hostIndex:r.hostIndex,...seriesState(r)});
+  publicUpdate(wss);
+  return true;
+}
+function scheduleSeriesLobby(r,wss,delay=30000){
   if(!r||r.seriesLobbyTimer)return false;
   r.seriesLobbyTimer=setTimeout(()=>{
     r.seriesLobbyTimer=null;
-    const live=rooms.get(r.code);
-    if(live!==r)return;
-    r.started=false;
-    r.rankRound=0;
-    r.rankRecorded=false;
-    r.rankMatchId=null;
-    resetOnlineSeries(r);
-    const players=roster(r);
-    broadcast(r,{t:'series-lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),hostIndex:r.hostIndex,...seriesState(r)});
-    publicUpdate(wss);
+    finishSeriesToLobby(r,wss);
   },Math.max(0,Number(delay)||0));
   return true;
 }
@@ -1313,7 +1317,12 @@ wss.on('connection',(ws,req)=>{
       }
 
       broadcast(r,{t:'series-state',round,wins:r.seriesWins.slice(0,MAX_PLAYERS),complete,champion:r.seriesChampion});
-      if(complete)scheduleSeriesLobby(r,wss,7000);
+      if(complete)scheduleSeriesLobby(r,wss,30000);
+      return;
+    }
+
+    if(m.t==='series-continue'&&r.seriesComplete){
+      finishSeriesToLobby(r,wss);
       return;
     }
 
