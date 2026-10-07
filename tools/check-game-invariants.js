@@ -275,6 +275,14 @@ if(!local.includes("if(c&&c.shockPulse)this.deployShockwave(p)"))fail(errors,'in
 if(!local.includes("!!(c&&c.rocketPulse)||(rocketHeld&&!p.joystickRocketHeld)"))fail(errors,'input action: local CPU no consume pulso fiable de cohete');
 if(!server.includes("m.t==='fallback-input-action'"))fail(errors,'input action: fallback WS no reenvia acciones fiables');
 if(!core.includes('bounceBodyFromFlare'))fail(errors,'V22.34: falta fisica comun de rebote de bengalas');
+if(!local.includes("this.trainingTestProfile='standard'"))fail(errors,'V22.35: STANDARD no es el perfil privado por defecto');
+if(!local.includes("p.bullets=500"))fail(errors,'V22.35: HARD no carga 500 balas');
+if(!local.includes("p.guidedAmmo=500"))fail(errors,'V22.35: HARD no carga 500 misiles');
+if(!local.includes("p.cadence=1"))fail(errors,'V22.35: HARD no usa cadencia maxima');
+if(!local.includes("p.speed=2"))fail(errors,'V22.35: HARD no usa velocidad maxima');
+if(!local.includes("return this.trainingHardMode()?9:ASTEROID_MAX_ACTIVE"))fail(errors,'V22.35: HARD no aumenta asteroides');
+const training=read('docs/cpu-training.html');
+if(!training.includes('id="trainingProfileStandard"')||!training.includes('id="trainingProfileHard"'))fail(errors,'V22.35: faltan botones STANDARD/HARD en entrenamiento privado');
 for(const [label,src] of [['host',host],['local',local]]){
   if(!src.includes('PHYSICS_CORE.bounceBodyFromFlare(a,f,radius,FLARE_RADIUS,190,105)'))fail(errors,'V22.34 '+label+': bengala no hace rebotar asteroide mediano');
   if(!src.includes('PHYSICS_CORE.bounceBodyFromFlare(g,flare,GIANT_RADIUS,FLARE_RADIUS,90,68)'))fail(errors,'V22.34 '+label+': bengala no hace rebotar meteorito gigante');
@@ -292,7 +300,7 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.34'"))fail(errors,'V22.34: testigo de version no actualizado');
+if(!build.includes("const VERSION='V22.35'"))fail(errors,'V22.35: testigo de version no actualizado');
 if(host.includes('cpu.bullets+=4')||local.includes('cpu.bullets+=4'))fail(errors,'V22.31: A POR EL vuelve a regalar balas a las CPU');
 if(!host.includes("cpuAmmo:false,cpuAmmoBonus:0")||!local.includes("cpuAmmo:false,cpuAmmoBonus:0"))fail(errors,'V22.31: A POR EL debe anunciarse sin bonus de municion');
 
