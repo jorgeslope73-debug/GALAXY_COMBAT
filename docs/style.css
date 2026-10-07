@@ -563,3 +563,14 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   #victory .series-champion-ship{width:50px;height:50px}
   #victory .series-champion-name{font-size:26px}
 }
+
+
+/* V22.25: continuar desde la pantalla final del campeón. */
+#victory .series-champion-continue{
+  margin-top:12px;
+  min-width:180px;
+  padding:12px 22px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+#victory .series-champion-continue.hidden{display:none!important}
