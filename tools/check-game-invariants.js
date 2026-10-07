@@ -37,6 +37,7 @@ function startBlock(source){
 const local=read('docs/local-cpu.js');
 const host=read('docs/host-physics.js');
 const game=read('docs/game.js');
+const voiceCss=read('docs/voz.css');
 const p2p=read('docs/p2p-network.js');
 const core=read('docs/physics-core.js');
 const build=read('docs/build-version.js');
@@ -275,6 +276,9 @@ if(game.includes("if(isMobile||!joystickEnabled||!joystickConfigDialog)return;")
 if(game.includes("if(isMobile)return {active:false,turn:0,thrust:false,fire:false,rocket:false,flare:false,shock:false,ptt:false};"))fail(errors,'V22.39: lectura de joystick vuelve a bloquear movil');
 if(game.includes("if(isMobile)return;\n    joystickEnabled=!joystickEnabled;"))fail(errors,'V22.39: boton JOYSTICK vuelve a bloquear movil');
 if(!game.includes("window.GalaxyJoystickEnabled=()=>!!joystickEnabled;"))fail(errors,'V22.39: estado global del joystick no incluye movil');
+if(voiceCss.includes("html.handheld-device #menu #enableJoystick{display:none!important}"))fail(errors,'V22.40: CSS vuelve a ocultar JOYSTICK en movil');
+if(voiceCss.includes("@media (pointer:coarse){#menu #configureJoystick{display:none!important}}"))fail(errors,'V22.40: CSS vuelve a ocultar CONFIGURAR en movil');
+if(!voiceCss.includes("html.handheld-device #menu #enableJoystick{display:inline-flex!important}"))fail(errors,'V22.40: falta visibilidad explicita de JOYSTICK en iPhone/iPad');
 if(!local.includes("if(c&&c.flarePulse)this.deployFlares(p)"))fail(errors,'input action: local CPU no consume pulso fiable de bengalas');
 if(!local.includes("if(c&&c.shockPulse)this.deployShockwave(p)"))fail(errors,'input action: local CPU no consume pulso fiable de onda');
 if(!local.includes("!!(c&&c.rocketPulse)||(rocketHeld&&!p.joystickRocketHeld)"))fail(errors,'input action: local CPU no consume pulso fiable de cohete');
@@ -316,7 +320,7 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.39'"))fail(errors,'V22.39: testigo de version no actualizado');
+if(!build.includes("const VERSION='V22.40'"))fail(errors,'V22.40: testigo de version no actualizado');
 if(host.includes('cpu.bullets+=4')||local.includes('cpu.bullets+=4'))fail(errors,'V22.31: A POR EL vuelve a regalar balas a las CPU');
 if(!host.includes("cpuAmmo:false,cpuAmmoBonus:0")||!local.includes("cpuAmmo:false,cpuAmmoBonus:0"))fail(errors,'V22.31: A POR EL debe anunciarse sin bonus de municion');
 
