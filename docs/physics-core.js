@@ -244,6 +244,42 @@
   }
 
 
+  function bounceBodyFromFlare(body,flare,bodyRadius=45,flareRadius=12,maxSpeed=190,minBounceSpeed=105){
+    if(!body||!flare)return false;
+    let nx=(Number(body.x)||0)-(Number(flare.x)||0);
+    let ny=(Number(body.y)||0)-(Number(flare.y)||0);
+    let distance=Math.hypot(nx,ny);
+    if(distance<.001){
+      nx=-(Number(flare.vx)||1);ny=-(Number(flare.vy)||0);
+      distance=Math.hypot(nx,ny)||1;
+    }
+    nx/=distance;ny/=distance;
+
+    const vx=Number(body.vx)||0,vy=Number(body.vy)||0;
+    const normalSpeed=vx*nx+vy*ny;
+    const tx=vx-normalSpeed*nx,ty=vy-normalSpeed*ny;
+    const flareSpeed=Math.hypot(Number(flare.vx)||0,Number(flare.vy)||0);
+    const rebound=Math.max(Math.abs(normalSpeed)*.9,Number(minBounceSpeed)||0,Math.min((Number(minBounceSpeed)||0)+flareSpeed*.12,(Number(maxSpeed)||190)*.82));
+
+    // La componente normal siempre queda alejandose del punto de impacto.
+    // Conservamos parte de la componente tangencial para que el rebote no
+    // parezca un cambio artificial a una direccion fija.
+    body.vx=tx*.88+nx*rebound;
+    body.vy=ty*.88+ny*rebound;
+
+    const speed=Math.hypot(body.vx,body.vy);
+    const limit=Math.max(1,Number(maxSpeed)||190);
+    if(speed>limit){body.vx=body.vx/speed*limit;body.vy=body.vy/speed*limit;}
+
+    const overlap=(Number(bodyRadius)||0)+(Number(flareRadius)||0)-distance;
+    if(overlap>0){
+      body.x=(Number(body.x)||0)+nx*(overlap+2);
+      body.y=(Number(body.y)||0)+ny*(overlap+2);
+    }
+    return true;
+  }
+
+
   function resolveProjectileInterceptions(projectiles,destroyed,sweptCircles,bulletRadius=4,missileRadius=12,onHit){
     if(!Array.isArray(projectiles)||projectiles.length<2||!destroyed||typeof destroyed.add!=='function'||typeof sweptCircles!=='function')return 0;
     const hitCallback=typeof onHit==='function'?onHit:null;
@@ -423,6 +459,7 @@
     projectileMeteorHit,
     projectilePickupHit,
     projectileFlareHit,
+    bounceBodyFromFlare,
     resolveProjectileInterceptions,
     projectileShipHit,
     projectileUfoHit,
