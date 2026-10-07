@@ -137,6 +137,7 @@
       this.finished=false;
       this.winner=null;
       this.difficulty='medio';
+      this.testProfile='standard';
       this.huntTargetIndex=-1;
       this.huntUntil=0;
       this.huntStartsAt=0;
@@ -174,9 +175,36 @@
       this.resetAsteroids();
     }
     emit(msg){try{this.onEvent(msg);}catch(_){}}
+    setTestProfile(profile='standard'){
+      this.testProfile=String(profile||'standard').toLowerCase()==='hard'?'hard':'standard';
+      return this.testProfile;
+    }
+    hardMode(){return this.testProfile==='hard';}
+    asteroidMaxActive(){return this.hardMode()?9:ASTEROID_MAX_ACTIVE;}
+    applyHardLoadout(p,respawn=false){
+      if(!p||!this.hardMode())return false;
+      p.bullets=500;
+      p.cadence=1;
+      p.speed=2;
+      p.guidedAmmo=500;
+      p.guided=true;
+      p.guidedTarget=-1;
+      p.reload=respawn?this.reloadTime(p):0;
+      return true;
+    }
     hazardStage(){
       const t=Math.max(0,Number(this.hazardCycleAge)||0);
-      // Fases con descansos intermedios. El tope sigue siendo 5 asteroides.
+      if(this.hardMode()){
+        if(t<60)return {asteroids:5,shower:false,giant:true,ufo:false,rest:false};
+        if(t<120)return {asteroids:6,shower:false,giant:true,ufo:false,rest:false};
+        if(t<165)return {asteroids:7,shower:false,giant:true,ufo:false,rest:false};
+        if(t<195)return {asteroids:6,shower:false,giant:true,ufo:false,rest:true};
+        if(t<240)return {asteroids:7,shower:false,giant:true,ufo:false,rest:false};
+        if(t<285)return {asteroids:8,shower:true,giant:true,ufo:true,rest:false};
+        if(t<315)return {asteroids:7,shower:false,giant:true,ufo:false,rest:true};
+        return {asteroids:9,shower:true,giant:true,ufo:true,rest:false};
+      }
+      // Fases con descansos intermedios. El tope estándar sigue siendo 5 asteroides.
       if(t<60)return {asteroids:1,shower:false,giant:false,ufo:false,rest:false};
       if(t<120)return {asteroids:2,shower:false,giant:false,ufo:false,rest:false};
       if(t<165)return {asteroids:3,shower:false,giant:false,ufo:false,rest:false};
@@ -190,9 +218,9 @@
       const stage=this.hazardStage();
       return{
         asteroidMin:stage.asteroids,
-        asteroidInitialMin:12,asteroidInitialMax:18,
-        asteroidRespawnMin:5,asteroidRespawnMax:11,
-        asteroidPopulationMin:18,asteroidPopulationMax:30,
+        asteroidInitialMin:this.hardMode()?.8:12,asteroidInitialMax:this.hardMode()?1.8:18,
+        asteroidRespawnMin:this.hardMode()?1:5,asteroidRespawnMax:this.hardMode()?2.4:11,
+        asteroidPopulationMin:this.hardMode()?10:18,asteroidPopulationMax:this.hardMode()?18:30,
         firstShowerMin:18,firstShowerMax:28,
         showerRepeatMin:55,showerRepeatMax:85,
         showerDuration:stage.rest?0:7,
@@ -220,7 +248,7 @@
         return;
       }
       const stage=this.hazardStage();
-      const target=clamp(Number(stage.asteroids)||1,1,ASTEROID_MAX_ACTIVE);
+      const target=clamp(Number(stage.asteroids)||1,1,this.asteroidMaxActive());
       if(this.asteroidTargetCount!==target){
         this.asteroidTargetCount=target;
         if(this.asteroids.length<target)this.nextAsteroidSpawn=Math.min(this.nextAsteroidSpawn,3);
@@ -232,7 +260,7 @@
       }
       if(stage.shower&&this.firstShower>900000&&this.nextShower<=0)this.firstShower=rand(18,28);
       if(!stage.shower){this.firstShower=999999;this.nextShower=0;this.showerLeft=0;this.meteors=[];}
-      if(stage.giant&&this.nextGiant>900000&&!this.giant)this.nextGiant=rand(12,24);
+      if(stage.giant&&this.nextGiant>900000&&!this.giant)this.nextGiant=this.hardMode()?rand(6,12):rand(12,24);
       // V21.93: al terminar una fase con gigante no borramos el que ya esta
       // cruzando la pantalla. Solo bloqueamos nuevas apariciones.
       if(!stage.giant)this.nextGiant=999999;
@@ -247,13 +275,14 @@
       this.nextAsteroidIndex=1;
       this.nextAsteroidSpawn=rand(profile.asteroidInitialMin,profile.asteroidInitialMax);
       this.asteroidRampComplete=true;
-      this.asteroidTargetCount=clamp(Number(this.hazardStage().asteroids)||1,1,ASTEROID_MAX_ACTIVE);
+      this.asteroidTargetCount=clamp(Number(this.hazardStage().asteroids)||1,1,this.asteroidMaxActive());
       this.nextAsteroidPopulationChange=999999;
     }
     spawnAsteroidFromEdge(templateIndex,fullyRandom=false){
       const idx=clamp(Math.round(Number(templateIndex)||0),0,ASTEROID_STARTS.length-1);
       let [targetX,targetY,rot,type]=ASTEROID_STARTS[idx];
-      const edge=ASTEROID_RADIUS*2;
+      const radius=this.hardMode()?(Math.random()<.42?72:ASTEROID_RADIUS):ASTEROID_RADIUS;
+      const edge=Math.max(ASTEROID_RADIUS*2,radius*2);
       let start;
       if(fullyRandom){
         targetX=rand(W*.18,W*.82);
@@ -277,7 +306,7 @@
       const n=normalize(targetX-start.x,targetY-start.y);
       this.asteroids.push({
         id:uid(),x:start.x,y:start.y,rot,type,
-        vx:n.x*80,vy:n.y*80,r:ASTEROID_RADIUS,exiting:false,exitDelay:-1
+        vx:n.x*80,vy:n.y*80,r:radius,exiting:false,exitDelay:-1
       });
     }
     resolveAsteroidPairCollision(a,b){
@@ -328,10 +357,10 @@
       return count;
     }
     spawnProgressiveAsteroid(){
-      if(this.asteroidPopulationUnits()>=ASTEROID_MAX_ACTIVE){
+      if(this.asteroidPopulationUnits()>=this.asteroidMaxActive()){
         const profile=this.hazardProfile();
         this.asteroidRampComplete=true;
-        this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+        this.asteroidTargetCount=this.asteroidMaxActive();
         this.nextAsteroidSpawn=999999;
         this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
         return;
@@ -339,9 +368,9 @@
       const profile=this.hazardProfile();
       this.spawnAsteroidFromEdge(this.nextAsteroidIndex);
       this.nextAsteroidIndex++;
-      if(this.asteroidPopulationUnits()>=ASTEROID_MAX_ACTIVE){
+      if(this.asteroidPopulationUnits()>=this.asteroidMaxActive()){
         this.asteroidRampComplete=true;
-        this.asteroidTargetCount=ASTEROID_MAX_ACTIVE;
+        this.asteroidTargetCount=this.asteroidMaxActive();
         this.nextAsteroidSpawn=999999;
         this.nextAsteroidPopulationChange=rand(profile.asteroidPopulationMin,profile.asteroidPopulationMax);
       }else{
@@ -362,11 +391,12 @@
     chooseAsteroidPopulation(){
       const current=this.asteroidPopulationUnits();
       const profile=this.hazardProfile();
-      const minAsteroids=clamp(Math.round(Number(profile.asteroidMin)||1),1,ASTEROID_MAX_ACTIVE);
-      let target=randint(minAsteroids,ASTEROID_MAX_ACTIVE);
+      const maxAsteroids=this.asteroidMaxActive();
+      const minAsteroids=clamp(Math.round(Number(profile.asteroidMin)||1),1,maxAsteroids);
+      let target=randint(minAsteroids,maxAsteroids);
       if(target===current){
-        if(minAsteroids===ASTEROID_MAX_ACTIVE)target=ASTEROID_MAX_ACTIVE;
-        else if(current>=ASTEROID_MAX_ACTIVE)target=randint(minAsteroids,ASTEROID_MAX_ACTIVE-1);
+        if(minAsteroids===maxAsteroids)target=maxAsteroids;
+        else if(current>=maxAsteroids)target=randint(minAsteroids,maxAsteroids-1);
         else target=Math.max(minAsteroids,current+1);
       }
       this.asteroidTargetCount=target;
@@ -385,7 +415,7 @@
     }
     updateAsteroidPopulation(){
       const profile=this.hazardProfile();
-      const target=clamp(Number(this.asteroidTargetCount)||1,1,ASTEROID_MAX_ACTIVE);
+      const target=clamp(Number(this.asteroidTargetCount)||1,1,this.asteroidMaxActive());
       const transitioning=this.asteroids.some(a=>a.exiting||a.exitDelay>=0);
       if(!transitioning&&this.asteroids.length<target){
         this.nextAsteroidSpawn-=DT;
@@ -425,6 +455,7 @@
         const index=Number(item.i),isCpu=!!item.cpu;
         const player=this.makePlayer(index,item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu);
         if(isCpu)player.difficulty='dificil';
+        this.applyHardLoadout(player,false);
         this.placeAtSpawn(player);
         this.players.push(player);
         this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
@@ -509,6 +540,7 @@
         if(!p){
           p=this.makePlayer(index,item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu);
           if(isCpu)p.difficulty='dificil';
+          this.applyHardLoadout(p,false);
           this.placeAtSpawn(p);this.players.push(p);this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});changed=true;continue;
         }
         const wasCpu=!!p.cpu;
@@ -523,6 +555,7 @@
 
           const human=this.makePlayer(index,nextName,false);
           human.difficulty=this.difficulty;
+          this.applyHardLoadout(human,false);
           human.aiControl=null;
           human.lastControlAt=0;
           this.placeAtSpawn(human);
@@ -612,6 +645,7 @@
       for(const p of this.players)p.dead=true;
       for(const p of this.players){
         p.bullets=5;p.cadence=30;p.speed=1;p.kills=0;p.deaths=0;p.reload=0;p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flare=0;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.flarePending=null;p.nextFlareDecision=0;p.nextFlareAllowed=0;
+        this.applyHardLoadout(p,false);
         p.shield=0;p.camo=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;p.respawn=0;
         p.lastControlAt=Date.now();p.lastSpawn=null;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;this.resetCpuLoopMemory(p);
         this.controls.set(p.index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
@@ -910,6 +944,7 @@
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
       p.bullets=1;p.cadence=30;p.speed=1;p.shield=0;p.camo=0;p.reload=this.reloadTime(p);p.guided=false;p.guidedTarget=-1;p.guidedAmmo=0;p.joystickRocketHeld=false;p.flareHold=0;p.flareGesture=false;p.specialReleaseLock=false;p.shockwave=false;p.shockReachAt=0;p.shockExplodeAt=0;p.shockOwner=-1;p.flarePending=null;p.nextFlareDecision=0;p.aiControl=null;p.cpuFireDelay=p.cpu?CPU_ARMED_WARNING_SECONDS:0;
+      this.applyHardLoadout(p,true);
       this.armCpuLoopRespawn(p);
     }
     deployShockwave(p){
@@ -2048,7 +2083,7 @@
       for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
       if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){
         this.giant=null;
-        this.nextGiant=giantEnabled?rand(130,190):999999;
+        this.nextGiant=giantEnabled?(this.hardMode()?rand(35,55):rand(130,190)):999999;
       }
     }
     spawnUfo(){
@@ -2306,7 +2341,7 @@
         if(write!==this.fxEvents.length)this.fxEvents.length=write;
       }
       return{
-        t:'state',hostEpoch:this.hostEpoch,seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',started:this.started,finished:this.finished,winner:this.winner,
+        t:'state',hostEpoch:this.hostEpoch,seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',testProfile:this.testProfile,started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
         players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),shock:!!p.shockwave,dead:p.dead,respawn:round3(p.respawn)})),
