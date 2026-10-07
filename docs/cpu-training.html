@@ -268,8 +268,9 @@ function applyTrainingProfile(profile,restartNow=true){
   if(sim&&typeof sim.setTrainingTestProfile==='function')sim.setTrainingTestProfile(next);
   if(sim&&restartNow){
     // Reinicio deliberado de la simulación, no del flujo de guardado/aprendizaje.
-    // Como restart() exige partida terminada, recreamos el simulador usando el
-    // mismo Brain y los mismos callbacks ya definidos en startSim().
+    // Descartamos solo los deltas aun no guardados de la prueba anterior para
+    // que STANDARD y HARD nunca se mezclen dentro de una misma muestra.
+    pendingDeltas=[];
     const brain=sim.brain||null;
     startSim(brain);
   }else updateTrainingProfileUi();
