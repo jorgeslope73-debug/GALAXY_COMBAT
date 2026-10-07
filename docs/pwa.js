@@ -118,7 +118,7 @@
   window.addEventListener('load', () => {
     const swUrl=(window.GALAXY_BUILD&&typeof window.GALAXY_BUILD.versioned==='function')
       ?window.GALAXY_BUILD.versioned('./sw.js')
-      :'./sw.js?v=V22.27';
+      :'./sw.js?v=V22.28';
     navigator.serviceWorker.register(swUrl,{updateViaCache:'none',scope:'./'})
       .then(async reg=>{
         try{await reg.update();}catch(_){}
