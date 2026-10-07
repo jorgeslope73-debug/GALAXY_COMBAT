@@ -69,6 +69,10 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(!bullets.includes('PHYSICS_CORE.resolveProjectileInterceptions'))fail(errors,label+': intercepcion proyectil-proyectil ya no delega en physics-core');
   if(bullets.includes('const aMissile=!!a.guided,bMissile=!!b.guided'))fail(errors,label+': han vuelto las reglas inline proyectil-proyectil');
   if(!bullets.includes('destroyedProjectileScratch'))fail(errors,label+': se ha perdido el scratch Set reutilizable de proyectiles');
+  if(!bullets.includes('PHYSICS_CORE.projectileUfoHit'))fail(errors,label+': colision proyectil-OVNI ya no delega en physics-core');
+  if(bullets.includes('sweptCircles(b,BULLET_RADIUS,this.ufo,UFO_RADIUS,false)'))fail(errors,label+': ha vuelto la deteccion inline proyectil-OVNI');
+  if(!bullets.includes('if(ufoHit.destroyed)this.destroyUfo(ufoHit.owner)'))fail(errors,label+': el OVNI destruido ya no acredita al tirador');
+  if(!bullets.includes('ufoHit.impactX')||!bullets.includes('ufoHit.impactY'))fail(errors,label+': impacto contra OVNI pierde el punto real');
   if(bullets.includes('splitGiantMeteor'))fail(errors,label+': el meteorito gigante vuelve a fragmentarse por misil');
 
   const split=method(src,'splitAsteroidByMissile');
@@ -116,6 +120,10 @@ if(!core.includes('function projectileMeteorHit'))fail(errors,'core: falta la co
 if(!core.includes('function projectilePickupHit'))fail(errors,'core: falta la colision compartida proyectil-pickup');
 if(!core.includes('function projectileFlareHit'))fail(errors,'core: falta la colision compartida proyectil-bengala');
 if(!core.includes('function resolveProjectileInterceptions'))fail(errors,'core: falta la intercepcion compartida proyectil-proyectil');
+if(!core.includes('function projectileUfoHit'))fail(errors,'core: falta la colision compartida proyectil-OVNI');
+if(!core.includes('const damage=guided?2:1;'))fail(errors,'core: se ha perdido el dano 2 de misil / 1 de bala contra OVNI');
+if(!core.includes('ufo.hp=hp;'))fail(errors,'core: el dano contra OVNI ya no actualiza su vida');
+if(!core.includes('destroyed:hp<=0'))fail(errors,'core: falta indicar destruccion del OVNI');
 if(!core.includes('if(Number(a.owner)===Number(b.owner))continue;'))fail(errors,'core: proyectiles del mismo jugador pueden autointerceptarse');
 if(!core.includes('if(!aMissile&&!bMissile)continue;'))fail(errors,'core: dos balas normales ya no se atraviesan');
 if(!core.includes('sweptCircles(a,missileRadius,b,missileRadius,false)'))fail(errors,'core: falta colision misil-misil');

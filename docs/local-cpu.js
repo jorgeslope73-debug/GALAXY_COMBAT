@@ -2476,17 +2476,20 @@
             }
           }
         }
-        if(!remove&&this.ufo&&sweptCircles(b,BULLET_RADIUS,this.ufo,UFO_RADIUS,false)){
-          const hitUfo=this.ufo;
-          hitUfo.hp=Math.max(0,(Number(hitUfo.hp)||UFO_HP)-(b.guided?2:1));
-          if(b.guided){
-            this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-            this.emit({t:'sound',kind:'sparkle'});
-          }else{
-            this.emit({t:'sound',kind:'impact'});
+        if(!remove){
+          const ufoHit=PHYSICS_CORE.projectileUfoHit(
+            b,this.ufo,sweptCircles,BULLET_RADIUS,UFO_RADIUS,UFO_HP
+          );
+          if(ufoHit){
+            if(ufoHit.guided){
+              this.emitRocketDisintegrateAt(ufoHit.impactX,ufoHit.impactY,ufoHit.owner);
+              this.emit({t:'sound',kind:'sparkle'});
+            }else{
+              this.emit({t:'sound',kind:'impact'});
+            }
+            if(ufoHit.destroyed)this.destroyUfo(ufoHit.owner);
+            remove=true;
           }
-          if(hitUfo.hp<=0)this.destroyUfo(Number(b.owner));
-          remove=true;
         }
         if(!remove){
           const asteroidHit=PHYSICS_CORE.projectileAsteroidHit(b,this.asteroids,sweptCircles,BULLET_RADIUS);

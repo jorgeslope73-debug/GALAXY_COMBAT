@@ -291,6 +291,28 @@
     return hits;
   }
 
+
+  function projectileUfoHit(projectile,ufo,sweptCircles,projectileRadius=4,ufoRadius=30,ufoHp=1){
+    if(!projectile||!ufo||typeof sweptCircles!=='function')return null;
+    if(!sweptCircles(projectile,projectileRadius,ufo,ufoRadius,false))return null;
+
+    const guided=!!projectile.guided;
+    const damage=guided?2:1;
+    const hp=Math.max(0,(Number(ufo.hp)||ufoHp)-damage);
+    ufo.hp=hp;
+
+    return {
+      ufo,
+      guided,
+      damage,
+      hp,
+      destroyed:hp<=0,
+      owner:Number(projectile.owner),
+      impactX:Number(projectile.x)||0,
+      impactY:Number(projectile.y)||0
+    };
+  }
+
   function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
     if(!asteroid)return null;
     const defaultRadius=Number(opts.defaultRadius)||45;
@@ -355,6 +377,7 @@
     projectilePickupHit,
     projectileFlareHit,
     resolveProjectileInterceptions,
+    projectileUfoHit,
     asteroidMissileFracture
   });
 })();
