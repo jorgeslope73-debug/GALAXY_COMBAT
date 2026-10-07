@@ -264,6 +264,16 @@ if(!host.includes('applyInputAction(index,kind,actionId)'))fail(errors,'input ac
 if(!game.includes("queueInputAction(kind)"))fail(errors,'input action: cliente no genera actionId');
 if(!server.includes("m.t==='fallback-input-action'"))fail(errors,'input action: fallback WS no reenvia acciones fiables');
 if(!game.includes("hostPhysics.resetControlSequence(Number(m.from))"))fail(errors,'control seq: reconexion no reinicia secuencia del jugador');
+if(!game.includes('pendingCriticalServerOps'))fail(errors,'round reconcile: falta cola de operaciones criticas');
+if(!game.includes("queueCriticalServerOp({t:'rank-restart'"))fail(errors,'round reconcile: cambio de ronda no se encola');
+if(!game.includes("t:'series-round-result'"))fail(errors,'round reconcile: resultado de serie no se encola');
+if(!game.includes("m.t==='critical-ack'"))fail(errors,'round reconcile: cliente no procesa ACK');
+if(!game.includes('restoreCriticalServerOps()'))fail(errors,'round reconcile: operaciones criticas no sobreviven a reconexion');
+if(!server.includes("t:'critical-ack'"))fail(errors,'round reconcile: servidor no confirma operaciones criticas');
+if(!server.includes("t:'critical-nack'"))fail(errors,'round reconcile: servidor no informa desajustes');
+if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,'round reconcile: rank-restart no es idempotente');
+if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
+if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');
