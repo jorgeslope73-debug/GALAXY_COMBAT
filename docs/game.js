@@ -63,8 +63,8 @@
   const playerColors=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
   const playerRgb=[[90,225,255],[255,80,165],[90,255,120],[255,220,70]];
   const images={},sounds={};
-  let state=null,previousState=null,myIndex=null,hostIndex=0,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
-  let lastAcceptedStateRound=-1,lastAcceptedStateSeq=-1;
+  let state=null,previousState=null,myIndex=null,hostIndex=0,hostEpoch=1,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
+  let lastAcceptedStateEpoch=-1,lastAcceptedStateRound=-1,lastAcceptedStateSeq=-1;
   const RESUME_STORAGE_KEY='galaxyCombatResumeV1';
   const ROOM_CLIENT_ID_KEY='galaxyRoomClientIdV1';
   const TEST_ROOM_PERMIT_STORAGE='galaxyTestRoomPermitV1';
@@ -2530,7 +2530,7 @@
   function startHostPhysics(players,rankRound=1){
     if(!isHost||typeof window.GalaxyHostPhysics!=='function')return false;
     hostPhysics=new window.GalaxyHostPhysics({
-      code:roomCode,rankRound,rankHostToken:playerToken,
+      code:roomCode,rankRound,rankHostToken:playerToken,hostEpoch,
       onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);sendHostFallbackState(m);},
       onEvent:m=>{
         if(m&&m.t==='victory')submitOnlineSeriesRound(m.winner,(hostPhysics&&hostPhysics.rankRound)||1);
@@ -3254,10 +3254,11 @@
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');
       hostIndex=Number.isInteger(Number(m.hostIndex))?Number(m.hostIndex):0;
+      hostEpoch=Number.isInteger(Number(m.hostEpoch))&&Number(m.hostEpoch)>0?Number(m.hostEpoch):1;
       isHost=Number(myIndex)===hostIndex;
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
-      cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+      cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});
       saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players||(m.cpu?2:1));
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(Array.isArray(m.players))syncVoicePlayers(m.players,true);}
       roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');
@@ -3269,8 +3270,9 @@
       if(!m.started){inGame=false;resetOnlineStartCountdown();clearGameCanvas();}
       roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);
       hostIndex=Number.isInteger(Number(m.hostIndex))?Number(m.hostIndex):(m.host?Number(myIndex):hostIndex);
+      if(Number.isInteger(Number(m.hostEpoch))&&Number(m.hostEpoch)>0)hostEpoch=Number(m.hostEpoch);
       isHost=Number(myIndex)===hostIndex;
-      if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
+      if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
       updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
@@ -3294,17 +3296,18 @@
     else if(m.t==='host-migrated'){
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
       if(Number.isInteger(Number(m.hostIndex)))hostIndex=Number(m.hostIndex);
+      if(Number.isInteger(Number(m.hostEpoch))&&Number(m.hostEpoch)>0)hostEpoch=Number(m.hostEpoch);
       const wasHost=isHost;
       isHost=Number(myIndex)===Number(hostIndex);
       if(!isHost&&hostPhysics){hostPhysics.stop();hostPhysics=null;}
-      ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+      ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});
       updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
       if(m.started&&m.restartRound){
         const round=Math.max(1,Number(m.rankRound)||Number(m.seriesRound)||onlineSeriesRound||1);
         if(hostPhysics){hostPhysics.stop();hostPhysics=null;}
         lastRestartedRound=Math.max(0,round-1);
-        lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;
+        lastAcceptedStateEpoch=-1;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;
         lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
         fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
         handle({t:'restarted',rankRound:round,hostMigration:true});
@@ -3321,8 +3324,9 @@
         const tagged=lobbyPlayers.find(p=>p&&p.host===true);
         if(tagged)hostIndex=Number(tagged.i);
       }
+      if(Number.isInteger(Number(m.hostEpoch))&&Number(m.hostEpoch)>0)hostEpoch=Number(m.hostEpoch);
       isHost=Number(myIndex)===Number(hostIndex);
-      ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+      ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});
       if(!isHost&&hostPhysics){hostPhysics.stop();hostPhysics=null;}
       // El roster es la autoridad sobre si cada plaza es HUMANO o CPU,
       // tambien durante la victoria/espera entre partidas.
@@ -3332,20 +3336,28 @@
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
     }
     else if(m.t==='start'){
-      lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
+      lastAcceptedStateEpoch=-1;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
       if(Number.isInteger(Number(m.hostIndex)))hostIndex=Number(m.hostIndex);
+      if(Number.isInteger(Number(m.hostEpoch))&&Number(m.hostEpoch)>0)hostEpoch=Number(m.hostEpoch);
       isHost=Number(myIndex)===Number(hostIndex);
       onlineSessionWins.clear();onlineSeriesRound=Math.max(1,Number(m.rankRound)||1);onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
       if(m.seriesWins)applyOnlineSeriesState(m);
-      ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+      ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});
       beginOnlineStartCountdown(m.rankRound);
     }
     else if(m.t==='state'){
       // V19.55 OPT1: el DataChannel P2P es no ordenado para reducir latencia.
       // Nunca dejamos que un snapshot antiguo vuelva a mover la escena atras.
       // round permite que seq se reinicie de forma segura entre rondas.
-      const incomingRound=Number(m.round),incomingSeq=Number(m.seq);
+      const incomingEpoch=Number(m.hostEpoch),incomingRound=Number(m.round),incomingSeq=Number(m.seq);
+      if(Number.isInteger(incomingEpoch)&&incomingEpoch>0){
+        if(lastAcceptedStateEpoch>=0&&incomingEpoch<lastAcceptedStateEpoch)return;
+        if(incomingEpoch!==lastAcceptedStateEpoch){
+          lastAcceptedStateEpoch=incomingEpoch;
+          lastAcceptedStateEpoch=-1;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;
+        }
+      }
       // Un snapshot de la nueva ronda tambien recupera una cuenta atras si
       // el evento restarted se pierde; rankRound evita arrancarla dos veces.
       const previousRound=state&&Number(state.round);
@@ -3969,7 +3981,7 @@
     clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
     inGame=false;
     if(isHost&&hostPhysics){hostPhysics.stop();hostPhysics=null;}
-    state=null;previousState=null;pendingStateRaw=null;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastRestartedRound=0;
+    state=null;previousState=null;pendingStateRaw=null;lastAcceptedStateEpoch=-1;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastRestartedRound=0;
     resetLocalVisual();resetRemoteVisuals();rebuildPreviousLookup(null);
     topbar.classList.add('hidden');victory.classList.add('hidden');mobileControls.classList.add('hidden');
     if(mobileExit)mobileExit.classList.add('hidden');
@@ -3978,7 +3990,7 @@
     if(Number.isInteger(Number(m.hostIndex)))hostIndex=Number(m.hostIndex);
     isHost=Number(myIndex)===Number(hostIndex);
     cpuFillEnabled=!!m.cpuFill;
-    ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+    ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});
     playersEl.innerHTML=lobbyPlayers.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}${p.champion?' · 🏆':''}${Number(p.i)===Number(hostIndex)?' · HOST':''}</div>`).join('');
     updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(lobbyPlayers);
     const mini=document.getElementById('seriesRoundMini');if(mini)mini.textContent='';
@@ -4228,7 +4240,7 @@
     // siguiente intervalo de 5 s.
     refreshCpuLearningControl();
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
-    roomCode='';myIndex=null;hostIndex=0;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;rebuildPreviousLookup(null);
+    roomCode='';myIndex=null;hostIndex=0;hostEpoch=1;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;lastAcceptedStateEpoch=-1;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
     mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');resetMobileTouchControls();
     roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(1);
