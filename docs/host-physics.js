@@ -596,7 +596,7 @@
       // Publicamos solo el estado final mas reciente.
       if(publishState)this.onState(this.publicState());
     }
-    restart(){
+    restart(targetRound=null){
       if(!this.finished||this.players.length<2)return false;
       this.started=false;this.finished=false;this.winner=null;this.seq=0;this.rankReportSent=false;
       this.fxClock=0;this.fxSeq=0;this.fxEvents=[];this.fxLastHit.clear();
@@ -614,7 +614,8 @@
         this.placeAtSpawn(p);p.dead=false;
       }
       this.started=true;this.lastNow=0;this.accumulator=0;this.tickCount=0;
-      this.rankRound=Math.max(1,Number(this.rankRound)||1)+1;
+      const requested=Math.max(0,Number(targetRound)||0);
+      this.rankRound=requested>0?requested:(Math.max(1,Number(this.rankRound)||1)+1);
       return true;
     }
     reportRankedVictory(winnerIndex){
