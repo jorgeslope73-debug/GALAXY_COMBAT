@@ -103,7 +103,7 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
         <button id="trainingProfileHard" class="profile-off" type="button">HARD</button>
         <span id="trainingProfileStatus" class="muted">ESTÁNDAR · configuración actual</span>
       </div>
-      <p class="muted" style="margin:9px 0 0;font-size:12px">ESTÁNDAR conserva exactamente el entrenamiento actual. HARD usa 500 balas, 500 misiles, cadencia máxima, velocidad máxima y más asteroides medianos/grandes. Al morir, la CPU reaparece con el mismo equipamiento HARD. Solo afecta a esta simulación privada.</p>
+      <p class="muted" style="margin:9px 0 0;font-size:12px">ESTÁNDAR conserva exactamente el juego actual. HARD usa 500 balas, 500 misiles, cadencia máxima, velocidad máxima y más asteroides medianos/grandes. El perfil queda guardado en este navegador: se aplica a CONTRA LA MÁQUINA y, si tú eres el host, también a la sala ONLINE. Al morir se reaparece con el mismo equipamiento HARD.</p>
     </section>
 
     <section class="panel">
@@ -134,11 +134,12 @@ canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}.lock{padding:40px
 const API=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').replace(/\/$/,'');
 const TRAINING_KEY_STORAGE='galaxyCpuTrainingKeyV1';
 const TEST_ROOM_PERMIT_STORAGE='galaxyTestRoomPermitV1';
+const TRAINING_TEST_PROFILE_STORAGE='galaxyCpuTestProfileV1';
 const COLORS=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
 let trainingKey=(()=>{try{return localStorage.getItem(TRAINING_KEY_STORAGE)||''}catch(_){return ''}})();
 const $=id=>document.getElementById(id);
 let sim=null,state=null,running=false,busy=false,pendingDeltas=[],sessionCount=0,speed=15,lastPaint=0;
-let autoTrainingEnabled=true,localHardEnabled=true,manualPaused=false,frameStarted=false,trainingTestProfile='standard';
+let autoTrainingEnabled=true,localHardEnabled=true,manualPaused=false,frameStarted=false,trainingTestProfile=(()=>{try{return localStorage.getItem(TRAINING_TEST_PROFILE_STORAGE)==='hard'?'hard':'standard'}catch(_){return 'standard'}})();
 const ctx=$('arena').getContext('2d');
 
 function trainingHeaders(){return trainingKey?{'X-Training-Key':trainingKey}:{}}
@@ -265,6 +266,7 @@ function applyTrainingProfile(profile,restartNow=true){
   const next=String(profile||'standard').toLowerCase()==='hard'?'hard':'standard';
   if(trainingTestProfile===next&&sim)return;
   trainingTestProfile=next;
+  try{localStorage.setItem(TRAINING_TEST_PROFILE_STORAGE,next)}catch(_){}
   if(sim&&typeof sim.setTrainingTestProfile==='function')sim.setTrainingTestProfile(next);
   if(sim&&restartNow){
     // Reinicio deliberado de la simulación, no del flujo de guardado/aprendizaje.
