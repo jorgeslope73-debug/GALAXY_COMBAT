@@ -310,6 +310,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   }
 
   #mobileControls.button-mode .mobile-zone{display:none!important}
+#mobileControls.joystick-mode{display:none!important}
 
   #mobileControls.keyboard-mode .mobile-turn-pad,
   #mobileControls.keyboard-mode .mobile-action-zone,
