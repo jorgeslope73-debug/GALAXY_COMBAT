@@ -204,6 +204,22 @@
     return null;
   }
 
+
+  function projectilePickupHit(projectile,pickups,sweptCircles,projectileRadius=4,pickupRadius=22){
+    if(!projectile||!Array.isArray(pickups)||typeof sweptCircles!=='function')return null;
+
+    // V22.10: los misiles atraviesan cualquier pickup y no se consumen.
+    if(projectile.guided)return null;
+
+    for(let i=pickups.length-1;i>=0;i--){
+      const pickup=pickups[i];
+      if(!pickup)continue;
+      if(!sweptCircles(projectile,projectileRadius,pickup,pickupRadius,false))continue;
+      return {pickup,index:i};
+    }
+    return null;
+  }
+
   function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
     if(!asteroid)return null;
     const defaultRadius=Number(opts.defaultRadius)||45;
@@ -265,6 +281,7 @@
     projectileAsteroidHit,
     projectileGiantHit,
     projectileMeteorHit,
+    projectilePickupHit,
     asteroidMissileFracture
   });
 })();

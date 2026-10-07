@@ -59,6 +59,9 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(bullets.includes('for(let m=this.meteors.length-1'))fail(errors,label+': ha vuelto la deteccion inline proyectil-lluvia');
   if(!bullets.includes('this.meteors.splice(meteorHit.index,1)'))fail(errors,label+': el meteorito de lluvia impactado ya no se elimina por indice compartido');
   if(!bullets.includes('meteorHit.impactX')||!bullets.includes('meteorHit.impactY'))fail(errors,label+': impacto contra lluvia pierde el punto real');
+  if(!bullets.includes('PHYSICS_CORE.projectilePickupHit'))fail(errors,label+': colision bala-pickup ya no delega en physics-core');
+  if(bullets.includes('for(let p=this.pickups.length-1'))fail(errors,label+': ha vuelto la deteccion inline proyectil-pickup');
+  if(!bullets.includes('this.pickups.splice(pickupHit.index,1)'))fail(errors,label+': el pickup impactado ya no se elimina por indice compartido');
   if(bullets.includes('splitGiantMeteor'))fail(errors,label+': el meteorito gigante vuelve a fragmentarse por misil');
 
   const split=method(src,'splitAsteroidByMissile');
@@ -103,6 +106,9 @@ if(!core.includes('p.reload=reloadTimeFor(p)'))fail(errors,'core: bala y misil y
 if(!core.includes('function projectileAsteroidHit'))fail(errors,'core: falta la colision compartida proyectil-asteroide');
 if(!core.includes('function projectileGiantHit'))fail(errors,'core: falta la colision compartida proyectil-gigante');
 if(!core.includes('function projectileMeteorHit'))fail(errors,'core: falta la colision compartida proyectil-lluvia');
+if(!core.includes('function projectilePickupHit'))fail(errors,'core: falta la colision compartida proyectil-pickup');
+if(!core.includes('if(projectile.guided)return null;'))fail(errors,'core: los misiles ya no atraviesan los pickups');
+if(!core.includes('pickupRadius=22'))fail(errors,'core: el pickup ha perdido su radio de colision compartido');
 if(!core.includes('meteorRadius=14'))fail(errors,'core: la lluvia ha perdido su radio de colision compartido');
 if(!core.includes('guided:!!projectile.guided'))fail(errors,'core: la colision compartida no conserva el tipo de proyectil');
 if(!core.includes('fracture:!!projectile.guided'))fail(errors,'core: misil contra asteroide ya no activa fragmentacion');

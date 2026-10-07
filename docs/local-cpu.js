@@ -2560,14 +2560,15 @@
             this.emit({t:'sound',kind:meteorHit.guided?'sparkle':'impact'});
           }
         }
-        // V21.52: las BALAS normales destruyen armas/mejoras flotantes.
-        // Los MISILES las atraviesan y no se consumen al pasar por encima.
-        if(!remove&&!b.guided){
-          for(let p=this.pickups.length-1;p>=0;p--){
-            if(!sweptCircles(b,BULLET_RADIUS,this.pickups[p],PICKUP_RADIUS,false))continue;
-            this.pickups.splice(p,1);
+        // V22.10: physics-core decide si el proyectil puede afectar al pickup.
+        // Las balas normales lo destruyen; los misiles lo atraviesan.
+        if(!remove){
+          const pickupHit=PHYSICS_CORE.projectilePickupHit(
+            b,this.pickups,sweptCircles,BULLET_RADIUS,PICKUP_RADIUS
+          );
+          if(pickupHit){
+            this.pickups.splice(pickupHit.index,1);
             remove=true;
-            break;
           }
         }
         if(remove)this.bullets.splice(i,1);
