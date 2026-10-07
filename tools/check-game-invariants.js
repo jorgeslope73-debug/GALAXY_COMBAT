@@ -227,6 +227,11 @@ if(!index.includes('id="seriesRoundMini"'))fail(errors,'series: falta contador d
 if(!style.includes('.series-champion-cup'))fail(errors,'series: falta copa grande en CSS');
 if(!style.includes('#victory .series-champion-ship{\n  width:50px;\n  height:50px;'))fail(errors,'series: la nave campeona no mantiene 50x50 px');
 if(!server.includes('scheduleSeriesLobby(r,wss,7000)'))fail(errors,'series: la pantalla de campeon no dura 7 segundos');
+if(!server.includes('lastSeriesChampionToken'))fail(errors,'series: el servidor no conserva la identidad del campeon anterior');
+if(!server.includes('champion:!!(r.lastSeriesChampionToken'))fail(errors,'series: roster humano no marca al campeon');
+if(!server.includes('lastSeriesChampionCpu'))fail(errors,'series: roster CPU no conserva campeon');
+if(!game.includes("p.champion?' · 🏆':''"))fail(errors,'series: la sala no muestra la copa del campeon');
+if(!server.includes("r.lastSeriesChampionToken=''"))fail(errors,'series: la copa no se limpia al iniciar una nueva serie');
 
 if(!server.includes('function currentHost(r)'))fail(errors,'host migration: falta resolver host actual');
 if(!server.includes('function promoteHost(r,wss'))fail(errors,'host migration: falta promocion automatica');
