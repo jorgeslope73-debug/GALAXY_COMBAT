@@ -203,9 +203,12 @@
         if(allowFast&&!this.isHost&&m.t==='state'){this.onState(m.state);return;}
 
         // Eventos/acciones son fiables. Aplicar antes el último estado fast pendiente.
-        if(allowReliable&&(m.t==='event'||m.t==='action')&&this.pendingStateRaw)this.flushPendingState();
+        if(allowReliable&&(m.t==='event'||m.t==='action'||m.t==='input-action')&&this.pendingStateRaw)this.flushPendingState();
         if(allowReliable&&!this.isHost&&m.t==='event')this.onEvent(m.event);
         else if(allowReliable&&this.isHost&&m.t==='action')this.onEvent({t:'p2p-action',from:peerIndex,action:m.action});
+        else if(allowReliable&&this.isHost&&m.t==='input-action'){
+          this.onEvent({t:'p2p-input-action',from:peerIndex,kind:String(m.kind||''),actionId:Number(m.actionId)||0});
+        }
       };
     }
     async createPeer(peerIndex,offerer){
@@ -287,15 +290,16 @@
       for(const rec of this.peers.values())if(rec&&rec.open)return rec;
       return null;
     }
-    sendControl(turn,thrust,fire,actions={}){
-      if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire,...actions});return true;}
+    sendControl(turn,thrust,fire,actions={},controlSeq=0){
+      const seq=Math.max(0,Number(controlSeq)||0);
+      if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire,controlSeq:seq,...actions});return true;}
       const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.fastDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
       // Los controles son efimeros: con cola alta descartamos el antiguo y el
       // siguiente heartbeat enviara el estado mas reciente, evitando input lag.
       if(Number(dc.bufferedAmount||0)>32*1024)return false;
-      try{dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire,...actions}));return true;}catch(_){return false;}
+      try{dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire,controlSeq:seq,...actions}));return true;}catch(_){return false;}
     }
     flushBroadcastState(){
       if(!this.isHost||!this.pendingBroadcastState)return false;
@@ -332,6 +336,19 @@
         const dc=rec&&rec.reliableDc;
         if(rec.open&&dc&&dc.readyState==='open'){try{dc.send(raw);}catch(_){}}
       }
+    }
+    sendInputAction(kind,actionId){
+      const id=Math.max(1,Number(actionId)||1);
+      const actionKind=String(kind||'');
+      if(!actionKind)return false;
+      if(this.isHost){
+        this.onEvent({t:'p2p-input-action',from:this.myIndex,kind:actionKind,actionId:id});
+        return true;
+      }
+      const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
+      const dc=rec&&rec.reliableDc;
+      if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
+      try{dc.send(JSON.stringify({t:'input-action',kind:actionKind,actionId:id}));return true;}catch(_){return false;}
     }
     sendAction(action){
       if(this.isHost){this.onEvent({t:'p2p-action',from:this.myIndex,action});return true;}
