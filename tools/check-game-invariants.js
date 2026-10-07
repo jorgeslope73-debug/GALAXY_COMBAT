@@ -176,6 +176,9 @@ const p2pEvent=method(p2p,'broadcastEvent');
 if(!p2pEvent.includes('rec.reliableDc')||p2pEvent.includes('rec.fastDc'))fail(errors,'P2P: eventos no usan exclusivamente el canal fiable');
 const p2pAction=method(p2p,'sendAction');
 if(!p2pAction.includes('rec.reliableDc')||p2pAction.includes('rec.fastDc'))fail(errors,'P2P: acciones no usan exclusivamente el canal fiable');
+if(!p2p.includes('this.hostIndex=0'))fail(errors,'P2P: falta hostIndex dinamico');
+if(!p2pControl.includes('this.hostIndex'))fail(errors,'P2P: controles no se enrutan al host actual');
+if(!p2pAction.includes('this.hostIndex'))fail(errors,'P2P: acciones no se enrutan al host actual');
 
 // V22.20: build-version.js sigue siendo la versión canónica, pero index carga
 // scripts estáticos para evitar parser/document.write problemático en Safari iOS.
@@ -222,6 +225,16 @@ if(!game.includes("t:'series-round-result'"))fail(errors,'series: host no report
 if(!index.includes('id="seriesChampion"'))fail(errors,'series: falta markup de campeon');
 if(!index.includes('id="seriesRoundMini"'))fail(errors,'series: falta contador de ronda durante partida');
 if(!style.includes('.series-champion-cup'))fail(errors,'series: falta copa grande en CSS');
+
+if(!server.includes('function currentHost(r)'))fail(errors,'host migration: falta resolver host actual');
+if(!server.includes('function promoteHost(r,wss'))fail(errors,'host migration: falta promocion automatica');
+if(!server.includes("t:'host-migrated'"))fail(errors,'host migration: servidor no notifica cambio de host');
+if(!server.includes('hostIndex:0'))fail(errors,'host migration: sala no guarda hostIndex');
+if(server.includes("find(p=>p.i===0)"))fail(errors,'host migration: queda autoridad hardcodeada al jugador 0');
+if(!game.includes("m.t==='host-migrated'"))fail(errors,'host migration: cliente no procesa host-migrated');
+if(!game.includes('hostIndex=0'))fail(errors,'host migration: cliente no mantiene hostIndex');
+if(!game.includes("ERES EL NUEVO SERVIDOR P2P"))fail(errors,'host migration: falta confirmacion de nuevo host');
+if(!game.includes("handle({t:'restarted',rankRound:round,hostMigration:true})"))fail(errors,'host migration: la ronda actual no se reinicia bajo nuevo host');
 
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');

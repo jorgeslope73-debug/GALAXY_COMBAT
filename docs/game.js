@@ -63,7 +63,7 @@
   const playerColors=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
   const playerRgb=[[90,225,255],[255,80,165],[90,255,120],[255,220,70]];
   const images={},sounds={};
-  let state=null,previousState=null,myIndex=null,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
+  let state=null,previousState=null,myIndex=null,hostIndex=0,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
   let lastAcceptedStateRound=-1,lastAcceptedStateSeq=-1;
   const RESUME_STORAGE_KEY='galaxyCombatResumeV1';
   const ROOM_CLIENT_ID_KEY='galaxyRoomClientIdV1';
@@ -3252,10 +3252,12 @@
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetGameFeelVisuals();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();resetRemoteVisuals();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';
+      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');
+      hostIndex=Number.isInteger(Number(m.hostIndex))?Number(m.hostIndex):0;
+      isHost=Number(myIndex)===hostIndex;
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
-      cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
+      cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
       saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players||(m.cpu?2:1));
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(Array.isArray(m.players))syncVoicePlayers(m.players,true);}
       roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');
@@ -3265,17 +3267,14 @@
     }
     else if(m.t==='resumed'){
       if(!m.started){inGame=false;resetOnlineStartCountdown();clearGameCanvas();}
-      roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;
-      if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
+      roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);
+      hostIndex=Number.isInteger(Number(m.hostIndex))?Number(m.hostIndex):(m.host?Number(myIndex):hostIndex);
+      isHost=Number(myIndex)===hostIndex;
+      if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
       updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(typeof voice.startSelectedForSession==='function')voice.startSelectedForSession();}
-      if(m.started&&isHost&&!hostPhysics&&!inGame){
-        clearResumeSession();playerToken='';
-        alert(sinTildes(tr('resumeFailed')));
-        send({t:'leave'});returnToMainMenu(false);return;
-      }
       if(m.started){lobby.classList.add('hidden');if(!inGame)beginGame();}
       else if(!m.cpu){lobby.classList.remove('hidden');}
     }
@@ -3292,18 +3291,56 @@
       if(inGame||roomCode){alert(sinTildes(trServer(m.message||tr('resumeFailed'))));returnToMainMenu(false);}
       else send({t:'public-rooms'});
     }
+    else if(m.t==='host-migrated'){
+      if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
+      if(Number.isInteger(Number(m.hostIndex)))hostIndex=Number(m.hostIndex);
+      const wasHost=isHost;
+      isHost=Number(myIndex)===Number(hostIndex);
+      if(!isHost&&hostPhysics){hostPhysics.stop();hostPhysics=null;}
+      ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+      updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);
+      if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
+      if(m.started&&m.restartRound){
+        const round=Math.max(1,Number(m.rankRound)||Number(m.seriesRound)||onlineSeriesRound||1);
+        if(hostPhysics){hostPhysics.stop();hostPhysics=null;}
+        lastRestartedRound=Math.max(0,round-1);
+        lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;
+        lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
+        fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
+        handle({t:'restarted',rankRound:round,hostMigration:true});
+      }else if(!m.started){
+        inGame=false;resetOnlineStartCountdown();clearGameCanvas();
+      }
+      if(!wasHost&&isHost)statusEl.textContent='ERES EL NUEVO SERVIDOR P2P';
+    }
     else if(m.t==='lobby'){
       if(!inGame&&!onlineStartPending&&!lobby.classList.contains('hidden')){resetOnlineStartCountdown();clearGameCanvas();}
       roomCode=m.code;lobbyPlayers=Array.isArray(m.players)?m.players.slice():[];cpuFillEnabled=!!m.cpuFill;
-      ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
+      if(Number.isInteger(Number(m.hostIndex)))hostIndex=Number(m.hostIndex);
+      else{
+        const tagged=lobbyPlayers.find(p=>p&&p.host===true);
+        if(tagged)hostIndex=Number(tagged.i);
+      }
+      isHost=Number(myIndex)===Number(hostIndex);
+      ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+      if(!isHost&&hostPhysics){hostPhysics.stop();hostPhysics=null;}
       // El roster es la autoridad sobre si cada plaza es HUMANO o CPU,
       // tambien durante la victoria/espera entre partidas.
       if(isHost&&hostPhysics&&typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
       syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;
-      playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
+      playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}${Number(p.i)===Number(hostIndex)?' · HOST':''}</div>`).join('');
       updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(m.players);
     }
-    else if(m.t==='start'){lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();if(Array.isArray(m.players))lobbyPlayers=m.players.slice();onlineSessionWins.clear();onlineSeriesRound=Math.max(1,Number(m.rankRound)||1);onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;if(m.seriesWins)applyOnlineSeriesState(m);ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});beginOnlineStartCountdown(m.rankRound);}
+    else if(m.t==='start'){
+      lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
+      if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
+      if(Number.isInteger(Number(m.hostIndex)))hostIndex=Number(m.hostIndex);
+      isHost=Number(myIndex)===Number(hostIndex);
+      onlineSessionWins.clear();onlineSeriesRound=Math.max(1,Number(m.rankRound)||1);onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
+      if(m.seriesWins)applyOnlineSeriesState(m);
+      ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+      beginOnlineStartCountdown(m.rankRound);
+    }
     else if(m.t==='state'){
       // V19.55 OPT1: el DataChannel P2P es no ordenado para reducir latencia.
       // Nunca dejamos que un snapshot antiguo vuelva a mover la escena atras.
@@ -3934,9 +3971,11 @@
     if(mobileExit)mobileExit.classList.add('hidden');
     resetMobileTouchControls();clearGameCanvas();
     if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
+    if(Number.isInteger(Number(m.hostIndex)))hostIndex=Number(m.hostIndex);
+    isHost=Number(myIndex)===Number(hostIndex);
     cpuFillEnabled=!!m.cpuFill;
-    ensureP2P()?.configure({myIndex,isHost,players:lobbyPlayers});
-    playersEl.innerHTML=lobbyPlayers.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');
+    ensureP2P()?.configure({myIndex,hostIndex,isHost,players:lobbyPlayers});
+    playersEl.innerHTML=lobbyPlayers.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}${Number(p.i)===Number(hostIndex)?' · HOST':''}</div>`).join('');
     updateLobbyStartButton(!!m.canStart);updateCpuFillButton(cpuFillEnabled);updateWaitingPlayers(lobbyPlayers);
     const mini=document.getElementById('seriesRoundMini');if(mini)mini.textContent='';
     const sessionRanking=document.getElementById('sessionRanking');if(sessionRanking)sessionRanking.classList.add('hidden');
@@ -4185,7 +4224,7 @@
     // siguiente intervalo de 5 s.
     refreshCpuLearningControl();
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
-    roomCode='';myIndex=null;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;rebuildPreviousLookup(null);
+    roomCode='';myIndex=null;hostIndex=0;isHost=false;cpuFillEnabled=false;lastVoicePlayersSig=0;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
     mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');resetMobileTouchControls();
     roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);updateCpuFillButton(false);updateWaitingPlayers(1);

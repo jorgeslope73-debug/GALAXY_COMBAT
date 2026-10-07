@@ -7,7 +7,7 @@
       this.onState=onState||(()=>{});
       this.onEvent=onEvent||(()=>{});
       this.onPeerState=onPeerState||(()=>{});
-      this.myIndex=null;this.isHost=false;this.players=[];this.peers=new Map();
+      this.myIndex=null;this.hostIndex=0;this.isHost=false;this.players=[];this.peers=new Map();
       this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;this.stateRaf=0;
       this.lastStateRound=-1;this.lastStateSeq=-1;
       this.pendingBroadcastState=null;this.broadcastTimer=0;
@@ -17,8 +17,11 @@
       this.iceServers=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
     }
     setIceServers(servers){if(Array.isArray(servers)&&servers.length)this.iceServers=servers;}
-    configure({myIndex,isHost,players}={}){
-      this.myIndex=Number(myIndex);this.isHost=!!isHost;this.players=Array.isArray(players)?players.slice():[];
+    configure({myIndex,hostIndex,isHost,players}={}){
+      this.myIndex=Number(myIndex);
+      if(Number.isInteger(Number(hostIndex)))this.hostIndex=Number(hostIndex);
+      this.isHost=!!isHost;
+      this.players=Array.isArray(players)?players.slice():[];
       this.prunePeers();
       if(this.isHost)this.ensureHostPeers();
     }
@@ -274,7 +277,7 @@
     }
     sendControl(turn,thrust,fire,actions={}){
       if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire,...actions});return true;}
-      const rec=this.peers.get(0)||this.firstOpenPeer();
+      const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.fastDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
       // Los controles son efimeros: con cola alta descartamos el antiguo y el
@@ -320,7 +323,7 @@
     }
     sendAction(action){
       if(this.isHost){this.onEvent({t:'p2p-action',from:this.myIndex,action});return true;}
-      const rec=this.peers.get(0)||this.firstOpenPeer();
+      const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.reliableDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
       try{dc.send(JSON.stringify({t:'action',action}));return true;}catch(_){return false;}

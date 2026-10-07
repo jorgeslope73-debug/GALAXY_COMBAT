@@ -368,12 +368,16 @@ function roomCode(){
 }
 function newPlayerToken(){return randomBytes(24).toString('hex');}
 function send(ws,o){if(ws&&ws.readyState===1)try{ws.send(JSON.stringify(o));}catch(_){}}
+function currentHost(r){
+  if(!r||!Array.isArray(r.players))return null;
+  return r.players.find(p=>Number(p.i)===Number(r.hostIndex))||null;
+}
 function roster(r){
-  const out=r.players.map(p=>({i:p.i,n:p.n,cpu:false,registered:!!p.registered}));
+  const out=r.players.map(p=>({i:p.i,n:p.n,cpu:false,registered:!!p.registered,host:Number(p.i)===Number(r.hostIndex)}));
   if(r.cpuFill){
     const used=new Set(out.map(p=>p.i));
     for(let i=0;i<MAX_PLAYERS;i++){
-      if(!used.has(i))out.push({i,n:'CPU '+(i+1),cpu:true,registered:false,difficulty:'dificil'});
+      if(!used.has(i))out.push({i,n:'CPU '+(i+1),cpu:true,registered:false,host:false,difficulty:'dificil'});
     }
   }
   out.sort((a,b)=>a.i-b.i);
@@ -407,20 +411,45 @@ function scheduleSeriesLobby(r,wss,delay=4600){
     r.rankMatchId=null;
     resetOnlineSeries(r);
     const players=roster(r);
-    broadcast(r,{t:'series-lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),...seriesState(r)});
+    broadcast(r,{t:'series-lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),hostIndex:r.hostIndex,...seriesState(r)});
     publicUpdate(wss);
   },Math.max(0,Number(delay)||0));
+  return true;
+}
+function promoteHost(r,wss,cause='host_left'){
+  if(!r||!Array.isArray(r.players)||!r.players.length)return false;
+  const candidates=r.players.filter(p=>p&&p.ws).sort((a,b)=>Number(a.i)-Number(b.i));
+  const next=candidates[0]||null;
+  if(!next)return false;
+  const previous=Number(r.hostIndex);
+  r.hostIndex=Number(next.i);
+  if(next.participantKey)r.creatorKey=next.participantKey;
+  const players=roster(r);
+  broadcast(r,{
+    t:'host-migrated',
+    previousHostIndex:previous,
+    hostIndex:r.hostIndex,
+    players,
+    cpuFill:!!r.cpuFill,
+    started:!!r.started,
+    rankRound:Number(r.rankRound)||0,
+    restartRound:!!(r.started&&!r.seriesComplete),
+    cause,
+    ...seriesState(r)
+  });
+  broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
+  publicUpdate(wss);
   return true;
 }
 function broadcast(r,o){for(const p of r.players)send(p.ws,o);}
 function publicRooms(){
   return [...rooms.values()]
-    .filter(r=>r.public&&r.players[0]&&r.players[0].ws&&(!r.started||(r.cpuFill&&r.players.length<MAX_PLAYERS)))
+    .filter(r=>{const host=currentHost(r);return r.public&&host&&host.ws&&(!r.started||(r.cpuFill&&r.players.length<MAX_PLAYERS));})
     .map(r=>{
       const slots=roster(r);
       return{
         code:r.code,
-        host:r.players[0]?.n||'JUGADOR',
+        host:currentHost(r)?.n||'JUGADOR',
         lang:r.lang,
         players:r.players.length,
         maxPlayers:MAX_PLAYERS,
@@ -432,12 +461,12 @@ function publicRooms(){
 }
 function publicUpdate(wss){const raw=JSON.stringify({t:'public-rooms',rooms:publicRooms()});for(const ws of wss.clients)if(ws.readyState===1)ws.send(raw);}
 function scheduleSoloHostClose(r,wss,delay=3000){
-  if(!r||!r.started||r.cpuFill||r.players.length!==1||!r.players[0]||r.players[0].i!==0)return false;
+  if(!r||!r.started||r.cpuFill||r.players.length!==1||!currentHost(r))return false;
   if(r.soloHostCloseTimer)return true;
   r.soloHostCloseTimer=setTimeout(()=>{
     r.soloHostCloseTimer=null;
     const live=rooms.get(r.code);
-    if(live!==r||r.cpuFill||r.players.length!==1||!r.players[0]||r.players[0].i!==0)return;
+    if(live!==r||r.cpuFill||r.players.length!==1||!currentHost(r))return;
     broadcast(r,{t:'closed',cause:'solo_host',reason:'La partida se cierra porque solo queda el anfitrion.'});
     rooms.delete(r.code);
     publicUpdate(wss);
@@ -448,17 +477,22 @@ function remove(ws,wss){
   const x=info.get(ws);if(!x)return;info.delete(ws);
   const r=rooms.get(x.code);if(!r)return;
   const p=r.players.find(p=>p.i===x.i&&p.ws===ws);if(!p)return;
-  const host=p.i===0;
+  const host=Number(p.i)===Number(r.hostIndex);
   const replaceWithCpu=!!(r.started&&r.cpuFill&&!host);
   r.players=r.players.filter(q=>q!==p);
-  if(Array.isArray(r.seriesWins)&&!host)r.seriesWins[p.i]=0;
+  if(Array.isArray(r.seriesWins))r.seriesWins[p.i]=0;
   if(host){
     if(r.soloHostCloseTimer){clearTimeout(r.soloHostCloseTimer);r.soloHostCloseTimer=null;}
-    broadcast(r,{t:'closed',cause:'host_left',reason:'El anfitrion cerro la sala.'});
-    rooms.delete(r.code);
+    if(!r.players.length){
+      rooms.delete(r.code);
+    }else{
+      promoteHost(r,wss,'host_left');
+      if(r.started)broadcast(r,{t:'player-left-live',name:p.n,index:p.i,wasHost:true});
+      scheduleSoloHostClose(r,wss,3000);
+    }
   }else{
     const players=roster(r);
-    broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started});
+    broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
     if(r.started){
       if(replaceWithCpu)broadcast(r,{t:'player-cpu-replaced',name:p.n,index:p.i});
       else broadcast(r,{t:'player-left-live',name:p.n,index:p.i});
@@ -472,7 +506,7 @@ function disconnect(ws,wss){
   const r=rooms.get(x.code);if(!r)return;
   const p=r.players.find(p=>p.i===x.i&&p.ws===ws);if(!p)return;
   p.ws=null;p.disconnectedAt=Date.now();p.voiceReady=false;
-  if(!r.started){const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:false});}
+  if(!r.started){const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:false,hostIndex:r.hostIndex});}
   publicUpdate(wss);
 }
 function expireDisconnectedPlayers(wss){
@@ -480,30 +514,35 @@ function expireDisconnectedPlayers(wss){
   for(const r of [...rooms.values()]){
     const expired=r.players.filter(p=>!p.ws&&p.disconnectedAt&&now-p.disconnectedAt>=RECONNECT_GRACE_MS);
     if(!expired.length)continue;
-    if(r.started){
-      const hostLost=expired.some(p=>p.i===0);
-      if(hostLost){
-        broadcast(r,{t:'closed',cause:'host_timeout',reason:'El anfitrion perdio la conexion.'});
+
+    const oldHostIndex=Number(r.hostIndex);
+    const hostLost=expired.some(p=>Number(p.i)===oldHostIndex);
+    for(const p of expired){
+      r.players=r.players.filter(q=>q!==p);
+      if(Array.isArray(r.seriesWins))r.seriesWins[p.i]=0;
+    }
+
+    if(!r.players.length){
+      rooms.delete(r.code);publicUpdate(wss);continue;
+    }
+
+    if(hostLost){
+      if(!promoteHost(r,wss,'host_timeout')){
         rooms.delete(r.code);publicUpdate(wss);continue;
       }
-      if(r.cpuFill){
-        for(const p of expired)r.players=r.players.filter(q=>q!==p);
-        const players=roster(r);
-        broadcast(r,{t:'lobby',code:r.code,players,cpuFill:true,canStart:false,started:true});
-        for(const p of expired)broadcast(r,{t:'player-cpu-replaced',name:p.n,index:p.i});
-        publicUpdate(wss);continue;
-      }
-      for(const p of expired)if(p.i!==0)r.players=r.players.filter(q=>q!==p);
+    }else{
       const players=roster(r);
-      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:false,canStart:false,started:true});
-      for(const p of expired)if(p.i!==0)broadcast(r,{t:'player-left-live',name:p.n,index:p.i});
-      scheduleSoloHostClose(r,wss,3000);
-      publicUpdate(wss);continue;
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
     }
-    let hostLost=false;
-    for(const p of expired){if(p.i===0)hostLost=true;r.players=r.players.filter(q=>q!==p);}
-    if(hostLost||!r.players.length){broadcast(r,{t:'closed',cause:'host_timeout',reason:'El anfitrion perdio la conexion.'});rooms.delete(r.code);}
-    else{const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r)});}
+
+    if(r.started){
+      for(const p of expired){
+        if(Number(p.i)===oldHostIndex)continue;
+        if(r.cpuFill)broadcast(r,{t:'player-cpu-replaced',name:p.n,index:p.i});
+        else broadcast(r,{t:'player-left-live',name:p.n,index:p.i});
+      }
+      scheduleSoloHostClose(r,wss,3000);
+    }
     publicUpdate(wss);
   }
 }
@@ -1059,7 +1098,7 @@ async function authApi(req,res,url){
     const hostToken=String(body.hostToken||'').trim();
     const room=rooms.get(code);
     if(!room||!room.started){sendJson(res,404,{ok:false,code:'ROOM_NOT_FOUND'});return true;}
-    const host=room.players.find(p=>p.i===0);
+    const host=currentHost(room);
     if(!host||!/^[a-f0-9]{48}$/i.test(hostToken)||host.playerToken!==hostToken){
       sendJson(res,403,{ok:false,code:'HOST_REQUIRED'});return true;
     }
@@ -1140,16 +1179,17 @@ wss.on('connection',(ws,req)=>{
         send(ws,{t:'error',message:creator.testMode?'LIMITE DE SALAS DE PRUEBA ALCANZADO.':'YA ESTAS EN UNA SALA ACTIVA.'});
         return;
       }
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
+      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
       const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,deviceKey:creator.deviceKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
-      send(ws,{t:'created',code:r.code,index:0,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
-      broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false});publicUpdate(wss);return;
+      send(ws,{t:'created',code:r.code,index:0,hostIndex:r.hostIndex,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
+      broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false,hostIndex:r.hostIndex});publicUpdate(wss);return;
     }
 
     if(m.t==='join'){
       const r=rooms.get(String(m.code||'').trim().toUpperCase());
-      const liveJoin=!!(r&&r.started&&!r.seriesComplete&&r.cpuFill&&r.players.length<MAX_PLAYERS&&r.players[0]&&r.players[0].ws);
+      const liveHost=r&&currentHost(r);
+      const liveJoin=!!(r&&r.started&&!r.seriesComplete&&r.cpuFill&&r.players.length<MAX_PLAYERS&&liveHost&&liveHost.ws);
       if(!r||r.players.length>=MAX_PLAYERS||(r.started&&!liveJoin)){send(ws,{t:'error',message:'Sala no disponible.'});return;}
       if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
       const identity=await resolvePlayerIdentity(m);
@@ -1194,8 +1234,8 @@ wss.on('connection',(ws,req)=>{
       if(Array.isArray(r.seriesWins))r.seriesWins[i]=0;
       r.players.push(p);info.set(ws,{code:r.code,i});
       const players=roster(r);
-      send(ws,{t:'joined',code:r.code,index:i,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin,...seriesState(r)});
-      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started});
+      send(ws,{t:'joined',code:r.code,index:i,hostIndex:r.hostIndex,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin,...seriesState(r)});
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
       if(liveJoin)broadcast(r,{t:'player-joined-live',name:p.n,index:p.i});
       publicUpdate(wss);return;
     }
@@ -1209,23 +1249,23 @@ wss.on('connection',(ws,req)=>{
       if(oldWs&&oldWs!==ws){info.delete(oldWs);try{oldWs.close(4001,'Sesion recuperada desde otra conexion');}catch(_){}}
       p.ws=ws;p.disconnectedAt=0;p.voiceReady=false;info.set(ws,{code:room.code,i:p.i});
       const players=roster(room);
-      send(ws,{t:'resumed',code:room.code,index:p.i,host:p.i===0,started:!!room.started,finished:false,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true,...seriesState(room)});
-      broadcast(room,{t:'lobby',code:room.code,players,cpuFill:!!room.cpuFill,canStart:canStartRoom(room)});
-      if(room.started&&p.i!==0){const host=room.players.find(q=>q.i===0);if(host&&host.ws)send(host.ws,{t:'p2p-reconnect',from:p.i});}
+      send(ws,{t:'resumed',code:room.code,index:p.i,host:Number(p.i)===Number(room.hostIndex),hostIndex:room.hostIndex,started:!!room.started,finished:false,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true,...seriesState(room)});
+      broadcast(room,{t:'lobby',code:room.code,players,cpuFill:!!room.cpuFill,canStart:canStartRoom(room),hostIndex:room.hostIndex});
+      if(room.started&&Number(p.i)!==Number(room.hostIndex)){const host=currentHost(room);if(host&&host.ws)send(host.ws,{t:'p2p-reconnect',from:p.i});}
       publicUpdate(wss);return;
     }
 
     const x=info.get(ws),r=x&&rooms.get(x.code);if(!r)return;
 
-    if(m.t==='cpu-fill'&&x.i===0&&!r.started){
+    if(m.t==='cpu-fill'&&Number(x.i)===Number(r.hostIndex)&&!r.started){
       r.cpuFill=!!m.on;
       const players=roster(r);
-      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:r.cpuFill,canStart:canStartRoom(r)});
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:r.cpuFill,canStart:canStartRoom(r),hostIndex:r.hostIndex});
       publicUpdate(wss);return;
     }
 
     const startPlayers=roster(r);
-    if(m.t==='start'&&x.i===0&&canStartRoom(r)){
+    if(m.t==='start'&&Number(x.i)===Number(r.hostIndex)&&canStartRoom(r)){
       resetOnlineSeries(r);
       r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');r.rankRound=1;
       if(db){
@@ -1237,10 +1277,10 @@ wss.on('connection',(ws,req)=>{
       }
       const rankCheck=rankEligibility(r);
       r.rankEligible=rankCheck.eligible;
-      broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible,rankRound:r.rankRound,...seriesState(r)});publicUpdate(wss);return;
+      broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible,rankRound:r.rankRound,hostIndex:r.hostIndex,...seriesState(r)});publicUpdate(wss);return;
     }
 
-    if(m.t==='series-round-result'&&x.i===0&&r.started&&!r.seriesComplete){
+    if(m.t==='series-round-result'&&Number(x.i)===Number(r.hostIndex)&&r.started&&!r.seriesComplete){
       const winnerIndex=Number(m.winnerIndex);
       const round=Math.max(1,Number(m.rankRound)||Number(r.rankRound)||1);
       const slots=roster(r);
@@ -1261,7 +1301,7 @@ wss.on('connection',(ws,req)=>{
       return;
     }
 
-    if(m.t==='rank-restart'&&x.i===0&&r.started&&!r.seriesComplete){
+    if(m.t==='rank-restart'&&Number(x.i)===Number(r.hostIndex)&&r.started&&!r.seriesComplete){
       r.rankRecorded=false;
       r.rankMatchId=randomBytes(24).toString('hex');
       r.rankRound=Math.max(1,Number(r.rankRound)||1)+1;
@@ -1279,32 +1319,32 @@ wss.on('connection',(ws,req)=>{
       return;
     }
     if(m.t==='fallback-request'||m.t==='fallback-clear'){
-      const host=r.players.find(p=>p.i===0);
-      if(x.i!==0&&host&&host.ws)send(host.ws,{t:m.t,from:x.i});
+      const host=currentHost(r);
+      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{t:m.t,from:x.i});
       return;
     }
     if(m.t==='fallback-ctrl'){
-      const host=r.players.find(p=>p.i===0);
-      if(x.i!==0&&host&&host.ws)send(host.ws,{t:'fallback-ctrl',from:x.i,turn:Number(m.turn)||0,thrust:!!m.thrust,fire:!!m.fire,directFire:m.directFire===true,flare:m.flare===true,shock:m.shock===true});
+      const host=currentHost(r);
+      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{t:'fallback-ctrl',from:x.i,turn:Number(m.turn)||0,thrust:!!m.thrust,fire:!!m.fire,directFire:m.directFire===true,flare:m.flare===true,shock:m.shock===true});
       return;
     }
     if(m.t==='fallback-state'){
-      if(x.i===0&&m.state){
+      if(Number(x.i)===Number(r.hostIndex)&&m.state){
         const to=new Set(Array.isArray(m.to)?m.to.map(Number).filter(Number.isInteger):[]);
-        for(const p of r.players)if(p.i!==0&&p.ws&&(!to.size||to.has(p.i)))send(p.ws,{t:'fallback-state',state:m.state});
+        for(const p of r.players)if(Number(p.i)!==Number(r.hostIndex)&&p.ws&&(!to.size||to.has(p.i)))send(p.ws,{t:'fallback-state',state:m.state});
       }
       return;
     }
     if(m.t==='fallback-event'){
-      if(x.i===0&&m.event){
+      if(Number(x.i)===Number(r.hostIndex)&&m.event){
         const to=new Set(Array.isArray(m.to)?m.to.map(Number).filter(Number.isInteger):[]);
-        for(const p of r.players)if(p.i!==0&&p.ws&&(!to.size||to.has(p.i)))send(p.ws,{t:'fallback-event',event:m.event});
+        for(const p of r.players)if(Number(p.i)!==Number(r.hostIndex)&&p.ws&&(!to.size||to.has(p.i)))send(p.ws,{t:'fallback-event',event:m.event});
       }
       return;
     }
     if(m.t==='fallback-action'){
-      const host=r.players.find(p=>p.i===0);
-      if(x.i!==0&&host&&host.ws)send(host.ws,{t:'fallback-action',from:x.i,action:String(m.action||'')});
+      const host=currentHost(r);
+      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{t:'fallback-action',from:x.i,action:String(m.action||'')});
       return;
     }
     if(m.t==='chat'&&!r.started){
