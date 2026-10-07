@@ -12,7 +12,7 @@ function method(source,name){
   let depth=0,quote='',escaped=false,line=false,block=false;
   for(let i=brace;i<source.length;i++){
     const ch=source[i],next=source[i+1];
-    if(line){if(ch==='\\n')line=false;continue;}
+    if(line){if(ch==='\n')line=false;continue;}
     if(block){if(ch==='*'&&next==='/'){block=false;i++;}continue;}
     if(quote){
       if(escaped){escaped=false;continue;}
