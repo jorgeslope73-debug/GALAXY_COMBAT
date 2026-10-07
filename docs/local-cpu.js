@@ -2430,50 +2430,43 @@
           }
         }
         if(!remove){
-          for(const p of this.players){
-            // Las balas normales no dañan al tirador. El cohete guiado sí:
-            // si su trayectoria regresa y alcanza a su dueño, aplica la misma
-            // colision/daño que contra cualquier otra nave.
-            if((p.index===b.owner&&!b.guided)||p.dead||p.protection>0)continue;
-            if(sweptCircles(b,BULLET_RADIUS,p,SHIP_RADIUS,false)){
-              const attacker=this.players.find(q=>q.index===b.owner)||null;
-              if(p.shield<=0){
-                const longShot=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
-                const pointBlank=attacker&&attacker!==p&&!b.guided&&(b.travel||0)<=260;
-                if(pointBlank)this.emit({t:'pointblank',index:attacker.index});
-                if(longShot&&!b.guided){
-                  // V21.03: recompensa BRUTAL solo para bala normal a larga distancia.
-                  // +10 balas y cadencia maxima, con recarga actual adaptada al nuevo valor.
-                  attacker.bullets+=10;
-                  attacker.cadence=1;
-                  attacker.reload=Math.min(attacker.reload,this.reloadTime(attacker));
-                  this.emit({t:'brutal',titleKey:'brutal',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index,ammoBonus:10,cadenceMax:true});
-                }else if(longShot&&b.guided){
-                  // V21.04: un impacto lejano con cohete reconoce la jugada como
-                  // BUENA, pero no concede la recompensa exclusiva de BRUTAL.
-                  this.emit({t:'brutal',titleKey:'goodShot',distance:Math.round(b.travel||0),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index,ammoBonus:0,cadenceMax:false});
-                }else if(b.guided&&attacker&&attacker!==p){
-                  // V21.13: baja con misil guiado a distancia normal.
-                  // El impacto lejano conserva BUENA para no solapar avisos.
-                  this.emit({t:'hunter',index:attacker.index});
-                }
-                if(b.guided){this.emitRocketDisintegrateAt(b.x,b.y,b.owner);this.emit({t:'sound',kind:'sparkle'});}
-                // V20.11: el atacante suma su baja, pero la victima no pierde
-                // un punto por haber sido abatida por otro jugador.
-                this.destroyShip(p,attacker);
-              }else{
-                this.emitShipImpact(p,b,false);
-                if(b.guided){
-                  // V20.23: un misil guiado consume por completo un escudo activo.
-                  // La nave sobrevive a ese impacto; las balas normales no rompen
-                  // el escudo y la proteccion de aparicion sigue teniendo prioridad.
-                  p.shield=0;
-                  this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-                  this.emit({t:'sound',kind:'sparkle'});
-                }
+          const shipHit=PHYSICS_CORE.projectileShipHit(
+            b,this.players,sweptCircles,BULLET_RADIUS,SHIP_RADIUS,BRUTAL_SHOT_DISTANCE,260
+          );
+          if(shipHit){
+            const p=shipHit.target;
+            const attacker=shipHit.attacker;
+            if(!shipHit.shielded){
+              if(shipHit.pointBlank)this.emit({t:'pointblank',index:attacker.index});
+
+              if(shipHit.reward==='brutal'){
+                // BRUTAL sigue siendo exclusivo de bala normal a larga distancia.
+                attacker.bullets+=10;
+                attacker.cadence=1;
+                attacker.reload=Math.min(attacker.reload,this.reloadTime(attacker));
+                this.emit({t:'brutal',titleKey:'brutal',distance:Math.round(shipHit.travel),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index,ammoBonus:10,cadenceMax:true});
+              }else if(shipHit.reward==='goodShot'){
+                this.emit({t:'brutal',titleKey:'goodShot',distance:Math.round(shipHit.travel),shooter:attacker.name||('J'+(attacker.index+1)),shooterIndex:attacker.index,ammoBonus:0,cadenceMax:false});
+              }else if(shipHit.reward==='hunter'){
+                this.emit({t:'hunter',index:attacker.index});
               }
-              remove=true;break;
+
+              if(shipHit.guided){
+                this.emitRocketDisintegrateAt(shipHit.impactX,shipHit.impactY,shipHit.owner);
+                this.emit({t:'sound',kind:'sparkle'});
+              }
+              // El atacante suma su baja; la victima no pierde punto por baja ajena.
+              this.destroyShip(p,attacker);
+            }else{
+              this.emitShipImpact(p,b,false);
+              if(shipHit.guided){
+                // El misil consume por completo un escudo activo y la nave sobrevive.
+                p.shield=0;
+                this.emitRocketDisintegrateAt(shipHit.impactX,shipHit.impactY,shipHit.owner);
+                this.emit({t:'sound',kind:'sparkle'});
+              }
             }
+            remove=true;
           }
         }
         if(!remove){

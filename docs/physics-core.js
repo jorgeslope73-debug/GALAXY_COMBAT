@@ -292,6 +292,53 @@
   }
 
 
+
+  function projectileShipHit(projectile,players,sweptCircles,projectileRadius=4,shipRadius=24,brutalDistance=850,pointBlankDistance=260){
+    if(!projectile||!Array.isArray(players)||typeof sweptCircles!=='function')return null;
+
+    const guided=!!projectile.guided;
+    const owner=Number(projectile.owner);
+    const travel=Number(projectile.travel)||0;
+    let attacker=null;
+    for(const candidate of players){
+      if(candidate&&Number(candidate.index)===owner){attacker=candidate;break;}
+    }
+
+    for(const target of players){
+      if(!target)continue;
+
+      // Bala normal: nunca hiere al tirador. Misil: sí puede regresar y dañarlo.
+      if((Number(target.index)===owner&&!guided)||target.dead||Number(target.protection)>0)continue;
+      if(!sweptCircles(projectile,projectileRadius,target,shipRadius,false))continue;
+
+      const shielded=Number(target.shield)>0;
+      const enemyHit=!!attacker&&attacker!==target;
+      const longShot=enemyHit&&travel>=brutalDistance;
+      const pointBlank=enemyHit&&!guided&&travel<=pointBlankDistance;
+
+      let reward='none';
+      if(!shielded){
+        if(longShot)reward=guided?'goodShot':'brutal';
+        else if(guided&&enemyHit)reward='hunter';
+      }
+
+      return {
+        target,
+        attacker,
+        guided,
+        shielded,
+        longShot,
+        pointBlank,
+        reward,
+        owner,
+        travel,
+        impactX:Number(projectile.x)||0,
+        impactY:Number(projectile.y)||0
+      };
+    }
+    return null;
+  }
+
   function projectileUfoHit(projectile,ufo,sweptCircles,projectileRadius=4,ufoRadius=30,ufoHp=1){
     if(!projectile||!ufo||typeof sweptCircles!=='function')return null;
     if(!sweptCircles(projectile,projectileRadius,ufo,ufoRadius,false))return null;
@@ -377,6 +424,7 @@
     projectilePickupHit,
     projectileFlareHit,
     resolveProjectileInterceptions,
+    projectileShipHit,
     projectileUfoHit,
     asteroidMissileFracture
   });

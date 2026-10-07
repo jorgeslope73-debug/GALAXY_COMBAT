@@ -73,6 +73,12 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(bullets.includes('sweptCircles(b,BULLET_RADIUS,this.ufo,UFO_RADIUS,false)'))fail(errors,label+': ha vuelto la deteccion inline proyectil-OVNI');
   if(!bullets.includes('if(ufoHit.destroyed)this.destroyUfo(ufoHit.owner)'))fail(errors,label+': el OVNI destruido ya no acredita al tirador');
   if(!bullets.includes('ufoHit.impactX')||!bullets.includes('ufoHit.impactY'))fail(errors,label+': impacto contra OVNI pierde el punto real');
+  if(!bullets.includes('PHYSICS_CORE.projectileShipHit'))fail(errors,label+': colision proyectil-nave ya no delega en physics-core');
+  if(bullets.includes('for(const p of this.players)'))fail(errors,label+': ha vuelto la deteccion inline proyectil-nave');
+  if(!bullets.includes("shipHit.reward==='brutal'"))fail(errors,label+': se ha perdido la recompensa BRUTAL tras la clasificacion compartida');
+  if(!bullets.includes("shipHit.reward==='goodShot'"))fail(errors,label+': se ha perdido GOOD SHOT tras la clasificacion compartida');
+  if(!bullets.includes("shipHit.reward==='hunter'"))fail(errors,label+': se ha perdido HUNTER tras la clasificacion compartida');
+  if(!bullets.includes('if(shipHit.guided)'))fail(errors,label+': se ha perdido el tratamiento visual/escudo del misil contra nave');
   if(bullets.includes('splitGiantMeteor'))fail(errors,label+': el meteorito gigante vuelve a fragmentarse por misil');
 
   const split=method(src,'splitAsteroidByMissile');
@@ -120,6 +126,11 @@ if(!core.includes('function projectileMeteorHit'))fail(errors,'core: falta la co
 if(!core.includes('function projectilePickupHit'))fail(errors,'core: falta la colision compartida proyectil-pickup');
 if(!core.includes('function projectileFlareHit'))fail(errors,'core: falta la colision compartida proyectil-bengala');
 if(!core.includes('function resolveProjectileInterceptions'))fail(errors,'core: falta la intercepcion compartida proyectil-proyectil');
+if(!core.includes('function projectileShipHit'))fail(errors,'core: falta la colision compartida proyectil-nave');
+if(!core.includes('if((Number(target.index)===owner&&!guided)||target.dead||Number(target.protection)>0)continue;'))fail(errors,'core: se han perdido inmunidad de aparicion o regla de autodano');
+if(!core.includes("if(longShot)reward=guided?'goodShot':'brutal';"))fail(errors,'core: se ha perdido la clasificacion BRUTAL/GOOD SHOT');
+if(!core.includes("else if(guided&&enemyHit)reward='hunter';"))fail(errors,'core: se ha perdido la clasificacion HUNTER');
+if(!core.includes('const pointBlank=enemyHit&&!guided&&travel<=pointBlankDistance;'))fail(errors,'core: se ha perdido la clasificacion point-blank');
 if(!core.includes('function projectileUfoHit'))fail(errors,'core: falta la colision compartida proyectil-OVNI');
 if(!core.includes('const damage=guided?2:1;'))fail(errors,'core: se ha perdido el dano 2 de misil / 1 de bala contra OVNI');
 if(!core.includes('ufo.hp=hp;'))fail(errors,'core: el dano contra OVNI ya no actualiza su vida');
