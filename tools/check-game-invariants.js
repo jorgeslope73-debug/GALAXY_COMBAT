@@ -190,6 +190,13 @@ for(const script of ['config.js','menu-loader.js','menu-decor.js','i18n.js','cam
 }
 if(!sw.includes("cache.match(request,{ignoreSearch:true})"))fail(errors,'PWA: falta fallback offline ignorando ?v= centralizado');
 
+const stress=read('tools/stress-game.js');
+if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');
+if(!stress.includes('startTraining(null)'))fail(errors,'stress: no usa la simulación real de 4 CPU');
+if(!stress.includes("fragmento eterno"))fail(errors,'stress: falta detector de fragmentos eternos');
+if(!stress.includes("asteroide demasiado tiempo fuera de escena"))fail(errors,'stress: falta detector de asteroides fuera de escena');
+if(!stress.includes("mecánicas no ejercitadas"))fail(errors,'stress: falta comprobación de cobertura');
+
 if(errors.length){
   console.error('\nGALAXY COMBAT - FALLO DE INVARIANTES\n');
   for(const e of errors)console.error(' - '+e);
