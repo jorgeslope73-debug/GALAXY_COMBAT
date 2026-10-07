@@ -1297,7 +1297,7 @@ wss.on('connection',(ws,req)=>{
       r.seriesChampion=complete?leaders[0]:-1;
 
       broadcast(r,{t:'series-state',round,wins:r.seriesWins.slice(0,MAX_PLAYERS),complete,champion:r.seriesChampion});
-      if(complete)scheduleSeriesLobby(r,wss,4600);
+      if(complete)scheduleSeriesLobby(r,wss,7000);
       return;
     }
 
