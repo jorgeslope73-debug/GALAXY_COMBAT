@@ -1218,6 +1218,19 @@
     warnedImages.add(im);
     console.warn('[Galaxy Combat] Image unavailable; continuing without blocking the game.',im.currentSrc||im.src,error||'');
   }
+  function decodeImageSafely(im,timeoutMs){
+    return new Promise(resolve=>{
+      let settled=false;
+      const done=value=>{if(settled)return;settled=true;clearTimeout(timer);resolve(value);};
+      const timer=setTimeout(()=>done(false),timeoutMs);
+      try{
+        if(typeof im.decode!=='function'){done(true);return;}
+        const p=im.decode();
+        if(p&&typeof p.then==='function')p.then(()=>done(true),()=>done(false));
+        else done(true);
+      }catch(_){done(false);}
+    });
+  }
   const imageDecodePromises={};
   for(const [k,url] of Object.entries(assetList)){
     if(!url)continue;
@@ -1229,16 +1242,21 @@
       k.startsWith('asteroid')||k.startsWith('rocket')||k.startsWith('navemira')||k==='ammo1'||k==='ammo3'||k==='cadence'||k==='speed'||k==='bengala'||k==='bengalahud'||k==='bengalasnave'||k==='ojo';
     if('fetchPriority' in im)im.fetchPriority=critical?'high':'auto';
     imageDecodePromises[k]=new Promise(resolve=>{
-      im.onerror=()=>{reportImageFailure(im);resolve(false);};
+      let settled=false;
+      const done=value=>{if(settled)return;settled=true;clearTimeout(loadTimer);resolve(value);};
+      const loadTimer=setTimeout(()=>{
+        reportImageFailure(im,'load timeout');
+        done(false);
+      },isMobile?10000:15000);
+      im.onerror=()=>{reportImageFailure(im);done(false);};
       im.onload=()=>{
-        const decoded=typeof im.decode==='function'?im.decode():Promise.resolve();
-        Promise.resolve(decoded).then(()=>{
+        decodeImageSafely(im,isMobile?1200:2500).then(decoded=>{
           if(k==='bg'||k==='bg02'||k==='bg03'||k==='bg04'||k==='bg05'){
             backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
             scheduleCanvasResolution();
           }
-          resolve(true);
-        }).catch(()=>resolve(false));
+          done(decoded!==false);
+        },()=>done(false));
       };
     });
     if(window.GalaxyGraphicsLoader)window.GalaxyGraphicsLoader.track(imageDecodePromises[k]);

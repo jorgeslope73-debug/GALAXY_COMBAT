@@ -43,6 +43,7 @@ const build=read('docs/build-version.js');
 const index=read('docs/index.html');
 const sw=read('docs/sw.js');
 const trainingPage=read('docs/cpu-training.html');
+const menuLoader=read('docs/menu-loader.js');
 const errors=[];
 
 for(const [label,src] of [['local',local],['online',host]]){
@@ -199,6 +200,12 @@ for(const script of ['config.js','campaign-config.js','physics-core.js','local-c
 }
 if(!trainingPage.includes("window.GalaxyPhysicsCore"))fail(errors,'training: falta verificación de physics-core');
 if(!trainingPage.includes("window.GalaxyLocalCpu"))fail(errors,'training: falta verificación de GalaxyLocalCpu');
+
+if(!menuLoader.includes('decodeWithTimeout'))fail(errors,'mobile loader: falta timeout seguro para Image.decode');
+if(!menuLoader.includes('watchdogTimer'))fail(errors,'mobile loader: falta watchdog anti-bloqueo');
+if(!menuLoader.includes('isMobile?12000:18000'))fail(errors,'mobile loader: falta watchdog específico para móvil');
+if(!game.includes('function decodeImageSafely'))fail(errors,'mobile loader: game.js no blinda Image.decode');
+if(!game.includes("reportImageFailure(im,'load timeout')"))fail(errors,'mobile loader: game.js no limita la espera de imágenes');
 
 const stress=read('tools/stress-game.js');
 if(!stress.includes('STRESS_SECONDS'))fail(errors,'stress: falta duración configurable');
