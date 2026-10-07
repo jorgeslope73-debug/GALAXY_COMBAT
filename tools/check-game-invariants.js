@@ -225,7 +225,7 @@ if(!game.includes("t:'series-round-result'"))fail(errors,'series: host no report
 if(!index.includes('id="seriesChampion"'))fail(errors,'series: falta markup de campeon');
 if(!index.includes('id="seriesRoundMini"'))fail(errors,'series: falta contador de ronda durante partida');
 if(!style.includes('.series-champion-cup'))fail(errors,'series: falta copa grande en CSS');
-if(!style.includes('#victory .series-champion-ship{\n  width:50px;\n  height:50px;'))fail(errors,'series: la nave campeona no mantiene 50x50 px');
+if(!style.includes('#victory .series-champion-ship{\n  width:100px;\n  height:100px;'))fail(errors,'series: la nave campeona no mantiene 100x100 px');
 if(!server.includes('scheduleSeriesLobby(r,wss,30000)'))fail(errors,'series: falta retorno automático de seguridad tras CONTINUAR');
 if(!server.includes('lastSeriesChampionToken'))fail(errors,'series: el servidor no conserva la identidad del campeon anterior');
 if(!server.includes('champion:!!(r.lastSeriesChampionToken'))fail(errors,'series: roster humano no marca al campeon');
@@ -281,7 +281,7 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.31'"))fail(errors,'V22.31: testigo de version no actualizado');
+if(!build.includes("const VERSION='V22.32'"))fail(errors,'V22.32: testigo de version no actualizado');
 if(host.includes('cpu.bullets+=4')||local.includes('cpu.bullets+=4'))fail(errors,'V22.31: A POR EL vuelve a regalar balas a las CPU');
 if(!host.includes("cpuAmmo:false,cpuAmmoBonus:0")||!local.includes("cpuAmmo:false,cpuAmmoBonus:0"))fail(errors,'V22.31: A POR EL debe anunciarse sin bonus de municion');
 
