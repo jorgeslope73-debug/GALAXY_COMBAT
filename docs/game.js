@@ -297,9 +297,12 @@
   // V16.4.36: sincronizamos estados/controles y reducimos GC en movil para evitar picos de trabajo
   // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
   let pendingStateRaw=null;
-  let lastControlSentAt=0;
+  let lastControlSentAt=0,controlSeq=0;
   let lastSentControlTurn=NaN,lastSentControlThrust=false,lastSentControlFire=false;
   let lastSentJoystickActions='';
+  const inputActionSeq={rocket:0,flare:0,shock:0};
+  const inputActionHeld={rocket:false,flare:false,shock:false};
+  const pendingInputActions=[];
   let lastPaintAt=0;
   let lastStateProcessedAt=0;
   const CONTROL_SEND_MS=1000/30;
@@ -2469,7 +2472,9 @@
         handle(m);
       },
       onEvent:m=>{
-        if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics){
+        if(m&&m.t==='p2p-input-action'&&isHost&&hostPhysics){
+          hostPhysics.applyInputAction(Number(m.from),m.kind,m.actionId);
+        }else if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics){
           if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
           send({t:'rank-restart'});
           if(hostPhysics.restart()){
@@ -2488,6 +2493,8 @@
     lastRestartedRound=0;
     netStartAt=0;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
     fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
+    controlSeq=0;pendingInputActions.length=0;
+    for(const k of ['rocket','flare','shock']){inputActionSeq[k]=0;inputActionHeld[k]=false;}
     if(hostPhysics)hostPhysics.stop();
     hostPhysics=null;
     lobbyPlayers=[];
@@ -2725,7 +2732,12 @@
       // parseo de un snapshot pendiente. Solo los cambios de fase de partida
       // requieren orden estricto con el ultimo estado recibido.
       let m;try{m=JSON.parse(raw);}catch(_){return;}
-      if(m&&['p2p-offer','p2p-answer','p2p-ice','p2p-reconnect'].includes(m.t)){ensureP2P()?.handleSignal(m);return;}
+      if(m&&['p2p-offer','p2p-answer','p2p-ice','p2p-reconnect'].includes(m.t)){
+        if(m.t==='p2p-reconnect'&&isHost&&hostPhysics&&typeof hostPhysics.resetControlSequence==='function'){
+          hostPhysics.resetControlSequence(Number(m.from));
+        }
+        ensureP2P()?.handleSignal(m);return;
+      }
       if(m&&m.t==='fallback-request'){
         if(isHost&&Number.isInteger(Number(m.from))){
           const i=Number(m.from);fallbackPeers.add(i);
@@ -2748,6 +2760,10 @@
       }
       if(m&&m.t==='fallback-ctrl'){
         if(isHost&&hostPhysics)hostPhysics.setControl(Number(m.from),Number(m.turn)||0,!!m.thrust,!!m.fire,m);
+        return;
+      }
+      if(m&&m.t==='fallback-input-action'){
+        if(isHost&&hostPhysics)hostPhysics.applyInputAction(Number(m.from),m.kind,m.actionId);
         return;
       }
       if(m&&m.t==='fallback-action'){
@@ -2773,28 +2789,65 @@
     if(!inGame){setServerReady(false);if(!wakeStartedAt)wakeStartedAt=Date.now();wakeStatus();connect();}
     return false;
   }
-  function sendControl(turn,thrust,fire,actions={}){
-    if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire,actions);return true;}
+  function sendInputAction(kind,actionId){
+    if(localCpuActive&&localCpu)return false;
+    const action=String(kind||'');
+    const id=Math.max(1,Number(actionId)||1);
+    if(!['rocket','flare','shock'].includes(action))return false;
     if(inGame&&p2p){
       const now=performance.now();
       if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
         requestFallback(now);
         if(ws&&ws.readyState===WebSocket.OPEN){
-          // V20.83: en fallback tambien descartamos controles viejos si la
-          // salida WebSocket esta congestionada. El siguiente heartbeat enviara
-          // el estado actual y evita una cola de giros/disparos atrasados.
-          if(Number(ws.bufferedAmount||0)>32*1024)return false;
-          try{ws.send(JSON.stringify({t:'fallback-ctrl',turn,thrust:!!thrust,fire:!!fire,...actions}));return true;}catch(_){return false;}
+          try{ws.send(JSON.stringify({t:'fallback-input-action',kind:action,actionId:id}));return true;}catch(_){return false;}
         }
         return false;
       }
-      return p2p.sendControl(turn,thrust,fire,actions);
+      return p2p.sendInputAction(action,id);
     }
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
-    // Los controles caducan enseguida. Si la salida esta congestionada, es
-    // mejor omitir uno y mandar el mas reciente 33 ms despues que acumular lag.
+    try{ws.send(JSON.stringify({t:'fallback-input-action',kind:action,actionId:id}));return true;}catch(_){return false;}
+  }
+  function flushPendingInputActions(){
+    while(pendingInputActions.length){
+      const item=pendingInputActions[0];
+      if(!sendInputAction(item.kind,item.actionId))break;
+      pendingInputActions.shift();
+    }
+  }
+  function queueInputAction(kind){
+    const action=String(kind||'');
+    if(!Object.prototype.hasOwnProperty.call(inputActionSeq,action))return false;
+    const actionId=++inputActionSeq[action];
+    pendingInputActions.push({kind:action,actionId});
+    flushPendingInputActions();
+    return true;
+  }
+  function sendControl(turn,thrust,fire,actions={}){
+    if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire,actions);return true;}
+    const seq=controlSeq+1;
+    if(inGame&&p2p){
+      const now=performance.now();
+      if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
+        requestFallback(now);
+        if(ws&&ws.readyState===WebSocket.OPEN){
+          if(Number(ws.bufferedAmount||0)>32*1024)return false;
+          try{
+            ws.send(JSON.stringify({t:'fallback-ctrl',controlSeq:seq,turn,thrust:!!thrust,fire:!!fire,...actions}));
+            controlSeq=seq;return true;
+          }catch(_){return false;}
+        }
+        return false;
+      }
+      if(p2p.sendControl(turn,thrust,fire,actions,seq)){controlSeq=seq;return true;}
+      return false;
+    }
+    if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     if(Number(ws.bufferedAmount||0)>32*1024)return false;
-    try{ws.send(JSON.stringify({t:'ctrl',turn,thrust,fire,...actions}));return true;}catch(_){return false;}
+    try{
+      ws.send(JSON.stringify({t:'ctrl',controlSeq:seq,turn,thrust,fire,...actions}));
+      controlSeq=seq;return true;
+    }catch(_){return false;}
   }
   function flushPendingState(force=false,stamp=performance.now()){
     if(!pendingStateRaw)return false;
@@ -2840,7 +2893,19 @@
     const thrust=touchThrust||keys.has('KeyW')||keys.has('ArrowUp')||(pad.active&&pad.thrust);
     const fire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight')||(pad.active&&pad.fire);
     const legacyFire=touchFire||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
-    const actions={directFire:!!(pad.active&&pad.fire&&!legacyFire),rocket:!!(pad.active&&pad.rocket),flare:!!(pad.active&&pad.flare),shock:!!(pad.active&&pad.shock)};
+    const padActions={
+      rocket:!!(pad.active&&pad.rocket),
+      flare:!!(pad.active&&pad.flare),
+      shock:!!(pad.active&&pad.shock)
+    };
+    for(const kind of ['rocket','flare','shock']){
+      if(padActions[kind]&&!inputActionHeld[kind])queueInputAction(kind);
+      inputActionHeld[kind]=padActions[kind];
+    }
+    flushPendingInputActions();
+    // Acciones especiales ya viajan por reliable. El canal fast solo mantiene
+    // movimiento/disparo continuo para evitar duplicados por paquetes reordenados.
+    const actions={directFire:!!(pad.active&&pad.fire&&!legacyFire)};
     const joystickActions=JSON.stringify(actions);
     if(Math.abs(rawTurn-lastControlTurn)>0.001){
       lastControlTurnChangedAt=now;
@@ -4350,6 +4415,7 @@
   function clearHeldKeys(){
     keys.clear();
     lastControlTurn=0;
+    for(const k of ['rocket','flare','shock'])inputActionHeld[k]=false;
     if(isMobile)resetMobileTouchControls();
     if(inGame)sendControl(0,false,false);
   }
