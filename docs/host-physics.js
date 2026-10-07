@@ -1744,11 +1744,17 @@
             remove=true;
           }
         }
-        if(!remove)for(let m=this.meteors.length-1;m>=0;m--){
-          const meteor=this.meteors[m];
-          if(sweptCircles(b,BULLET_RADIUS,meteor,SMALL_METEOR_RADIUS,false)){
-            if(b.guided)this.emitRocketDisintegrateAt(b.x,b.y,b.owner);
-            this.meteors.splice(m,1);remove=true;this.emit({t:'sound',kind:b.guided?'sparkle':'impact'});break;
+        if(!remove){
+          const meteorHit=PHYSICS_CORE.projectileMeteorHit(
+            b,this.meteors,sweptCircles,BULLET_RADIUS,SMALL_METEOR_RADIUS
+          );
+          if(meteorHit){
+            if(meteorHit.guided){
+              this.emitRocketDisintegrateAt(meteorHit.impactX,meteorHit.impactY,meteorHit.owner);
+            }
+            this.meteors.splice(meteorHit.index,1);
+            remove=true;
+            this.emit({t:'sound',kind:meteorHit.guided?'sparkle':'impact'});
           }
         }
         // V21.52: las BALAS normales destruyen armas/mejoras flotantes.

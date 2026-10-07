@@ -185,6 +185,25 @@
     };
   }
 
+
+  function projectileMeteorHit(projectile,meteors,sweptCircles,projectileRadius=4,meteorRadius=14){
+    if(!projectile||!Array.isArray(meteors)||typeof sweptCircles!=='function')return null;
+    for(let i=meteors.length-1;i>=0;i--){
+      const meteor=meteors[i];
+      if(!meteor)continue;
+      if(!sweptCircles(projectile,projectileRadius,meteor,meteorRadius,false))continue;
+      return {
+        meteor,
+        index:i,
+        guided:!!projectile.guided,
+        owner:Number(projectile.owner),
+        impactX:Number(projectile.x)||0,
+        impactY:Number(projectile.y)||0
+      };
+    }
+    return null;
+  }
+
   function asteroidMissileFracture(asteroid,impactX,impactY,opts={}){
     if(!asteroid)return null;
     const defaultRadius=Number(opts.defaultRadius)||45;
@@ -245,6 +264,7 @@
     tryFireProjectile,
     projectileAsteroidHit,
     projectileGiantHit,
+    projectileMeteorHit,
     asteroidMissileFracture
   });
 })();

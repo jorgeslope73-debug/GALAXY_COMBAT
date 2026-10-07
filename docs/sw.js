@@ -1,4 +1,4 @@
-const VERSION = 'V22.08-projectile-giant';
+const VERSION = 'V22.09-projectile-meteor';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);

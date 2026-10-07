@@ -55,6 +55,10 @@ for(const [label,src] of [['local',local],['online',host]]){
   if(!bullets.includes('PHYSICS_CORE.projectileGiantHit'))fail(errors,label+': colision proyectil-gigante ya no delega en physics-core');
   if(bullets.includes('sweptCircles(b,BULLET_RADIUS,this.giant,GIANT_RADIUS,false)'))fail(errors,label+': ha vuelto la deteccion inline proyectil-gigante');
   if(!bullets.includes('giantHit.impactX')||!bullets.includes('giantHit.impactY'))fail(errors,label+': impacto contra gigante pierde el punto real');
+  if(!bullets.includes('PHYSICS_CORE.projectileMeteorHit'))fail(errors,label+': colision proyectil-lluvia ya no delega en physics-core');
+  if(bullets.includes('for(let m=this.meteors.length-1'))fail(errors,label+': ha vuelto la deteccion inline proyectil-lluvia');
+  if(!bullets.includes('this.meteors.splice(meteorHit.index,1)'))fail(errors,label+': el meteorito de lluvia impactado ya no se elimina por indice compartido');
+  if(!bullets.includes('meteorHit.impactX')||!bullets.includes('meteorHit.impactY'))fail(errors,label+': impacto contra lluvia pierde el punto real');
   if(bullets.includes('splitGiantMeteor'))fail(errors,label+': el meteorito gigante vuelve a fragmentarse por misil');
 
   const split=method(src,'splitAsteroidByMissile');
@@ -98,7 +102,9 @@ if(!core.includes('p.bullets=Math.max(0,(Number(p.bullets)||0)-1)'))fail(errors,
 if(!core.includes('p.reload=reloadTimeFor(p)'))fail(errors,'core: bala y misil ya no comparten la misma cadencia');
 if(!core.includes('function projectileAsteroidHit'))fail(errors,'core: falta la colision compartida proyectil-asteroide');
 if(!core.includes('function projectileGiantHit'))fail(errors,'core: falta la colision compartida proyectil-gigante');
-if(!core.includes('guided:!!projectile.guided'))fail(errors,'core: la colision con gigante no conserva el tipo de proyectil');
+if(!core.includes('function projectileMeteorHit'))fail(errors,'core: falta la colision compartida proyectil-lluvia');
+if(!core.includes('meteorRadius=14'))fail(errors,'core: la lluvia ha perdido su radio de colision compartido');
+if(!core.includes('guided:!!projectile.guided'))fail(errors,'core: la colision compartida no conserva el tipo de proyectil');
 if(!core.includes('fracture:!!projectile.guided'))fail(errors,'core: misil contra asteroide ya no activa fragmentacion');
 if(!core.includes('impactX:Number(projectile.x)||0'))fail(errors,'core: falta conservar X real del impacto contra asteroide');
 if(!core.includes('impactY:Number(projectile.y)||0'))fail(errors,'core: falta conservar Y real del impacto contra asteroide');
