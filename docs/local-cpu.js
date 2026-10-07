@@ -206,7 +206,8 @@
       return next;
     }
     trainingHardMode(){
-      return this.trainingMode&&this.trainingTestProfile==='hard';
+      // V22.37: HARD puede venir de cpu-training o del juego local.
+      return this.trainingTestProfile==='hard';
     }
     trainingAsteroidMaxActive(){
       return this.trainingHardMode()?9:ASTEROID_MAX_ACTIVE;
@@ -1100,12 +1101,14 @@
       this.huntUntil=0;this.huntStartsAt=0;this.huntThresholdActive=false;
       this.resetAsteroids();
       const human=this.makePlayer(0,name,false);
+      this.applyTrainingHardLoadout(human,false);
       this.placeAtSpawn(human);
       this.players.push(human);
       this.controls.set(0,{turn:0,thrust:false,fire:false});
       for(let i=1;i<=this.cpuCount;i++){
         const cpu=this.makePlayer(i,'CPU '+i,true);
         cpu.difficulty=this.difficulty;
+        this.applyTrainingHardLoadout(cpu,false);
         if(this.difficulty==='dificil'){
           const opening=this.chooseBrainAction('open3',['attack','evade','resource','scatter'],i===3?.24:.34);
           cpu.tactic=opening;
