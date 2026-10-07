@@ -68,6 +68,7 @@
   const RESUME_STORAGE_KEY='galaxyCombatResumeV1';
   const ROOM_CLIENT_ID_KEY='galaxyRoomClientIdV1';
   const TEST_ROOM_PERMIT_STORAGE='galaxyTestRoomPermitV1';
+  const TRAINING_TEST_PROFILE_STORAGE='galaxyCpuTestProfileV1';
   const RESUME_WINDOW_MS=30000;
   function roomClientId(){
     try{
@@ -91,6 +92,11 @@
     }catch(_){}
     return '';
   }
+  function privateTestProfile(){
+    try{return localStorage.getItem(TRAINING_TEST_PROFILE_STORAGE)==='hard'?'hard':'standard';}
+    catch(_){return 'standard';}
+  }
+  let onlineTestProfile='standard';
   let resumeStartedAt=0,resumeExpiryTimer=null;
   function loadResumeSession(){
     try{
@@ -2543,6 +2549,7 @@
         sendHostFallbackEvent(m,m&&m.t==='victory');
       }
     });
+    if(typeof hostPhysics.setTestProfile==='function')hostPhysics.setTestProfile(onlineTestProfile);
     return hostPhysics.start(players||lobbyPlayers);
   }
   function apiBaseUrl(){
@@ -3192,6 +3199,7 @@
     const brain=difficulty==='dificil'?await loadCpuBrain():null;
     await graphicsReady;
     localCpu=new window.GalaxyLocalCpu({onState:m=>handle(m),onEvent:m=>handle(m)});
+    if(typeof localCpu.setTrainingTestProfile==='function')localCpu.setTrainingTestProfile(privateTestProfile());
     localCpu.start(
       sinTildes(campoNombre.value),
       difficulty,
@@ -3392,6 +3400,7 @@
       hostIndex=Number.isInteger(Number(m.hostIndex))?Number(m.hostIndex):0;
       hostEpoch=Number.isInteger(Number(m.hostEpoch))&&Number(m.hostEpoch)>0?Number(m.hostEpoch):1;
       isHost=Number(myIndex)===hostIndex;
+      onlineTestProfile=isHost?privateTestProfile():'standard';
       if(Array.isArray(m.players))lobbyPlayers=m.players.slice();
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
       restoreCriticalServerOps();
@@ -3487,6 +3496,7 @@
       beginOnlineStartCountdown(m.rankRound);
     }
     else if(m.t==='state'){
+      if(m.testProfile==='hard'||m.testProfile==='standard')onlineTestProfile=m.testProfile;
       // V19.55 OPT1: el DataChannel P2P es no ordenado para reducir latencia.
       // Nunca dejamos que un snapshot antiguo vuelva a mover la escena atras.
       // round permite que seq se reinicie de forma segura entre rondas.
