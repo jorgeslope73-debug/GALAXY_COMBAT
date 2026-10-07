@@ -10,6 +10,23 @@
     'voice-offer','voice-answer','voice-ice','voice-talking'
   ]);
 
+  // V22.05: iOS usa una sola sesion de audio para la web/PWA. El juego usa
+  // "playback" y solo cambia a "play-and-record" mientras el micro esta abierto.
+  function setIosAudioSession(type){
+    try{
+      if(navigator.audioSession&&'type' in navigator.audioSession){
+        navigator.audioSession.type=type;
+        return true;
+      }
+    }catch(_){}
+    return false;
+  }
+  function setVoiceCaptureSession(active){
+    window.GalaxyVoiceCaptureActive=!!active;
+    setIosAudioSession(active?'play-and-record':'playback');
+  }
+  if(typeof window.GalaxyVoiceCaptureActive==='undefined')window.GalaxyVoiceCaptureActive=false;
+
   function isEditableTarget(target){
     if(!target)return false;
     const tag=(target.tagName||'').toUpperCase();
@@ -227,6 +244,10 @@
         return false;
       }
       this.enabling=true;
+      // Antes de pedir el micro, cambia expresamente a la sesion correcta.
+      // Asi no dependemos del cambio implicito de iOS que antes hacia que el
+      // audio solo se oyera despues de activar VOZ.
+      setVoiceCaptureSession(true);
       this.setStatus(tr('requestingMicrophone'));
       try{
         const rtcPromise=this.loadRtcConfig();
@@ -266,6 +287,7 @@
         this.localTrack=null;this.localStream=null;this.captureStream=null;
         this.closeAudioGraph();
         if(this.isMobile)this.selected=false;
+        setVoiceCaptureSession(false);
         this.setStatus(tr('microphoneDenied'));
         console.warn('[Galaxy Combat Voice] No se pudo abrir el microfono.',err);
         return false;
@@ -289,6 +311,7 @@
       this.localStream=null;
       this.captureStream=null;
       this.closeAudioGraph();
+      setVoiceCaptureSession(false);
       this.setStatus(tr('voiceDisabled'));
       this.refreshUI();
     }
@@ -303,6 +326,7 @@
       if(this.captureStream){for(const t of this.captureStream.getTracks()){try{t.stop();}catch(_){}}}
       this.localTrack=null;this.localStream=null;this.captureStream=null;this.enabled=false;
       this.closeAudioGraph();
+      setVoiceCaptureSession(false);
     }
 
     setSession(code,index,cpuMode=false){
