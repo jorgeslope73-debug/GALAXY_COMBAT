@@ -157,6 +157,18 @@ if(!game.includes('const ASTEROID_DUST_MAX=isMobile?24:36'))fail(errors,'render:
 if(!game.includes("}else if(e.kind==='asteroidDust'){"))fail(errors,'render: falta consumir el FX local de polvo');
 if(!p2p.includes('firstOpenPeer(){'))fail(errors,'P2P: falta busqueda de peer sin array temporal');
 if(p2p.includes('[...this.peers.values()].find'))fail(errors,'P2P: ha vuelto la asignacion de array temporal al buscar peer');
+if(!p2p.includes("createDataChannel('galaxy-fast',{ordered:false,maxRetransmits:0})"))fail(errors,'P2P: falta canal fast no fiable para estado/controles');
+if(!p2p.includes("createDataChannel('galaxy-reliable',{ordered:true})"))fail(errors,'P2P: falta canal fiable para eventos/acciones');
+if(!p2p.includes('const next=connected&&fastOpen&&reliableOpen;'))fail(errors,'P2P: peer puede marcarse abierto sin ambos canales');
+
+const p2pControl=method(p2p,'sendControl');
+if(!p2pControl.includes('rec.fastDc')||p2pControl.includes('rec.reliableDc'))fail(errors,'P2P: controles no usan exclusivamente el canal fast');
+const p2pState=method(p2p,'flushBroadcastState');
+if(!p2pState.includes('rec.fastDc')||p2pState.includes('rec.reliableDc'))fail(errors,'P2P: estados no usan exclusivamente el canal fast');
+const p2pEvent=method(p2p,'broadcastEvent');
+if(!p2pEvent.includes('rec.reliableDc')||p2pEvent.includes('rec.fastDc'))fail(errors,'P2P: eventos no usan exclusivamente el canal fiable');
+const p2pAction=method(p2p,'sendAction');
+if(!p2pAction.includes('rec.reliableDc')||p2pAction.includes('rec.fastDc'))fail(errors,'P2P: acciones no usan exclusivamente el canal fiable');
 
 if(errors.length){
   console.error('\nGALAXY COMBAT - FALLO DE INVARIANTES\n');

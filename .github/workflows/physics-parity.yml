@@ -6,6 +6,7 @@ on:
       - 'docs/host-physics.js'
       - 'docs/local-cpu.js'
       - 'docs/physics-core.js'
+      - 'docs/p2p-network.js'
       - 'tools/check-physics-parity.js'
       - 'tools/check-game-invariants.js'
       - '.github/workflows/physics-parity.yml'
@@ -14,6 +15,7 @@ on:
       - 'docs/host-physics.js'
       - 'docs/local-cpu.js'
       - 'docs/physics-core.js'
+      - 'docs/p2p-network.js'
       - 'tools/check-physics-parity.js'
       - 'tools/check-game-invariants.js'
       - '.github/workflows/physics-parity.yml'
@@ -26,6 +28,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Check P2P syntax
+        run: node --check docs/p2p-network.js
       - name: Check host/local shared physics parity
         run: node tools/check-physics-parity.js
       - name: Check gameplay and performance invariants

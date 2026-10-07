@@ -53,9 +53,11 @@
       const rec=this.peers.get(peerIndex);if(!rec)return;
       this.peers.delete(peerIndex);
       try{
-        if(rec.dc){
-          rec.dc.onopen=null;rec.dc.onclose=null;rec.dc.onerror=null;rec.dc.onmessage=null;
-          rec.dc.close();
+        const channels=new Set([rec.fastDc,rec.reliableDc,rec.dc]);
+        for(const dc of channels){
+          if(!dc)continue;
+          dc.onopen=null;dc.onclose=null;dc.onerror=null;dc.onmessage=null;
+          dc.close();
         }
       }catch(_){}
       try{
@@ -68,7 +70,9 @@
     makePc(peerIndex){
       if(this.closed)throw new Error('P2P closed');
       const pc=new RTCPeerConnection({iceServers:this.iceServers});
-      const rec={pc,dc:null,open:false,pendingIce:[]};this.peers.set(peerIndex,rec);
+      // V22.15: fast = estado/controles descartables; reliable = eventos/acciones.
+      // rec.dc queda como alias del canal fast para compatibilidad con métricas.
+      const rec={pc,dc:null,fastDc:null,reliableDc:null,open:false,pendingIce:[]};this.peers.set(peerIndex,rec);
       pc.onicecandidate=e=>{
         if(this.closed||this.peers.get(peerIndex)!==rec)return;
         if(e.candidate)this.sendSignal({t:'p2p-ice',to:peerIndex,data:e.candidate});
@@ -76,9 +80,8 @@
       pc.onconnectionstatechange=()=>{
         // Un callback de una conexion antigua nunca puede cerrar la nueva.
         if(this.closed||this.peers.get(peerIndex)!==rec)return;
-        const state=pc.connectionState,ok=state==='connected';
-        rec.open=ok&&!!(rec.dc&&rec.dc.readyState==='open');
-        this.onPeerState(peerIndex,state);
+        const state=pc.connectionState;
+        this.updatePeerOpen(peerIndex,rec,state);
         if(this.isHost&&state==='failed'){
           this.closePeer(peerIndex);
           this.ensureHostPeers();
@@ -88,6 +91,18 @@
         if(!this.closed&&this.peers.get(peerIndex)===rec)this.bindChannel(peerIndex,e.channel);
       };
       return rec;
+    }
+    updatePeerOpen(peerIndex,rec,stateHint=''){
+      if(!rec||this.peers.get(peerIndex)!==rec)return false;
+      const connected=(stateHint||rec.pc.connectionState)==='connected';
+      const fastOpen=!!(rec.fastDc&&rec.fastDc.readyState==='open');
+      const reliableOpen=!!(rec.reliableDc&&rec.reliableDc.readyState==='open');
+      const next=connected&&fastOpen&&reliableOpen;
+      if(rec.open!==next){
+        rec.open=next;
+        this.onPeerState(peerIndex,next?'open':(stateHint||'closed'));
+      }
+      return next;
     }
     stateOrderFromRaw(raw){
       if(typeof raw!=='string')return {round:-1,seq:-1};
@@ -142,30 +157,51 @@
       });
     }
     bindChannel(peerIndex,dc){
-      const rec=this.peers.get(peerIndex)||this.makePc(peerIndex);rec.dc=dc;
+      const rec=this.peers.get(peerIndex)||this.makePc(peerIndex);
+      const label=String(dc&&dc.label||'');
+      // Compatibilidad transitoria: el antiguo "galaxy" se trata como ambos.
+      const legacy=label==='galaxy';
+      const reliable=label==='galaxy-reliable';
+      const fast=legacy||label==='galaxy-fast'||!reliable;
+      if(legacy){
+        rec.fastDc=dc;rec.reliableDc=dc;rec.dc=dc;
+      }else if(reliable){
+        rec.reliableDc=dc;
+      }else if(fast){
+        rec.fastDc=dc;rec.dc=dc;
+      }
+
       dc.binaryType='arraybuffer';
-      dc.onopen=()=>{rec.open=true;this.onPeerState(peerIndex,'open');};
-      dc.onclose=()=>{rec.open=false;this.onPeerState(peerIndex,'closed');};
+      dc.onopen=()=>{this.updatePeerOpen(peerIndex,rec,rec.pc.connectionState);};
+      dc.onclose=()=>{this.updatePeerOpen(peerIndex,rec,rec.pc.connectionState);};
       dc.onerror=()=>{};
       dc.onmessage=e=>{
         const raw=typeof e.data==='string'?e.data:String(e.data);
-        // El estado es continuo: conservar solo el ultimo paquete recibido
-        // hasta el siguiente frame evita parseos en mitad del pintado.
-        if(!this.isHost&&raw.startsWith('{"t":"state"')){this.queueState(raw);return;}
-        // Los eventos son infrecuentes. Antes de procesarlos aplicamos el
-        // ultimo estado pendiente para no desordenar visualmente la secuencia.
-        if(this.pendingStateRaw)this.flushPendingState();
+        const allowFast=legacy||!reliable;
+        const allowReliable=legacy||reliable;
+
+        // Estado continuo: solo canal fast y conservar únicamente el último.
+        if(allowFast&&!this.isHost&&raw.startsWith('{"t":"state"')){this.queueState(raw);return;}
+
         let m;try{m=JSON.parse(raw);}catch(_){return;}
-        if(this.isHost&&m.t==='ctrl')this.onControl(peerIndex,m);
-        else if(!this.isHost&&m.t==='state')this.onState(m.state);
-        else if(!this.isHost&&m.t==='event')this.onEvent(m.event);
-        else if(this.isHost&&m.t==='action')this.onEvent({t:'p2p-action',from:peerIndex,action:m.action});
+        if(allowFast&&this.isHost&&m.t==='ctrl'){this.onControl(peerIndex,m);return;}
+        if(allowFast&&!this.isHost&&m.t==='state'){this.onState(m.state);return;}
+
+        // Eventos/acciones son fiables. Aplicar antes el último estado fast pendiente.
+        if(allowReliable&&(m.t==='event'||m.t==='action')&&this.pendingStateRaw)this.flushPendingState();
+        if(allowReliable&&!this.isHost&&m.t==='event')this.onEvent(m.event);
+        else if(allowReliable&&this.isHost&&m.t==='action')this.onEvent({t:'p2p-action',from:peerIndex,action:m.action});
       };
     }
     async createPeer(peerIndex,offerer){
       if(this.closed)throw new Error('P2P closed');
       let rec=this.peers.get(peerIndex);if(!rec)rec=this.makePc(peerIndex);
-      if(offerer&&!rec.dc)this.bindChannel(peerIndex,rec.pc.createDataChannel('galaxy',{ordered:false,maxRetransmits:0}));
+      if(offerer&&!rec.fastDc){
+        this.bindChannel(peerIndex,rec.pc.createDataChannel('galaxy-fast',{ordered:false,maxRetransmits:0}));
+      }
+      if(offerer&&!rec.reliableDc){
+        this.bindChannel(peerIndex,rec.pc.createDataChannel('galaxy-reliable',{ordered:true}));
+      }
       if(offerer){
         const offer=await rec.pc.createOffer();
         if(this.closed||this.peers.get(peerIndex)!==rec)return rec;
@@ -239,11 +275,12 @@
     sendControl(turn,thrust,fire,actions={}){
       if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire,...actions});return true;}
       const rec=this.peers.get(0)||this.firstOpenPeer();
-      if(!rec||!rec.dc||rec.dc.readyState!=='open')return false;
+      const dc=rec&&rec.fastDc;
+      if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
       // Los controles son efimeros: con cola alta descartamos el antiguo y el
       // siguiente heartbeat enviara el estado mas reciente, evitando input lag.
-      if(Number(rec.dc.bufferedAmount||0)>32*1024)return false;
-      try{rec.dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire,...actions}));return true;}catch(_){return false;}
+      if(Number(dc.bufferedAmount||0)>32*1024)return false;
+      try{dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire,...actions}));return true;}catch(_){return false;}
     }
     flushBroadcastState(){
       if(!this.isHost||!this.pendingBroadcastState)return false;
@@ -251,8 +288,9 @@
       this.pendingBroadcastState=null;
       let raw;try{raw=JSON.stringify({t:'state',state});}catch(_){return false;}
       for(const rec of this.peers.values()){
-        if(rec.dc&&rec.dc.readyState==='open'&&rec.dc.bufferedAmount<128*1024){
-          try{rec.dc.send(raw);}catch(_){}
+        const dc=rec&&rec.fastDc;
+        if(rec.open&&dc&&dc.readyState==='open'&&dc.bufferedAmount<128*1024){
+          try{dc.send(raw);}catch(_){}
         }
       }
       return true;
@@ -275,13 +313,17 @@
       if(this.broadcastTimer){clearTimeout(this.broadcastTimer);this.broadcastTimer=0;}
       this.flushBroadcastState();
       const raw=JSON.stringify({t:'event',event});
-      for(const rec of this.peers.values())if(rec.dc&&rec.dc.readyState==='open'){try{rec.dc.send(raw);}catch(_){}}
+      for(const rec of this.peers.values()){
+        const dc=rec&&rec.reliableDc;
+        if(rec.open&&dc&&dc.readyState==='open'){try{dc.send(raw);}catch(_){}}
+      }
     }
     sendAction(action){
       if(this.isHost){this.onEvent({t:'p2p-action',from:this.myIndex,action});return true;}
       const rec=this.peers.get(0)||this.firstOpenPeer();
-      if(!rec||!rec.dc||rec.dc.readyState!=='open')return false;
-      try{rec.dc.send(JSON.stringify({t:'action',action}));return true;}catch(_){return false;}
+      const dc=rec&&rec.reliableDc;
+      if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
+      try{dc.send(JSON.stringify({t:'action',action}));return true;}catch(_){return false;}
     }
     close(){
       this.closed=true;
@@ -291,7 +333,10 @@
       this.lastStateRound=-1;this.lastStateSeq=-1;this.pendingBroadcastState=null;
       this.reconnectingPeers.clear();
       for(const rec of this.peers.values()){
-        try{rec.dc&&rec.dc.close();}catch(_){}
+        try{
+          const channels=new Set([rec.fastDc,rec.reliableDc,rec.dc]);
+          for(const dc of channels)if(dc)dc.close();
+        }catch(_){}
         try{rec.pc.close();}catch(_){}
       }
       this.peers.clear();
