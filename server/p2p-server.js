@@ -1297,11 +1297,24 @@ wss.on('connection',(ws,req)=>{
       broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible,rankRound:r.rankRound,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch,...seriesState(r)});publicUpdate(wss);return;
     }
 
-    if(m.t==='series-round-result'&&Number(x.i)===Number(r.hostIndex)&&r.started&&!r.seriesComplete){
+    if(m.t==='series-round-result'&&Number(x.i)===Number(r.hostIndex)&&r.started){
+      const requestId=String(m.requestId||'');
       const winnerIndex=Number(m.winnerIndex);
       const round=Math.max(1,Number(m.rankRound)||Number(r.rankRound)||1);
       const slots=roster(r);
-      if(round!==Number(r.rankRound)||round===Number(r.seriesLastScoredRound)||!slots.some(p=>Number(p.i)===winnerIndex))return;
+
+      // Reenvío tras pérdida de ACK: si esta ronda ya fue contabilizada,
+      // confirmar sin volver a sumar.
+      if(round<=Number(r.seriesLastScoredRound)||r.seriesComplete){
+        if(requestId)send(ws,{t:'critical-ack',requestId,kind:'series-round-result',rankRound:Number(r.rankRound)||round});
+        return;
+      }
+
+      if(round!==Number(r.rankRound)||!slots.some(p=>Number(p.i)===winnerIndex)){
+        if(requestId)send(ws,{t:'critical-nack',requestId,kind:'series-round-result',rankRound:Number(r.rankRound)||1});
+        return;
+      }
+
       r.seriesLastScoredRound=round;
       if(!Array.isArray(r.seriesWins))r.seriesWins=[0,0,0,0];
       r.seriesWins[winnerIndex]=(Number(r.seriesWins[winnerIndex])||0)+1;
@@ -1319,6 +1332,7 @@ wss.on('connection',(ws,req)=>{
         r.lastSeriesChampionIndex=Number(r.seriesChampion);
       }
 
+      if(requestId)send(ws,{t:'critical-ack',requestId,kind:'series-round-result',rankRound:Number(r.rankRound)||round});
       broadcast(r,{t:'series-state',round,wins:r.seriesWins.slice(0,MAX_PLAYERS),complete,champion:r.seriesChampion});
       if(complete)scheduleSeriesLobby(r,wss,30000);
       return;
@@ -1330,11 +1344,36 @@ wss.on('connection',(ws,req)=>{
     }
 
     if(m.t==='rank-restart'&&Number(x.i)===Number(r.hostIndex)&&r.started&&!r.seriesComplete){
+      const requestId=String(m.requestId||'');
+      const current=Math.max(1,Number(r.rankRound)||1);
+      const fromRound=Math.max(1,Number(m.fromRound)||current);
+      const targetRound=Math.max(1,Number(m.targetRound)||(fromRound+1));
+
+      // ACK perdido: el servidor ya está exactamente en la ronda solicitada.
+      if(targetRound===current&&fromRound===current-1){
+        if(requestId)send(ws,{t:'critical-ack',requestId,kind:'rank-restart',rankRound:current});
+        send(ws,{t:'rank-round',rankRound:current,rankEligible:r.rankEligible});
+        return;
+      }
+
+      // Operación antigua: confirmar para que salga de la cola.
+      if(targetRound<current){
+        if(requestId)send(ws,{t:'critical-ack',requestId,kind:'rank-restart',rankRound:current});
+        return;
+      }
+
+      // Solo se acepta avanzar exactamente una ronda desde el estado actual.
+      if(fromRound!==current||targetRound!==current+1){
+        if(requestId)send(ws,{t:'critical-nack',requestId,kind:'rank-restart',rankRound:current});
+        return;
+      }
+
       r.rankRecorded=false;
       r.rankMatchId=randomBytes(24).toString('hex');
-      r.rankRound=Math.max(1,Number(r.rankRound)||1)+1;
+      r.rankRound=targetRound;
       const rankCheck=rankEligibility(r);
       r.rankEligible=rankCheck.eligible;
+      if(requestId)send(ws,{t:'critical-ack',requestId,kind:'rank-restart',rankRound:r.rankRound});
       send(ws,{t:'rank-round',rankRound:r.rankRound,rankEligible:r.rankEligible});
       return;
     }
