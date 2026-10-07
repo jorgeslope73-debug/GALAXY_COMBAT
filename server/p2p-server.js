@@ -451,7 +451,7 @@ function promoteHost(r,wss,cause='host_left'){
     cause,
     ...seriesState(r)
   });
-  broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
+  broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});
   publicUpdate(wss);
   return true;
 }
@@ -506,7 +506,7 @@ function remove(ws,wss){
     }
   }else{
     const players=roster(r);
-    broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
+    broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});
     if(r.started){
       if(replaceWithCpu)broadcast(r,{t:'player-cpu-replaced',name:p.n,index:p.i});
       else broadcast(r,{t:'player-left-live',name:p.n,index:p.i});
@@ -520,7 +520,7 @@ function disconnect(ws,wss){
   const r=rooms.get(x.code);if(!r)return;
   const p=r.players.find(p=>p.i===x.i&&p.ws===ws);if(!p)return;
   p.ws=null;p.disconnectedAt=Date.now();p.voiceReady=false;
-  if(!r.started){const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:false,hostIndex:r.hostIndex});}
+  if(!r.started){const players=roster(r);broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:false,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});}
   publicUpdate(wss);
 }
 function expireDisconnectedPlayers(wss){
@@ -546,7 +546,7 @@ function expireDisconnectedPlayers(wss){
       }
     }else{
       const players=roster(r);
-      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});
     }
 
     if(r.started){
@@ -1197,7 +1197,7 @@ wss.on('connection',(ws,req)=>{
       const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,deviceKey:creator.deviceKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
-      broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false,hostIndex:r.hostIndex});publicUpdate(wss);return;
+      broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});publicUpdate(wss);return;
     }
 
     if(m.t==='join'){
@@ -1249,7 +1249,7 @@ wss.on('connection',(ws,req)=>{
       r.players.push(p);info.set(ws,{code:r.code,i});
       const players=roster(r);
       send(ws,{t:'joined',code:r.code,index:i,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin,...seriesState(r)});
-      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});
       if(liveJoin)broadcast(r,{t:'player-joined-live',name:p.n,index:p.i});
       publicUpdate(wss);return;
     }
@@ -1274,7 +1274,7 @@ wss.on('connection',(ws,req)=>{
     if(m.t==='cpu-fill'&&Number(x.i)===Number(r.hostIndex)&&!r.started){
       r.cpuFill=!!m.on;
       const players=roster(r);
-      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:r.cpuFill,canStart:canStartRoom(r),hostIndex:r.hostIndex});
+      broadcast(r,{t:'lobby',code:r.code,players,cpuFill:r.cpuFill,canStart:canStartRoom(r),hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});
       publicUpdate(wss);return;
     }
 
