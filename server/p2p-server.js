@@ -403,7 +403,8 @@ function seriesState(r){
     seriesRound:Math.max(0,Number(r&&r.rankRound)||0),
     seriesWins:Array.isArray(r&&r.seriesWins)?r.seriesWins.slice(0,MAX_PLAYERS):[0,0,0,0],
     seriesComplete:!!(r&&r.seriesComplete),
-    seriesChampion:Number.isInteger(Number(r&&r.seriesChampion))?Number(r.seriesChampion):-1
+    seriesChampion:Number.isInteger(Number(r&&r.seriesChampion))?Number(r.seriesChampion):-1,
+    hostEpoch:Math.max(1,Number(r&&r.hostEpoch)||1)
   };
 }
 function finishSeriesToLobby(r,wss){
@@ -434,12 +435,14 @@ function promoteHost(r,wss,cause='host_left'){
   if(!next)return false;
   const previous=Number(r.hostIndex);
   r.hostIndex=Number(next.i);
+  r.hostEpoch=Math.max(1,Number(r.hostEpoch)||1)+1;
   if(next.participantKey)r.creatorKey=next.participantKey;
   const players=roster(r);
   broadcast(r,{
     t:'host-migrated',
     previousHostIndex:previous,
     hostIndex:r.hostIndex,
+    hostEpoch:r.hostEpoch,
     players,
     cpuFill:!!r.cpuFill,
     started:!!r.started,
@@ -1190,10 +1193,10 @@ wss.on('connection',(ws,req)=>{
         send(ws,{t:'error',message:creator.testMode?'LIMITE DE SALAS DE PRUEBA ALCANZADO.':'YA ESTAS EN UNA SALA ACTIVA.'});
         return;
       }
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,lastSeriesChampionToken:'',lastSeriesChampionCpu:false,lastSeriesChampionIndex:-1,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
+      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,hostEpoch:1,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,lastSeriesChampionToken:'',lastSeriesChampionCpu:false,lastSeriesChampionIndex:-1,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
       const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,deviceKey:creator.deviceKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
-      send(ws,{t:'created',code:r.code,index:0,hostIndex:r.hostIndex,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
+      send(ws,{t:'created',code:r.code,index:0,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
       broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false,hostIndex:r.hostIndex});publicUpdate(wss);return;
     }
 
@@ -1245,7 +1248,7 @@ wss.on('connection',(ws,req)=>{
       if(Array.isArray(r.seriesWins))r.seriesWins[i]=0;
       r.players.push(p);info.set(ws,{code:r.code,i});
       const players=roster(r);
-      send(ws,{t:'joined',code:r.code,index:i,hostIndex:r.hostIndex,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin,...seriesState(r)});
+      send(ws,{t:'joined',code:r.code,index:i,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true,started:!!r.started,players,cpuFill:!!r.cpuFill,liveJoin,...seriesState(r)});
       broadcast(r,{t:'lobby',code:r.code,players,cpuFill:!!r.cpuFill,canStart:canStartRoom(r),started:!!r.started,hostIndex:r.hostIndex});
       if(liveJoin)broadcast(r,{t:'player-joined-live',name:p.n,index:p.i});
       publicUpdate(wss);return;
@@ -1260,7 +1263,7 @@ wss.on('connection',(ws,req)=>{
       if(oldWs&&oldWs!==ws){info.delete(oldWs);try{oldWs.close(4001,'Sesion recuperada desde otra conexion');}catch(_){}}
       p.ws=ws;p.disconnectedAt=0;p.voiceReady=false;info.set(ws,{code:room.code,i:p.i});
       const players=roster(room);
-      send(ws,{t:'resumed',code:room.code,index:p.i,host:Number(p.i)===Number(room.hostIndex),hostIndex:room.hostIndex,started:!!room.started,finished:false,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true,...seriesState(room)});
+      send(ws,{t:'resumed',code:room.code,index:p.i,host:Number(p.i)===Number(room.hostIndex),hostIndex:room.hostIndex,hostEpoch:room.hostEpoch,started:!!room.started,finished:false,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true,...seriesState(room)});
       broadcast(room,{t:'lobby',code:room.code,players,cpuFill:!!room.cpuFill,canStart:canStartRoom(room),hostIndex:room.hostIndex});
       if(room.started&&Number(p.i)!==Number(room.hostIndex)){const host=currentHost(room);if(host&&host.ws)send(host.ws,{t:'p2p-reconnect',from:p.i});}
       publicUpdate(wss);return;
@@ -1291,7 +1294,7 @@ wss.on('connection',(ws,req)=>{
       }
       const rankCheck=rankEligibility(r);
       r.rankEligible=rankCheck.eligible;
-      broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible,rankRound:r.rankRound,hostIndex:r.hostIndex,...seriesState(r)});publicUpdate(wss);return;
+      broadcast(r,{t:'start',code:r.code,players:startPlayers,cpuFill:!!r.cpuFill,p2p:true,rankEligible:r.rankEligible,rankRound:r.rankRound,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch,...seriesState(r)});publicUpdate(wss);return;
     }
 
     if(m.t==='series-round-result'&&Number(x.i)===Number(r.hostIndex)&&r.started&&!r.seriesComplete){
