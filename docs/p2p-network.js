@@ -7,9 +7,9 @@
       this.onState=onState||(()=>{});
       this.onEvent=onEvent||(()=>{});
       this.onPeerState=onPeerState||(()=>{});
-      this.myIndex=null;this.hostIndex=0;this.isHost=false;this.players=[];this.peers=new Map();
-      this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;this.stateRaf=0;
-      this.lastStateRound=-1;this.lastStateSeq=-1;
+      this.myIndex=null;this.hostIndex=0;this.hostEpoch=1;this.isHost=false;this.players=[];this.peers=new Map();
+      this.pendingStateRaw=null;this.pendingStateEpoch=-1;this.pendingStateRound=-1;this.pendingStateSeq=-1;this.stateRaf=0;
+      this.lastStateEpoch=-1;this.lastStateRound=-1;this.lastStateSeq=-1;
       this.pendingBroadcastState=null;this.broadcastTimer=0;
       // V20.83: una reconexion por peer a la vez. Evita que dos rutas de
       // recuperacion cierren/recreen el mismo RTCPeerConnection simultaneamente.
@@ -17,9 +17,17 @@
       this.iceServers=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
     }
     setIceServers(servers){if(Array.isArray(servers)&&servers.length)this.iceServers=servers;}
-    configure({myIndex,hostIndex,isHost,players}={}){
+    resetStateOrder(){
+      if(this.stateRaf){cancelAnimationFrame(this.stateRaf);this.stateRaf=0;}
+      this.pendingStateRaw=null;this.pendingStateEpoch=-1;this.pendingStateRound=-1;this.pendingStateSeq=-1;
+      this.lastStateEpoch=-1;this.lastStateRound=-1;this.lastStateSeq=-1;
+    }
+    configure({myIndex,hostIndex,hostEpoch,isHost,players}={}){
       this.myIndex=Number(myIndex);
-      if(Number.isInteger(Number(hostIndex)))this.hostIndex=Number(hostIndex);
+      const nextHost=Number.isInteger(Number(hostIndex))?Number(hostIndex):this.hostIndex;
+      const nextEpoch=Number.isInteger(Number(hostEpoch))&&Number(hostEpoch)>0?Number(hostEpoch):this.hostEpoch;
+      if(nextHost!==this.hostIndex||nextEpoch!==this.hostEpoch)this.resetStateOrder();
+      this.hostIndex=nextHost;this.hostEpoch=nextEpoch;
       this.isHost=!!isHost;
       this.players=Array.isArray(players)?players.slice():[];
       this.prunePeers();
@@ -108,7 +116,7 @@
       return next;
     }
     stateOrderFromRaw(raw){
-      if(typeof raw!=='string')return {round:-1,seq:-1};
+      if(typeof raw!=='string')return {epoch:-1,round:-1,seq:-1};
       const readInt=key=>{
         const marker='\"'+key+'\":';
         const at=raw.indexOf(marker);
@@ -121,23 +129,26 @@
         }
         return found?n:-1;
       };
-      return {round:readInt('round'),seq:readInt('seq')};
+      return {epoch:readInt('hostEpoch'),round:readInt('round'),seq:readInt('seq')};
     }
-    isNewerState(round,seq,baseRound,baseSeq){
+    isNewerState(epoch,round,seq,baseEpoch,baseRound,baseSeq){
+      if(epoch>=0&&baseEpoch>=0&&epoch!==baseEpoch)return epoch>baseEpoch;
       if(round<0||seq<0||baseRound<0||baseSeq<0)return true;
       return round>baseRound||(round===baseRound&&seq>baseSeq);
     }
     flushPendingState(){
       const raw=this.pendingStateRaw;
       if(!raw)return false;
-      const queuedRound=this.pendingStateRound,queuedSeq=this.pendingStateSeq;
-      this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;
+      const queuedEpoch=this.pendingStateEpoch,queuedRound=this.pendingStateRound,queuedSeq=this.pendingStateSeq;
+      this.pendingStateRaw=null;this.pendingStateEpoch=-1;this.pendingStateRound=-1;this.pendingStateSeq=-1;
       let m;try{m=JSON.parse(raw);}catch(_){return false;}
       if(!this.isHost&&m&&m.t==='state'){
         const state=m.state||{};
+        const epoch=Number.isInteger(Number(state.hostEpoch))?Number(state.hostEpoch):(queuedEpoch>=0?queuedEpoch:this.hostEpoch);
         const round=Number.isInteger(Number(state.round))?Number(state.round):queuedRound;
         const seq=Number.isInteger(Number(state.seq))?Number(state.seq):queuedSeq;
-        if(!this.isNewerState(round,seq,this.lastStateRound,this.lastStateSeq))return false;
+        if(!this.isNewerState(epoch,round,seq,this.lastStateEpoch,this.lastStateRound,this.lastStateSeq))return false;
+        if(epoch>=0)this.lastStateEpoch=epoch;
         if(round>=0&&seq>=0){this.lastStateRound=round;this.lastStateSeq=seq;}
         this.onState(state);return true;
       }
@@ -146,11 +157,12 @@
     queueState(raw){
       const order=this.stateOrderFromRaw(raw);
       if(order.round>=0&&order.seq>=0){
-        if(!this.isNewerState(order.round,order.seq,this.lastStateRound,this.lastStateSeq))return;
-        if(this.pendingStateRaw&&!this.isNewerState(order.round,order.seq,this.pendingStateRound,this.pendingStateSeq))return;
-        this.pendingStateRound=order.round;this.pendingStateSeq=order.seq;
+        const epoch=order.epoch>=0?order.epoch:this.hostEpoch;
+        if(!this.isNewerState(epoch,order.round,order.seq,this.lastStateEpoch,this.lastStateRound,this.lastStateSeq))return;
+        if(this.pendingStateRaw&&!this.isNewerState(epoch,order.round,order.seq,this.pendingStateEpoch,this.pendingStateRound,this.pendingStateSeq))return;
+        this.pendingStateEpoch=epoch;this.pendingStateRound=order.round;this.pendingStateSeq=order.seq;
       }else{
-        this.pendingStateRound=-1;this.pendingStateSeq=-1;
+        this.pendingStateEpoch=-1;this.pendingStateRound=-1;this.pendingStateSeq=-1;
       }
       this.pendingStateRaw=raw;
       if(this.stateRaf)return;
@@ -332,8 +344,8 @@
       this.closed=true;
       if(this.stateRaf){cancelAnimationFrame(this.stateRaf);this.stateRaf=0;}
       if(this.broadcastTimer){clearTimeout(this.broadcastTimer);this.broadcastTimer=0;}
-      this.pendingStateRaw=null;this.pendingStateRound=-1;this.pendingStateSeq=-1;
-      this.lastStateRound=-1;this.lastStateSeq=-1;this.pendingBroadcastState=null;
+      this.pendingStateRaw=null;this.pendingStateEpoch=-1;this.pendingStateRound=-1;this.pendingStateSeq=-1;
+      this.lastStateEpoch=-1;this.lastStateRound=-1;this.lastStateSeq=-1;this.pendingBroadcastState=null;
       this.reconnectingPeers.clear();
       for(const rec of this.peers.values()){
         try{
