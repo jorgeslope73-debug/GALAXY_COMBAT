@@ -446,8 +446,10 @@
     {field:'fire',text:'fire'},
     {field:'rocket',text:'rocket'},
     {field:'flare',text:'flare'},
-    {field:'shock',text:'shock'}
+    {field:'shock',text:'shock'},
+    {field:'ptt',text:'voice'}
   ];
+  const JOYSTICK_CONFIG_TOTAL=JOYSTICK_CONFIG_STEPS.length+1;
   const JOYSTICK_CONFIG_TEXT={
     es:{configure:'CONFIGURAR',title:'CONFIGURAR MANDO',connect:'CONECTA UN MANDO Y PULSA UN BOTON',move:'MOVER',moveLeft:'MUEVE EL STICK HACIA LA IZQUIERDA O PULSA IZQUIERDA EN LA CRUCETA',moveRight:'AHORA PULSA DERECHA EN LA CRUCETA',accelerate:'ACELERAR',fire:'DISPARO',rocket:'COHETES',flare:'BENGALAS',shock:'HONDA EXPANSIVA',press:'PULSA EL BOTON QUE QUIERAS ASIGNAR',reset:'RESTAURAR',cancel:'CANCELAR',saved:'CONFIGURACION GUARDADA',step:'PASO',voice:'VOZ'},
     en:{configure:'CONFIGURE',title:'CONFIGURE CONTROLLER',connect:'CONNECT A CONTROLLER AND PRESS A BUTTON',move:'MOVE',moveLeft:'MOVE THE STICK LEFT OR PRESS LEFT ON THE D-PAD',moveRight:'NOW PRESS RIGHT ON THE D-PAD',accelerate:'THRUST',fire:'FIRE',rocket:'ROCKETS',flare:'FLARES',shock:'SHOCKWAVE',press:'PRESS THE BUTTON YOU WANT TO ASSIGN',reset:'RESET',cancel:'CANCEL',saved:'CONFIGURATION SAVED',step:'STEP',voice:'VOICE'},
@@ -1094,7 +1096,7 @@
     resizeRaf=requestAnimationFrame(()=>{resizeRaf=0;updateCanvasResolution();});
   }
   const motionStatus=document.getElementById('motionStatus');
-  const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
+  const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone'),mobileGuideMain=document.querySelector('.mobile-guide-main');
   const mobileExit=document.getElementById('mobileExit');
   const mobileControlMotionBtn=document.getElementById('mobileControlMotion'),mobileControlButtonsBtn=document.getElementById('mobileControlButtons');
   const mobileTurnPad=document.getElementById('mobileTurnPad'),mobileTurnLeft=document.getElementById('mobileTurnLeft'),mobileTurnRight=document.getElementById('mobileTurnRight'),mobileActionZone=document.getElementById('mobileActionZone');
@@ -1727,12 +1729,12 @@
     if(joystickConfigCancel)joystickConfigCancel.textContent=t.cancel;
     const pad=findJoystick();
     if(!joystickConfigDraft)joystickConfigDraft={...joystickMap};
-    if(joystickConfigStepIndex>=6){
+    if(joystickConfigStepIndex>=JOYSTICK_CONFIG_TOTAL){
       if(joystickConfigStep)joystickConfigStep.textContent='';
       if(joystickConfigAction)joystickConfigAction.textContent='✓ '+t.saved;
       if(joystickConfigHint)joystickConfigHint.textContent=joystickMapSummary(joystickMap);
     }else if(!pad){
-      if(joystickConfigStep)joystickConfigStep.textContent=t.step+' '+(joystickConfigStepIndex+1)+'/6';
+      if(joystickConfigStep)joystickConfigStep.textContent=t.step+' '+(joystickConfigStepIndex+1)+'/'+JOYSTICK_CONFIG_TOTAL;
       if(joystickConfigAction)joystickConfigAction.textContent=t.connect;
       if(joystickConfigHint)joystickConfigHint.textContent='';
     }else if(joystickConfigStepIndex===0){
@@ -1741,7 +1743,7 @@
       if(joystickConfigHint)joystickConfigHint.textContent=joystickConfigTurnStage==='right'?t.moveRight:t.moveLeft;
     }else{
       const step=JOYSTICK_CONFIG_STEPS[joystickConfigStepIndex-1];
-      if(joystickConfigStep)joystickConfigStep.textContent=t.step+' '+(joystickConfigStepIndex+1)+'/6';
+      if(joystickConfigStep)joystickConfigStep.textContent=t.step+' '+(joystickConfigStepIndex+1)+'/'+JOYSTICK_CONFIG_TOTAL;
       if(joystickConfigAction)joystickConfigAction.textContent=t[step.text];
       if(joystickConfigHint)joystickConfigHint.textContent=t.press;
     }
@@ -1751,7 +1753,7 @@
     if(!joystickConfigDraft)return;
     joystickMap={...joystickConfigDraft};
     saveJoystickMap();
-    joystickConfigStepIndex=6;
+    joystickConfigStepIndex=JOYSTICK_CONFIG_TOTAL;
     joystickConfigActive=false;
     if(joystickConfigRaf){cancelAnimationFrame(joystickConfigRaf);joystickConfigRaf=0;}
     updateJoystickButton();
@@ -1771,7 +1773,7 @@
     joystickMap={...DEFAULT_JOYSTICK_MAP};
     joystickConfigDraft={...joystickMap};
     saveJoystickMap();
-    joystickConfigStepIndex=6;
+    joystickConfigStepIndex=JOYSTICK_CONFIG_TOTAL;
     joystickConfigActive=false;
     updateJoystickButton();
     renderJoystickConfig();
@@ -1825,11 +1827,11 @@
         joystickConfigStepIndex=1;joystickConfigTurnStage='';
         renderJoystickConfig();
       }
-    }else if(joystickConfigStepIndex>0&&joystickConfigStepIndex<6&&rising.length){
+    }else if(joystickConfigStepIndex>0&&joystickConfigStepIndex<JOYSTICK_CONFIG_TOTAL&&rising.length){
       const step=JOYSTICK_CONFIG_STEPS[joystickConfigStepIndex-1];
       joystickConfigDraft[step.field]=rising[0];
       joystickConfigStepIndex++;
-      if(joystickConfigStepIndex>=6){finishJoystickConfig();return;}
+      if(joystickConfigStepIndex>=JOYSTICK_CONFIG_TOTAL){finishJoystickConfig();return;}
       renderJoystickConfig();
     }
     joystickConfigPrevButtons=buttons;
@@ -1975,11 +1977,13 @@
       ?(joystickConnected?tr('joystickActive')+' '+joystickMapSummary():tr('joystickConnect')+' '+joystickMapSummary())
       :tr('joystickEnable');
     updateControlHelp();
+    updateMobileControlUi();
   }
   function notifyJoystickVoiceUi(){
     try{window.dispatchEvent(new CustomEvent('galaxy-joystickchange',{detail:{enabled:joystickEnabled,connected:joystickConnected}}));}catch(_){}
   }
   window.GalaxyJoystickEnabled=()=>!!joystickEnabled;
+  window.GalaxyJoystickVoiceLabel=()=>joystickButtonLabel(joystickMap.ptt);
   window.addEventListener('galaxy-languagechange',()=>{warmOnlineStartCaches(true);updateJoystickButton();if(joystickConfigDialog&&!joystickConfigDialog.classList.contains('hidden'))renderJoystickConfig();});
   function toggleJoystick(){
     joystickEnabled=!joystickEnabled;
@@ -2059,7 +2063,12 @@
       mobileControls.classList.add('button-mode');
       mobileControls.classList.remove('motion-mode');
       mobileControls.classList.toggle('keyboard-mode',mobileKeyboardActive);
+      // V22.41: en iPhone/iPad el joystick sustituye a los botones tactiles.
+      // La clase permanece aunque activateGameUi quite .hidden al empezar partida.
+      mobileControls.classList.toggle('joystick-mode',isMobile&&joystickEnabled);
+      mobileControls.setAttribute('aria-hidden',(isMobile&&joystickEnabled)?'true':'false');
     }
+    if(mobileGuideMain&&isMobile)mobileGuideMain.classList.toggle('hidden',joystickEnabled);
   }
   function setMobileKeyboardActive(active){
     if(!isMobile)return;
