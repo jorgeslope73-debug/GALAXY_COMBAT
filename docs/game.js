@@ -1625,14 +1625,14 @@
     return audioUnlocked;
   }
   function loadJoystickPreference(){
-    // V21.73: el modo sigue siendo solo PC, pero el mapa personalizado se
-    // conserva en este navegador aunque JOYSTICK empiece desactivado.
+    // V22.39: el mismo mando configurable funciona en PC, iPhone y iPad.
+    // Empieza desactivado por sesion, pero nunca se oculta en dispositivos moviles.
     loadJoystickMap();
     joystickEnabled=false;
-    if(isMobile&&joystickToggleButton){
-      joystickToggleButton.style.display='none';
-      joystickToggleButton.setAttribute('aria-hidden','true');
-      joystickToggleButton.tabIndex=-1;
+    if(joystickToggleButton){
+      joystickToggleButton.style.display='';
+      joystickToggleButton.removeAttribute('aria-hidden');
+      joystickToggleButton.tabIndex=0;
     }
   }
   function saveJoystickPreference(){
@@ -1836,7 +1836,7 @@
     joystickConfigRaf=requestAnimationFrame(pollJoystickConfig);
   }
   function openJoystickConfig(){
-    if(isMobile||!joystickEnabled||!joystickConfigDialog)return;
+    if(!joystickEnabled||!joystickConfigDialog)return;
     joystickConfigDraft={...joystickMap};
     joystickConfigStepIndex=0;joystickConfigTurnStage='left';joystickConfigActive=true;
     joystickConfigDialog.classList.remove('hidden');
@@ -1867,7 +1867,6 @@
     return pad;
   }
   function joystickControls(){
-    if(isMobile)return {active:false,turn:0,thrust:false,fire:false,rocket:false,flare:false,shock:false,ptt:false};
     const pad=findJoystick();
     if(!pad)return {active:false,turn:0,thrust:false,fire:false,rocket:false,flare:false,shock:false,ptt:false};
     const dead=.18;
@@ -1899,7 +1898,7 @@
     victoryJoystickLastActionAt=0;
   }
   function pumpVictoryJoystick(now){
-    if(!joystickEnabled||isMobile||victory.classList.contains('hidden')){
+    if(!joystickEnabled||victory.classList.contains('hidden')){
       resetVictoryJoystickControls();
       return;
     }
@@ -1980,10 +1979,9 @@
   function notifyJoystickVoiceUi(){
     try{window.dispatchEvent(new CustomEvent('galaxy-joystickchange',{detail:{enabled:joystickEnabled,connected:joystickConnected}}));}catch(_){}
   }
-  window.GalaxyJoystickEnabled=()=>!isMobile&&!!joystickEnabled;
+  window.GalaxyJoystickEnabled=()=>!!joystickEnabled;
   window.addEventListener('galaxy-languagechange',()=>{warmOnlineStartCaches(true);updateJoystickButton();if(joystickConfigDialog&&!joystickConfigDialog.classList.contains('hidden'))renderJoystickConfig();});
   function toggleJoystick(){
-    if(isMobile)return;
     joystickEnabled=!joystickEnabled;
     if(!joystickEnabled){
       joystickIndex=-1;joystickConnected=false;
