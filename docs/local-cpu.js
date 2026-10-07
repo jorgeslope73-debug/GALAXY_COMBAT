@@ -1725,11 +1725,15 @@
         f.life-=dt;
         f.ownerSafe=Math.max(0,(Number(f.ownerSafe)||0)-dt);
 
-        // V21.19: una bengala que golpea un asteroide normal/mediano/grande
-        // se consume, pero el asteroide no recibe dano ni cambia trayectoria.
+        // V22.34: las bengalas hacen rebotar los asteroides medianos.
+        // Los fragmentos pequenos conservan el comportamiento anterior.
         let hitAsteroid=false;
         for(const a of this.asteroids){
           if(!a||!sweptCircles(f,FLARE_RADIUS,a,a.r,false))continue;
+          const radius=Number(a.r)||ASTEROID_RADIUS;
+          if(radius>30&&a.fragment!==true){
+            PHYSICS_CORE.bounceBodyFromFlare(a,f,radius,FLARE_RADIUS,190,105);
+          }
           this.emitExplosionAt(f.x,f.y,f.owner);
           this.emit({t:'sound',kind:'impact'});
           hitAsteroid=true;
@@ -2562,14 +2566,19 @@
             b,this.flares,sweptCircles,BULLET_RADIUS,FLARE_RADIUS
           );
           if(flareHit){
-            // Cualquier proyectil queda anulado por una bengala.
-            // El misil conserva explosion visual; la bala normal solo desaparece.
+            // V22.34: las balas rompen/deshacen las bengalas. El impacto consume
+            // el proyectil y la bengala; la bala normal muestra desintegracion
+            // para que el resultado sea visible, y el misil conserva su efecto.
             if(flareHit.intercept){
               this.emit({t:'intercept',index:flareHit.flareOwner,guided:flareHit.guided});
             }
             if(flareHit.guided){
               this.emitRocketDisintegrateAt(flareHit.impactX,flareHit.impactY,flareHit.projectileOwner);
               this.emit({t:'sound',kind:'sparkle'});
+            }else{
+              const flare=flareHit.flare;
+              this.emitRocketDisintegrateAt(Number(flare&&flare.x)||flareHit.impactX,Number(flare&&flare.y)||flareHit.impactY,flareHit.flareOwner);
+              this.emit({t:'sound',kind:'impact'});
             }
             this.flares.splice(flareHit.index,1);
             remove=true;
@@ -2817,11 +2826,12 @@
       }
       const g=this.giant;g.px=g.x;g.py=g.y;g.x+=g.vx*dt;g.y+=g.vy*dt;
       if(g.x>-GIANT_RADIUS&&g.x<W+GIANT_RADIUS&&g.y>-GIANT_RADIUS&&g.y<H+GIANT_RADIUS)g.entered=true;
-      // V19.81: bengala contra meteorito gigante. La bengala explota y se
-      // consume; el gigante no recibe dano ni altera su trayectoria.
+      // V22.34: la bengala se consume, pero ahora hace rebotar el meteorito
+      // gigante en vez de dejarlo atravesar el impacto sin variar trayectoria.
       for(let f=this.flares.length-1;f>=0;f--){
         const flare=this.flares[f];
         if(!sweptCircles(g,GIANT_RADIUS,flare,FLARE_RADIUS,false))continue;
+        PHYSICS_CORE.bounceBodyFromFlare(g,flare,GIANT_RADIUS,FLARE_RADIUS,90,68);
         this.emitExplosionAt(flare.x,flare.y,flare.owner);
         this.emit({t:'sound',kind:'impact'});
         this.flares.splice(f,1);
