@@ -381,11 +381,11 @@
     }
     if(p2p&&p2p.peers&&typeof p2p.peers.values==='function'){
       for(const rec of p2p.peers.values()){
-        const dc=rec&&rec.dc;
-        if(dc&&dc.readyState==='open'){
-          p2pPeers++;
-          p2pBuf+=Number(dc.bufferedAmount||0);
-        }
+        const fast=rec&&(rec.fastDc||rec.dc);
+        const reliable=rec&&rec.reliableDc;
+        if(rec&&rec.open)p2pPeers++;
+        if(fast&&fast.readyState==='open')p2pBuf+=Number(fast.bufferedAmount||0);
+        if(reliable&&reliable!==fast&&reliable.readyState==='open')p2pBuf+=Number(reliable.bufferedAmount||0);
       }
       if(p2p.pendingStateRaw)p2pQueued++;
       if(p2p.pendingBroadcastState)p2pQueued++;

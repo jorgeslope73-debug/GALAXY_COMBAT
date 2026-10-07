@@ -8,7 +8,7 @@ function method(source,name){
   const re=new RegExp('^\\s{4}'+name+'\\s*\\([^)]*\\)\\s*\\{','m');
   const m=re.exec(source);
   if(!m)return '';
-  const start=m.index,brace=source.indexOf('{',start);
+  const start=m.index,brace=start+m[0].lastIndexOf('{');
   let depth=0,quote='',escaped=false,line=false,block=false;
   for(let i=brace;i<source.length;i++){
     const ch=source[i],next=source[i+1];
@@ -16,7 +16,7 @@ function method(source,name){
     if(block){if(ch==='*'&&next==='/'){block=false;i++;}continue;}
     if(quote){
       if(escaped){escaped=false;continue;}
-      if(ch==='\\\\'){escaped=true;continue;}
+      if(ch==='\\'){escaped=true;continue;}
       if(ch===quote)quote='';
       continue;
     }
