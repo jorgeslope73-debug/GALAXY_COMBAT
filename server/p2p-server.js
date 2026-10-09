@@ -1193,11 +1193,11 @@ wss.on('connection',(ws,req)=>{
         send(ws,{t:'error',message:creator.testMode?'LIMITE DE SALAS DE PRUEBA ALCANZADO.':'YA ESTAS EN UNA SALA ACTIVA.'});
         return;
       }
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:false,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,hostEpoch:1,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,lastSeriesChampionToken:'',lastSeriesChampionCpu:false,lastSeriesChampionIndex:-1,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
+      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:true,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,hostEpoch:1,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,lastSeriesChampionToken:'',lastSeriesChampionCpu:false,lastSeriesChampionIndex:-1,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
       const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,deviceKey:creator.deviceKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
-      broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:false,canStart:false,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});publicUpdate(wss);return;
+      broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:true,canStart:canStartRoom(r),hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});publicUpdate(wss);return;
     }
 
     if(m.t==='join'){
