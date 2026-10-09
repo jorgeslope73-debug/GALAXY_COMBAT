@@ -287,6 +287,7 @@
   // sesion online. Se reinician solo al volver al menu principal.
   const onlineSessionWins=new Map();
   const ONLINE_SERIES_BASE_ROUNDS=5;
+  let onlineSeriesConfirmedRound=0;
   let onlineSeriesRound=0,onlineSeriesScoredRound=0,onlineSeriesComplete=false,onlineSeriesChampion=-1,onlineSeriesReturnTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false,activeLocalDifficulty='';
@@ -3497,7 +3498,7 @@
       if(Number.isInteger(Number(m.hostIndex)))hostIndex=Number(m.hostIndex);
       if(Number.isInteger(Number(m.hostEpoch))&&Number(m.hostEpoch)>0)hostEpoch=Number(m.hostEpoch);
       isHost=Number(myIndex)===Number(hostIndex);
-      onlineSessionWins.clear();onlineSeriesRound=Math.max(1,Number(m.rankRound)||1);onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
+      onlineSessionWins.clear();onlineSeriesConfirmedRound=0;onlineSeriesRound=Math.max(1,Number(m.rankRound)||1);onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
       if(m.seriesWins)applyOnlineSeriesState(m);
       ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});
       beginOnlineStartCountdown(m.rankRound);
@@ -4029,7 +4030,7 @@
     if(!m||roomCode==='LOCAL')return;
     const round=Math.max(0,Number(m.round??m.seriesRound)||0);
     const wins=Array.isArray(m.wins)?m.wins:(Array.isArray(m.seriesWins)?m.seriesWins:null);
-    if(round>0){onlineSeriesRound=round;onlineSeriesScoredRound=round;}
+    if(round>0){onlineSeriesRound=round;onlineSeriesScoredRound=round;onlineSeriesConfirmedRound=Math.max(onlineSeriesConfirmedRound,round);}
     if(wins){
       onlineSessionWins.clear();
       for(const p of currentVictoryRoster()){
@@ -4072,7 +4073,7 @@
     if(!btn)return;
     const round=currentOnlineSeriesRound();
     const isTiebreak=round>=ONLINE_SERIES_BASE_ROUNDS&&onlineSeriesLeaders().length>1;
-    const confirmed=onlineSeriesScoredRound>=round;
+    const confirmed=onlineSeriesConfirmedRound>=round;
     btn.classList.remove('hidden');
     btn.disabled=!confirmed;
     btn.textContent=!confirmed?'COMPROBANDO SERIE...':(isTiebreak?'¡RONDA DE DESEMPATE!':'SIGUIENTE RONDA');
@@ -4157,7 +4158,7 @@
     if(onlineSeriesReturnTimer){clearTimeout(onlineSeriesReturnTimer);onlineSeriesReturnTimer=null;}
     clearSeriesChampionPresentation();
     onlineSessionWins.clear();
-    onlineSeriesRound=0;onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
+    onlineSeriesConfirmedRound=0;onlineSeriesRound=0;onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
     resetOnlineStartCountdown();
     clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
     inGame=false;
@@ -4224,7 +4225,7 @@
       victoryText.textContent=onlineSeriesRoundLabel(round)+' · '+(p?sinTildes(p.n):('JUGADOR '+(Number(i)+1)))+' GANA';
       if(restartBtn){
         restartBtn.classList.remove('hidden');
-        restartBtn.disabled=round>=ONLINE_SERIES_BASE_ROUNDS&&onlineSeriesScoredRound<round;
+        restartBtn.disabled=round>=ONLINE_SERIES_BASE_ROUNDS&&onlineSeriesConfirmedRound<round;
         restartBtn.textContent=round>=ONLINE_SERIES_BASE_ROUNDS?'COMPROBANDO SERIE...':'SIGUIENTE RONDA';
       }
     }
@@ -4398,7 +4399,7 @@
     resetGameFeelVisuals();
     resetOnlineStartCountdown();
     onlineSessionWins.clear();
-    onlineSeriesRound=0;onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
+    onlineSeriesConfirmedRound=0;onlineSeriesRound=0;onlineSeriesScoredRound=0;onlineSeriesComplete=false;onlineSeriesChampion=-1;
     if(onlineSeriesReturnTimer){clearTimeout(onlineSeriesReturnTimer);onlineSeriesReturnTimer=null;}
     clearSeriesChampionPresentation();
     const sessionRanking=document.getElementById('sessionRanking');
