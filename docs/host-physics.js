@@ -1204,13 +1204,13 @@
         f.life-=dt;
         f.ownerSafe=Math.max(0,(Number(f.ownerSafe)||0)-dt);
 
-        // V22.34: las bengalas hacen rebotar los asteroides medianos.
-        // Los fragmentos pequenos conservan el comportamiento anterior.
+        // Bengalas: todos los asteroides medianos y grandes se desvian.
+        // Los pequenos de lluvia se destruyen en updateMeteors().
         let hitAsteroid=false;
         for(const a of this.asteroids){
           if(!a||!sweptCircles(f,FLARE_RADIUS,a,a.r,false))continue;
           const radius=Number(a.r)||ASTEROID_RADIUS;
-          if(radius>30&&a.fragment!==true){
+          if(a.fragment!==true){
             PHYSICS_CORE.bounceBodyFromFlare(a,f,radius,FLARE_RADIUS,190,105);
           }
           this.emitExplosionAt(f.x,f.y,f.owner);
@@ -2058,12 +2058,11 @@
       }
       const g=this.giant;g.px=g.x;g.py=g.y;g.x+=g.vx*dt;g.y+=g.vy*dt;
       if(g.x>-GIANT_RADIUS&&g.x<W+GIANT_RADIUS&&g.y>-GIANT_RADIUS&&g.y<H+GIANT_RADIUS)g.entered=true;
-      // V22.34: la bengala se consume, pero ahora hace rebotar el meteorito
-      // gigante en vez de dejarlo atravesar el impacto sin variar trayectoria.
+      // El gigante es inmune a las bengalas: solo las consume al chocar,
+      // sin cambiar su velocidad ni su trayectoria.
       for(let f=this.flares.length-1;f>=0;f--){
         const flare=this.flares[f];
         if(!sweptCircles(g,GIANT_RADIUS,flare,FLARE_RADIUS,false))continue;
-        PHYSICS_CORE.bounceBodyFromFlare(g,flare,GIANT_RADIUS,FLARE_RADIUS,90,68);
         this.emitExplosionAt(flare.x,flare.y,flare.owner);
         this.emit({t:'sound',kind:'impact'});
         this.flares.splice(f,1);
