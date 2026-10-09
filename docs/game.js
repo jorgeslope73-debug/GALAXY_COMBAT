@@ -4047,8 +4047,9 @@
       if(restartBtn){
         restartBtn.classList.remove('hidden');
         restartBtn.disabled=false;
-        restartBtn.textContent=onlineSeriesRound>=ONLINE_SERIES_BASE_ROUNDS?'DESEMPATE · SIGUIENTE RONDA':'SIGUIENTE RONDA';
+        restartBtn.textContent=onlineSeriesRound>=ONLINE_SERIES_BASE_ROUNDS?'¡RONDA DE DESEMPATE!':'SIGUIENTE RONDA';
       }
+      updateOnlineTiebreakButton();
     }
   }
   function submitOnlineSeriesRound(winnerIndex,round){
@@ -4058,6 +4059,27 @@
       winnerIndex:Number(winnerIndex),
       rankRound:Math.max(1,Number(round)||1)
     });
+  }
+  function onlineSeriesLeaders(){
+    const rows=currentVictoryRoster().map(p=>({i:p.i,wins:Number(onlineSessionWins.get(onlineSessionPlayerKey(p)))||0}));
+    if(!rows.length)return [];
+    const best=Math.max(...rows.map(p=>p.wins));
+    return rows.filter(p=>p.wins===best).map(p=>p.i);
+  }
+  function updateOnlineTiebreakButton(){
+    if(roomCode==='LOCAL'||victory.classList.contains('hidden')||onlineSeriesComplete)return;
+    const btn=document.getElementById('restartMatch');
+    if(!btn)return;
+    const round=currentOnlineSeriesRound();
+    const isTiebreak=round>=ONLINE_SERIES_BASE_ROUNDS&&onlineSeriesLeaders().length>1;
+    const confirmed=onlineSeriesScoredRound>=round;
+    btn.classList.remove('hidden');
+    btn.disabled=!confirmed;
+    btn.textContent=!confirmed?'COMPROBANDO SERIE...':(isTiebreak?'¡RONDA DE DESEMPATE!':'SIGUIENTE RONDA');
+    if(isTiebreak){
+      const title=document.getElementById('victoryText');
+      if(title)title.textContent='¡RONDA DE DESEMPATE!';
+    }
   }
   function renderOnlineSessionRanking(){
     const box=document.getElementById('sessionRanking');
@@ -4081,7 +4103,8 @@
     list.innerHTML=rows.map((p,pos)=>{
       const color=playerColors[p.i]||'#fff';
       const winsLabel=p.wins===1?tr('gameWon'):tr('gamesWon');
-      const place=pos===0?'<span class="cup" aria-hidden="true">🏆</span>':'<span>'+(pos+1)+'</span>';
+      const uniqueLeader=onlineSeriesLeaders().length===1;
+      const place=pos===0&&uniqueLeader?'<span class="cup" aria-hidden="true">🏆</span>':'<span>'+(pos+1)+'</span>';
       return '<div class="session-ranking-row'+(pos===0?' is-leader':'')+'">'+
         '<div class="session-ranking-position">'+place+'</div>'+
         '<div class="session-ranking-name" style="color:'+color+'">'+escapeHtml(sinTildes(p.n))+(p.cpu?' · CPU':'')+'</div>'+
@@ -4201,7 +4224,7 @@
       victoryText.textContent=onlineSeriesRoundLabel(round)+' · '+(p?sinTildes(p.n):('JUGADOR '+(Number(i)+1)))+' GANA';
       if(restartBtn){
         restartBtn.classList.remove('hidden');
-        restartBtn.disabled=round>=ONLINE_SERIES_BASE_ROUNDS;
+        restartBtn.disabled=round>=ONLINE_SERIES_BASE_ROUNDS&&onlineSeriesScoredRound<round;
         restartBtn.textContent=round>=ONLINE_SERIES_BASE_ROUNDS?'COMPROBANDO SERIE...':'SIGUIENTE RONDA';
       }
     }
@@ -4217,6 +4240,7 @@
     resetVictoryJoystickControls();
     clearSeriesChampionPresentation();
     victory.classList.remove('hidden','winner-celebration');
+    if(!localCampaign)updateOnlineTiebreakButton();
     void victory.offsetWidth;
     if(!localCampaign||humanWon)victory.classList.add('winner-celebration');
     if(!localCampaign&&onlineSeriesComplete&&onlineSeriesChampion>=0)showOnlineSeriesChampion(onlineSeriesChampion);
