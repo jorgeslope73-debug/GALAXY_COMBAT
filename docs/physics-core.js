@@ -444,7 +444,33 @@
     return {destroyOnly:false,x,y,hitX,hitY,fragments};
   }
 
+  function cpuSpawnEscapeControl(cpu,players,now,width,height){
+    if(!cpu||cpu.dead)return null;
+    let threat=null,nearest=null,best=Infinity,nearestDistance=Infinity;
+    for(const other of players){
+      if(other===cpu||other.index===cpu.index||other.dead)continue;
+      // La distancia debe respetar el mundo que envuelve sus bordes.
+      let dx=cpu.x-other.x,dy=cpu.y-other.y;
+      dx-=Math.round(dx/width)*width;dy-=Math.round(dy/height)*height;
+      const distance=Math.hypot(dx,dy);
+      const candidate={dx,dy,distance};
+      if(distance<nearestDistance){nearest=candidate;nearestDistance=distance;}
+      if((other.protection>0||other.spawnFx>0)&&distance<320&&distance<best){
+        threat=candidate;best=distance;
+      }
+    }
+    const opening=now<(Number(cpu.openingFleeUntil)||0);
+    if(!threat&&!opening)return null;
+    const away=threat||nearest;
+    let desired=cpu.rot;
+    if(away&&away.distance>.001)desired=(Math.atan2(-away.dx,-away.dy)*180/Math.PI+360)%360;
+    else if(away)desired=(cpu.index*137.508)%360;
+    const err=((desired-cpu.rot+540)%360)-180;
+    return{turn:Math.max(-1,Math.min(1,err/30)),thrust:Math.abs(err)<65,fire:false};
+  }
+
   window.GalaxyPhysicsCore=Object.freeze({
+    cpuSpawnEscapeControl,
     TARGET_MIN_ALIGN,
     resolveAsteroidPairCollision,
     resolveGiantAsteroidCollision,

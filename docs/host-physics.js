@@ -891,10 +891,8 @@
         if(wave&&Number(wave.owner)===Number(victim.index))wave.cancelled=true;
       }
       if(victim.cpu)victim.flarePending=null;
-      // V20.11: solo penalizan las muertes provocadas por el propio jugador,
-      // por el entorno/choque o por una colision fisica marcada expresamente.
-      // Ser abatido por la bala, misil o bengala de OTRO jugador no resta puntos.
-      if(!attacker||attacker===victim||scorePenalty)victim.kills=Math.max(0,victim.kills-1);
+      // V22.46: toda muerte resta una baja, sin bajar de cero.
+      victim.kills=Math.max(0,victim.kills-1);
 
       // V21.33: la embestida con escudo conserva su efecto de colision/baja,
       // pero ya no roba ni transfiere armamento o mejoras del rival.
@@ -914,7 +912,7 @@
       }
     }
     placeAtSpawn(p){
-      const area=spawnArea(p.index);
+      const area=spawnArea(Math.floor(Math.random()*4));
       const obstacles=this.asteroids.map(a=>({x:a.x,y:a.y,r:a.r}));
       for(const m of this.meteors)obstacles.push({x:m.x,y:m.y,r:SMALL_METEOR_RADIUS});
       if(this.giant)obstacles.push({x:this.giant.x,y:this.giant.y,r:GIANT_RADIUS});
@@ -929,7 +927,9 @@
         if(score>bestScore){best=candidate;bestScore=score;}
         if(clearance>=0&&!tooSimilar){best=candidate;break;}
       }
-      p.x=best.x;p.y=best.y;p.px=p.x;p.py=p.y;p.rot=area.rot;p.vx=0;p.vy=0;p.lastSpawn={x:p.x,y:p.y};p.spawnAnchorX=p.x;p.spawnAnchorY=p.y;
+      p.x=best.x;p.y=best.y;p.px=p.x;p.py=p.y;p.rot=rand(0,360);p.vx=0;p.vy=0;p.lastSpawn={x:p.x,y:p.y};p.spawnAnchorX=p.x;p.spawnAnchorY=p.y;
+      p.openingFleeUntil=p.cpu&&Math.random()<.45?(Number(this.fxClock)||0)+SPAWN_MATERIALIZE_SECONDS+rand(1.5,3.5):0;
+      p.aiControl=null;p.easyControl=null;
     }
     respawnPlayer(p){
       this.placeAtSpawn(p);p.dead=false;p.respawn=0;p.spawnFx=SPAWN_MATERIALIZE_SECONDS;p.protection=SPAWN_PROTECTION_SECONDS;
@@ -1340,6 +1340,8 @@
     }
 
     chooseCpuControls(cpu){
+      const spawnEscape=PHYSICS_CORE.cpuSpawnEscapeControl(cpu,this.players,this.fxClock,W,H);
+      if(spawnEscape)return spawnEscape;
       let rival=null,best=Infinity;
       if(cpu.dead)return IDLE_CONTROL;
       const antiLoop=this.cpuAntiLoopControl(cpu);
