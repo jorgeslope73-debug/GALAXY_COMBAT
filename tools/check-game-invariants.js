@@ -38,6 +38,7 @@ const local=read('docs/local-cpu.js');
 const host=read('docs/host-physics.js');
 const game=read('docs/game.js');
 const voiceCss=read('docs/voz.css');
+const voice=read('docs/voz.js');
 const p2p=read('docs/p2p-network.js');
 const core=read('docs/physics-core.js');
 const build=read('docs/build-version.js');

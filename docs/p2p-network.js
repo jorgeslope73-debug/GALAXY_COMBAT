@@ -191,6 +191,9 @@
       dc.onclose=()=>{this.updatePeerOpen(peerIndex,rec,rec.pc.connectionState);};
       dc.onerror=()=>{};
       dc.onmessage=e=>{
+        // Ignorar callbacks ya encolados de conexiones retiradas y del host anterior.
+        if(this.closed||this.peers.get(peerIndex)!==rec)return;
+        if(!this.isHost&&peerIndex!==this.hostIndex)return;
         const raw=typeof e.data==='string'?e.data:String(e.data);
         const allowFast=legacy||!reliable;
         const allowReliable=legacy||reliable;
@@ -200,7 +203,7 @@
 
         let m;try{m=JSON.parse(raw);}catch(_){return;}
         if(allowFast&&this.isHost&&m.t==='ctrl'){this.onControl(peerIndex,m);return;}
-        if(allowFast&&!this.isHost&&m.t==='state'){this.onState(m.state);return;}
+        if(allowFast&&!this.isHost&&m.t==='state'){this.queueState(raw);return;}
 
         // Eventos/acciones son fiables. Aplicar antes el último estado fast pendiente.
         if(allowReliable&&(m.t==='event'||m.t==='action'||m.t==='input-action')&&this.pendingStateRaw)this.flushPendingState();

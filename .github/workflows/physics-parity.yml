@@ -17,6 +17,7 @@ on:
       - 'docs/style.css'
       - 'server/p2p-server.js'
       - 'tools/check-physics-parity.js'
+      - 'tools/check-network-resilience.js'
       - 'tools/check-game-invariants.js'
       - 'tools/stress-game.js'
       - '.github/workflows/physics-parity.yml'
@@ -36,6 +37,7 @@ on:
       - 'docs/style.css'
       - 'server/p2p-server.js'
       - 'tools/check-physics-parity.js'
+      - 'tools/check-network-resilience.js'
       - 'tools/check-game-invariants.js'
       - 'tools/stress-game.js'
       - '.github/workflows/physics-parity.yml'
@@ -52,7 +54,9 @@ jobs:
         run: node --check docs/p2p-network.js && node --check docs/menu-loader.js && node --check docs/game.js && node --check docs/pwa.js && node --check docs/build-version.js && node --check docs/sw.js && node --check server/p2p-server.js && node --check tools/check-game-invariants.js && node --check tools/stress-game.js
       - name: Check host/local shared physics parity
         run: node tools/check-physics-parity.js
-      - name: Check gameplay and performance invariants
+      - name: Check network resilience
+        run: node tools/check-network-resilience.js
+      - name: Check existing gameplay invariants
         run: node tools/check-game-invariants.js
       - name: Run 5-minute simulated gameplay stress
         env:

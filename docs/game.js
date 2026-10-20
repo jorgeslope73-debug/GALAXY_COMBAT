@@ -2763,11 +2763,16 @@
         return;
       }
       if(m&&m.t==='fallback-state'){
-        if(!isHost&&m.state){fallbackActive=true;handle(m.state);}
+        // Puede quedar un estado en vuelo despues de fallback-clear.
+        // No reactivar el respaldo cuando el enlace directo ya se recupero.
+        if(!isHost&&m.state&&(fallbackActive||clientNeedsFallback())){
+          fallbackActive=true;handle(m.state);
+        }
         return;
       }
       if(m&&m.t==='fallback-event'){
-        if(!isHost&&m.event){fallbackActive=true;handle(m.event);}
+        // Los eventos fiables tambien se duplican con P2P sano (p. ej. victoria).
+        if(!isHost&&m.event)handle(m.event);
         return;
       }
       if(m&&m.t==='fallback-ctrl'){

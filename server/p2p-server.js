@@ -368,6 +368,12 @@ function roomCode(){
 }
 function newPlayerToken(){return randomBytes(24).toString('hex');}
 function send(ws,o){if(ws&&ws.readyState===1)try{ws.send(JSON.stringify(o));}catch(_){}}
+// Los snapshots son reemplazables: no acumular segundos de posiciones viejas
+// para un cliente lento. Los eventos y acciones fiables mantienen su ruta.
+function sendLatestState(ws,o){
+  if(!ws||ws.readyState!==1||Number(ws.bufferedAmount||0)>32*1024)return;
+  send(ws,o);
+}
 function currentHost(r){
   if(!r||!Array.isArray(r.players))return null;
   return r.players.find(p=>Number(p.i)===Number(r.hostIndex))||null;
@@ -1411,7 +1417,7 @@ wss.on('connection',(ws,req)=>{
     if(m.t==='fallback-state'){
       if(Number(x.i)===Number(r.hostIndex)&&m.state){
         const to=new Set(Array.isArray(m.to)?m.to.map(Number).filter(Number.isInteger):[]);
-        for(const p of r.players)if(Number(p.i)!==Number(r.hostIndex)&&p.ws&&(!to.size||to.has(p.i)))send(p.ws,{t:'fallback-state',state:m.state});
+        for(const p of r.players)if(Number(p.i)!==Number(r.hostIndex)&&p.ws&&(!to.size||to.has(p.i)))sendLatestState(p.ws,{t:'fallback-state',state:m.state});
       }
       return;
     }
