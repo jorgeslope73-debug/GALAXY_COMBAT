@@ -400,6 +400,7 @@ function canStartRoom(r){return !!(r&&!r.started&&r.players.length&&r.players.ev
 function resetOnlineSeries(r){
   r.seriesWins=[0,0,0,0];
   r.seriesLastScoredRound=0;
+  r.seriesRoundWinner=-1;
   r.seriesComplete=false;
   r.seriesChampion=-1;
   if(r.seriesLobbyTimer){clearTimeout(r.seriesLobbyTimer);r.seriesLobbyTimer=null;}
@@ -408,6 +409,9 @@ function seriesState(r){
   return {
     seriesRound:Math.max(0,Number(r&&r.rankRound)||0),
     seriesWins:Array.isArray(r&&r.seriesWins)?r.seriesWins.slice(0,MAX_PLAYERS):[0,0,0,0],
+    seriesLastScoredRound:Math.max(0,Number(r&&r.seriesLastScoredRound)||0),
+    roundFinished:!!(r&&r.started&&Number(r.rankRound)>0&&Number(r.seriesLastScoredRound)===Number(r.rankRound)),
+    roundWinner:Number.isInteger(r&&r.seriesRoundWinner)?r.seriesRoundWinner:-1,
     seriesComplete:!!(r&&r.seriesComplete),
     seriesChampion:Number.isInteger(Number(r&&r.seriesChampion))?Number(r.seriesChampion):-1,
     hostEpoch:Math.max(1,Number(r&&r.hostEpoch)||1)
@@ -453,7 +457,7 @@ function promoteHost(r,wss,cause='host_left'){
     cpuFill:!!r.cpuFill,
     started:!!r.started,
     rankRound:Number(r.rankRound)||0,
-    restartRound:!!(r.started&&!r.seriesComplete),
+    restartRound:!!(r.started&&!r.seriesComplete&&!seriesState(r).roundFinished),
     cause,
     ...seriesState(r)
   });
@@ -1122,6 +1126,9 @@ async function authApi(req,res,url){
     if(!host||!/^[a-f0-9]{48}$/i.test(hostToken)||host.playerToken!==hostToken){
       sendJson(res,403,{ok:false,code:'HOST_REQUIRED'});return true;
     }
+    if(Number(body.hostEpoch)>0&&Number(body.hostEpoch)!==Number(room.hostEpoch)){
+      sendJson(res,409,{ok:false,code:'STALE_HOST'});return true;
+    }
     const rankRound=Math.max(0,Number(body.rankRound)||0);
     if(rankRound&&rankRound!==Number(room.rankRound||0)){sendJson(res,409,{ok:false,code:'STALE_ROUND'});return true;}
     const winner=room.players.find(p=>p.i===winnerIndex)||null;
@@ -1268,14 +1275,27 @@ wss.on('connection',(ws,req)=>{
       const oldWs=p.ws;
       if(oldWs&&oldWs!==ws){info.delete(oldWs);try{oldWs.close(4001,'Sesion recuperada desde otra conexion');}catch(_){}}
       p.ws=ws;p.disconnectedAt=0;p.voiceReady=false;info.set(ws,{code:room.code,i:p.i});
+      // Una recarga pierde la fisica; una reconexion de WebSocket la conserva.
+      const recoverHost=Number(p.i)===Number(room.hostIndex)&&room.started&&m.hostSimulationAlive===false;
+      if(recoverHost)room.hostEpoch=Math.max(1,Number(room.hostEpoch)||1)+1;
       const players=roster(room);
-      send(ws,{t:'resumed',code:room.code,index:p.i,host:Number(p.i)===Number(room.hostIndex),hostIndex:room.hostIndex,hostEpoch:room.hostEpoch,started:!!room.started,finished:false,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true,...seriesState(room)});
-      broadcast(room,{t:'lobby',code:room.code,players,cpuFill:!!room.cpuFill,canStart:canStartRoom(room),hostIndex:room.hostIndex});
+      const phase=seriesState(room);
+      const restartRound=!!(recoverHost&&!phase.roundFinished);
+      send(ws,{t:'resumed',code:room.code,index:p.i,host:Number(p.i)===Number(room.hostIndex),hostIndex:room.hostIndex,hostEpoch:room.hostEpoch,started:!!room.started,finished:phase.roundFinished,recoverHost,restartRound,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true,...phase});
+      if(recoverHost){
+        const recovery={t:'host-migrated',previousHostIndex:room.hostIndex,hostIndex:room.hostIndex,players,cpuFill:!!room.cpuFill,started:true,rankRound:room.rankRound,restartRound,cause:'host_reloaded',...phase};
+        for(const other of room.players)if(other.ws!==ws)send(other.ws,recovery);
+      }
+      broadcast(room,{t:'lobby',code:room.code,players,cpuFill:!!room.cpuFill,canStart:canStartRoom(room),started:!!room.started,hostIndex:room.hostIndex,hostEpoch:room.hostEpoch});
       if(room.started&&Number(p.i)!==Number(room.hostIndex)){const host=currentHost(room);if(host&&host.ws)send(host.ws,{t:'p2p-reconnect',from:p.i});}
       publicUpdate(wss);return;
     }
 
     const x=info.get(ws),r=x&&rooms.get(x.code);if(!r)return;
+    if(['series-round-result','rank-restart'].includes(m.t)&&Number(m.hostEpoch)>0&&Number(m.hostEpoch)!==Number(r.hostEpoch)){
+      if(m.requestId)send(ws,{t:'critical-ack',requestId:String(m.requestId),kind:m.t,rankRound:r.rankRound});
+      return;
+    }
 
     if(m.t==='cpu-fill'&&Number(x.i)===Number(r.hostIndex)&&!r.started){
       r.cpuFill=!!m.on;
@@ -1289,6 +1309,8 @@ wss.on('connection',(ws,req)=>{
       r.lastSeriesChampionCpu=false;
       r.lastSeriesChampionIndex=-1;
       resetOnlineSeries(r);
+      // Cada serie tiene una nueva autoridad incluso si conserva el anfitrion.
+      r.hostEpoch=Math.max(1,Number(r.hostEpoch)||1)+1;
       const startPlayers=roster(r);
       r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');r.rankRound=1;
       if(db){
@@ -1322,6 +1344,7 @@ wss.on('connection',(ws,req)=>{
       }
 
       r.seriesLastScoredRound=round;
+      r.seriesRoundWinner=winnerIndex;
       if(!Array.isArray(r.seriesWins))r.seriesWins=[0,0,0,0];
       r.seriesWins[winnerIndex]=(Number(r.seriesWins[winnerIndex])||0)+1;
 
@@ -1339,7 +1362,7 @@ wss.on('connection',(ws,req)=>{
       }
 
       if(requestId)send(ws,{t:'critical-ack',requestId,kind:'series-round-result',rankRound:Number(r.rankRound)||round});
-      broadcast(r,{t:'series-state',round,wins:r.seriesWins.slice(0,MAX_PLAYERS),complete,champion:r.seriesChampion});
+      broadcast(r,{t:'series-state',round,wins:r.seriesWins.slice(0,MAX_PLAYERS),complete,champion:r.seriesChampion,...seriesState(r)});
       if(complete)scheduleSeriesLobby(r,wss,30000);
       return;
     }
@@ -1369,7 +1392,7 @@ wss.on('connection',(ws,req)=>{
       }
 
       // Solo se acepta avanzar exactamente una ronda desde el estado actual.
-      if(fromRound!==current||targetRound!==current+1){
+      if(fromRound!==current||targetRound!==current+1||Number(r.seriesLastScoredRound)!==current){
         if(requestId)send(ws,{t:'critical-nack',requestId,kind:'rank-restart',rankRound:current});
         return;
       }
@@ -1377,6 +1400,7 @@ wss.on('connection',(ws,req)=>{
       r.rankRecorded=false;
       r.rankMatchId=randomBytes(24).toString('hex');
       r.rankRound=targetRound;
+      r.seriesRoundWinner=-1;
       const rankCheck=rankEligibility(r);
       r.rankEligible=rankCheck.eligible;
       if(requestId)send(ws,{t:'critical-ack',requestId,kind:'rank-restart',rankRound:r.rankRound});
@@ -1430,7 +1454,9 @@ wss.on('connection',(ws,req)=>{
     }
     if(m.t==='fallback-action'){
       const host=currentHost(r);
-      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{t:'fallback-action',from:x.i,action:String(m.action||'')});
+      if(Number(m.hostEpoch)>0&&Number(m.hostEpoch)!==Number(r.hostEpoch))return;
+      if(Number(m.rankRound)>0&&Number(m.rankRound)!==Number(r.rankRound))return;
+      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{t:'fallback-action',from:x.i,action:String(m.action||''),rankRound:m.rankRound,hostEpoch:m.hostEpoch});
       return;
     }
     if(m.t==='chat'&&!r.started){

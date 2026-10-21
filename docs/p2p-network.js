@@ -145,6 +145,7 @@
       if(!this.isHost&&m&&m.t==='state'){
         const state=m.state||{};
         const epoch=Number.isInteger(Number(state.hostEpoch))?Number(state.hostEpoch):(queuedEpoch>=0?queuedEpoch:this.hostEpoch);
+        if(epoch<this.hostEpoch)return false;
         const round=Number.isInteger(Number(state.round))?Number(state.round):queuedRound;
         const seq=Number.isInteger(Number(state.seq))?Number(state.seq):queuedSeq;
         if(!this.isNewerState(epoch,round,seq,this.lastStateEpoch,this.lastStateRound,this.lastStateSeq))return false;
@@ -158,6 +159,7 @@
       const order=this.stateOrderFromRaw(raw);
       if(order.round>=0&&order.seq>=0){
         const epoch=order.epoch>=0?order.epoch:this.hostEpoch;
+        if(epoch<this.hostEpoch)return;
         if(!this.isNewerState(epoch,order.round,order.seq,this.lastStateEpoch,this.lastStateRound,this.lastStateSeq))return;
         if(this.pendingStateRaw&&!this.isNewerState(epoch,order.round,order.seq,this.pendingStateEpoch,this.pendingStateRound,this.pendingStateSeq))return;
         this.pendingStateEpoch=epoch;this.pendingStateRound=order.round;this.pendingStateSeq=order.seq;
@@ -208,7 +210,7 @@
         // Eventos/acciones son fiables. Aplicar antes el último estado fast pendiente.
         if(allowReliable&&(m.t==='event'||m.t==='action'||m.t==='input-action')&&this.pendingStateRaw)this.flushPendingState();
         if(allowReliable&&!this.isHost&&m.t==='event')this.onEvent(m.event);
-        else if(allowReliable&&this.isHost&&m.t==='action')this.onEvent({t:'p2p-action',from:peerIndex,action:m.action});
+        else if(allowReliable&&this.isHost&&m.t==='action')this.onEvent({t:'p2p-action',from:peerIndex,action:m.action,rankRound:m.rankRound,hostEpoch:m.hostEpoch});
         else if(allowReliable&&this.isHost&&m.t==='input-action'){
           this.onEvent({t:'p2p-input-action',from:peerIndex,kind:String(m.kind||''),actionId:Number(m.actionId)||0});
         }
@@ -353,12 +355,13 @@
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
       try{dc.send(JSON.stringify({t:'input-action',kind:actionKind,actionId:id}));return true;}catch(_){return false;}
     }
-    sendAction(action){
-      if(this.isHost){this.onEvent({t:'p2p-action',from:this.myIndex,action});return true;}
+    sendAction(action,rankRound=0){
+      const round=Math.max(0,Number(rankRound)||0);
+      if(this.isHost){this.onEvent({t:'p2p-action',from:this.myIndex,action,rankRound:round,hostEpoch:this.hostEpoch});return true;}
       const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.reliableDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
-      try{dc.send(JSON.stringify({t:'action',action}));return true;}catch(_){return false;}
+      try{dc.send(JSON.stringify({t:'action',action,rankRound:round,hostEpoch:this.hostEpoch}));return true;}catch(_){return false;}
     }
     close(){
       this.closed=true;

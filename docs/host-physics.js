@@ -667,6 +667,7 @@
             roomCode:this.code,
             winnerIndex:Number(winnerIndex),
             rankRound:this.rankRound,
+            hostEpoch:this.hostEpoch,
             hostToken:this.rankHostToken
           }),
           cache:'no-store',keepalive:true
@@ -1644,7 +1645,9 @@
           this.bullets.push(projectile);
           this.emit({t:'sound',kind:'laser'});
         }
-        if(c&&!p.cpu){c.rocketPulse=false;c.flarePulse=false;c.shockPulse=false;}
+        // Consumir las acciones del jugador, nunca escribir sobre IDLE_CONTROL.
+        // Al caducar el input tambien se descartan sus pulsos pendientes.
+        if(!p.cpu&&stored!==IDLE_CONTROL){stored.rocketPulse=false;stored.flarePulse=false;stored.shockPulse=false;}
       }
       this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
     }

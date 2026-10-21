@@ -19,6 +19,7 @@ on:
       - 'tools/check-physics-parity.js'
       - 'tools/check-network-resilience.js'
       - 'tools/check-spawn-scoring.js'
+      - 'tools/check-session-regressions.js'
       - 'tools/check-game-invariants.js'
       - 'tools/stress-game.js'
       - '.github/workflows/physics-parity.yml'
@@ -40,6 +41,7 @@ on:
       - 'tools/check-physics-parity.js'
       - 'tools/check-network-resilience.js'
       - 'tools/check-spawn-scoring.js'
+      - 'tools/check-session-regressions.js'
       - 'tools/check-game-invariants.js'
       - 'tools/stress-game.js'
       - '.github/workflows/physics-parity.yml'
@@ -60,6 +62,8 @@ jobs:
         run: node tools/check-network-resilience.js
       - name: Check scoring and spawn behaviour
         run: node tools/check-spawn-scoring.js
+      - name: Check session and control regressions
+        run: node tools/check-session-regressions.js
       - name: Check existing gameplay invariants
         run: node tools/check-game-invariants.js
       - name: Run 5-minute simulated gameplay stress

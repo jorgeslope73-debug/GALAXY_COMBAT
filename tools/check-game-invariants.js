@@ -255,7 +255,7 @@ if(server.includes("find(p=>p.i===0)"))fail(errors,'host migration: queda autori
 if(!game.includes("m.t==='host-migrated'"))fail(errors,'host migration: cliente no procesa host-migrated');
 if(!game.includes('hostIndex=0'))fail(errors,'host migration: cliente no mantiene hostIndex');
 if(!game.includes("ERES EL NUEVO SERVIDOR P2P"))fail(errors,'host migration: falta confirmacion de nuevo host');
-if(!game.includes("handle({t:'restarted',rankRound:round,hostMigration:true})"))fail(errors,'host migration: la ronda actual no se reinicia bajo nuevo host');
+if(!/handle\(\{t:'restarted',rankRound:round,(?:hostEpoch,)?hostMigration:true\}\)/.test(game))fail(errors,'host migration: la ronda actual no se reinicia bajo nuevo host');
 if(!server.includes('hostEpoch:1'))fail(errors,'host epoch: la sala no inicia una autoridad versionada');
 if(!server.includes('r.hostEpoch=Math.max(1,Number(r.hostEpoch)||1)+1'))fail(errors,'host epoch: migrar host no incrementa epoch');
 if(!server.includes('hostEpoch:r.hostEpoch'))fail(errors,'host epoch: servidor no propaga epoch');

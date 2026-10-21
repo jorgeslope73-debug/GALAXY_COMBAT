@@ -2491,7 +2491,7 @@
         if(m&&m.t==='p2p-input-action'&&isHost&&hostPhysics){
           hostPhysics.applyInputAction(Number(m.from),m.kind,m.actionId);
         }else if(m&&m.t==='p2p-action'&&isHost&&m.action==='restart'&&hostPhysics){
-          restartOnlineRoundAuthoritatively();
+          restartOnlineRoundAuthoritatively(m.rankRound,m.hostEpoch);
         }else handle(m);
       },
       onPeerState:()=>{}
@@ -2551,6 +2551,7 @@
       code:roomCode,rankRound,rankHostToken:playerToken,hostEpoch,
       onState:m=>{handle(m);if(p2p)p2p.broadcastState(m);sendHostFallbackState(m);},
       onEvent:m=>{
+        m={...m,hostEpoch};
         if(m&&m.t==='victory')submitOnlineSeriesRound(m.winner,(hostPhysics&&hostPhysics.rankRound)||1);
         handle(m);
         if(p2p)p2p.broadcastEvent(m);
@@ -2682,7 +2683,7 @@
       const saved=(roomCode&&playerToken)?{code:roomCode,token:playerToken}:loadResumeSession();
       if(saved){
         if(roomMini)roomMini.textContent=tr('reconnecting');
-        send({t:'resume',code:saved.code,token:saved.token});
+        send({t:'resume',code:saved.code,token:saved.token,hostSimulationAlive:!!(isHost&&hostPhysics)});
       }else if(sharedRoomCode){
         setTimeout(joinSharedRoomDirect,0);
       }else{
@@ -2784,7 +2785,7 @@
         return;
       }
       if(m&&m.t==='fallback-action'){
-        if(isHost&&m.action==='restart'&&hostPhysics)restartOnlineRoundAuthoritatively();
+        if(isHost&&m.action==='restart'&&hostPhysics)restartOnlineRoundAuthoritatively(m.rankRound,m.hostEpoch);
         return;
       }
       if(m&&m.t==='critical-ack'){
@@ -2846,7 +2847,7 @@
   }
   function queueCriticalServerOp(payload){
     if(!payload||typeof payload!=='object'||!payload.t)return false;
-    const op={...payload};
+    const op={...payload,hostEpoch};
     if(!op.requestId)op.requestId=nextCriticalRequestId(op.t,op.rankRound??op.fromRound??0);
     pendingCriticalServerOps.push(op);
     if(pendingCriticalServerOps.length>32)pendingCriticalServerOps.splice(0,pendingCriticalServerOps.length-32);
@@ -2863,17 +2864,50 @@
     persistCriticalServerOps();
     return true;
   }
-  function restartOnlineRoundAuthoritatively(){
-    if(!isHost||!hostPhysics)return false;
-    if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
+  function restartOnlineRoundAuthoritatively(requestedRound=0,requestedEpoch=0){
+    if(!isHost||!hostPhysics||!hostPhysics.finished||onlineSeriesComplete)return false;
     const fromRound=Math.max(1,Number(hostPhysics.rankRound)||1);
+    if(Number(requestedRound)>0&&Number(requestedRound)!==fromRound)return false;
+    if(Number(requestedEpoch)>0&&Number(requestedEpoch)!==hostEpoch)return false;
+    if(onlineSeriesConfirmedRound<fromRound)return false;
+    if(typeof hostPhysics.syncRoster==='function')hostPhysics.syncRoster(lobbyPlayers);
     const targetRound=fromRound+1;
-    queueCriticalServerOp({t:'rank-restart',fromRound,targetRound,rankRound:fromRound});
     if(!hostPhysics.restart(targetRound))return false;
-    if(p2p)p2p.broadcastEvent({t:'restarted',rankRound:targetRound});
-    sendHostFallbackEvent({t:'restarted',rankRound:targetRound});
-    handle({t:'restarted',rankRound:targetRound});
+    queueCriticalServerOp({t:'rank-restart',fromRound,targetRound,rankRound:fromRound});
+    const event={t:'restarted',rankRound:targetRound,hostEpoch};
+    if(p2p)p2p.broadcastEvent(event);
+    sendHostFallbackEvent(event);
+    handle(event);
     return true;
+  }
+  async function recoverOnlineRound(m){
+    if(hostPhysics){hostPhysics.stop();hostPhysics=null;}
+    lastAcceptedStateEpoch=-1;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;
+    lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
+    fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
+    pendingCriticalServerOps.length=0;persistCriticalServerOps();
+    const round=Math.max(1,Number(m.rankRound)||Number(m.seriesRound)||1);
+    if(!m.roundFinished){
+      lastRestartedRound=Math.max(0,round-1);
+      handle({t:'restarted',rankRound:round,hostEpoch,hostMigration:true});
+      return;
+    }
+    // El resultado confirmado se conserva. Reconstruir solo el estado final
+    // permite que el nuevo anfitrion avance despues sin repetir ni puntuar otra vez.
+    resetOnlineStartCountdown();
+    const generation=onlineStartGeneration,startingRoom=roomCode,epoch=hostEpoch;
+    await Promise.all([prepareGameAssets(),prepareMatchBackground(round)]);
+    if(generation!==onlineStartGeneration||roomCode!==startingRoom||hostEpoch!==epoch)return;
+    const winner=Number(m.roundWinner);
+    if(!Number.isInteger(winner)||winner<0||winner>3)return;
+    beginGame(false,round);
+    if(isHost&&startHostPhysics(lobbyPlayers,round)){
+      hostPhysics.finished=true;hostPhysics.winner=winner;
+      const player=hostPhysics.players.find(p=>p.index===winner);
+      if(player)player.kills=5;
+      handle(hostPhysics.publicState());
+    }
+    queueVictory(winner);
   }
   function sendInputAction(kind,actionId){
     const action=String(kind||'');
@@ -3396,6 +3430,7 @@
     },3000);
   }
   function handle(m){
+    if(Number(m.hostEpoch)>0&&Number(m.hostEpoch)<hostEpoch)return;
     if(m.t==='public-rooms'){
       publicRooms=Array.isArray(m.rooms)?m.rooms:[];renderPublicRooms();return;
     }
@@ -3435,11 +3470,15 @@
       if(Array.isArray(m.players)){lobbyPlayers=m.players.slice();cpuFillEnabled=!!m.cpuFill;ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});syncVoicePlayers(lobbyPlayers,true);}
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
       restoreCriticalServerOps();
-      if(isHost)flushCriticalServerOps();
+      if(isHost&&!m.recoverHost)flushCriticalServerOps();
       updateCpuFillButton(cpuFillEnabled);saveResumeSession();stopResumeWindow();
       roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
       if(voice){voice.setSession(roomCode,myIndex,!!m.cpu);if(typeof voice.startSelectedForSession==='function')voice.startSelectedForSession();}
-      if(m.started){lobby.classList.add('hidden');if(!inGame)beginGame();}
+      if(m.started){
+        lobby.classList.add('hidden');
+        if(m.recoverHost||(m.roundFinished&&!inGame))recoverOnlineRound(m);
+        else if(!inGame)beginGame();
+      }
       else if(!m.cpu){lobby.classList.remove('hidden');}
     }
     else if(m.t==='resume-failed'){
@@ -3465,14 +3504,8 @@
       ensureP2P()?.configure({myIndex,hostIndex,hostEpoch,isHost,players:lobbyPlayers});
       updateLobbyStartButton(false);updateCpuFillButton(cpuFillEnabled);
       if(m.seriesRound||m.seriesWins)applyOnlineSeriesState(m);
-      if(m.started&&m.restartRound){
-        const round=Math.max(1,Number(m.rankRound)||Number(m.seriesRound)||onlineSeriesRound||1);
-        if(hostPhysics){hostPhysics.stop();hostPhysics=null;}
-        lastRestartedRound=Math.max(0,round-1);
-        lastAcceptedStateEpoch=-1;lastAcceptedStateRound=-1;lastAcceptedStateSeq=-1;
-        lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
-        fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
-        handle({t:'restarted',rankRound:round,hostMigration:true});
+      if(m.started&&(m.restartRound||m.roundFinished)){
+        recoverOnlineRound(m);
       }else if(!m.started){
         inGame=false;resetOnlineStartCountdown();clearGameCanvas();
       }
@@ -4035,7 +4068,9 @@
     if(!m||roomCode==='LOCAL')return;
     const round=Math.max(0,Number(m.round??m.seriesRound)||0);
     const wins=Array.isArray(m.wins)?m.wins:(Array.isArray(m.seriesWins)?m.seriesWins:null);
-    if(round>0){onlineSeriesRound=round;onlineSeriesScoredRound=round;onlineSeriesConfirmedRound=Math.max(onlineSeriesConfirmedRound,round);}
+    if(round>0)onlineSeriesRound=round;
+    const scored=Math.max(0,Number(m.seriesLastScoredRound??(m.t==='series-state'?round:0))||0);
+    onlineSeriesScoredRound=scored;onlineSeriesConfirmedRound=Math.max(onlineSeriesConfirmedRound,scored);
     if(wins){
       onlineSessionWins.clear();
       for(const p of currentVictoryRoster()){
@@ -4494,17 +4529,16 @@
         if(wasContinue)victory.classList.remove('hidden');
       }
     }else if(isHost&&p2p){
-      // El anfitrion no necesita red para reiniciar: sendAction ejecuta la
-      // accion localmente y conserva la misma ruta autoritativa existente.
-      ok=p2p.sendAction('restart');
+      // Validar localmente la ronda finalizada antes de publicar la transicion.
+      ok=restartOnlineRoundAuthoritatively(currentOnlineSeriesRound(),hostEpoch);
     }else{
       // V20.83: REPETIR es una accion unica y no debe depender del DataChannel
       // no fiable (maxRetransmits:0). Preferimos el WebSocket fiable; P2P queda
       // solo como respaldo si en ese instante no hay servidor de senalizacion.
       if(ws&&ws.readyState===WebSocket.OPEN){
-        try{ws.send(JSON.stringify({t:'fallback-action',action:'restart'}));ok=true;}catch(_){}
+        try{ws.send(JSON.stringify({t:'fallback-action',action:'restart',rankRound:currentOnlineSeriesRound(),hostEpoch}));ok=true;}catch(_){}
       }
-      if(!ok&&p2p&&!fallbackActive)ok=p2p.sendAction('restart');
+      if(!ok&&p2p&&!fallbackActive)ok=p2p.sendAction('restart',currentOnlineSeriesRound());
     }
     if(!ok){
       restartMatchBtn.disabled=false;
