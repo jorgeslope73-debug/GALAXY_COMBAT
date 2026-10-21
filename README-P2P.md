@@ -1,21 +1,50 @@
-# Galaxy Combat P2P - prueba
+# Galaxy Combat online — V22.48
 
-Esta variante mueve la simulacion autoritativa al navegador del creador de la partida.
+GitHub Pages publica `docs/`. El navegador anfitrion simula a 60 Hz y publica estados a 20 Hz. Render ejecuta `server/p2p-server.js`: salas, senalizacion WebRTC, respaldo WebSocket, cuentas y ranking. Los invitados envian controles y acciones; la fisica permanece en el anfitrion.
 
-- GitHub Pages sirve `docs/`.
-- Render ejecuta solo `server/p2p-server.js` para salas y senalizacion WebRTC.
-- El host calcula fisicas a 60 Hz y publica snapshots a 30 Hz por WebRTC DataChannel.
-- Los invitados envian solo sus controles al host.
-- No requiere abrir puertos en condiciones NAT normales gracias a ICE/STUN.
+## Contrato de mensajes
 
-## Despliegue
-1. En Render crea un Web Service desde este repositorio.
-2. Usa root `server` y start `npm start`.
-3. Copia la URL HTTPS de Render a `docs/config.js`.
-4. En GitHub Pages publica desde `main`, carpeta `/docs`.
+`server/net-protocol.js` es la fuente canonica del contrato. `docs/net-protocol.js` debe ser una copia identica para Pages; `tools/check-online-protocol.js` comprueba ambas. El backend puede ejecutarse con `rootDir: server` sin acceder a archivos fuera de esa carpeta.
 
-## Limitaciones de esta primera prueba
-- Si el host abandona, termina la sala.
-- Aun no hay migracion de host.
-- STUN solamente; algunas redes muy restrictivas pueden necesitar TURN.
-- El host es autoritativo, por lo que un host modificado podria hacer trampas.
+Todos los paquetes de juego llevan estos campos, tanto por WebRTC como por WebSocket:
+
+| Campo | Alcance |
+| --- | --- |
+| `protocolVersion` | Version del contrato: 2. Se comprueba antes de habilitar el online. |
+| `seriesId` | Identificador aleatorio de 32 caracteres hexadecimales. Cambia al iniciar otra serie, aunque se conserve la sala y el anfitrion. |
+| `hostEpoch` | Autoridad de simulacion. Cambia al migrar el anfitrion o reconstruir su fisica tras una recarga. |
+| `rankRound` | Ronda del paquete. Los estados conservan tambien `round`, con el mismo valor. |
+
+Los controles, acciones y confirmaciones deben pertenecer al contexto actual. Un estado o un evento `restarted` puede anunciar exactamente la ronda siguiente; los paquetes posteriores llegan bajo ese nuevo contexto. La senalizacion conserva serie/autoridad, pero permite que cambie la ronda mientras se negocia la misma conexion. Al cambiar serie o autoridad se cierran los peers antiguos.
+
+## Entradas y entrega
+
+- Cada carga de pagina genera un `inputSessionId`, que el servidor incluye en el roster humano. Los controles y acciones de la pagina anterior se rechazan. Una reconexion del transporte conserva la deduplicacion; una nueva sesion de entrada reinicia los contadores de esa plaza.
+- `controlSeq` es creciente y compartido entre WebRTC y el respaldo. Los controles antiguos no pueden deshacer una entrada mas reciente.
+- Misiles, bengalas y onda usan `kind` + `actionId` dentro del contexto y la sesion de entrada. El cliente conserva la accion hasta recibir `input-ack`; la reenvia con el mismo identificador cada 250 ms. El anfitrion registra cada accion una sola vez y confirma tambien los duplicados.
+- La cola tiene un maximo de 32 acciones y caduca a los 2 segundos. Cada accion conserva el `simTime` del estado observado: el anfitrion tambien descarta entregas atrasadas usando su reloj de simulacion, sin depender de la hora de los dispositivos. El ACK de una accion caducada permite retirarla sin ejecutarla.
+- Los eventos del anfitrion llevan `eventId` creciente. Una ventana acotada evita ejecutar dos veces el mismo evento recibido por WebRTC y por WebSocket. Los mensajes de sala y fase solo proceden del servidor.
+- Resultados y transiciones conservan `requestId`, se reintentan cada 750 ms y son idempotentes. Un rechazo solicita `round-sync`; si la fisica del anfitrion diverge, el servidor coordina una nueva autoridad para reconstruirla.
+
+## Fases y recuperacion
+
+El servidor publica `seriesPhase`: `lobby`, `playing`, `round-finished` o `series-finished`, junto con la ronda, las victorias confirmadas y el ganador de la ultima ronda. No se confunde una ronda iniciada con una ronda contabilizada.
+
+Una reconexion con fisica viva conserva la partida. Si el anfitrion recarga, la ronda aun en juego se reinicia coordinadamente bajo una nueva autoridad; las victorias confirmadas se conservan. Una ronda terminada se recupera en su pantalla de resultado y no vuelve a puntuarse. Los invitados preparan los recursos antes de recuperar la vista de una partida en curso.
+
+## Validacion y despliegue
+
+Ejecutar desde la raiz:
+
+```sh
+node tools/check-online-protocol.js
+node tools/check-session-regressions.js
+node tools/check-network-resilience.js
+node tools/check-physics-parity.js
+node tools/check-spawn-scoring.js
+node tools/stress-game.js
+```
+
+Las pruebas de protocolo usan los handlers reales y transportes simulados: ACK perdido, duplicados, expiracion, cambio de ronda/serie, nueva sesion de entrada, reconexion y fases confirmadas. No sustituyen una partida real en dos dispositivos.
+
+Actualizar backend y cliente conjuntamente, con el backend primero; Pages sirve `main/docs` y Render ejecuta `server/`. Un cliente o servidor de otro contrato recibe un aviso de actualizacion en lugar de entrar en una partida incompatible. TURN sigue siendo configurable mediante `/rtc-config`; no se exige para usar el respaldo WebSocket. El anfitrion sigue siendo autoritativo, por lo que este protocolo no impide las trampas de un anfitrion modificado.

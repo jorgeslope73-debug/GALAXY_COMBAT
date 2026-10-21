@@ -255,7 +255,7 @@ if(server.includes("find(p=>p.i===0)"))fail(errors,'host migration: queda autori
 if(!game.includes("m.t==='host-migrated'"))fail(errors,'host migration: cliente no procesa host-migrated');
 if(!game.includes('hostIndex=0'))fail(errors,'host migration: cliente no mantiene hostIndex');
 if(!game.includes("ERES EL NUEVO SERVIDOR P2P"))fail(errors,'host migration: falta confirmacion de nuevo host');
-if(!game.includes("handle({t:'restarted',rankRound:round,hostMigration:true})"))fail(errors,'host migration: la ronda actual no se reinicia bajo nuevo host');
+if(!/handle\(\{t:'restarted',rankRound:round,(?:hostEpoch,)?hostMigration:true\}\)/.test(game))fail(errors,'host migration: la ronda actual no se reinicia bajo nuevo host');
 if(!server.includes('hostEpoch:1'))fail(errors,'host epoch: la sala no inicia una autoridad versionada');
 if(!server.includes('r.hostEpoch=Math.max(1,Number(r.hostEpoch)||1)+1'))fail(errors,'host epoch: migrar host no incrementa epoch');
 if(!server.includes('hostEpoch:r.hostEpoch'))fail(errors,'host epoch: servidor no propaga epoch');
@@ -266,9 +266,9 @@ if(!game.includes('lastAcceptedStateEpoch'))fail(errors,'host epoch: cliente no 
 if(!p2p.includes('controlSeq:seq'))fail(errors,'control seq: P2P no numera controles fast');
 if(!host.includes('if(seq<=last)return false'))fail(errors,'control seq: host no descarta controles antiguos');
 if(!game.includes('controlSeq=0'))fail(errors,'control seq: cliente no mantiene contador monotono');
-if(!server.includes('controlSeq:Math.max(0,Number(m.controlSeq)||0)'))fail(errors,'control seq: fallback WS no conserva secuencia');
+if(!server.includes('controlSeq:m.controlSeq')||!server.includes('PROTOCOL.counter(m.controlSeq,1)'))fail(errors,'control seq: fallback WS no valida y conserva secuencia');
 if(!p2p.includes("t:'input-action'"))fail(errors,'input action: falta canal fiable de acciones especiales');
-if(!host.includes('applyInputAction(index,kind,actionId)'))fail(errors,'input action: host no deduplica acciones');
+if(!host.includes("applyInputAction(index,kind,actionId,inputSessionId='')")||!host.includes('c.actionIds[action]=id'))fail(errors,'input action: host no deduplica acciones por sesion');
 if(!local.includes('applyInputAction(kind,actionId)'))fail(errors,'input action: local CPU no acepta acciones fiables del joystick');
 if(!game.includes("queueInputAction(kind)"))fail(errors,'input action: cliente no genera actionId');
 if(!game.includes("localCpu.applyInputAction(action,id)"))fail(errors,'input action: cliente no entrega acciones fiables a la fisica local');
@@ -316,7 +316,7 @@ for(const [label,src] of [['host',host],['local',local]]){
   if(!src.includes('PHYSICS_CORE.bounceBodyFromFlare(g,flare,GIANT_RADIUS,FLARE_RADIUS,90,68)'))fail(errors,'V22.34 '+label+': bengala no hace rebotar meteorito gigante');
   if(!src.includes("this.emitRocketDisintegrateAt(Number(flare&&flare.x)||flareHit.impactX"))fail(errors,'V22.34 '+label+': bala normal no deshace visualmente la bengala');
 }
-if(!game.includes("hostPhysics.resetControlSequence(Number(m.from))"))fail(errors,'control seq: reconexion no reinicia secuencia del jugador');
+if(!host.includes("const inputChanged=!isCpu&&p.inputSessionId!==String(item.inputSessionId||'')"))fail(errors,'control seq: solo una nueva sesion de entrada debe reiniciar los contadores');
 if(!game.includes('pendingCriticalServerOps'))fail(errors,'round reconcile: falta cola de operaciones criticas');
 if(!game.includes("queueCriticalServerOp({t:'rank-restart'"))fail(errors,'round reconcile: cambio de ronda no se encola');
 if(!game.includes("t:'series-round-result'"))fail(errors,'round reconcile: resultado de serie no se encola');

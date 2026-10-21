@@ -1,5 +1,7 @@
 'use strict';
 (() => {
+  const PROTOCOL=window.GalaxyNetProtocol;
+  if(!PROTOCOL)throw new Error('GalaxyNetProtocol no cargado');
   class GalaxyP2P {
     constructor({sendSignal,onControl,onState,onEvent,onPeerState}={}){
       this.sendSignal=sendSignal||(()=>false);
@@ -8,6 +10,7 @@
       this.onEvent=onEvent||(()=>{});
       this.onPeerState=onPeerState||(()=>{});
       this.myIndex=null;this.hostIndex=0;this.hostEpoch=1;this.isHost=false;this.players=[];this.peers=new Map();
+      this.seriesId='';this.rankRound=0;this.inputSessionId='';
       this.pendingStateRaw=null;this.pendingStateEpoch=-1;this.pendingStateRound=-1;this.pendingStateSeq=-1;this.stateRaf=0;
       this.lastStateEpoch=-1;this.lastStateRound=-1;this.lastStateSeq=-1;
       this.pendingBroadcastState=null;this.broadcastTimer=0;
@@ -22,12 +25,22 @@
       this.pendingStateRaw=null;this.pendingStateEpoch=-1;this.pendingStateRound=-1;this.pendingStateSeq=-1;
       this.lastStateEpoch=-1;this.lastStateRound=-1;this.lastStateSeq=-1;
     }
-    configure({myIndex,hostIndex,hostEpoch,isHost,players}={}){
+    configure({myIndex,hostIndex,hostEpoch,seriesId,rankRound,inputSessionId,isHost,players}={}){
       this.myIndex=Number(myIndex);
       const nextHost=Number.isInteger(Number(hostIndex))?Number(hostIndex):this.hostIndex;
       const nextEpoch=Number.isInteger(Number(hostEpoch))&&Number(hostEpoch)>0?Number(hostEpoch):this.hostEpoch;
-      if(nextHost!==this.hostIndex||nextEpoch!==this.hostEpoch)this.resetStateOrder();
+      const nextSeries=String(seriesId??this.seriesId);
+      if(nextHost!==this.hostIndex||nextEpoch!==this.hostEpoch||nextSeries!==this.seriesId){
+        this.resetStateOrder();
+        this.pendingBroadcastState=null;
+        if(this.broadcastTimer){clearTimeout(this.broadcastTimer);this.broadcastTimer=0;}
+        this.reconnectingPeers.clear();
+        for(const index of [...this.peers.keys()])this.closePeer(index);
+      }
       this.hostIndex=nextHost;this.hostEpoch=nextEpoch;
+      this.seriesId=nextSeries;
+      if(PROTOCOL.counter(rankRound))this.rankRound=rankRound;
+      if(PROTOCOL.validId(inputSessionId))this.inputSessionId=inputSessionId;
       this.isHost=!!isHost;
       this.players=Array.isArray(players)?players.slice():[];
       this.prunePeers();
@@ -83,10 +96,10 @@
       const pc=new RTCPeerConnection({iceServers:this.iceServers});
       // V22.15: fast = estado/controles descartables; reliable = eventos/acciones.
       // rec.dc queda como alias del canal fast para compatibilidad con métricas.
-      const rec={pc,dc:null,fastDc:null,reliableDc:null,open:false,pendingIce:[]};this.peers.set(peerIndex,rec);
+      const rec={pc,dc:null,fastDc:null,reliableDc:null,open:false,pendingIce:[],signalContext:PROTOCOL.context(this)};this.peers.set(peerIndex,rec);
       pc.onicecandidate=e=>{
         if(this.closed||this.peers.get(peerIndex)!==rec)return;
-        if(e.candidate)this.sendSignal({t:'p2p-ice',to:peerIndex,data:e.candidate});
+        if(e.candidate)this.sendSignal(PROTOCOL.stamp(rec.signalContext,{t:'p2p-ice',to:peerIndex,data:e.candidate}));
       };
       pc.onconnectionstatechange=()=>{
         // Un callback de una conexion antigua nunca puede cerrar la nueva.
@@ -129,7 +142,8 @@
         }
         return found?n:-1;
       };
-      return {epoch:readInt('hostEpoch'),round:readInt('round'),seq:readInt('seq')};
+      const series=/"seriesId":"([a-f0-9]{32})"/.exec(raw);
+      return {protocolVersion:readInt('protocolVersion'),seriesId:series?series[1]:'',hostEpoch:readInt('hostEpoch'),rankRound:readInt('rankRound'),epoch:readInt('hostEpoch'),round:readInt('round'),seq:readInt('seq')};
     }
     isNewerState(epoch,round,seq,baseEpoch,baseRound,baseSeq){
       if(epoch>=0&&baseEpoch>=0&&epoch!==baseEpoch)return epoch>baseEpoch;
@@ -144,20 +158,25 @@
       let m;try{m=JSON.parse(raw);}catch(_){return false;}
       if(!this.isHost&&m&&m.t==='state'){
         const state=m.state||{};
+        if(!PROTOCOL.matches(state,this,{futureRound:true})||state.round!==state.rankRound||!PROTOCOL.counter(state.seq,1))return false;
         const epoch=Number.isInteger(Number(state.hostEpoch))?Number(state.hostEpoch):(queuedEpoch>=0?queuedEpoch:this.hostEpoch);
+        if(epoch<this.hostEpoch)return false;
         const round=Number.isInteger(Number(state.round))?Number(state.round):queuedRound;
         const seq=Number.isInteger(Number(state.seq))?Number(state.seq):queuedSeq;
         if(!this.isNewerState(epoch,round,seq,this.lastStateEpoch,this.lastStateRound,this.lastStateSeq))return false;
         if(epoch>=0)this.lastStateEpoch=epoch;
         if(round>=0&&seq>=0){this.lastStateRound=round;this.lastStateSeq=seq;}
+        this.rankRound=state.rankRound;
         this.onState(state);return true;
       }
       return false;
     }
     queueState(raw){
       const order=this.stateOrderFromRaw(raw);
+      if(PROTOCOL.validId(order.seriesId)&&!PROTOCOL.matches(order,this,{futureRound:true}))return;
       if(order.round>=0&&order.seq>=0){
         const epoch=order.epoch>=0?order.epoch:this.hostEpoch;
+        if(epoch<this.hostEpoch)return;
         if(!this.isNewerState(epoch,order.round,order.seq,this.lastStateEpoch,this.lastStateRound,this.lastStateSeq))return;
         if(this.pendingStateRaw&&!this.isNewerState(epoch,order.round,order.seq,this.pendingStateEpoch,this.pendingStateRound,this.pendingStateSeq))return;
         this.pendingStateEpoch=epoch;this.pendingStateRound=order.round;this.pendingStateSeq=order.seq;
@@ -202,15 +221,30 @@
         if(allowFast&&!this.isHost&&raw.startsWith('{"t":"state"')){this.queueState(raw);return;}
 
         let m;try{m=JSON.parse(raw);}catch(_){return;}
-        if(allowFast&&this.isHost&&m.t==='ctrl'){this.onControl(peerIndex,m);return;}
+        if(!m||typeof m!=='object'||Array.isArray(m))return;
+        if(allowFast&&this.isHost&&m.t==='ctrl'){
+          if(PROTOCOL.matches(m,this)&&PROTOCOL.counter(m.controlSeq,1)&&PROTOCOL.validId(m.inputSessionId))this.onControl(peerIndex,m);
+          return;
+        }
         if(allowFast&&!this.isHost&&m.t==='state'){this.queueState(raw);return;}
 
         // Eventos/acciones son fiables. Aplicar antes el último estado fast pendiente.
         if(allowReliable&&(m.t==='event'||m.t==='action'||m.t==='input-action')&&this.pendingStateRaw)this.flushPendingState();
-        if(allowReliable&&!this.isHost&&m.t==='event')this.onEvent(m.event);
-        else if(allowReliable&&this.isHost&&m.t==='action')this.onEvent({t:'p2p-action',from:peerIndex,action:m.action});
+        if(allowReliable&&!this.isHost&&m.t==='event'){
+          const event=m.event;
+          if(event&&PROTOCOL.isHostEvent(event.t)&&PROTOCOL.counter(event.eventId,1)&&PROTOCOL.matches(event,this,{futureRound:event.t==='restarted'})){
+            if(event.t==='restarted')this.rankRound=event.rankRound;
+            this.onEvent(event);
+          }
+        }
+        else if(allowReliable&&!this.isHost&&m.t==='input-ack'){
+          if(PROTOCOL.matches(m,this))this.onEvent(m);
+        }
+        else if(allowReliable&&this.isHost&&m.t==='action'){
+          if(PROTOCOL.matches(m,this))this.onEvent({...m,t:'p2p-action',from:peerIndex});
+        }
         else if(allowReliable&&this.isHost&&m.t==='input-action'){
-          this.onEvent({t:'p2p-input-action',from:peerIndex,kind:String(m.kind||''),actionId:Number(m.actionId)||0});
+          if(PROTOCOL.matches(m,this)&&PROTOCOL.counter(m.actionId,1)&&PROTOCOL.validId(m.inputSessionId))this.onEvent({...m,t:'p2p-input-action',from:peerIndex});
         }
       };
     }
@@ -228,7 +262,7 @@
         if(this.closed||this.peers.get(peerIndex)!==rec)return rec;
         await rec.pc.setLocalDescription(offer);
         if(this.closed||this.peers.get(peerIndex)!==rec)return rec;
-        this.sendSignal({t:'p2p-offer',to:peerIndex,data:rec.pc.localDescription});
+        this.sendSignal(PROTOCOL.stamp(rec.signalContext,{t:'p2p-offer',to:peerIndex,data:rec.pc.localDescription}));
       }
       return rec;
     }
@@ -262,17 +296,20 @@
       finally{if(this.reconnectingPeers.get(i)===task)this.reconnectingPeers.delete(i);}
     }
     async handleSignal(m){
-      if(this.closed)return false;
+      if(this.closed||!PROTOCOL.matches(m,this,{ignoreRound:true}))return false;
       const from=Number(m&&m.from);if(!Number.isInteger(from)||from===this.myIndex)return false;
       if(m.t==='p2p-reconnect')return this.reconnectPeer(from);
       let rec=this.peers.get(from);if(!rec)rec=await this.createPeer(from,false);
       try{
         if(m.t==='p2p-offer'){
           await rec.pc.setRemoteDescription(m.data);
+          if(this.closed||this.peers.get(from)!==rec)return false;
           await this.flushPendingIce(rec);
           const ans=await rec.pc.createAnswer();
+          if(this.closed||this.peers.get(from)!==rec)return false;
           await rec.pc.setLocalDescription(ans);
-          this.sendSignal({t:'p2p-answer',to:from,data:rec.pc.localDescription});
+          if(this.closed||this.peers.get(from)!==rec)return false;
+          this.sendSignal(PROTOCOL.stamp(rec.signalContext,{t:'p2p-answer',to:from,data:rec.pc.localDescription}));
           return true;
         }
         if(m.t==='p2p-answer'){
@@ -295,14 +332,16 @@
     }
     sendControl(turn,thrust,fire,actions={},controlSeq=0){
       const seq=Math.max(0,Number(controlSeq)||0);
-      if(this.isHost){this.onControl(this.myIndex,{turn,thrust,fire,controlSeq:seq,...actions});return true;}
+      if(!PROTOCOL.counter(seq,1)||!PROTOCOL.validId(this.inputSessionId))return false;
+      const packet=PROTOCOL.stamp(this,{t:'ctrl',turn,thrust:!!thrust,fire:!!fire,controlSeq:seq,...actions,inputSessionId:this.inputSessionId});
+      if(this.isHost){this.onControl(this.myIndex,packet);return true;}
       const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.fastDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
       // Los controles son efimeros: con cola alta descartamos el antiguo y el
       // siguiente heartbeat enviara el estado mas reciente, evitando input lag.
       if(Number(dc.bufferedAmount||0)>32*1024)return false;
-      try{dc.send(JSON.stringify({t:'ctrl',turn,thrust:!!thrust,fire:!!fire,controlSeq:seq,...actions}));return true;}catch(_){return false;}
+      try{dc.send(JSON.stringify(packet));return true;}catch(_){return false;}
     }
     flushBroadcastState(){
       if(!this.isHost||!this.pendingBroadcastState)return false;
@@ -318,7 +357,8 @@
       return true;
     }
     broadcastState(state){
-      if(!this.isHost)return;
+      if(!this.isHost||!PROTOCOL.matches(state,this,{futureRound:true}))return;
+      this.rankRound=state.rankRound;
       // El host puede generar mas de un snapshot al recuperar tiempo perdido.
       // Guardamos solo el ultimo y serializamos fuera del RAF actual, evitando
       // concentrar JSON.stringify + WebRTC justo antes del pintado.
@@ -331,6 +371,8 @@
     }
     broadcastEvent(event){
       if(!this.isHost)return;
+      if(!PROTOCOL.matches(event,this,{futureRound:event.t==='restarted'}))return;
+      this.rankRound=event.rankRound;
       // Mantener orden: un evento nunca adelanta al ultimo estado pendiente.
       if(this.broadcastTimer){clearTimeout(this.broadcastTimer);this.broadcastTimer=0;}
       this.flushBroadcastState();
@@ -340,25 +382,36 @@
         if(rec.open&&dc&&dc.readyState==='open'){try{dc.send(raw);}catch(_){}}
       }
     }
-    sendInputAction(kind,actionId){
+    sendInputAction(kind,actionId,context=this){
       const id=Math.max(1,Number(actionId)||1);
       const actionKind=String(kind||'');
-      if(!actionKind)return false;
+      if(!PROTOCOL.isInputAction(actionKind))return false;
+      const packet=PROTOCOL.stamp(context,{t:'input-action',kind:actionKind,actionId:id,inputSessionId:this.inputSessionId,simTime:context.simTime});
+      if(!PROTOCOL.matches(packet,this))return false;
       if(this.isHost){
-        this.onEvent({t:'p2p-input-action',from:this.myIndex,kind:actionKind,actionId:id});
+        this.onEvent({...packet,t:'p2p-input-action',from:this.myIndex});
         return true;
       }
       const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.reliableDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
-      try{dc.send(JSON.stringify({t:'input-action',kind:actionKind,actionId:id}));return true;}catch(_){return false;}
+      try{dc.send(JSON.stringify(packet));return true;}catch(_){return false;}
     }
-    sendAction(action){
-      if(this.isHost){this.onEvent({t:'p2p-action',from:this.myIndex,action});return true;}
+    sendInputAck(peerIndex,action){
+      const packet=PROTOCOL.stamp(this,{t:'input-ack',kind:action.kind,actionId:action.actionId,inputSessionId:action.inputSessionId});
+      if(Number(peerIndex)===this.myIndex){this.onEvent(packet);return true;}
+      const rec=this.peers.get(Number(peerIndex)),dc=rec&&rec.reliableDc;
+      if(!dc||dc.readyState!=='open')return false;
+      try{dc.send(JSON.stringify(packet));return true;}catch(_){return false;}
+    }
+    sendAction(action,rankRound=0){
+      const round=Math.max(0,Number(rankRound)||0);
+      const packet=PROTOCOL.stamp({...this,rankRound:round},{t:'action',action,inputSessionId:this.inputSessionId});
+      if(this.isHost){this.onEvent({...packet,t:'p2p-action',from:this.myIndex});return true;}
       const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.reliableDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
-      try{dc.send(JSON.stringify({t:'action',action}));return true;}catch(_){return false;}
+      try{dc.send(JSON.stringify(packet));return true;}catch(_){return false;}
     }
     close(){
       this.closed=true;

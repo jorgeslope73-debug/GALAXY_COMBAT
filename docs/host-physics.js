@@ -1,5 +1,7 @@
 'use strict';
 (() => {
+  const PROTOCOL=window.GalaxyNetProtocol;
+  if(!PROTOCOL)throw new Error('GalaxyNetProtocol no cargado');
   const PHYSICS_CORE=window.GalaxyPhysicsCore;
   if(!PHYSICS_CORE)throw new Error('GalaxyPhysicsCore no cargado');
   const W=1920,H=1080,TICK_HZ=60,DT=1/TICK_HZ,STEP_MS=1000/TICK_HZ;
@@ -118,13 +120,14 @@
   }
 
   class GalaxyHostPhysics{
-    constructor({onState,onEvent,code='P2P',rankRound=1,rankHostToken='',hostEpoch=1}={}){
+    constructor({onState,onEvent,code='P2P',rankRound=1,rankHostToken='',hostEpoch=1,seriesId=''}={}){
       this.onState=typeof onState==='function'?onState:()=>{};
       this.onEvent=typeof onEvent==='function'?onEvent:()=>{};
       this.code=String(code||'P2P');
       this.rankRound=Math.max(1,Number(rankRound)||1);
       this.rankHostToken=String(rankHostToken||'');
       this.hostEpoch=Math.max(1,Number(hostEpoch)||1);
+      this.seriesId=String(seriesId);this.eventSeq=0;
       this.rankReportSent=false;
       this.rankReportAttempts=0;
       this.players=[];
@@ -174,7 +177,7 @@
       this.perfTickMs=0;this.perfTickMax=0;this.perfTicks=0;this.perfCatchupDrops=0;
       this.resetAsteroids();
     }
-    emit(msg){try{this.onEvent(msg);}catch(_){}}
+    emit(msg){try{this.onEvent(PROTOCOL.stamp(this,{...msg,eventId:++this.eventSeq}));}catch(_){}}
     setTestProfile(profile='standard'){
       this.testProfile=String(profile||'standard').toLowerCase()==='hard'?'hard':'standard';
       return this.testProfile;
@@ -444,6 +447,7 @@
       for(const item of list){
         const index=Number(item.i),isCpu=!!item.cpu;
         const player=this.makePlayer(index,item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu);
+        player.inputSessionId=String(item.inputSessionId||'');
         if(isCpu)player.difficulty='dificil';
         this.applyHardLoadout(player,false);
         this.placeAtSpawn(player);
@@ -459,6 +463,7 @@
     setControl(index,turn,thrust,fire,actions={}){
       const i=Number(index),p=this.players.find(x=>x.index===i);
       if(!p||p.cpu)return false;
+      if(p.inputSessionId&&actions.inputSessionId!==p.inputSessionId)return false;
       let c=this.controls.get(i);
       if(!c){c={turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false};this.controls.set(i,c);}
       const seq=Math.max(0,Number(actions&&actions.controlSeq)||0);
@@ -476,13 +481,13 @@
       const c=this.controls.get(Number(index));
       if(!c)return false;
       c.controlSeq=0;
-      c.rocketPulse=false;c.flarePulse=false;c.shockPulse=false;
-      if(c.actionIds)c.actionIds={rocket:0,flare:0,shock:0};
+      // Reconectar el transporte no permite repetir una accion ya confirmada.
       return true;
     }
-    applyInputAction(index,kind,actionId){
+    applyInputAction(index,kind,actionId,inputSessionId=''){
       const i=Number(index),p=this.players.find(x=>x.index===i);
       if(!p||p.cpu)return false;
+      if(p.inputSessionId&&inputSessionId!==p.inputSessionId)return false;
       const action=String(kind||'');
       if(!['rocket','flare','shock'].includes(action))return false;
       let c=this.controls.get(i);
@@ -529,6 +534,7 @@
         let p=this.players.find(x=>x.index===index);
         if(!p){
           p=this.makePlayer(index,item.n||(isCpu?'CPU '+(index+1):'JUGADOR '+(index+1)),isCpu);
+          p.inputSessionId=String(item.inputSessionId||'');
           if(isCpu)p.difficulty='dificil';
           this.applyHardLoadout(p,false);
           this.placeAtSpawn(p);this.players.push(p);this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});changed=true;continue;
@@ -544,6 +550,7 @@
           this.controls.delete(index);
 
           const human=this.makePlayer(index,nextName,false);
+          human.inputSessionId=String(item.inputSessionId||'');
           human.difficulty=this.difficulty;
           this.applyHardLoadout(human,false);
           human.aiControl=null;
@@ -566,7 +573,9 @@
           changed=true;
           continue;
         }
-        if(wasCpu!==isCpu||p.name!==nextName){
+        const inputChanged=!isCpu&&p.inputSessionId!==String(item.inputSessionId||'');
+        if(wasCpu!==isCpu||p.name!==nextName||inputChanged){
+          p.inputSessionId=String(item.inputSessionId||'');
           p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;p.aiControl=null;if(isCpu)this.resetCpuLoopMemory(p);
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
           changed=true;
@@ -667,6 +676,8 @@
             roomCode:this.code,
             winnerIndex:Number(winnerIndex),
             rankRound:this.rankRound,
+            hostEpoch:this.hostEpoch,
+            protocolVersion:PROTOCOL.VERSION,seriesId:this.seriesId,
             hostToken:this.rankHostToken
           }),
           cache:'no-store',keepalive:true
@@ -1644,7 +1655,9 @@
           this.bullets.push(projectile);
           this.emit({t:'sound',kind:'laser'});
         }
-        if(c&&!p.cpu){c.rocketPulse=false;c.flarePulse=false;c.shockPulse=false;}
+        // Consumir las acciones del jugador, nunca escribir sobre IDLE_CONTROL.
+        // Al caducar el input tambien se descartan sus pulsos pendientes.
+        if(!p.cpu&&stored!==IDLE_CONTROL){stored.rocketPulse=false;stored.flarePulse=false;stored.shockPulse=false;}
       }
       this.updateAsteroids(dt);this.updateFlares(dt);this.updateBullets(dt);this.updatePickups(dt);this.updateShower(dt);this.updateMeteors(dt);this.updateGiant(dt);this.updateUfo(dt);this.shipCollisions();
     }
@@ -2332,8 +2345,8 @@
         if(write!==this.fxEvents.length)this.fxEvents.length=write;
       }
       return{
-        t:'state',hostEpoch:this.hostEpoch,seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',testProfile:this.testProfile,started:this.started,finished:this.finished,winner:this.winner,
-        w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,
+        ...PROTOCOL.context(this),t:'state',seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',testProfile:this.testProfile,started:this.started,finished:this.finished,winner:this.winner,
+        w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,simTime:round3(this.fxClock),
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
         players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),shock:!!p.shockwave,dead:p.dead,respawn:round3(p.respawn)})),
         asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type,r:round1(Number(a.r)||ASTEROID_RADIUS),fragment:!!a.fragment})),

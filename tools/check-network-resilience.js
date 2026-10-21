@@ -2,6 +2,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
+const PROTOCOL=require('../server/net-protocol.js');
 const read=p=>fs.readFileSync(p,'utf8');
 let raf;
 const states=[],events=[];
@@ -10,11 +11,13 @@ const context=vm.createContext({
   requestAnimationFrame:fn=>{raf=fn;return 1;},
   cancelAnimationFrame:()=>{},setTimeout,clearTimeout
 });
+vm.runInContext(read('docs/net-protocol.js'),context);
 vm.runInContext(read('docs/p2p-network.js'),context);
 const net=new context.window.GalaxyP2P({
   onState:s=>states.push(s.seq),onEvent:e=>events.push(e)
 });
 net.hostIndex=0;
+net.seriesId='a'.repeat(32);net.rankRound=1;
 function channel(i){
   const dc={label:'galaxy-fast',readyState:'open',close(){}};
   const rec={pc:{connectionState:'connected'},open:true};
@@ -22,12 +25,12 @@ function channel(i){
   return dc;
 }
 const host=channel(0);
-const packet=seq=>JSON.stringify({t:'state',state:{hostEpoch:1,round:1,seq}});
+const packet=seq=>JSON.stringify({t:'state',state:PROTOCOL.stamp(net,{round:1,seq})});
 host.onmessage({data:packet(3)});
 host.onmessage({data:packet(2)});
 raf();
 assert.deepEqual(states,[3],'un paquete desordenado no hace retroceder la partida');
-host.onmessage({data:JSON.stringify({state:{hostEpoch:1,round:1,seq:1},t:'state'})});
+host.onmessage({data:JSON.stringify({state:PROTOCOL.stamp(net,{round:1,seq:1}),t:'state'})});
 raf();
 assert.deepEqual(states,[3],'el orden de las claves JSON no elude el filtro');
 const oldCallback=host.onmessage;
@@ -52,7 +55,7 @@ const handlers=game.slice(game.indexOf("      if(m&&m.t==='fallback-state'){"),
 const applied=[];
 const client=vm.createContext({
   fallbackActive:false,isHost:false,clientNeedsFallback:()=>false,
-  handle:m=>applied.push(m)
+  handle:m=>applied.push(m),receiveOnlineEvent:m=>applied.push(m),isCurrentOnlinePacket:()=>true
 });
 vm.runInContext('function receive(m){'+handlers+'}',client);
 client.receive({t:'fallback-event',event:{t:'victory'}});
@@ -70,7 +73,7 @@ assert.equal(applied.length,3,'mantener respaldo hasta completar recuperacion es
 
 const server=read('server/p2p-server.js');
 const sendSource=server.slice(server.indexOf('function send(ws,o)'),server.indexOf('\n}',server.indexOf('function sendLatestState'))+2);
-const relay=vm.createContext({});
+const relay=vm.createContext({info:new WeakMap(),rooms:new Map(),PROTOCOL});
 vm.runInContext(sendSource,relay);
 const sent=[];
 const slow={readyState:1,bufferedAmount:65536,send:s=>sent.push(JSON.parse(s))};

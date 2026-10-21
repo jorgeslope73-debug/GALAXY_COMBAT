@@ -5,6 +5,7 @@ const {randomBytes,scrypt:scryptCallback,timingSafeEqual,createHash}=require('cr
 const {promisify}=require('util');
 const {Pool}=require('pg');
 const {WebSocketServer}=require('ws');
+const PROTOCOL=require('./net-protocol.js');
 
 const scrypt=promisify(scryptCallback);
 const PORT=Number(process.env.PORT||8080);
@@ -367,7 +368,12 @@ function roomCode(){
   for(;;){const c=randomBytes(3).toString('hex').slice(0,4).toUpperCase();if(!rooms.has(c))return c;}
 }
 function newPlayerToken(){return randomBytes(24).toString('hex');}
-function send(ws,o){if(ws&&ws.readyState===1)try{ws.send(JSON.stringify(o));}catch(_){}}
+function send(ws,o){
+  if(!ws||ws.readyState!==1)return;
+  const membership=info.get(ws),room=membership&&rooms.get(membership.code);
+  if(room&&o&&o.t!=='public-rooms')o=PROTOCOL.stamp(room,o);
+  try{ws.send(JSON.stringify(o));}catch(_){}
+}
 // Los snapshots son reemplazables: no acumular segundos de posiciones viejas
 // para un cliente lento. Los eventos y acciones fiables mantienen su ruta.
 function sendLatestState(ws,o){
@@ -380,7 +386,7 @@ function currentHost(r){
 }
 function roster(r){
   const out=r.players.map(p=>({
-    i:p.i,n:p.n,cpu:false,registered:!!p.registered,
+    i:p.i,n:p.n,cpu:false,registered:!!p.registered,inputSessionId:p.inputSessionId,
     host:Number(p.i)===Number(r.hostIndex),
     champion:!!(r.lastSeriesChampionToken&&p.playerToken===r.lastSeriesChampionToken)
   }));
@@ -400,14 +406,19 @@ function canStartRoom(r){return !!(r&&!r.started&&r.players.length&&r.players.ev
 function resetOnlineSeries(r){
   r.seriesWins=[0,0,0,0];
   r.seriesLastScoredRound=0;
+  r.seriesRoundWinner=-1;
   r.seriesComplete=false;
   r.seriesChampion=-1;
   if(r.seriesLobbyTimer){clearTimeout(r.seriesLobbyTimer);r.seriesLobbyTimer=null;}
 }
 function seriesState(r){
   return {
+    ...PROTOCOL.context(r),seriesPhase:PROTOCOL.phase(r),
     seriesRound:Math.max(0,Number(r&&r.rankRound)||0),
     seriesWins:Array.isArray(r&&r.seriesWins)?r.seriesWins.slice(0,MAX_PLAYERS):[0,0,0,0],
+    seriesLastScoredRound:Math.max(0,Number(r&&r.seriesLastScoredRound)||0),
+    roundFinished:!!(r&&r.started&&Number(r.rankRound)>0&&Number(r.seriesLastScoredRound)===Number(r.rankRound)),
+    roundWinner:Number.isInteger(r&&r.seriesRoundWinner)?r.seriesRoundWinner:-1,
     seriesComplete:!!(r&&r.seriesComplete),
     seriesChampion:Number.isInteger(Number(r&&r.seriesChampion))?Number(r.seriesChampion):-1,
     hostEpoch:Math.max(1,Number(r&&r.hostEpoch)||1)
@@ -453,7 +464,7 @@ function promoteHost(r,wss,cause='host_left'){
     cpuFill:!!r.cpuFill,
     started:!!r.started,
     rankRound:Number(r.rankRound)||0,
-    restartRound:!!(r.started&&!r.seriesComplete),
+    restartRound:!!(r.started&&!r.seriesComplete&&!seriesState(r).roundFinished),
     cause,
     ...seriesState(r)
   });
@@ -1122,6 +1133,9 @@ async function authApi(req,res,url){
     if(!host||!/^[a-f0-9]{48}$/i.test(hostToken)||host.playerToken!==hostToken){
       sendJson(res,403,{ok:false,code:'HOST_REQUIRED'});return true;
     }
+    if(!PROTOCOL.matches(body,room)){
+      sendJson(res,409,{ok:false,code:'STALE_CONTEXT'});return true;
+    }
     const rankRound=Math.max(0,Number(body.rankRound)||0);
     if(rankRound&&rankRound!==Number(room.rankRound||0)){sendJson(res,409,{ok:false,code:'STALE_ROUND'});return true;}
     const winner=room.players.find(p=>p.i===winnerIndex)||null;
@@ -1170,13 +1184,16 @@ wss.on('connection',(ws,req)=>{
     ip:detectedIp==='unknown'?('unknown-'+randomBytes(8).toString('hex')):detectedIp,
     connectionId:randomBytes(16).toString('hex')
   });
-  send(ws,{t:'hello',p2p:true,accounts:!!db});
+  send(ws,{t:'hello',p2p:true,accounts:!!db,protocolVersion:PROTOCOL.VERSION});
   send(ws,{t:'public-rooms',rooms:publicRooms()});
 
   ws.on('message',async raw=>{
     if(!allowInboundMessage(ws))return;
     let m;try{m=JSON.parse(String(raw));}catch(_){return;}
     if(!m||typeof m!=='object'||Array.isArray(m))return;
+    if(['create','join','resume'].includes(m.t)&&(m.protocolVersion!==PROTOCOL.VERSION||!PROTOCOL.validId(m.inputSessionId))){
+      send(ws,{t:'error',message:'ACTUALIZA EL JUEGO PARA ENTRAR EN ESTA SALA.'});return;
+    }
 
     if(m.t==='create'){
       if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
@@ -1199,8 +1216,8 @@ wss.on('connection',(ws,req)=>{
         send(ws,{t:'error',message:creator.testMode?'LIMITE DE SALAS DE PRUEBA ALCANZADO.':'YA ESTAS EN UNA SALA ACTIVA.'});
         return;
       }
-      const r={code:roomCode(),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:true,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,hostEpoch:1,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,lastSeriesChampionToken:'',lastSeriesChampionCpu:false,lastSeriesChampionIndex:-1,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
-      const p={i:0,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,deviceKey:creator.deviceKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
+      const r={code:roomCode(),seriesId:randomBytes(16).toString('hex'),public:!!m.public,lang:String(m.lang||'es'),started:false,players:[],cpuFill:true,rankEligible:false,rankRecorded:false,rankMatchId:null,rankRound:0,hostIndex:0,hostEpoch:1,seriesWins:[0,0,0,0],seriesLastScoredRound:0,seriesComplete:false,seriesChampion:-1,seriesLobbyTimer:null,lastSeriesChampionToken:'',lastSeriesChampionCpu:false,lastSeriesChampionIndex:-1,createdAt:Date.now(),creatorKey:creator.creatorKey,testMode:creator.testMode};
+      const p={i:0,n:identity.name,ws,inputSessionId:m.inputSessionId,userId:identity.userId,registered:identity.registered,participantKey:creator.creatorKey,deviceKey:creator.deviceKey,ipKey:creator.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       r.players.push(p);rooms.set(r.code,r);info.set(ws,{code:r.code,i:0});
       send(ws,{t:'created',code:r.code,index:0,hostIndex:r.hostIndex,hostEpoch:r.hostEpoch,public:r.public,playerToken:p.playerToken,registered:p.registered,p2p:true});
       broadcast(r,{t:'lobby',code:r.code,players:roster(r),cpuFill:true,canStart:canStartRoom(r),hostIndex:r.hostIndex,hostEpoch:r.hostEpoch});publicUpdate(wss);return;
@@ -1250,7 +1267,7 @@ wss.on('connection',(ws,req)=>{
       }
       if(i<0){send(ws,{t:'error',message:'Sala llena.'});return;}
 
-      const p={i,n:identity.name,ws,userId:identity.userId,registered:identity.registered,participantKey:participant.creatorKey,deviceKey:participant.deviceKey,ipKey:participant.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
+      const p={i,n:identity.name,ws,inputSessionId:m.inputSessionId,userId:identity.userId,registered:identity.registered,participantKey:participant.creatorKey,deviceKey:participant.deviceKey,ipKey:participant.ipKey,playerToken:newPlayerToken(),disconnectedAt:0,voiceReady:false};
       if(Array.isArray(r.seriesWins))r.seriesWins[i]=0;
       r.players.push(p);info.set(ws,{code:r.code,i});
       const players=roster(r);
@@ -1268,14 +1285,37 @@ wss.on('connection',(ws,req)=>{
       const oldWs=p.ws;
       if(oldWs&&oldWs!==ws){info.delete(oldWs);try{oldWs.close(4001,'Sesion recuperada desde otra conexion');}catch(_){}}
       p.ws=ws;p.disconnectedAt=0;p.voiceReady=false;info.set(ws,{code:room.code,i:p.i});
+      p.inputSessionId=m.inputSessionId;
+      // Una recarga pierde la fisica; una reconexion de WebSocket la conserva.
+      const recoverHost=Number(p.i)===Number(room.hostIndex)&&room.started&&m.hostSimulationAlive===false;
+      if(recoverHost)room.hostEpoch=Math.max(1,Number(room.hostEpoch)||1)+1;
       const players=roster(room);
-      send(ws,{t:'resumed',code:room.code,index:p.i,host:Number(p.i)===Number(room.hostIndex),hostIndex:room.hostIndex,hostEpoch:room.hostEpoch,started:!!room.started,finished:false,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true,...seriesState(room)});
-      broadcast(room,{t:'lobby',code:room.code,players,cpuFill:!!room.cpuFill,canStart:canStartRoom(room),hostIndex:room.hostIndex});
+      const phase=seriesState(room);
+      const restartRound=!!(recoverHost&&!phase.roundFinished);
+      send(ws,{t:'resumed',code:room.code,index:p.i,host:Number(p.i)===Number(room.hostIndex),hostIndex:room.hostIndex,hostEpoch:room.hostEpoch,started:!!room.started,finished:phase.roundFinished,recoverHost,restartRound,playerToken:p.playerToken,players,cpuFill:!!room.cpuFill,p2p:true,...phase});
+      if(recoverHost){
+        const recovery={t:'host-migrated',previousHostIndex:room.hostIndex,hostIndex:room.hostIndex,players,cpuFill:!!room.cpuFill,started:true,rankRound:room.rankRound,restartRound,cause:'host_reloaded',...phase};
+        for(const other of room.players)if(other.ws!==ws)send(other.ws,recovery);
+      }
+      broadcast(room,{t:'lobby',code:room.code,players,cpuFill:!!room.cpuFill,canStart:canStartRoom(room),started:!!room.started,hostIndex:room.hostIndex,hostEpoch:room.hostEpoch});
       if(room.started&&Number(p.i)!==Number(room.hostIndex)){const host=currentHost(room);if(host&&host.ws)send(host.ws,{t:'p2p-reconnect',from:p.i});}
       publicUpdate(wss);return;
     }
 
     const x=info.get(ws),r=x&&rooms.get(x.code);if(!r)return;
+    if(['series-round-result','rank-restart'].includes(m.t)&&!PROTOCOL.matches(m,r,{ignoreRound:true})){
+      if(m.requestId)send(ws,{t:'critical-ack',requestId:String(m.requestId),kind:m.t,rankRound:r.rankRound});
+      return;
+    }
+    const player=r.players.find(p=>p.i===x.i);
+    const controlPacket=['fallback-ctrl','fallback-input-action','fallback-action'].includes(m.t);
+    if(controlPacket&&(!PROTOCOL.matches(m,r)||!player||m.inputSessionId!==player.inputSessionId))return;
+    if(['p2p-offer','p2p-answer','p2p-ice','fallback-request','fallback-clear'].includes(m.t)&&!PROTOCOL.matches(m,r,{ignoreRound:true}))return;
+    if(m.t==='series-continue'&&!PROTOCOL.matches(m,r))return;
+    if(m.t==='sync-round'&&PROTOCOL.matches(m,r,{ignoreRound:true})){
+      send(ws,{t:'round-sync',started:!!r.started,players:roster(r),cpuFill:!!r.cpuFill,hostIndex:r.hostIndex,...seriesState(r)});
+      return;
+    }
 
     if(m.t==='cpu-fill'&&Number(x.i)===Number(r.hostIndex)&&!r.started){
       r.cpuFill=!!m.on;
@@ -1289,6 +1329,9 @@ wss.on('connection',(ws,req)=>{
       r.lastSeriesChampionCpu=false;
       r.lastSeriesChampionIndex=-1;
       resetOnlineSeries(r);
+      // Cada serie tiene una nueva autoridad incluso si conserva el anfitrion.
+      r.hostEpoch=Math.max(1,Number(r.hostEpoch)||1)+1;
+      r.seriesId=randomBytes(16).toString('hex');
       const startPlayers=roster(r);
       r.started=true;r.rankRecorded=false;r.rankMatchId=randomBytes(24).toString('hex');r.rankRound=1;
       if(db){
@@ -1322,6 +1365,7 @@ wss.on('connection',(ws,req)=>{
       }
 
       r.seriesLastScoredRound=round;
+      r.seriesRoundWinner=winnerIndex;
       if(!Array.isArray(r.seriesWins))r.seriesWins=[0,0,0,0];
       r.seriesWins[winnerIndex]=(Number(r.seriesWins[winnerIndex])||0)+1;
 
@@ -1339,7 +1383,7 @@ wss.on('connection',(ws,req)=>{
       }
 
       if(requestId)send(ws,{t:'critical-ack',requestId,kind:'series-round-result',rankRound:Number(r.rankRound)||round});
-      broadcast(r,{t:'series-state',round,wins:r.seriesWins.slice(0,MAX_PLAYERS),complete,champion:r.seriesChampion});
+      broadcast(r,{t:'series-state',round,wins:r.seriesWins.slice(0,MAX_PLAYERS),complete,champion:r.seriesChampion,...seriesState(r)});
       if(complete)scheduleSeriesLobby(r,wss,30000);
       return;
     }
@@ -1358,7 +1402,7 @@ wss.on('connection',(ws,req)=>{
       // ACK perdido: el servidor ya está exactamente en la ronda solicitada.
       if(targetRound===current&&fromRound===current-1){
         if(requestId)send(ws,{t:'critical-ack',requestId,kind:'rank-restart',rankRound:current});
-        send(ws,{t:'rank-round',rankRound:current,rankEligible:r.rankEligible});
+        broadcast(r,{t:'rank-round',rankRound:current,rankEligible:r.rankEligible,...seriesState(r)});
         return;
       }
 
@@ -1369,7 +1413,7 @@ wss.on('connection',(ws,req)=>{
       }
 
       // Solo se acepta avanzar exactamente una ronda desde el estado actual.
-      if(fromRound!==current||targetRound!==current+1){
+      if(fromRound!==current||targetRound!==current+1||Number(r.seriesLastScoredRound)!==current){
         if(requestId)send(ws,{t:'critical-nack',requestId,kind:'rank-restart',rankRound:current});
         return;
       }
@@ -1377,16 +1421,18 @@ wss.on('connection',(ws,req)=>{
       r.rankRecorded=false;
       r.rankMatchId=randomBytes(24).toString('hex');
       r.rankRound=targetRound;
+      r.seriesRoundWinner=-1;
       const rankCheck=rankEligibility(r);
       r.rankEligible=rankCheck.eligible;
       if(requestId)send(ws,{t:'critical-ack',requestId,kind:'rank-restart',rankRound:r.rankRound});
-      send(ws,{t:'rank-round',rankRound:r.rankRound,rankEligible:r.rankEligible});
+      broadcast(r,{t:'rank-round',rankRound:r.rankRound,rankEligible:r.rankEligible,...seriesState(r)});
       return;
     }
 
     if(['p2p-offer','p2p-answer','p2p-ice'].includes(m.t)){
       const to=Number(m.to);
       if(!Number.isInteger(to)||to<0||to>=MAX_PLAYERS||to===x.i||!allowSignalingMessage(ws,m.t,m.data))return;
+      if(Number(x.i)!==Number(r.hostIndex)&&to!==Number(r.hostIndex))return;
       const target=r.players.find(p=>p.i===to);
       if(target)send(target.ws,{t:m.t,from:x.i,data:m.data});
       return;
@@ -1397,10 +1443,11 @@ wss.on('connection',(ws,req)=>{
       return;
     }
     if(m.t==='fallback-ctrl'){
+      if(!PROTOCOL.counter(m.controlSeq,1))return;
       const host=currentHost(r);
       if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{
         t:'fallback-ctrl',from:x.i,
-        controlSeq:Math.max(0,Number(m.controlSeq)||0),
+        controlSeq:m.controlSeq,inputSessionId:m.inputSessionId,
         turn:Number(m.turn)||0,thrust:!!m.thrust,fire:!!m.fire,directFire:m.directFire===true
       });
       return;
@@ -1408,21 +1455,28 @@ wss.on('connection',(ws,req)=>{
     if(m.t==='fallback-input-action'){
       const host=currentHost(r);
       const kind=String(m.kind||'');
-      const actionId=Math.max(1,Number(m.actionId)||1);
+      const actionId=m.actionId;
+      if(!PROTOCOL.counter(actionId,1)||typeof m.simTime!=='number'||!Number.isFinite(m.simTime))return;
       if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws&&['rocket','flare','shock'].includes(kind)){
-        send(host.ws,{t:'fallback-input-action',from:x.i,kind,actionId});
+        send(host.ws,{t:'fallback-input-action',from:x.i,kind,actionId,inputSessionId:m.inputSessionId,simTime:m.simTime});
       }
       return;
     }
+    if(m.t==='fallback-input-ack'){
+      if(Number(x.i)!==Number(r.hostIndex)||!PROTOCOL.matches(m,r)||!PROTOCOL.counter(m.actionId,1))return;
+      const target=r.players.find(p=>p.i===Number(m.to)&&p.inputSessionId===m.inputSessionId);
+      if(target)send(target.ws,{t:'input-ack',kind:m.kind,actionId:m.actionId,inputSessionId:m.inputSessionId});
+      return;
+    }
     if(m.t==='fallback-state'){
-      if(Number(x.i)===Number(r.hostIndex)&&m.state){
+      if(Number(x.i)===Number(r.hostIndex)&&PROTOCOL.matches(m.state,r)&&m.state.round===m.state.rankRound){
         const to=new Set(Array.isArray(m.to)?m.to.map(Number).filter(Number.isInteger):[]);
         for(const p of r.players)if(Number(p.i)!==Number(r.hostIndex)&&p.ws&&(!to.size||to.has(p.i)))sendLatestState(p.ws,{t:'fallback-state',state:m.state});
       }
       return;
     }
     if(m.t==='fallback-event'){
-      if(Number(x.i)===Number(r.hostIndex)&&m.event){
+      if(Number(x.i)===Number(r.hostIndex)&&m.event&&PROTOCOL.isHostEvent(m.event.t)&&PROTOCOL.counter(m.event.eventId,1)&&PROTOCOL.matches(m.event,r)){
         const to=new Set(Array.isArray(m.to)?m.to.map(Number).filter(Number.isInteger):[]);
         for(const p of r.players)if(Number(p.i)!==Number(r.hostIndex)&&p.ws&&(!to.size||to.has(p.i)))send(p.ws,{t:'fallback-event',event:m.event});
       }
@@ -1430,7 +1484,9 @@ wss.on('connection',(ws,req)=>{
     }
     if(m.t==='fallback-action'){
       const host=currentHost(r);
-      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{t:'fallback-action',from:x.i,action:String(m.action||'')});
+      if(Number(m.hostEpoch)>0&&Number(m.hostEpoch)!==Number(r.hostEpoch))return;
+      if(Number(m.rankRound)>0&&Number(m.rankRound)!==Number(r.rankRound))return;
+      if(Number(x.i)!==Number(r.hostIndex)&&host&&host.ws)send(host.ws,{t:'fallback-action',from:x.i,action:String(m.action||''),rankRound:m.rankRound,hostEpoch:m.hostEpoch});
       return;
     }
     if(m.t==='chat'&&!r.started){

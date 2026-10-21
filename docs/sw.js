@@ -21,6 +21,7 @@ const SHELL_FILES = [
   './ranking.js',
   './impactos.js',
   './voz.js',
+  './net-protocol.js',
   './physics-core.js',
   './local-cpu.js',
   './host-physics.js',
