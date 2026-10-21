@@ -6,6 +6,7 @@ on:
       - 'docs/host-physics.js'
       - 'docs/local-cpu.js'
       - 'docs/physics-core.js'
+      - 'docs/net-protocol.js'
       - 'docs/p2p-network.js'
       - 'docs/game.js'
       - 'docs/menu-loader.js'
@@ -16,10 +17,12 @@ on:
       - 'docs/sw.js'
       - 'docs/style.css'
       - 'server/p2p-server.js'
+      - 'server/net-protocol.js'
       - 'tools/check-physics-parity.js'
       - 'tools/check-network-resilience.js'
       - 'tools/check-spawn-scoring.js'
       - 'tools/check-session-regressions.js'
+      - 'tools/check-online-protocol.js'
       - 'tools/check-game-invariants.js'
       - 'tools/stress-game.js'
       - '.github/workflows/physics-parity.yml'
@@ -28,6 +31,7 @@ on:
       - 'docs/host-physics.js'
       - 'docs/local-cpu.js'
       - 'docs/physics-core.js'
+      - 'docs/net-protocol.js'
       - 'docs/p2p-network.js'
       - 'docs/game.js'
       - 'docs/menu-loader.js'
@@ -38,16 +42,30 @@ on:
       - 'docs/sw.js'
       - 'docs/style.css'
       - 'server/p2p-server.js'
+      - 'server/net-protocol.js'
       - 'tools/check-physics-parity.js'
       - 'tools/check-network-resilience.js'
       - 'tools/check-spawn-scoring.js'
       - 'tools/check-session-regressions.js'
+      - 'tools/check-online-protocol.js'
       - 'tools/check-game-invariants.js'
       - 'tools/stress-game.js'
       - '.github/workflows/physics-parity.yml'
   workflow_dispatch:
 
 jobs:
+  online-protocol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check protocol syntax
+        run: node --check server/net-protocol.js && node --check docs/net-protocol.js && node --check tools/check-online-protocol.js
+      - name: Check online protocol and delivery
+        run: node tools/check-online-protocol.js
+      - name: Check session and control regressions
+        run: node tools/check-session-regressions.js
   shared-physics-parity:
     runs-on: ubuntu-latest
     timeout-minutes: 3

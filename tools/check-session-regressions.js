@@ -6,6 +6,7 @@ const vm=require('node:vm');
 const crypto=require('node:crypto');
 const util=require('node:util');
 const {EventEmitter}=require('node:events');
+const PROTOCOL=require('../server/net-protocol.js');
 const read=p=>fs.readFileSync(p,'utf8');
 const game=read('docs/game.js');
 const noop=()=>{};
@@ -13,7 +14,7 @@ const noop=()=>{};
 function engineContext(clock={now:1000000}){
   class TestDate extends Date{static now(){return clock.now;}}
   const ctx=vm.createContext({window:{},console,Date:TestDate,performance,setTimeout,clearTimeout});
-  for(const file of ['campaign-config','physics-core','host-physics','local-cpu']){
+  for(const file of ['net-protocol','campaign-config','physics-core','host-physics','local-cpu']){
     vm.runInContext(read('docs/'+file+'.js'),ctx,{filename:file+'.js'});
   }
   return ctx;
@@ -66,6 +67,7 @@ function serverFixture(){
       if(name==='util')return util;
       if(name==='pg')return {Pool:class{async query(){return {rows:[],rowCount:0};}}};
       if(name==='ws')return {WebSocketServer:SocketServer};
+      if(name==='./net-protocol.js')return PROTOCOL;
       throw Error('Dependencia inesperada: '+name);
     }
   });
@@ -73,14 +75,22 @@ function serverFixture(){
   let connectionId=0;
   const connect=()=>{
     const socket=new Socket();wss.clients.add(socket);
+    socket.inputSessionId=(connectionId+1).toString(16).padStart(32,'0');
     wss.emit('connection',socket,{headers:{},socket:{remoteAddress:'10.0.0.'+(++connectionId)}});
     return socket;
   };
   const receive=async(socket,message)=>{
+    const code=message.code||socket.code;
+    const current=code&&room(code);
+    message={...(current?PROTOCOL.context(current):{protocolVersion:PROTOCOL.VERSION}),inputSessionId:socket.inputSessionId,...message};
     await socket.listeners('message')[0](Buffer.from(JSON.stringify(message)));
+    const joined=socket.last('resumed')||socket.last('joined')||socket.last('created');
+    if(joined)socket.code=joined.code;
   };
   const room=code=>vm.runInContext('rooms.get('+JSON.stringify(code)+')',ctx);
   const request=async(url,body)=>{
+    const current=body.roomCode&&room(body.roomCode);
+    if(current)body={...PROTOCOL.context(current),...body};
     const req=new EventEmitter();req.method='POST';req.headers={};
     const result={};
     const res={writeHead:status=>{result.status=status;},end:raw=>{result.body=JSON.parse(raw);}};
@@ -109,15 +119,16 @@ async function score(server,winner=0){
 async function checkRepeatedSeries(){
   const server=await onlineRoom();
   const ctx=vm.createContext({window:{},console,requestAnimationFrame:()=>1,cancelAnimationFrame:noop,setTimeout,clearTimeout});
+  vm.runInContext(read('docs/net-protocol.js'),ctx);
   vm.runInContext(read('docs/p2p-network.js'),ctx);
   const accepted=[];
   const net=new ctx.window.GalaxyP2P({onState:m=>accepted.push([m.hostEpoch,m.round,m.seq])});
-  const configure=()=>net.configure({myIndex:1,hostIndex:0,hostEpoch:server.room(server.code).hostEpoch,isHost:false,players:[]});
-  const state=(epoch,round,seq)=>{net.queueState(JSON.stringify({t:'state',state:{hostEpoch:epoch,round,seq}}));net.flushPendingState();};
+  const configure=()=>net.configure({myIndex:1,hostIndex:0,...PROTOCOL.context(server.room(server.code)),rankRound:1,isHost:false,players:[]});
+  const state=(epoch,round,seq)=>{net.queueState(JSON.stringify({t:'state',state:PROTOCOL.stamp({...net,hostEpoch:epoch,rankRound:round},{round,seq})}));net.flushPendingState();};
   for(let series=0;series<3;series++){
     configure();const epoch=net.hostEpoch;
     state(epoch,1,1);assert.deepEqual(accepted.at(-1),[epoch,1,1]);
-    state(epoch,5,100);
+    for(let round=2;round<=5;round++)state(epoch,round,round*20);
     for(let round=1;round<=5;round++){
       await score(server);
       if(round<5)await server.receive(server.host,{t:'rank-restart',fromRound:round,targetRound:round+1,hostEpoch:epoch});
@@ -138,19 +149,19 @@ function clientFixture(){
   const engines=engineContext(),queued=[],events=[];
   const ui=()=>({classList:{add:noop,remove:noop},textContent:''});
   const ctx=vm.createContext({
-    console,isHost:true,hostPhysics:null,hostEpoch:2,roomCode:'TEST',myIndex:0,playerToken:'token',
+    console,PROTOCOL,performance,state:null,isHost:true,hostPhysics:null,hostEpoch:2,onlineSeriesId:'a'.repeat(32),onlineSeriesPhase:'playing',onlineEventContext:'',onlineEvents:new PROTOCOL.ReplayWindow(),roomCode:'TEST',myIndex:0,playerToken:'token',inputSessionId:'1'.repeat(32),
     inGame:false,lobbyPlayers:[{i:0,n:'Host'},{i:1,n:'Guest'}],cpuFillEnabled:false,
     onlineSeriesComplete:false,onlineSeriesConfirmedRound:0,onlineSeriesRound:0,onlineSeriesScoredRound:0,onlineSessionWins:new Map(),onlineStartGeneration:0,lastRestartedRound:0,
     lastAcceptedStateEpoch:-1,lastAcceptedStateRound:-1,lastAcceptedStateSeq:-1,
     lastP2PStateAt:0,lastFallbackRequestAt:0,lastFallbackStateSentAt:0,fallbackActive:false,p2pStableCount:0,
-    fallbackPeers:new Set(),fallbackReconnectAt:new Map(),pendingCriticalServerOps:[],
-    p2p:{broadcastEvent:m=>events.push(m)},sendHostFallbackEvent:noop,
+    fallbackPeers:new Set(),fallbackReconnectAt:new Map(),pendingCriticalServerOps:[],pendingInputActions:[],
+    p2p:{broadcastEvent:m=>events.push(m),sendInputAck:noop},sendHostFallbackEvent:noop,
     queueCriticalServerOp:m=>{queued.push(m);return true;},persistCriticalServerOps:noop,
     prepareGameAssets:()=>Promise.resolve(),prepareMatchBackground:()=>Promise.resolve(),
     beginGame:()=>{ctx.inGame=true;},handle:m=>events.push(m),queueVictory:i=>events.push({t:'victory',winner:i}),
     resetOnlineStartCountdown:()=>{ctx.onlineStartGeneration++;},
     startHostPhysics:(players,round)=>{
-      ctx.hostPhysics=new engines.window.GalaxyHostPhysics({rankRound:round,hostEpoch:ctx.hostEpoch});
+      ctx.hostPhysics=new engines.window.GalaxyHostPhysics({rankRound:round,hostEpoch:ctx.hostEpoch,seriesId:ctx.onlineSeriesId,onEvent:m=>{ctx.handle(m);if(ctx.p2p)ctx.p2p.broadcastEvent(m);}});
       return ctx.hostPhysics.start(players);
     },
     clearGameCanvas:noop,ensureP2P:()=>({configure:noop}),syncVoicePlayers:noop,
@@ -158,14 +169,21 @@ function clientFixture(){
     victory:{classList:{contains:()=>true}},restoreCriticalServerOps:noop,flushCriticalServerOps:noop,
     updateCpuFillButton:noop,saveResumeSession:noop,stopResumeWindow:noop,stopMusic:noop,
     roomCodeEl:ui(),roomMini:ui(),menu:ui(),lobby:ui(),voice:null,
-    onlineGoAt:1,onlineStartRankRound:1,activateGameUi:noop,playSound:noop
+    onlineGoAt:1,onlineStartRankRound:1,activateGameUi:noop,playSound:noop,
+    localCpuActive:false,localCpu:null,clientNeedsFallback:()=>false,requestFallback:noop,
+    inputActionSeq:{rocket:0,flare:0,shock:0},ws:null,WebSocket:{OPEN:1},
+    currentOnlineSeriesRound:()=>Math.max(1,ctx.onlineSeriesRound||(ctx.hostPhysics&&ctx.hostPhysics.rankRound)||1)
   });
+  const helpers=game.indexOf('  function onlineContext(');
+  vm.runInContext(game.slice(helpers,game.indexOf('  function ensureP2P(',helpers)),ctx);
   const from=game.indexOf('  function restartOnlineRoundAuthoritatively(');
   vm.runInContext(game.slice(from,game.indexOf('  function sendInputAction(',from)),ctx);
+  const actions=game.indexOf('  function sendInputAction(');
+  vm.runInContext(game.slice(actions,game.indexOf('  function sendControl(',actions)),ctx);
   const series=game.indexOf('  function applyOnlineSeriesState(');
   vm.runInContext(game.slice(series,game.indexOf('  function submitOnlineSeriesRound(',series)),ctx);
   const resumed=game.slice(game.indexOf("    else if(m.t==='resumed'){"),game.indexOf("    else if(m.t==='resume-failed'){")).replace('else if','if');
-  vm.runInContext('function resume(m){'+resumed+'}',ctx);
+  vm.runInContext('function resume(m){adoptOnlineContext(m);'+resumed+'}',ctx);
   const launch=game.indexOf('  function launchOnlineAfterReady(');
   vm.runInContext(game.slice(launch,game.indexOf('  function prepareMatchBackground(',launch)),ctx);
   return {ctx,queued,events};
@@ -228,7 +246,7 @@ async function checkHostRecovery(){
   server.host=replacement;
   const staleRank=await server.request('/api/rank-result',{roomCode:server.code,hostToken:server.token,rankRound:1,winnerIndex:0,hostEpoch:epoch});
   assert.equal(staleRank.status,409,'un resultado HTTP en vuelo tambien pertenece a la autoridad anterior');
-  assert.equal(staleRank.body.code,'STALE_HOST');
+  assert.equal(staleRank.body.code,'STALE_CONTEXT');
   await server.receive(server.host,{t:'series-round-result',rankRound:1,winnerIndex:0,hostEpoch:epoch});
   assert.equal(room.seriesLastScoredRound,0,'no contabilizar resultados de antes de la recarga');
   await score(server,1);
@@ -266,4 +284,5 @@ async function main(){
   if(failures)throw Error(failures+' grupo(s) de regresion fallan');
   console.log('Sesiones OK: caducidad humana en ambos motores, series repetidas, transiciones unicas y recuperacion del anfitrion.');
 }
-main().catch(error=>{console.error(error);process.exitCode=1;});
+module.exports={engineContext,serverFixture,onlineRoom,score,clientFixture,resumeClient};
+if(require.main===module)main().catch(error=>{console.error(error);process.exitCode=1;});
