@@ -151,6 +151,7 @@
       return round>baseRound||(round===baseRound&&seq>baseSeq);
     }
     flushPendingState(){
+      if(this.stateRaf){cancelAnimationFrame(this.stateRaf);this.stateRaf=0;}
       const raw=this.pendingStateRaw;
       if(!raw)return false;
       const queuedEpoch=this.pendingStateEpoch,queuedRound=this.pendingStateRound,queuedSeq=this.pendingStateSeq;
@@ -340,7 +341,7 @@
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
       // Los controles son efimeros: con cola alta descartamos el antiguo y el
       // siguiente heartbeat enviara el estado mas reciente, evitando input lag.
-      if(Number(dc.bufferedAmount||0)>32*1024)return false;
+      if(Number(dc.bufferedAmount||0)>4*1024)return false;
       try{dc.send(JSON.stringify(packet));return true;}catch(_){return false;}
     }
     flushBroadcastState(){
@@ -350,7 +351,7 @@
       let raw;try{raw=JSON.stringify({t:'state',state});}catch(_){return false;}
       for(const rec of this.peers.values()){
         const dc=rec&&rec.fastDc;
-        if(rec.open&&dc&&dc.readyState==='open'&&dc.bufferedAmount<128*1024){
+        if(rec.open&&dc&&dc.readyState==='open'&&dc.bufferedAmount<16*1024){
           try{dc.send(raw);}catch(_){}
         }
       }

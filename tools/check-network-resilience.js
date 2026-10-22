@@ -252,3 +252,61 @@ deliver=true;controlSender.sendControl(0,false,false);assert.equal(controlSender
 controlSender.sendControl(0,false,false);assert.equal(controlSender.lastTurnControlSeq,3);
 console.log('Red OK: reconexion, fallback, colas, heartbeat y confirmacion del giro local.');
 
+// Un RAF de dibujo registrado antes del RAF de red debe usar el estado nuevo.
+const frameQueue=new Map();let frameId=0,paintedState=null,currentState=null;
+const frameContext=vm.createContext({window:{},console,setTimeout,clearTimeout,
+  requestAnimationFrame:fn=>{frameQueue.set(++frameId,fn);return frameId;},
+  cancelAnimationFrame:id=>frameQueue.delete(id),performance:{now:()=>16},
+  gameAssetsReady:true,sampleDisplayRefresh(){},flushPendingState(){},
+  paint(){paintedState=currentState;}});
+vm.runInContext(read('docs/net-protocol.js'),frameContext);
+vm.runInContext(read('docs/p2p-network.js'),frameContext);
+const frameNet=new frameContext.window.GalaxyP2P({onState:s=>{currentState=s.seq;}});
+Object.assign(frameNet,{hostEpoch:1,seriesId:'a'.repeat(32),rankRound:1});frameContext.p2p=frameNet;
+const renderStart=game.indexOf('  function render(rafNow)');
+vm.runInContext(game.slice(renderStart,game.indexOf('    if(isHost&&pendingCriticalServerOps.length)',renderStart))+'paint();}',frameContext);
+frameContext.requestAnimationFrame(frameContext.render);
+frameNet.queueState(JSON.stringify({t:'state',state:PROTOCOL.stamp(frameNet,{round:1,seq:8})}));
+for(const id of [...frameQueue.keys()]){const fn=frameQueue.get(id);frameQueue.delete(id);if(fn)fn(16);}
+assert.equal(paintedState,8,'estado nuevo visible en el primer frame, no en el siguiente');
+assert.equal(frameNet.pendingStateRaw,null);
+assert.equal(frameNet.stateRaf,0,'cancelar callback de red redundante');
+
+// Evitar acumulacion de snapshots y aislar un receptor lento.
+const outgoing=new context.window.GalaxyP2P();
+Object.assign(outgoing,{isHost:true,hostEpoch:1,seriesId:'a'.repeat(32),rankRound:1});
+const deliveredSlow=[],deliveredFast=[];
+const slowDc={readyState:'open',bufferedAmount:16*1024,send:raw=>deliveredSlow.push(JSON.parse(raw).state.seq)};
+outgoing.peers.set(1,{open:true,fastDc:slowDc});
+outgoing.peers.set(2,{open:true,fastDc:{readyState:'open',bufferedAmount:0,send:raw=>deliveredFast.push(JSON.parse(raw).state.seq)}});
+outgoing.pendingBroadcastState=PROTOCOL.stamp(outgoing,{seq:1,round:1});outgoing.flushBroadcastState();
+assert.deepEqual(deliveredSlow,[]);assert.deepEqual(deliveredFast,[1]);
+slowDc.bufferedAmount=0;
+outgoing.pendingBroadcastState=PROTOCOL.stamp(outgoing,{seq:2,round:1});outgoing.flushBroadcastState();
+assert.deepEqual(deliveredSlow,[2],'recuperar con estado actual, sin reproducir el viejo');
+
+// Ejecutar la decision de envio real: giro mantenido 30 Hz y cambio inmediato.
+let inputSends=0;
+const inputRate=vm.createContext({Math,CONTROL_SEND_MS:1000/30,CONTROL_HEARTBEAT_MS:100,
+  now:1000,turn:1,thrust:false,fire:false,lastSentControlTurn:1,lastSentControlThrust:false,lastSentControlFire:false,
+  lastControlTurnChangedAt:0,changed:false,elapsed:0,actions:{},joystickActions:'{}',sendControl(){inputSends++;return true;}});
+const decisionStart=game.indexOf('    const edge=Math.sign(turn)');
+vm.runInContext('function decide(){'+game.slice(decisionStart,game.indexOf('  function uniqueLeaderFrom(',decisionStart)).trim().slice(0,-1)+'}',inputRate);
+let lastSend=0;
+for(let frame=1;frame<=60;frame++){
+  inputRate.now=1000+frame*1000/60;inputRate.elapsed=frame*1000/60-lastSend;
+  const before=inputSends;inputRate.decide();if(inputSends>before)lastSend=frame*1000/60;
+}
+assert.equal(inputSends,30,'30 envios por segundo durante movimiento a 60 FPS');
+inputRate.turn=-1;inputRate.changed=true;inputRate.elapsed=1;inputRate.decide();
+assert.equal(inputSends,31,'no esperar 33 ms adicionales al invertir el giro');
+// El filtro de respaldo tolera variaciones submilisegundo entre estados a 20 Hz.
+let fallbackSent=0;
+const fallbackRate=vm.createContext({fallbackPeers:new Set([1]),ws:{readyState:1,bufferedAmount:0},WebSocket:{OPEN:1},
+  performance:{now:()=>149.8},lastFallbackStateSentAt:100,FALLBACK_STATE_MS:50,
+  onlinePacket:m=>m,sendSocketRaw(){fallbackSent++;return true;}});
+const fallbackStart=game.indexOf('  function sendHostFallbackState(');
+vm.runInContext(game.slice(fallbackStart,game.indexOf('  function sendHostFallbackEvent(',fallbackStart)),fallbackRate);
+fallbackRate.sendHostFallbackState({});assert.equal(fallbackSent,1);
+console.log('Flujo OK: estado antes del dibujo, colas acotadas y controles activos a 30 Hz.');
+
