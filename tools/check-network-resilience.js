@@ -103,6 +103,10 @@ assert.equal(silent.pings,1);assert.equal(responsive.pings,1);
 responsive.emit('pong');service.checkSocketHealth();
 assert.equal(silent.readyState,3,'cerrar transporte sin pong');
 assert.equal(responsive.readyState,1,'conservar transporte que responde');
+responsive.emit('message',Buffer.from(JSON.stringify({t:'ping',at:123.5})));
+assert.equal(responsive.last('pong').at,123.5,'eco de reloj monotono para RTT');
+responsive.emit('message',Buffer.from(JSON.stringify({t:'ping',at:{invalid:true}})));
+assert.equal(Object.hasOwn(responsive.last('pong'),'at'),false,'no reflejar objetos arbitrarios');
 
 // Canales fiables P2P: aislar al peer congestionado sin bloquear a los demas.
 const transport=new context.window.GalaxyP2P();
@@ -154,5 +158,57 @@ assert.equal(forwarded.length,1);assert.equal(forwarded[0].actionId,actionId);
 assert.equal(forwarded[0].t,'fallback-input-action');
 actionClient.acknowledgeInputAction(forwarded[0]);
 assert.equal(actionClient.pendingInputActions.length,0);
-console.log('Red OK: orden, reconexion, fallback, congestion y heartbeat en ambos extremos.');
+// Los reintentos crecen, quedan acotados y cancelan el temporizador anterior.
+let scheduledDelay=0,cancelled=0;
+const retries=vm.createContext({reconnectTimer:1,manualClose:false,inGame:false,reconnectFailures:0,
+  Math:Object.assign(Object.create(Math),{random:()=>.5}),connect(){},
+  clearTimeout(){cancelled++;},setTimeout(fn,delay){scheduledDelay=delay;return 2;}});
+vm.runInContext(game.slice(game.indexOf('  function scheduleReconnect('),game.indexOf('  function serverHello(')),retries);
+const delays=[];
+for(let n=0;n<7;n++){retries.scheduleReconnect();delays.push(scheduledDelay);}
+assert.deepEqual(delays,[2200,4400,8800,15000,15000,15000,15000]);
+retries.inGame=true;retries.reconnectFailures=0;
+const playingDelays=[];
+for(let n=0;n<5;n++){retries.scheduleReconnect(500);playingDelays.push(scheduledDelay);}
+assert.deepEqual(playingDelays,[500,1000,2000,4000,4000]);
+retries.manualClose=true;scheduledDelay=0;retries.scheduleReconnect();
+assert.equal(scheduledDelay,0);assert.equal(cancelled,13);
+
+// Perder el foco inhibe tambien mando/sensores, no solo las teclas.
+const pumpStart=game.indexOf('  function pumpControls(');
+const pumpEnd=game.indexOf('\n  function ',pumpStart+10);
+const background=vm.createContext({inputSuspended:true,document:{hidden:false}});
+vm.runInContext(game.slice(pumpStart,pumpEnd),background);
+assert.doesNotThrow(()=>background.pumpControls(100));
+background.inputSuspended=false;background.document.hidden=true;
+assert.doesNotThrow(()=>background.pumpControls(200));
+
+let controls=0,healthChecks=0,reconnections=0;
+const foreground=vm.createContext({inputSuspended:true,document:{hidden:false,hasFocus:()=>true},
+  manualClose:false,ws:{readyState:1,lastReceiveAt:0},WebSocket:{OPEN:1,CONNECTING:0},
+  performance:{now:()=>60000},clearHeldKeys(){controls++;},
+  checkClientSocketHealth(){healthChecks++;},connect(){reconnections++;},
+  reconnectFailures:6,reconnectTimer:4,clearTimeout(){}});
+const foregroundStart=game.indexOf('  function recoverForeground(');
+vm.runInContext(game.slice(foregroundStart,game.indexOf("  window.addEventListener('blur'",foregroundStart)),foreground);
+foreground.recoverForeground();
+assert.equal(foreground.inputSuspended,false);assert.equal(foreground.ws.lastReceiveAt,60000);
+assert.equal(healthChecks,1);assert.equal(controls,1);
+foreground.ws=null;foreground.recoverForeground();
+assert.equal(reconnections,1);assert.equal(foreground.reconnectFailures,0);
+foreground.ws={readyState:0};foreground.recoverForeground();
+assert.equal(reconnections,1,'no duplicar una conexion en curso');
+foreground.document.hidden=true;foreground.recoverForeground();
+assert.equal(foreground.inputSuspended,true);assert.equal(reconnections,1);
+let neutral=0,micOff=0;
+const released=vm.createContext({keys:new Set(['KeyW']),lastControlTurn:1,lastControlSentAt:50,
+  joystickVoiceHeld:true,voice:{setTalking(value){assert.equal(value,false);micOff++;}},
+  inputActionHeld:{rocket:true,flare:true,shock:true},isMobile:false,inGame:true,
+  sendControl(...args){assert.deepEqual(args,[0,false,false]);neutral++;}});
+const clearStart=game.indexOf('  function clearHeldKeys(');
+vm.runInContext(game.slice(clearStart,game.indexOf('  function recoverForeground(',clearStart)),released);
+released.clearHeldKeys();
+assert.equal(released.keys.size,0);assert.equal(released.lastControlSentAt,0);
+assert.equal(released.joystickVoiceHeld,false);assert.equal(micOff,1);assert.equal(neutral,1);
+console.log('Red OK: orden, reconexion progresiva, fallback, congestion, heartbeat y segundo plano.');
 

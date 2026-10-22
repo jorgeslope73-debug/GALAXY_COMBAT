@@ -1208,7 +1208,7 @@ wss.on('connection',(ws,req)=>{
     if(!allowInboundMessage(ws))return;
     let m;try{m=JSON.parse(String(raw));}catch(_){return;}
     if(!m||typeof m!=='object'||Array.isArray(m))return;
-    if(m.t==='ping'){send(ws,{t:'pong'});return;}
+    if(m.t==='ping'){send(ws,{t:'pong',...(Number.isFinite(m.at)&&m.at>=0?{at:m.at}:{})});return;}
     if(['create','join','resume'].includes(m.t)&&(m.protocolVersion!==PROTOCOL.VERSION||!PROTOCOL.validId(m.inputSessionId))){
       send(ws,{t:'error',message:'ACTUALIZA EL JUEGO PARA ENTRAR EN ESTA SALA.'});return;
     }

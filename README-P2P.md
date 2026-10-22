@@ -40,6 +40,12 @@ Las colas WebSocket admiten hasta 512 KiB; el canal P2P fiable, hasta 256 KiB. A
 
 ## Validacion y despliegue
 
+V22.51: los reintentos de señalizacion aumentan exponencialmente, con variacion aleatoria del 20 %, hasta una base de 4 s durante la partida y 15 s en el menu. Tras una conexion compatible estable durante 10 s, el siguiente corte vuelve al intervalo inicial. Volver a primer plano o recuperar la red permite reintentar inmediatamente si no hay una conexion en curso. El flujo P2P y la ventana de recuperacion de sala se conservan.
+
+Al perder foco o quedar oculta la pestaña se envian controles neutros y se suspende la lectura de teclado, mando y sensores. Al volver se limpian entradas antiguas y se comprueba el WebSocket, dando margen para responder despues de una suspension del navegador. Esto no permite que el anfitrion simule mientras el sistema operativo congela su pestaña.
+
+Para activar el panel opcional, añadir `?netdebug=1` a la URL (o `&netdebug=1` si ya tiene parametros). Muestra P2P/respaldo, peers, bytes en cola, acciones pendientes y reintentos. El RTT corresponde al servidor WebSocket, no a la latencia entre jugadores. No mide perdida de paquetes ni registra datos personales; con servidores anteriores el RTT puede aparecer como `n/d`.
+
 Ejecutar desde la raiz:
 
 ```sh
