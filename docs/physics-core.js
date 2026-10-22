@@ -28,12 +28,14 @@
       previous=f[0];
     }
     stream.requested=true;
-    if(!stream.active&&packet.frames.length){
-      stream.ack=packet.frames[0][0]-1;stream.active=true;
-    }
+    if(!stream.active&&stream.queue.size===0&&packet.frames.length)stream.ack=packet.frames[0][0]-1;
     for(const f of packet.frames)if(f[0]>stream.ack&&!stream.queue.has(f[0])){
       stream.queue.set(f[0],{turn:f[1],thrust:!!f[2],fire:!!f[3],directFire:!!f[4]});
     }
+    // Start with three consecutive commands. Starting at the first command
+    // lets the 60 Hz consumer overtake the 30 Hz sender between packets,
+    // retiring releases before they arrive. Local prediction remains immediate.
+    if(!stream.active&&[1,2,3].every(n=>stream.queue.has(stream.ack+n)))stream.active=true;
     return true;
   }
   function consumeMotionFrame(stream){

@@ -32,6 +32,9 @@ assert(!core.acceptMotionFrames(stream,{v:1,epoch:7,frames:[[1,0,1,0,0],[2,Infin
 assert.equal(stream.queue.size,0,'atomic validation');
 assert(!core.acceptMotionFrames(stream,{v:1,epoch:7,frames:[[121,0,1,0,0]]}));
 assert(core.acceptMotionFrames(stream,{v:1,epoch:7,frames:[[1,1,1,0,0],[2,0,0,0,0]]}));
+assert.equal(core.consumeMotionFrame(stream),null,'wait for a bounded input reserve before starting');
+assert.equal(stream.ack,0,'waiting does not acknowledge unprocessed inputs');
+core.acceptMotionFrames(stream,{v:1,epoch:7,frames:[[3,0,0,0,0]]});
 core.acceptMotionFrames(stream,{v:1,epoch:7,frames:[[1,-1,0,0,0],[2,1,1,0,0]]});
 assert.equal(core.consumeMotionFrame(stream).turn,1,'duplicate cannot replace a queued command');
 assert.equal(core.consumeMotionFrame(stream).turn,0);
@@ -82,7 +85,7 @@ const results=[];
 for(const fps of [30,60,120])for(const scenario of [[0,0],[50,50],[100,100],[20,120],[100,100,30,7]])results.push(run(fps,...scenario));
 
 const h=host(),p=h.players[0],epoch=p.motionStream.epoch;
-h.setControl(0,1,true,false,{controlSeq:1,motion:{v:1,epoch,frames:[[1,1,1,0,0],[2,1,1,0,0]]}});
+h.setControl(0,1,true,false,{controlSeq:1,motion:{v:1,epoch,frames:[[1,1,1,0,0],[2,1,1,0,0],[3,1,1,0,0]]}});
 h.update(1/60);assert.equal(p.motionStream.ack,1);
 h.setControl(0,0,false,false,{controlSeq:2});
 assert.notEqual(p.motionStream.epoch,epoch,'fallback disables old stream');
@@ -126,3 +129,31 @@ resetHost.finished=true;resetHost.restart(2);
 assert.notEqual(resetPlayer.motionStream.epoch,resetEpoch,'round restart retires commands');
 console.log('Motion prediction OK: integrator parity, replay, bounds, lifecycle and short pulses.');
 console.log(JSON.stringify(results));
+
+// Sweep release timing across packet boundaries, with delayed and reordered packets.
+function releaseWithIrregularDelivery(release){
+ const h=host(),pred=new Prediction(); let state=h.publicState().players[0],seq=0,nextFrame=0,nextSend=0,maxCorrection=0,missing=0;
+ const packets=[],snapshots=[];
+ for(let ms=0;ms<5000;ms++){
+  clock.now=1000000+ms;
+  const input={turn:0,thrust:ms>=500&&ms<release,fire:false,directFire:false};
+  if(ms>=nextFrame){
+   nextFrame+=1000/60; pred.advance(ms,state,input);
+   if(ms>=nextSend){nextSend=ms+32;seq++;packets.push({at:ms+10+(seq%5===0?35:0),seq,input,motion:pred.packet()});packets.sort((a,b)=>a.at-b.at);}
+   if(ms>=release)maxCorrection=Math.max(maxCorrection,pred.stats.correction);
+  }
+  while(packets.length&&packets[0].at<=ms){const q=packets.shift();h.setControl(0,0,q.input.thrust,false,{controlSeq:q.seq,motion:q.motion});}
+  if(ms>0&&Math.floor(ms*60/1000)>Math.floor((ms-1)*60/1000)){
+   h.update(1/60);h.tickCount++;if(h.players[0].motionStream.missing)missing++;
+   if(h.tickCount%3===0)snapshots.push({at:ms+10,p:h.publicState().players[0]});
+  }
+  while(snapshots.length&&snapshots[0].at<=ms)state=snapshots.shift().p;
+ }
+ 
+ return {maxCorrection,missing};
+}
+for(let release=1950;release<2050;release+=5){
+  const result=releaseWithIrregularDelivery(release);
+  assert.equal(result.missing,0, "30 Hz delivery must not starve the 60 Hz consumer");
+  assert(result.maxCorrection<1e-7, "release must coast without a later reconciliation kick");
+}
