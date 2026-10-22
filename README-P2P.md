@@ -40,6 +40,8 @@ Las colas WebSocket admiten hasta 512 KiB; el canal P2P fiable, hasta 256 KiB. A
 
 ## Validacion y despliegue
 
+V22.54 corrige la reconciliacion del giro de la propia nave invitada. El host incluye `appliedControlSeq` en cada jugador despues de aplicar un control en un tick; el invitado espera esa confirmacion antes de corregir el angulo al soltar el giro. Los heartbeats no desplazan la confirmacion pendiente y los envios fallidos no se consideran aplicados. Teclado, mando y sensor predicen con el mismo giro cuantizado que se envia. Hosts anteriores sin el campo mantienen el comportamiento compatible anterior. Todos deben recargar para disponer de la correccion completa. La velocidad y las fisicas no cambian; esto elimina las correcciones contra giros antiguos, no el retraso de red ni toda correccion autoritativa bajo perdida o jitter.
+
 V22.53 revierte el suavizado de V22.52 tras un reporte de peor respuesta y fluidez en invitados. Recupera el dibujo de V22.51, conservando las mejoras de reconexion y diagnostico. La regresion observada en juego real requiere pruebas entre dispositivos antes de reintroducir cambios visuales.
 
 V22.51: los reintentos de señalizacion aumentan exponencialmente, con variacion aleatoria del 20 %, hasta una base de 4 s durante la partida y 15 s en el menu. Tras una conexion compatible estable durante 10 s, el siguiente corte vuelve al intervalo inicial. Volver a primer plano o recuperar la red permite reintentar inmediatamente si no hay una conexion en curso. El flujo P2P y la ventana de recuperacion de sala se conservan.
