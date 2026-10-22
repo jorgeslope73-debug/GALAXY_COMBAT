@@ -338,10 +338,14 @@
   // velocidad visual, especialmente visibles cuando las naves van rapido.
   let smoothedStateInterval=NET_FRAME_MS;
   const localVisual={ready:false,index:-1,x:0,y:0,r:0,vx:0,vy:0,lastAt:0,lastError:0};
+  const guestMotion=typeof window.GalaxyMotionPrediction==='function'&&new URLSearchParams(location.search).get('prediction')!=='legacy'?new window.GalaxyMotionPrediction():null;
+  let guestMotionContext='';
   const remoteVisuals=Array.from({length:4},()=>({
     ready:false,x:0,y:0,r:0,vx:0,vy:0,lastAt:0
   }));
   function resetLocalVisual(){
+    if(guestMotion)guestMotion.reset();
+    guestMotionContext='';
     localVisual.ready=false;localVisual.index=-1;localVisual.lastAt=0;localVisual.lastError=0;
   }
   function resetRemoteVisuals(){
@@ -3111,6 +3115,9 @@
         }
         return false;
       }
+      if(typeof guestMotion!=='undefined'&&guestMotion&&guestMotion.ready&&!isHost&&!inputSuspended){
+        actions={...actions,motion:guestMotion.packet()};
+      }
       if(p2p.sendControl(turn,thrust,fire,actions,seq))return accepted();
       return false;
     }
@@ -3132,6 +3139,16 @@
     lastStateProcessedAt=stamp;
     handle(m);
     return true;
+  }
+  function updateGuestPrediction(now,input){
+    if(!guestMotion)return;
+    const player=state&&state.players&&state.players.find(p=>p.i===myIndex);
+    if(isHost||localCpuActive||!inGame||inputSuspended||fallbackActive||clientNeedsFallback(now)||!player){
+      guestMotion.reset();return;
+    }
+    const context=hostEpoch+':'+onlineSeriesId+':'+currentOnlineSeriesRound();
+    if(context!==guestMotionContext){guestMotion.reset();guestMotionContext=context;}
+    guestMotion.advance(now,player,input);
   }
   function pumpControls(now){
     if(inputSuspended||document.hidden)return;
@@ -3185,10 +3202,11 @@
       lastControlTurn=turn;
     }
     lastControlThrust=thrust;
+    updateGuestPrediction(now,{turn,thrust,fire,directFire:actions.directFire});
     const changed=!Number.isFinite(lastSentControlTurn)||turn!==lastSentControlTurn||thrust!==lastSentControlThrust||fire!==lastSentControlFire||joystickActions!==lastSentJoystickActions;
     const elapsed=lastControlSentAt?now-lastControlSentAt:Infinity;
     const edge=Math.sign(turn)!==Math.sign(lastSentControlTurn)||thrust!==lastSentControlThrust||fire!==lastSentControlFire;
-    const active=turn!==0||thrust||fire||now-lastControlTurnChangedAt<300;
+    const active=(typeof guestMotion!=='undefined'&&guestMotion&&guestMotion.ready)||turn!==0||thrust||fire||now-lastControlTurnChangedAt<300;
     const heartbeat=active?CONTROL_SEND_MS-1:CONTROL_HEARTBEAT_MS;
     if((changed&&(edge||elapsed>=CONTROL_SEND_MS-1))||elapsed>=heartbeat){
       if(sendControl(turn,thrust,fire,actions)){
@@ -4764,7 +4782,9 @@
   // pegados al volver a la ventana.
   function clearHeldKeys(){
     keys.clear();
+    if(typeof guestMotion!=='undefined'&&guestMotion)guestMotion.reset();
     lastControlTurn=0;
+    lastControlThrust=false;
     lastControlSentAt=0;
     if(joystickVoiceHeld){
       joystickVoiceHeld=false;
@@ -4810,6 +4830,7 @@
       const seconds=Math.max(.001,(performance.now()-netMetrics.lastReport)/1000);
       panel.textContent=`RED ${mode} | ${isHost?'ANFITRION':'INVITADO'}\nWS ${serverProtocolReady?'listo':'reconectando'} | RTT servidor ${fresh?Math.round(ws.rttMs)+' ms':'n/d'}\nP2P ${peers} peers | colas WS ${Math.round((ws?.bufferedAmount||0)/1024)} KiB / P2P ${Math.round(queued/1024)} KiB\nAcciones pendientes ${pendingInputActions.length} | reintentos consecutivos ${reconnectFailures}`;
       panel.textContent+=`\nFPS ${(netMetrics.frames/seconds).toFixed(0)} | estados/s ${(netMetrics.states/seconds).toFixed(1)} | pausa estados ${Math.round(netMetrics.maxGap)} ms`;
+      if(guestMotion&&guestMotion.ready)panel.textContent+=`\nPrediccion por ticks | pendientes ${guestMotion.history.length} | ACK ${guestMotion.ack} | correccion ${guestMotion.stats.correction.toFixed(2)}`;
       netMetrics.frames=0;netMetrics.states=0;netMetrics.maxGap=0;netMetrics.lastReport=performance.now();
     },1000);
     window.addEventListener('beforeunload',()=>clearInterval(timer));
@@ -5093,7 +5114,11 @@
   function drawShip(p,previous,blend,now){
     const local=p.i===myIndex;
     let x=p.x,y=p.y,r=p.r;
-    if(local){
+    if(local&&typeof guestMotion!=='undefined'&&guestMotion&&guestMotion.ready){
+      const predicted=guestMotion.sample();
+      x=predicted.x;y=predicted.y;r=predicted.r;
+      Object.assign(localVisual,predicted,{ready:true,index:p.i,lastAt:now,lastError:guestMotion.stats.correction});
+    }else if(local){
       // V16.4.41: pose visual continua para la nave local. Antes la posicion se
       // extrapolaba desde cero en cada snapshot. Si un paquete llegaba unos ms
       // tarde, la nave se reenganchaba a una posicion distinta y el microajuste

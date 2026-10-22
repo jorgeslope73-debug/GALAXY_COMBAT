@@ -365,4 +365,5 @@ assert.equal(inputSends,32,'aceleracion inmediata aunque el envio anterior sea r
 inputRate.fire=true;inputRate.decide();
 assert.equal(inputSends,33,'disparo inmediato aunque el envio anterior sea reciente');
 console.log('Teclado OK: cambios inmediatos sin autorepeticion ni espera de RAF.');
+require('./check-motion-prediction.js');
 
