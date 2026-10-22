@@ -55,6 +55,7 @@ function serverFixture(){
     constructor(){super();this.readyState=1;this.bufferedAmount=0;this.messages=[];}
     send(raw){this.messages.push(JSON.parse(raw));}
     close(){this.readyState=3;this.emit('close');}
+    terminate(){this.close();}
     last(type){return this.messages.filter(m=>m.t===type).at(-1);}
   }
   const timers=new Map();let timerId=0;
@@ -99,7 +100,7 @@ function serverFixture(){
     req.emit('data',Buffer.from(JSON.stringify(body)));req.emit('end');
     await done;return result;
   };
-  return {connect,receive,room,timers,request};
+  return {connect,receive,room,timers,request,rooms:vm.runInContext('rooms',ctx)};
 }
 
 async function onlineRoom(){
@@ -275,9 +276,47 @@ async function checkHostRecovery(){
   assert.equal(room.rankRound,2,'continuar despues de recuperar una victoria');
 }
 
+async function checkSocketLifecycle(){
+  const server=await onlineRoom(),room=server.room(server.code);
+  assert.doesNotThrow(()=>server.host.emit('error',new Error('transport failed')));
+  assert.equal(server.host.readyState,3);
+  const host=room.players.find(p=>p.i===0);
+  assert.equal(host.ws,null);
+  assert.ok(host.disconnectedAt>0);
+  assert.equal(server.guest.readyState,1,'el fallo queda aislado al socket afectado');
+  const replacement=server.connect();
+  await server.receive(replacement,{t:'resume',code:server.code,token:server.token,hostSimulationAlive:true});
+  assert.equal(host.ws,replacement,'se conserva la recuperacion habitual');
+
+  const fresh=serverFixture(),closed=fresh.connect();
+  const creating=fresh.receive(closed,{t:'create',name:'Closing',clientId:'a'.repeat(32)});
+  closed.close();await creating;
+  assert.equal(fresh.rooms.size,0,'no crear salas tras desconectar durante autenticacion');
+
+  const guest=server.connect();
+  const joining=server.receive(guest,{t:'join',code:server.code,name:'ClosingGuest',clientId:'b'.repeat(32)});
+  guest.close();await joining;
+  assert.equal(room.players.length,2,'no incorporar un socket cerrado');
+
+  const deleted=serverFixture(),owner=deleted.connect(),late=deleted.connect();
+  await deleted.receive(owner,{t:'create',name:'Owner',clientId:'c'.repeat(32)});
+  const code=owner.last('created').code;
+  const pending=deleted.receive(late,{t:'join',code,name:'Late',clientId:'d'.repeat(32)});
+  await deleted.receive(owner,{t:'leave'});await pending;
+  assert.equal(deleted.rooms.size,0);
+  assert.equal(late.last('joined'),undefined,'no entrar en una sala eliminada durante autenticacion');
+
+  const simultaneous=serverFixture(),socket=simultaneous.connect();
+  await Promise.all([
+    simultaneous.receive(socket,{t:'create',name:'First',clientId:'e'.repeat(32)}),
+    simultaneous.receive(socket,{t:'create',name:'Second',clientId:'f'.repeat(32)})
+  ]);
+  assert.equal(simultaneous.rooms.size,1,'un socket solo puede crear una sala aunque cambie de identidad');
+}
+
 async function main(){
   let failures=0;
-  for(const [name,check] of [['controles humanos',checkExpiredControls],['series repetidas',checkRepeatedSeries],['reinicios simultaneos',checkConcurrentRestarts],['recuperacion del anfitrion',checkHostRecovery]]){
+  for(const [name,check] of [['ciclo de vida del socket',checkSocketLifecycle],['controles humanos',checkExpiredControls],['series repetidas',checkRepeatedSeries],['reinicios simultaneos',checkConcurrentRestarts],['recuperacion del anfitrion',checkHostRecovery]]){
     try{await check();console.log('OK: '+name);}
     catch(error){failures++;console.error('FALLO: '+name);console.error(error);}
   }
