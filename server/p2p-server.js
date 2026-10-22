@@ -374,8 +374,11 @@ function send(ws,o){
   if(!ws||ws.readyState!==1)return;
   const membership=info.get(ws),room=membership&&rooms.get(membership.code);
   if(room&&o&&o.t!=='public-rooms')o=PROTOCOL.stamp(room,o);
+  try{sendRaw(ws,JSON.stringify(o));}catch(_){try{ws.terminate();}catch(__){}}
+}
+function sendRaw(ws,raw){
+  if(!ws||ws.readyState!==1)return;
   try{
-    const raw=JSON.stringify(o);
     if(Number(ws.bufferedAmount||0)+Buffer.byteLength(raw,'utf8')>WS_MAX_BUFFER_BYTES){
       ws.terminate();return;
     }
@@ -498,7 +501,7 @@ function publicRooms(){
       };
     });
 }
-function publicUpdate(wss){const message={t:'public-rooms',rooms:publicRooms()};for(const ws of wss.clients)send(ws,message);}
+function publicUpdate(wss){const raw=JSON.stringify({t:'public-rooms',rooms:publicRooms()});for(const ws of wss.clients)sendRaw(ws,raw);}
 function scheduleSoloHostClose(r,wss,delay=3000){
   if(!r||!r.started||r.cpuFill||r.players.length!==1||!currentHost(r))return false;
   if(r.soloHostCloseTimer)return true;
