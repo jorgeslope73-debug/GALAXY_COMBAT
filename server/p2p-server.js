@@ -22,6 +22,8 @@ const TEST_ROOM_PERMIT_TTL_MS=8*60*60*1000;
 // V20.85: limites deliberadamente amplios. Protegen el proceso frente a
 // clientes modificados sin acercarse al trafico de una partida normal.
 const WS_MAX_PAYLOAD_BYTES=256*1024;
+const WS_MAX_BUFFER_BYTES=512*1024;
+const WS_HEARTBEAT_MS=15000;
 const WS_RATE_WINDOW_MS=2000;
 const WS_RATE_MAX_MESSAGES=360;
 const SIGNAL_RATE_WINDOW_MS=5000;
@@ -372,7 +374,13 @@ function send(ws,o){
   if(!ws||ws.readyState!==1)return;
   const membership=info.get(ws),room=membership&&rooms.get(membership.code);
   if(room&&o&&o.t!=='public-rooms')o=PROTOCOL.stamp(room,o);
-  try{ws.send(JSON.stringify(o));}catch(_){}
+  try{
+    const raw=JSON.stringify(o);
+    if(Number(ws.bufferedAmount||0)+Buffer.byteLength(raw,'utf8')>WS_MAX_BUFFER_BYTES){
+      ws.terminate();return;
+    }
+    ws.send(raw);
+  }catch(_){try{ws.terminate();}catch(__){}}
 }
 // Los snapshots son reemplazables: no acumular segundos de posiciones viejas
 // para un cliente lento. Los eventos y acciones fiables mantienen su ruta.
@@ -490,7 +498,7 @@ function publicRooms(){
       };
     });
 }
-function publicUpdate(wss){const raw=JSON.stringify({t:'public-rooms',rooms:publicRooms()});for(const ws of wss.clients)if(ws.readyState===1)ws.send(raw);}
+function publicUpdate(wss){const message={t:'public-rooms',rooms:publicRooms()};for(const ws of wss.clients)send(ws,message);}
 function scheduleSoloHostClose(r,wss,delay=3000){
   if(!r||!r.started||r.cpuFill||r.players.length!==1||!currentHost(r))return false;
   if(r.soloHostCloseTimer)return true;
@@ -1185,16 +1193,19 @@ wss.on('connection',(ws,req)=>{
   });
   const detectedIp=requestIp(req);
   connectionMeta.set(ws,{
+    awaitingPong:false,
     ip:detectedIp==='unknown'?('unknown-'+randomBytes(8).toString('hex')):detectedIp,
     connectionId:randomBytes(16).toString('hex')
   });
-  send(ws,{t:'hello',p2p:true,accounts:!!db,protocolVersion:PROTOCOL.VERSION});
+  ws.on('pong',()=>{const meta=connectionMeta.get(ws);if(meta)meta.awaitingPong=false;});
+  send(ws,{t:'hello',p2p:true,accounts:!!db,protocolVersion:PROTOCOL.VERSION,websocketHeartbeat:true});
   send(ws,{t:'public-rooms',rooms:publicRooms()});
 
   ws.on('message',async raw=>{
     if(!allowInboundMessage(ws))return;
     let m;try{m=JSON.parse(String(raw));}catch(_){return;}
     if(!m||typeof m!=='object'||Array.isArray(m))return;
+    if(m.t==='ping'){send(ws,{t:'pong'});return;}
     if(['create','join','resume'].includes(m.t)&&(m.protocolVersion!==PROTOCOL.VERSION||!PROTOCOL.validId(m.inputSessionId))){
       send(ws,{t:'error',message:'ACTUALIZA EL JUEGO PARA ENTRAR EN ESTA SALA.'});return;
     }
@@ -1525,6 +1536,18 @@ wss.on('connection',(ws,req)=>{
   ws.on('close',()=>disconnect(ws,wss));
 });
 
+function checkSocketHealth(){
+  for(const ws of wss.clients){
+    if(ws.readyState!==1)continue;
+    const meta=connectionMeta.get(ws);if(!meta)continue;
+    if(meta.awaitingPong||Number(ws.bufferedAmount||0)>WS_MAX_BUFFER_BYTES){
+      ws.terminate();continue;
+    }
+    meta.awaitingPong=true;
+    try{ws.ping();}catch(_){ws.terminate();}
+  }
+}
+setInterval(checkSocketHealth,WS_HEARTBEAT_MS);
 setInterval(()=>expireDisconnectedPlayers(wss),1000);
 setInterval(()=>{const now=Date.now();let changed=false;for(const [code,r] of rooms){if(now-(r.createdAt||now)>12*60*60*1000){rooms.delete(code);changed=true;}}if(changed)publicUpdate(wss);},30000);
 
@@ -1533,3 +1556,4 @@ server.listen(PORT,'0.0.0.0',async()=>{
   if(db)await ensureDatabase();
   else console.log('[Galaxy Combat P2P] DATABASE_URL no configurada: cuentas desactivadas hasta anadirla en Render.');
 });
+

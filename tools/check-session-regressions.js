@@ -56,6 +56,7 @@ function serverFixture(){
     send(raw){this.messages.push(JSON.parse(raw));}
     close(){this.readyState=3;this.emit('close');}
     terminate(){this.close();}
+    ping(){this.pings=(this.pings||0)+1;}
     last(type){return this.messages.filter(m=>m.t===type).at(-1);}
   }
   const timers=new Map();let timerId=0;
@@ -100,7 +101,7 @@ function serverFixture(){
     req.emit('data',Buffer.from(JSON.stringify(body)));req.emit('end');
     await done;return result;
   };
-  return {connect,receive,room,timers,request,rooms:vm.runInContext('rooms',ctx)};
+  return {connect,receive,room,timers,request,rooms:vm.runInContext('rooms',ctx),checkSocketHealth:ctx.checkSocketHealth};
 }
 
 async function onlineRoom(){
@@ -176,6 +177,7 @@ function clientFixture(){
     currentOnlineSeriesRound:()=>Math.max(1,ctx.onlineSeriesRound||(ctx.hostPhysics&&ctx.hostPhysics.rankRound)||1)
   });
   const helpers=game.indexOf('  function onlineContext(');
+  vm.runInContext(game.slice(game.indexOf('  function retireSocket('),game.indexOf('  function scheduleReconnect(')),ctx);
   vm.runInContext(game.slice(helpers,game.indexOf('  function ensureP2P(',helpers)),ctx);
   const from=game.indexOf('  function restartOnlineRoundAuthoritatively(');
   vm.runInContext(game.slice(from,game.indexOf('  function sendInputAction(',from)),ctx);
@@ -325,3 +327,4 @@ async function main(){
 }
 module.exports={engineContext,serverFixture,onlineRoom,score,clientFixture,resumeClient};
 if(require.main===module)main().catch(error=>{console.error(error);process.exitCode=1;});
+
