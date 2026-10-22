@@ -4732,23 +4732,28 @@
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);
   window.addEventListener('keydown',e=>{
+    const changed=!keys.has(e.code);
     keys.add(e.code);
     if(isMobile&&inGame&&MOBILE_KEYBOARD_CODES.has(e.code)){
       if(!mobileKeyboardActive)setMobileKeyboardActive(true);
     }
     if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();
+    // Enviar el cambio de teclado sin esperar al siguiente RAF. pumpControls
+    // conserva las barreras de foco, cuenta atras, conexion y contrapresion.
+    if(changed&&MOBILE_KEYBOARD_CODES.has(e.code))pumpControls(performance.now());
     if(e.code==='Escape'){
       if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}
       else if(inGame)returnToMainMenu();
     }
   });
   window.addEventListener('keyup',e=>{
-    keys.delete(e.code);
+    const changed=keys.delete(e.code);
     if(isMobile&&mobileKeyboardActive&&MOBILE_KEYBOARD_CODES.has(e.code)){
       let keyboardStillHeld=false;
       for(const code of MOBILE_KEYBOARD_CODES){if(keys.has(code)){keyboardStillHeld=true;break;}}
       if(!keyboardStillHeld)setMobileKeyboardActive(false);
     }
+    if(changed&&MOBILE_KEYBOARD_CODES.has(e.code))pumpControls(performance.now());
   });
   // Si el navegador pierde el foco, puede no llegar el keyup de una tecla que
   // estaba pulsada. Limpiamos el estado para evitar giro/aceleracion/disparo

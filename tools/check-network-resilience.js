@@ -330,3 +330,34 @@ assert.equal(shotStates.length,2,'conservar el snapshot regular del tercer tick'
 assert.equal(shotHost.players[0].bullets,4,'sin duplicar consumo ni saltarse la recarga');
 console.log('Disparo OK: visible en el primer tick, con cadencia y municion conservadas.');
 
+// Ejecutar los listeners reales: pulsacion y liberacion antes de cualquier RAF.
+const keyHandlers={},keyChanges=[];
+const keyboardContext=vm.createContext({
+  window:{addEventListener:(name,fn)=>{keyHandlers[name]=fn;}},
+  keys:new Set(),isMobile:false,inGame:true,performance:{now:()=>1001},
+  MOBILE_KEYBOARD_CODES:new Set(['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp','Space','ControlLeft','ControlRight']),
+  pumpControls(now){keyChanges.push({now,held:[...keyboardContext.keys]});}
+});
+const keyboardStart=game.indexOf("  window.addEventListener('keydown',e=>{");
+vm.runInContext(game.slice(keyboardStart,game.indexOf('  // Si el navegador pierde el foco',keyboardStart)),keyboardContext);
+for(const code of ['KeyA','KeyD','KeyW','Space','ControlLeft','ArrowUp']){
+  const before=keyChanges.length,event={code,preventDefault(){}};
+  keyHandlers.keydown(event);
+  assert.equal(keyChanges.length,before+1,'pulsar envia sin esperar un frame');
+  assert(keyChanges.at(-1).held.includes(code));
+  keyHandlers.keydown({...event,repeat:true});
+  assert.equal(keyChanges.length,before+1,'autorepeticion no genera envios extra');
+  keyHandlers.keyup(event);
+  assert.equal(keyChanges.length,before+2,'soltar tambien envia inmediatamente');
+  assert(!keyChanges.at(-1).held.includes(code));
+  keyHandlers.keyup(event);
+  assert.equal(keyChanges.length,before+2,'liberacion duplicada no genera envios');
+}
+keyHandlers.keydown({code:'KeyZ',preventDefault(){}});
+assert.equal(keyChanges.length,12,'ignorar teclas ajenas al control');
+inputRate.thrust=true;inputRate.changed=true;inputRate.elapsed=1;inputRate.decide();
+assert.equal(inputSends,32,'aceleracion inmediata aunque el envio anterior sea reciente');
+inputRate.fire=true;inputRate.decide();
+assert.equal(inputSends,33,'disparo inmediato aunque el envio anterior sea reciente');
+console.log('Teclado OK: cambios inmediatos sin autorepeticion ni espera de RAF.');
+
