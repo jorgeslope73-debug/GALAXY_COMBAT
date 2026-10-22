@@ -239,7 +239,7 @@ for(let tick=0;tick<12;tick++){
 }
 // El heartbeat no retrasa el ACK pendiente y un envio fallido no lo adelanta.
 let deliver=true;
-const controlSender=vm.createContext({localCpuActive:false,controlSeq:0,lastTurnControlSeq:0,lastSubmittedTurn:NaN,
+const controlSender=vm.createContext({localCpuActive:false,controlSeq:0,lastTurnControlSeq:0,lastSubmittedTurn:NaN,lastMotionControlSeq:0,lastSubmittedThrust:false,
   inGame:true,isHost:false,performance:{now:()=>0},fallbackActive:false,clientNeedsFallback:()=>false,
   p2p:{sendControl:()=>deliver}});
 const controlStart=game.indexOf('  function sendControl(');
@@ -250,6 +250,11 @@ deliver=false;assert.equal(controlSender.sendControl(0,false,false),false);
 assert.equal(controlSender.lastTurnControlSeq,1);assert.equal(controlSender.lastSubmittedTurn,1);
 deliver=true;controlSender.sendControl(0,false,false);assert.equal(controlSender.lastTurnControlSeq,3);
 controlSender.sendControl(0,false,false);assert.equal(controlSender.lastTurnControlSeq,3);
+assert.equal(controlSender.lastMotionControlSeq,3,'heartbeat no aplaza confirmacion del movimiento');
+controlSender.sendControl(0,true,false);assert.equal(controlSender.lastMotionControlSeq,5);
+deliver=false;controlSender.sendControl(0,false,false);
+assert.equal(controlSender.lastMotionControlSeq,5);assert.equal(controlSender.lastSubmittedThrust,true);
+deliver=true;controlSender.sendControl(0,false,false);assert.equal(controlSender.lastMotionControlSeq,6);
 console.log('Red OK: reconexion, fallback, colas, heartbeat y confirmacion del giro local.');
 
 // Un RAF de dibujo registrado antes del RAF de red debe usar el estado nuevo.

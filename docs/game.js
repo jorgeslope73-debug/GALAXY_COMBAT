@@ -315,6 +315,7 @@
   // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
   let pendingStateRaw=null;
   let lastControlSentAt=0,controlSeq=0,lastTurnControlSeq=0,lastSubmittedTurn=NaN;
+  let lastMotionControlSeq=0,lastSubmittedThrust=false;
   let lastSentControlTurn=NaN,lastSentControlThrust=false,lastSentControlFire=false;
   let lastSentJoystickActions='';
   const inputActionSeq={rocket:0,flare:0,shock:0};
@@ -2567,7 +2568,8 @@
     lastRestartedRound=0;
     netStartAt=0;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
     fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
-    controlSeq=0;lastTurnControlSeq=0;lastSubmittedTurn=NaN;pendingInputActions.length=0;
+    controlSeq=0;lastTurnControlSeq=0;lastSubmittedTurn=NaN;
+    lastMotionControlSeq=0;lastSubmittedThrust=false;pendingInputActions.length=0;
     for(const k of ['rocket','flare','shock']){inputActionSeq[k]=0;inputActionHeld[k]=false;}
     if(hostPhysics)hostPhysics.stop();
     hostPhysics=null;
@@ -3091,6 +3093,8 @@
     if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire,actions);return true;}
     const seq=controlSeq+1;
     const accepted=()=>{
+      if(turn!==lastSubmittedTurn||!!thrust!==lastSubmittedThrust)lastMotionControlSeq=seq;
+      lastSubmittedThrust=!!thrust;
       if(turn!==lastSubmittedTurn){lastTurnControlSeq=seq;lastSubmittedTurn=turn;}
       controlSeq=seq;return true;
     };
@@ -5096,8 +5100,21 @@
       // aumentaba con la velocidad. Ahora avanzamos una pose visual continua y
       // reconciliamos suavemente contra la posicion autoritativa del servidor.
       const age=Math.min(.05,Math.max(0,(now-lastStateTime)/1000));
-      const targetX=(p.x+p.vx*age+W)%W;
-      const targetY=(p.y+p.vy*age+H)%H;
+      const guestOnline=!isHost&&!localCpuActive&&roomCode&&roomCode!=='LOCAL';
+      const hasControlAck=Number.isInteger(p.appliedControlSeq)&&p.appliedControlSeq>=0;
+      const pendingMotion=guestOnline&&hasControlAck&&
+        (lastControlTurn!==lastSubmittedTurn||lastControlThrust!==lastSubmittedThrust||p.appliedControlSeq<lastMotionControlSeq);
+      // Tras soltar, un estado anterior al input no debe volver a impulsar la nave.
+      // Acotar la espera si dejan de llegar estados; los saltos grandes siguen mandando.
+      const awaitingRelease=pendingMotion&&!lastControlThrust&&Math.abs(lastControlTurn)<.001&&now-lastStateTime<250;
+      // Extrapolar la inercia con el drag del motor a 60 Hz, no a velocidad constante.
+      const coasting=guestOnline&&!lastControlThrust&&p.thrust===false;
+      const coastDrag=coasting?Math.pow(.35,age):1;
+      const tickDrag=Math.pow(.35,1/60);
+      const travelTime=coasting?(tickDrag*(1-coastDrag)/(1-tickDrag))/60:age;
+      const targetVx=p.vx*coastDrag,targetVy=p.vy*coastDrag;
+      const targetX=(p.x+p.vx*travelTime+W)%W;
+      const targetY=(p.y+p.vy*travelTime+H)%H;
       // En movil extrapolamos solo unas decimas del snapshot recibido. La pose
       // visual continua se encarga del resto y, en online, V19.22 evita corregir
       // contra snapshots atrasados mientras el giro local esta activo.
@@ -5106,7 +5123,7 @@
       if(needsReset){
         localVisual.ready=true;localVisual.index=p.i;
         localVisual.x=targetX;localVisual.y=targetY;localVisual.r=targetR;
-        localVisual.vx=p.vx;localVisual.vy=p.vy;localVisual.lastAt=now;localVisual.lastError=0;
+        localVisual.vx=targetVx;localVisual.vy=targetVy;localVisual.lastAt=now;localVisual.lastError=0;
       }else{
         const dt=Math.min(.05,Math.max(0,(now-localVisual.lastAt)/1000));
         localVisual.lastAt=now;
@@ -5134,10 +5151,12 @@
         // Reconciliacion suave de velocidad y posicion contra el servidor.
         // Las colisiones/respawns siguen mandando porque, si el error es grande,
         // hacemos snap inmediato.
-        const velError=Math.hypot(p.vx-localVisual.vx,p.vy-localVisual.vy);
+        const velError=Math.hypot(targetVx-localVisual.vx,targetVy-localVisual.vy);
         const velocityFollow=1-Math.exp(-(velError>160?26:9)*dt);
-        localVisual.vx+=(p.vx-localVisual.vx)*velocityFollow;
-        localVisual.vy+=(p.vy-localVisual.vy)*velocityFollow;
+        if(!awaitingRelease||velError>160){
+          localVisual.vx+=(targetVx-localVisual.vx)*velocityFollow;
+          localVisual.vy+=(targetVy-localVisual.vy)*velocityFollow;
+        }
 
         const dx=wrappedDelta(localVisual.x,targetX,W);
         const dy=wrappedDelta(localVisual.y,targetY,H);
@@ -5148,8 +5167,8 @@
           // V21.29: en online la posicion dibujada no debe separarse demasiado
           // de la fisica autoritativa, especialmente con cuatro jugadores.
           localVisual.x=targetX;localVisual.y=targetY;
-          localVisual.vx=p.vx;localVisual.vy=p.vy;
-        }else{
+          localVisual.vx=targetVx;localVisual.vy=targetVy;
+        }else if(!awaitingRelease){
           const positionFollow=1-Math.exp(-22*dt);
           localVisual.x=(localVisual.x+dx*positionFollow+W)%W;
           localVisual.y=(localVisual.y+dy*positionFollow+H)%H;
@@ -5167,8 +5186,6 @@
           (Math.abs(lastControlTurn)>0.001||rotationGrace);
         // Un temporizador fijo no demuestra que el host haya aplicado el giro.
         // El invitado espera el ACK del ultimo cambio, no de cada heartbeat.
-        const guestOnline=!isHost&&!localCpuActive&&roomCode&&roomCode!=='LOCAL';
-        const hasControlAck=Number.isInteger(p.appliedControlSeq)&&p.appliedControlSeq>=0;
         const pendingTurn=lastControlTurn!==lastSubmittedTurn||p.appliedControlSeq<lastTurnControlSeq;
         const deferGuestRotation=hasControlAck?(Math.abs(lastControlTurn)>0.001||pendingTurn):deferRotationCorrection;
         if(!(guestOnline?deferGuestRotation:deferRotationCorrection)){
