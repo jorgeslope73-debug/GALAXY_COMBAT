@@ -431,7 +431,8 @@
       physicsTickAvg,physicsTickMax,physicsDrops
     };
   }
-  let connectAttempt=0,wakeStartedAt=0,manualClose=false;
+  let connectAttempt=0,wakeStartedAt=0,manualClose=false,reconnectFailures=0;
+  let inputSuspended=document.hidden;
   const cpuButton=document.getElementById('cpu');
   const audioToggleButton=document.getElementById('enableAudio');
   const joystickToggleButton=document.getElementById('enableJoystick');
@@ -2741,11 +2742,17 @@
     if(!connection.helloReceived||connection.heartbeatEnabled){
       if(age>25000){retireSocket(connection);return;}
     }
-    if(connection.heartbeatEnabled)sendSocketRaw(connection,JSON.stringify({t:'ping'}));
+    if(connection.heartbeatEnabled){
+      connection.pingAt=now;
+      sendSocketRaw(connection,JSON.stringify({t:'ping',at:now}));
+    }
   }
   function scheduleReconnect(delay=2200){
     clearTimeout(reconnectTimer);
-    reconnectTimer=setTimeout(connect,delay);
+    if(manualClose)return;
+    const cap=inGame?4000:15000;
+    const backoff=Math.min(cap,delay*2**Math.min(reconnectFailures++,6));
+    reconnectTimer=setTimeout(connect,Math.round(backoff*(.8+Math.random()*.4)));
   }
   function serverHello(m){
     serverProtocolReady=m.protocolVersion===PROTOCOL.VERSION;
@@ -2756,6 +2763,7 @@
       return;
     }
     statusEl.textContent=tr('serverReady');
+    if(ws)ws.protocolReadyAt=performance.now();
     if(localCpuActive)return;
     const saved=(roomCode&&playerToken)?{code:roomCode,token:playerToken}:loadResumeSession();
     if(saved){
@@ -2795,6 +2803,7 @@
     ws.onclose=()=>{
       clearInterval(healthTimer);
       if(ws!==connection)return;
+      if(Number.isFinite(connection.protocolReadyAt)&&performance.now()-connection.protocolReadyAt>=10000)reconnectFailures=0;
       ws=null;
       pendingStateRaw=null;
       serverProtocolReady=false;
@@ -2858,7 +2867,13 @@
         connection.helloReceived=true;connection.heartbeatEnabled=m.websocketHeartbeat===true;
         serverHello(m);return;
       }
-      if(m&&m.t==='pong')return;
+      if(m&&m.t==='pong'){
+        if(Number.isFinite(m.at)&&m.at===connection.pingAt){
+          connection.rttMs=Math.max(0,performance.now()-m.at);
+          connection.rttAt=performance.now();
+        }
+        return;
+      }
       if(!serverProtocolReady)return;
       if(m&&['p2p-offer','p2p-answer','p2p-ice','p2p-reconnect'].includes(m.t)){
         ensureP2P()?.handleSignal(m);return;
@@ -3109,6 +3124,7 @@
     return true;
   }
   function pumpControls(now){
+    if(inputSuspended||document.hidden)return;
     if(!inGame||onlinePreparing(now))return;
     const left=keys.has('KeyA')||keys.has('ArrowLeft');
     const right=keys.has('KeyD')||keys.has('ArrowRight');
@@ -4727,12 +4743,52 @@
   function clearHeldKeys(){
     keys.clear();
     lastControlTurn=0;
+    lastControlSentAt=0;
+    if(joystickVoiceHeld){
+      joystickVoiceHeld=false;
+      if(voice&&!voice.keyVDown&&!voice.pttTouchActive)voice.setTalking(false);
+    }
     for(const k of ['rocket','flare','shock'])inputActionHeld[k]=false;
     if(isMobile)resetMobileTouchControls();
     if(inGame)sendControl(0,false,false);
   }
-  window.addEventListener('blur',clearHeldKeys);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHeldKeys();});
+  function recoverForeground(){
+    inputSuspended=document.hidden||!document.hasFocus();
+    clearHeldKeys();
+    if(document.hidden||manualClose)return;
+    if(ws&&ws.readyState===WebSocket.OPEN){
+      // Tras una suspension damos margen al transporte para contestar.
+      ws.lastReceiveAt=performance.now();
+      checkClientSocketHealth(ws);
+    }else if(!ws||ws.readyState!==WebSocket.CONNECTING){
+      reconnectFailures=0;clearTimeout(reconnectTimer);connect();
+    }
+  }
+  window.addEventListener('blur',()=>{inputSuspended=true;clearHeldKeys();});
+  window.addEventListener('focus',recoverForeground);
+  window.addEventListener('online',recoverForeground);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){inputSuspended=true;clearHeldKeys();}
+    else recoverForeground();
+  });
+  // Diagnostico voluntario, sin registrar nombres, tokens ni mensajes de juego.
+  if(new URLSearchParams(location.search).get('netdebug')==='1'){
+    const panel=document.createElement('pre');
+    panel.setAttribute('aria-label','Diagnostico de red');
+    panel.style.cssText='position:fixed;left:8px;top:8px;z-index:10000;margin:0;padding:8px;background:#000c;color:#8dffb0;font:12px monospace;pointer-events:none;max-width:calc(100vw - 32px);white-space:pre-wrap';
+    document.body.appendChild(panel);
+    const timer=setInterval(()=>{
+      let peers=0,queued=0;
+      if(p2p)for(const rec of p2p.peers.values()){
+        if(rec.open)peers++;
+        queued+=Number(rec.fastDc?.bufferedAmount||0)+Number(rec.reliableDc?.bufferedAmount||0);
+      }
+      const fresh=ws&&Number.isFinite(ws.rttMs)&&performance.now()-ws.rttAt<15000;
+      const mode=localCpuActive?'LOCAL':fallbackActive||fallbackPeers.size?'RESPALDO WS':peers?'P2P':'SIN ENLACE P2P';
+      panel.textContent=`RED ${mode} | ${isHost?'ANFITRION':'INVITADO'}\nWS ${serverProtocolReady?'listo':'reconectando'} | RTT servidor ${fresh?Math.round(ws.rttMs)+' ms':'n/d'}\nP2P ${peers} peers | colas WS ${Math.round((ws?.bufferedAmount||0)/1024)} KiB / P2P ${Math.round(queued/1024)} KiB\nAcciones pendientes ${pendingInputActions.length} | reintentos consecutivos ${reconnectFailures}`;
+    },1000);
+    window.addEventListener('beforeunload',()=>clearInterval(timer));
+  }
   window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);clearInterval(cpuLearningStatusTimer);stopLocalCpu();stopP2P();if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
 
   function imageReady(im){
