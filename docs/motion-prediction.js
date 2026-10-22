@@ -43,7 +43,9 @@
         this.pose=this.fromPlayer(p);this.lastAt=now;this.lastSnapshot=p;
         this.input={...input};this.firePulse=!!input.fire;return;
       }
-      const elapsed=Math.max(0,now-this.lastAt);this.lastAt=now;
+      // Input events use performance.now(); an already scheduled RAF may carry
+      // an older timestamp. Never move the prediction clock backwards.
+      const elapsed=Math.max(0,now-this.lastAt);this.lastAt=Math.max(this.lastAt,now);
       const decay=Math.exp(-12*elapsed/1000);
       this.offset.x*=decay;this.offset.y*=decay;this.offset.r*=decay;
       this.accumulator+=Math.min(100,elapsed);
