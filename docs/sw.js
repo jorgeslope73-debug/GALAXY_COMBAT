@@ -23,6 +23,7 @@ const SHELL_FILES = [
   './voz.js',
   './net-protocol.js',
   './physics-core.js',
+  './motion-prediction.js',
   './local-cpu.js',
   './host-physics.js',
   './p2p-network.js',
@@ -135,3 +136,4 @@ self.addEventListener('fetch', event => {
     event.respondWith(cacheFirst(request));
   }
 });
+

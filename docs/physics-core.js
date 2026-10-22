@@ -2,6 +2,51 @@
 (() => {
   const TARGET_MIN_ALIGN=.8660254038; // cos(30 grados)
 
+  // Un unico integrador para autoridad y prediccion. Un comando = un tick.
+  const MOVEMENT_DT=1/60;
+  const MOVEMENT_DRAG=Math.pow(.35,MOVEMENT_DT);
+  function stepShipMovement(p,c,dt=MOVEMENT_DT,width=1920,height=1080){
+    p.rot=(p.rot+c.turn*240*dt+360)%360;
+    const radians=p.rot*Math.PI/180,dx=-Math.sin(radians),dy=-Math.cos(radians);
+    if(c.thrust){p.vx+=dx*(240*p.speed)*dt;p.vy+=dy*(240*p.speed)*dt;}
+    const drag=dt===MOVEMENT_DT?MOVEMENT_DRAG:Math.pow(.35,dt);
+    p.vx*=drag;p.vy*=drag;
+    const vmax=330*p.speed,speed=Math.hypot(p.vx,p.vy);
+    if(speed>vmax){p.vx=p.vx/speed*vmax;p.vy=p.vy/speed*vmax;}
+    p.x=(p.x+p.vx*dt+width)%width;p.y=(p.y+p.vy*dt+height)%height;
+  }
+  function createMotionStream(epoch){
+    return {epoch,ack:0,active:false,requested:false,queue:new Map(),missing:0,last:{turn:0,thrust:false,fire:false,directFire:false}};
+  }
+  function acceptMotionFrames(stream,packet){
+    if(!packet||packet.v!==1||packet.epoch!==stream.epoch||!Array.isArray(packet.frames)||packet.frames.length>60)return false;
+    // Validate the complete batch before changing any state. No client positions or dt.
+    let previous=0;
+    for(const f of packet.frames){
+      if(!Array.isArray(f)||f.length!==5||!Number.isSafeInteger(f[0])||f[0]<=previous||f[0]>stream.ack+120||
+        !Number.isFinite(f[1])||Math.abs(f[1])>1||![0,1].includes(f[2])||![0,1].includes(f[3])||![0,1].includes(f[4]))return false;
+      previous=f[0];
+    }
+    stream.requested=true;
+    if(!stream.active&&packet.frames.length){
+      stream.ack=packet.frames[0][0]-1;stream.active=true;
+    }
+    for(const f of packet.frames)if(f[0]>stream.ack&&!stream.queue.has(f[0])){
+      stream.queue.set(f[0],{turn:f[1],thrust:!!f[2],fire:!!f[3],directFire:!!f[4]});
+    }
+    return true;
+  }
+  function consumeMotionFrame(stream){
+    if(!stream||!stream.active)return null;
+    const tick=++stream.ack,frame=stream.queue.get(tick);
+    stream.queue.delete(tick);
+    if(frame){stream.last=frame;stream.missing=0;}
+    else stream.missing++;
+    // Deadline passed: a late frame is retired, never applied a second time.
+    // A short gap holds the last input; a long gap releases controls.
+    return stream.missing<=6?stream.last:{turn:0,thrust:false,fire:false,directFire:false};
+  }
+
   function limitRockSpeed(rock,maxSpeed){
     const speed=Math.hypot(Number(rock.vx)||0,Number(rock.vy)||0);
     if(speed>maxSpeed&&speed>0){
@@ -470,6 +515,7 @@
   }
 
   window.GalaxyPhysicsCore=Object.freeze({
+    MOVEMENT_DT,stepShipMovement,createMotionStream,acceptMotionFrames,consumeMotionFrame,
     cpuSpawnEscapeControl,
     TARGET_MIN_ALIGN,
     resolveAsteroidPairCollision,
@@ -492,3 +538,4 @@
     asteroidMissileFracture
   });
 })();
+

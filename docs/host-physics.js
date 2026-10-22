@@ -474,6 +474,17 @@
       }
       c.turn=clamp(Number(turn)||0,-1,1);c.thrust=!!thrust;c.fire=!!fire;c.directFire=actions.directFire===true;
       c.rocket=actions.rocket===true;c.flare=actions.flare===true;c.shock=actions.shock===true;
+      if(actions.motion){
+        if(p.motionStream&&PHYSICS_CORE.acceptMotionFrames(p.motionStream,actions.motion)){
+          const frames=actions.motion.frames;
+          if(frames.length&&frames[frames.length-1][0]-p.motionStream.ack>30){
+            p.motionStream=PHYSICS_CORE.createMotionStream(++this.motionEpoch);
+          }
+        }
+      }else if(p.motionStream&&p.motionStream.requested){
+        // Compatibility/fallback/focus release switches back to the existing input path.
+        p.motionStream=PHYSICS_CORE.createMotionStream(++this.motionEpoch);
+      }
       p.lastControlAt=Date.now();
       return true;
     }
@@ -576,6 +587,7 @@
         const inputChanged=!isCpu&&p.inputSessionId!==String(item.inputSessionId||'');
         if(wasCpu!==isCpu||p.name!==nextName||inputChanged){
           p.inputSessionId=String(item.inputSessionId||'');
+          p.motionStream=PHYSICS_CORE.createMotionStream(++this.motionEpoch);
           p.cpu=isCpu;p.name=nextName;p.difficulty=isCpu?'dificil':this.difficulty;p.aiControl=null;if(isCpu)this.resetCpuLoopMemory(p);
           p.lastControlAt=Date.now();this.controls.set(index,{turn:0,thrust:false,fire:false,controlSeq:0,rocketPulse:false,flarePulse:false,shockPulse:false});
           changed=true;
@@ -926,6 +938,8 @@
       }
     }
     placeAtSpawn(p){
+      this.motionEpoch=(this.motionEpoch||0)+1;
+      p.motionStream=PHYSICS_CORE.createMotionStream(this.motionEpoch);
       const area=spawnArea(Math.floor(Math.random()*4));
       const obstacles=this.asteroids.map(a=>({x:a.x,y:a.y,r:a.r}));
       for(const m of this.meteors)obstacles.push({x:m.x,y:m.y,r:SMALL_METEOR_RADIUS});
@@ -1636,16 +1650,17 @@
           if(!p.aiControl||(this.tickCount&1)===0)p.aiControl=this.chooseCpuControls(p);
           c=p.aiControl||IDLE_CONTROL;
         }else c=(controlNow-(p.lastControlAt||0)<=300)?stored:IDLE_CONTROL;
+        if(!p.cpu&&p.motionStream&&p.motionStream.active){
+          const movement=PHYSICS_CORE.consumeMotionFrame(p.motionStream);
+          c={...c,...movement};
+        }else if(!p.cpu&&p.motionStream&&p.motionStream.requested){
+          c={...c,turn:0,thrust:false,fire:false};
+        }
         p.thrust=!!c.thrust;
         // Confirmar solo controles que participan en un tick de movimiento.
         p.appliedControlSeq=Number(c.controlSeq)||0;
-        p.rot=(p.rot+c.turn*240*dt+360)%360;
+        PHYSICS_CORE.stepShipMovement(p,c,dt,W,H);
         const d=dirFromRot(p.rot);
-        if(c.thrust){p.vx+=d.x*(240*p.speed)*dt;p.vy+=d.y*(240*p.speed)*dt;}
-        p.vx*=DRAG_PER_TICK;p.vy*=DRAG_PER_TICK;
-        const vmax=330*p.speed,sp=Math.hypot(p.vx,p.vy);
-        if(sp>vmax){p.vx=p.vx/sp*vmax;p.vy=p.vy/sp*vmax;}
-        p.x=(p.x+p.vx*dt+W)%W;p.y=(p.y+p.vy*dt+H)%H;
         PHYSICS_CORE.refreshGuidedState(p,this.players,dirFromRot);
         const rocketHeld=!!(c&&c.rocket);
         const rocketNow=!p.cpu&&(!!(c&&c.rocketPulse)||(rocketHeld&&!p.joystickRocketHeld));
@@ -2354,7 +2369,7 @@
         ...PROTOCOL.context(this),t:'state',seq:++this.seq,round:this.rankRound,code:this.code,mode:'p2p',testProfile:this.testProfile,started:this.started,finished:this.finished,winner:this.winner,
         w:W,h:H,scoreToWin:SCORE_TO_WIN,fxVersion:1,simTime:round3(this.fxClock),
         fx:this.fxEvents.map(e=>({id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,age:Math.max(0,Math.round((this.fxClock-e.at)*1000))})),
-        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,appliedControlSeq:Number(p.appliedControlSeq)||0,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),shock:!!p.shockwave,dead:p.dead,respawn:round3(p.respawn)})),
+        players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,motion:!p.cpu&&p.motionStream?{v:1,epoch:p.motionStream.epoch,ack:p.motionStream.ack,active:p.motionStream.active,x:p.x,y:p.y,rot:p.rot,vx:p.vx,vy:p.vy}:undefined,appliedControlSeq:Number(p.appliedControlSeq)||0,x:round1(p.x),y:round1(p.y),r:round1(p.rot),vx:round1(p.vx),vy:round1(p.vy),thrust:!!p.thrust,ammo:p.bullets,armed:!p.dead&&(Number(p.spawnFx)||0)<=0&&p.bullets>0&&p.reload<=0,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:round2(p.shield),camo:round2(p.camo),prot:round2(p.protection),spawnFx:round2(Math.max(0,Number(p.spawnFx)||0)),mira:!!p.guided,ma:Math.max(0,Math.round(Number(p.guidedAmmo)||0)),mt:Number.isInteger(p.guidedTarget)?p.guidedTarget:-1,flare:Math.max(0,Math.round(Number(p.flare)||0)),shock:!!p.shockwave,dead:p.dead,respawn:round3(p.respawn)})),
         asteroids:this.asteroids.map(a=>({id:a.id,x:round1(a.x),y:round1(a.y),type:a.type,r:round1(Number(a.r)||ASTEROID_RADIUS),fragment:!!a.fragment})),
         bullets:this.bullets.map(b=>({id:b.id,o:b.owner,owner:b.owner,x:round1(b.x),y:round1(b.y),vx:round1(b.vx),vy:round1(b.vy),g:!!b.guided,guided:!!b.guided,gt:(!b.decoyed&&Number.isInteger(b.target))?b.target:-1,target:(!b.decoyed&&Number.isInteger(b.target))?b.target:-1,wt:(!b.decoyed&&b.guided&&Number.isInteger(b.target))?b.target:-1})),
         flares:this.flares.map(f=>({id:f.id,o:f.owner,x:round1(f.x),y:round1(f.y),a:round1(f.angle),life:round2(Math.max(0,f.life))})),

@@ -2406,13 +2406,8 @@
         }else c=(controlNow-(p.lastControlAt||0)<=300)?stored:IDLE_CONTROL;
         if(!p.cpu)this.observeHumanLearning(p,c);
         p.thrust=!!c.thrust;
-        p.rot=(p.rot+c.turn*240*dt+360)%360;
+        PHYSICS_CORE.stepShipMovement(p,c,dt,W,H);
         const d=dirFromRot(p.rot);
-        if(c.thrust){p.vx+=d.x*(240*p.speed)*dt;p.vy+=d.y*(240*p.speed)*dt;}
-        p.vx*=DRAG_PER_TICK;p.vy*=DRAG_PER_TICK;
-        const vmax=330*p.speed,sp=Math.hypot(p.vx,p.vy);
-        if(sp>vmax){p.vx=p.vx/sp*vmax;p.vy=p.vy/sp*vmax;}
-        p.x=(p.x+p.vx*dt+W)%W;p.y=(p.y+p.vy*dt+H)%H;
         PHYSICS_CORE.refreshGuidedState(p,this.players,dirFromRot);
 
         // Comprobacion final de disparo DESPUES de aplicar el giro de este frame.
@@ -3351,3 +3346,4 @@
   }
   window.GalaxyLocalCpu=GalaxyLocalCpu;
 })();
+
