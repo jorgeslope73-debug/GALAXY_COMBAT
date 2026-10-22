@@ -327,6 +327,8 @@
   let lastStateProcessedAt=0;
   const CONTROL_SEND_MS=1000/30;
   const CONTROL_HEARTBEAT_MS=100;
+  const netDebug=new URLSearchParams(location.search).get('netdebug')==='1';
+  const netMetrics={frames:0,states:0,maxGap:0,lastState:0,lastReport:performance.now()};
   // V20.16: procesamos como maximo los 20 snapshots/s publicados por la
   // simulacion. Se conserva solo el mas reciente al comienzo del RAF.
   const STATE_PROCESS_MS=isMobile?NET_FRAME_MS:0;
@@ -2593,7 +2595,7 @@
     if(!fallbackPeers.size||!ws||ws.readyState!==WebSocket.OPEN)return false;
     if(Number(ws.bufferedAmount||0)>128*1024)return false;
     const now=performance.now();
-    if(now-lastFallbackStateSentAt<FALLBACK_STATE_MS)return false;
+    if(now-lastFallbackStateSentAt<FALLBACK_STATE_MS-1)return false;
     lastFallbackStateSentAt=now;
     return sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-state',to:[...fallbackPeers],state:m})));
   }
@@ -3097,7 +3099,7 @@
       if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
         requestFallback(now);
         if(ws&&ws.readyState===WebSocket.OPEN){
-          if(Number(ws.bufferedAmount||0)>32*1024)return false;
+          if(Number(ws.bufferedAmount||0)>4*1024)return false;
           try{
             if(!sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-ctrl',controlSeq:seq,turn,thrust:!!thrust,fire:!!fire,...actions,inputSessionId}))))return false;
             return accepted();
@@ -3109,7 +3111,7 @@
       return false;
     }
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
-    if(Number(ws.bufferedAmount||0)>32*1024)return false;
+    if(Number(ws.bufferedAmount||0)>4*1024)return false;
     try{
       if(!sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'ctrl',controlSeq:seq,turn,thrust,fire,...actions,inputSessionId}))))return false;
       return accepted();
@@ -3181,7 +3183,10 @@
     lastControlThrust=thrust;
     const changed=!Number.isFinite(lastSentControlTurn)||turn!==lastSentControlTurn||thrust!==lastSentControlThrust||fire!==lastSentControlFire||joystickActions!==lastSentJoystickActions;
     const elapsed=lastControlSentAt?now-lastControlSentAt:Infinity;
-    if((changed&&elapsed>=CONTROL_SEND_MS-1)||elapsed>=CONTROL_HEARTBEAT_MS){
+    const edge=Math.sign(turn)!==Math.sign(lastSentControlTurn)||thrust!==lastSentControlThrust||fire!==lastSentControlFire;
+    const active=turn!==0||thrust||fire||now-lastControlTurnChangedAt<300;
+    const heartbeat=active?CONTROL_SEND_MS-1:CONTROL_HEARTBEAT_MS;
+    if((changed&&(edge||elapsed>=CONTROL_SEND_MS-1))||elapsed>=heartbeat){
       if(sendControl(turn,thrust,fire,actions)){
         lastControlSentAt=now;
         lastSentControlTurn=turn;lastSentControlThrust=thrust;lastSentControlFire=fire;lastSentJoystickActions=joystickActions;
@@ -3829,6 +3834,10 @@
       previousStateTime=lastStateTime;
       rebuildPreviousLookup(previousState);
       state=m;lastStateTime=now;
+      if(netDebug){
+        if(netMetrics.lastState)netMetrics.maxGap=Math.max(netMetrics.maxGap,now-netMetrics.lastState);
+        netMetrics.lastState=now;netMetrics.states++;
+      }
       if(!previousState){previousState=m;previousStateTime=now-NET_FRAME_MS;rebuildPreviousLookup(m);}
       syncVoicePlayers(m.players);
       maybeScheduleVictory();
@@ -4776,7 +4785,7 @@
     else recoverForeground();
   });
   // Diagnostico voluntario, sin registrar nombres, tokens ni mensajes de juego.
-  if(new URLSearchParams(location.search).get('netdebug')==='1'){
+  if(netDebug){
     const panel=document.createElement('pre');
     panel.setAttribute('aria-label','Diagnostico de red');
     panel.style.cssText='position:fixed;left:8px;top:8px;z-index:10000;margin:0;padding:8px;background:#000c;color:#8dffb0;font:12px monospace;pointer-events:none;max-width:calc(100vw - 32px);white-space:pre-wrap';
@@ -4789,7 +4798,10 @@
       }
       const fresh=ws&&Number.isFinite(ws.rttMs)&&performance.now()-ws.rttAt<15000;
       const mode=localCpuActive?'LOCAL':fallbackActive||fallbackPeers.size?'RESPALDO WS':peers?'P2P':'SIN ENLACE P2P';
+      const seconds=Math.max(.001,(performance.now()-netMetrics.lastReport)/1000);
       panel.textContent=`RED ${mode} | ${isHost?'ANFITRION':'INVITADO'}\nWS ${serverProtocolReady?'listo':'reconectando'} | RTT servidor ${fresh?Math.round(ws.rttMs)+' ms':'n/d'}\nP2P ${peers} peers | colas WS ${Math.round((ws?.bufferedAmount||0)/1024)} KiB / P2P ${Math.round(queued/1024)} KiB\nAcciones pendientes ${pendingInputActions.length} | reintentos consecutivos ${reconnectFailures}`;
+      panel.textContent+=`\nFPS ${(netMetrics.frames/seconds).toFixed(0)} | estados/s ${(netMetrics.states/seconds).toFixed(1)} | pausa estados ${Math.round(netMetrics.maxGap)} ms`;
+      netMetrics.frames=0;netMetrics.states=0;netMetrics.maxGap=0;netMetrics.lastReport=performance.now();
     },1000);
     window.addEventListener('beforeunload',()=>clearInterval(timer));
   }
@@ -6353,6 +6365,9 @@
     if(!gameAssetsReady)return;
     const now=Number.isFinite(rafNow)?rafNow:performance.now();
     sampleDisplayRefresh(now);
+    // Consumir el ultimo estado P2P ANTES de dibujar este fotograma.
+    // El RAF propio del transporte sigue como respaldo fuera del juego.
+    if(p2p)p2p.flushPendingState();
     flushPendingState(false,now);
     if(isHost&&pendingCriticalServerOps.length)flushCriticalServerOps();
     if(joystickEnabled&&joystickToggleButton&&!inGame){
@@ -6381,6 +6396,7 @@
     renderCadenceTick++;
     if(renderDivisor>1&&(renderCadenceTick%renderDivisor)!==0)return;
     lastPaintAt=now;
+    if(netDebug)netMetrics.frames++;
     if(perfStats){
       if(perfStats.lastPaint){
         const dt=now-perfStats.lastPaint;perfStats.lastFrame=dt;perfStats.frames++;
