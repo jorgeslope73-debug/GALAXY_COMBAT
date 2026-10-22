@@ -313,7 +313,6 @@ if(!host.includes("asteroidMaxActive(){return ASTEROID_MAX_ACTIVE;}"))fail(error
 if(!local.includes("return this.trainingTestProfile==='hard'"))fail(errors,'V22.37: HARD local sigue limitado a cpu-training');
 for(const [label,src] of [['host',host],['local',local]]){
   if(!src.includes('PHYSICS_CORE.bounceBodyFromFlare(a,f,radius,FLARE_RADIUS,190,105)'))fail(errors,'V22.34 '+label+': bengala no hace rebotar asteroide mediano');
-  if(!src.includes('PHYSICS_CORE.bounceBodyFromFlare(g,flare,GIANT_RADIUS,FLARE_RADIUS,90,68)'))fail(errors,'V22.34 '+label+': bengala no hace rebotar meteorito gigante');
   if(!src.includes("this.emitRocketDisintegrateAt(Number(flare&&flare.x)||flareHit.impactX"))fail(errors,'V22.34 '+label+': bala normal no deshace visualmente la bengala');
 }
 if(!host.includes("const inputChanged=!isCpu&&p.inputSessionId!==String(item.inputSessionId||'')"))fail(errors,'control seq: solo una nueva sesion de entrada debe reiniciar los contadores');
@@ -328,7 +327,36 @@ if(!server.includes('targetRound===current&&fromRound===current-1'))fail(errors,
 if(!server.includes('round<=Number(r.seriesLastScoredRound)'))fail(errors,'round reconcile: resultado de ronda puede duplicarse');
 if(!host.includes('restart(targetRound=null)'))fail(errors,'round reconcile: fisica no acepta ronda exacta');
 
-if(!build.includes("const VERSION='V22.41'"))fail(errors,'V22.41: testigo de version no actualizado');
+// Ejecutar ambos motores: una bengala impacta y se consume sin desviar el gigante.
+const {engineContext}=require('./check-session-regressions.js');
+const engines=engineContext();
+for(const name of ['GalaxyHostPhysics','GalaxyLocalCpu']){
+  const engine=new engines.window[name]({onState:()=>{},onEvent:()=>{}});
+  const giant={x:800,y:500,px:800,py:500,vx:45,vy:12,entered:true};
+  engine.giant=giant;engine.players=[];engine.asteroids=[];engine.pickups=[];
+  const distant={x:1500,y:900,px:1500,py:900,owner:0};
+  engine.flares=[{x:800,y:500,px:800,py:500,owner:0},distant];
+  const impacts=[];engine.emitExplosionAt=(...args)=>impacts.push(args);
+  engine.updateGiant(1/60);
+  if(engine.giant!==giant||giant.vx!==45||giant.vy!==12||giant.x!==800+45/60||giant.y!==500+12/60)
+    fail(errors,name+': una bengala altera el movimiento del gigante');
+  if(engine.flares.length!==1||engine.flares[0]!==distant||impacts.length!==1)
+    fail(errors,name+': el gigante debe consumir solo la bengala que colisiona y emitir su impacto');
+}
+
+// El testigo y las URLs deben seguir la fuente runtime, sin fijar una version antigua.
+const vm=require('node:vm');
+const badge={textContent:''};
+const buildContext={document:{readyState:'complete',getElementById:id=>id==='buildVersion'?badge:null}};
+vm.runInNewContext(build,buildContext);
+const version=buildContext.GALAXY_BUILD.version;
+if(!/^V\d+\.\d+$/.test(version)||badge.textContent!==version)
+  fail(errors,'version: testigo visible no coincide con la version runtime');
+const assetVersions=[...index.matchAll(/[?&]v=(V\d+\.\d+)/g)].map(m=>m[1]);
+if(!assetVersions.length||assetVersions.some(v=>v!==version))
+  fail(errors,'version: recursos de index.html no coinciden con el testigo');
+if(buildContext.GALAXY_BUILD.versioned('game.js')!=='game.js?v='+version)
+  fail(errors,'version: URL runtime no coincide con el testigo');
 if(host.includes('cpu.bullets+=4')||local.includes('cpu.bullets+=4'))fail(errors,'V22.31: A POR EL vuelve a regalar balas a las CPU');
 if(!host.includes("cpuAmmo:false,cpuAmmoBonus:0")||!local.includes("cpuAmmo:false,cpuAmmoBonus:0"))fail(errors,'V22.31: A POR EL debe anunciarse sin bonus de municion');
 
