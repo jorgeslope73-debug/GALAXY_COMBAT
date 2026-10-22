@@ -606,6 +606,7 @@
       if(!Number.isFinite(elapsed)||elapsed<0)elapsed=STEP_MS;
       this.accumulator+=Math.min(100,elapsed);
       let steps=0,publishState=false;
+      this.humanShotPending=false;
       while(this.accumulator>=STEP_MS&&steps<5){
         const perfStart=this.perfDebug?performance.now():0;
         this.update(DT);
@@ -630,7 +631,9 @@
       // en esta llamada. Construir un snapshot por cada tick recuperado creaba
       // arrays/objetos temporales justo cuando el frame ya iba retrasado.
       // Publicamos solo el estado final mas reciente.
-      if(publishState)this.onState(this.publicState());
+      // Publicar el disparo humano en este frame, sin esperar al tick de 20 Hz.
+      // Incluso recuperando varios ticks solo se construye un estado final.
+      if(publishState||this.humanShotPending)this.onState(this.publicState());
     }
     restart(targetRound=null){
       if(!this.finished||this.players.length<2)return false;
@@ -1655,6 +1658,7 @@
         );
         if(projectile){
           this.bullets.push(projectile);
+          if(!p.cpu)this.humanShotPending=true;
           this.emit({t:'sound',kind:'laser'});
         }
         // Consumir las acciones del jugador, nunca escribir sobre IDLE_CONTROL.
