@@ -314,7 +314,7 @@
   // V16.4.36: sincronizamos estados/controles y reducimos GC en movil para evitar picos de trabajo
   // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
   let pendingStateRaw=null;
-  let lastControlSentAt=0,controlSeq=0;
+  let lastControlSentAt=0,controlSeq=0,lastTurnControlSeq=0,lastSubmittedTurn=NaN;
   let lastSentControlTurn=NaN,lastSentControlThrust=false,lastSentControlFire=false;
   let lastSentJoystickActions='';
   const inputActionSeq={rocket:0,flare:0,shock:0};
@@ -2565,7 +2565,7 @@
     lastRestartedRound=0;
     netStartAt=0;lastP2PStateAt=0;lastFallbackRequestAt=0;lastFallbackStateSentAt=0;
     fallbackActive=false;p2pStableCount=0;fallbackPeers.clear();fallbackReconnectAt.clear();
-    controlSeq=0;pendingInputActions.length=0;
+    controlSeq=0;lastTurnControlSeq=0;lastSubmittedTurn=NaN;pendingInputActions.length=0;
     for(const k of ['rocket','flare','shock']){inputActionSeq[k]=0;inputActionHeld[k]=false;}
     if(hostPhysics)hostPhysics.stop();
     hostPhysics=null;
@@ -3088,6 +3088,10 @@
   function sendControl(turn,thrust,fire,actions={}){
     if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire,actions);return true;}
     const seq=controlSeq+1;
+    const accepted=()=>{
+      if(turn!==lastSubmittedTurn){lastTurnControlSeq=seq;lastSubmittedTurn=turn;}
+      controlSeq=seq;return true;
+    };
     if(inGame&&p2p){
       const now=performance.now();
       if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
@@ -3096,19 +3100,19 @@
           if(Number(ws.bufferedAmount||0)>32*1024)return false;
           try{
             if(!sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-ctrl',controlSeq:seq,turn,thrust:!!thrust,fire:!!fire,...actions,inputSessionId}))))return false;
-            controlSeq=seq;return true;
+            return accepted();
           }catch(_){return false;}
         }
         return false;
       }
-      if(p2p.sendControl(turn,thrust,fire,actions,seq)){controlSeq=seq;return true;}
+      if(p2p.sendControl(turn,thrust,fire,actions,seq))return accepted();
       return false;
     }
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     if(Number(ws.bufferedAmount||0)>32*1024)return false;
     try{
       if(!sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'ctrl',controlSeq:seq,turn,thrust,fire,...actions,inputSessionId}))))return false;
-      controlSeq=seq;return true;
+      return accepted();
     }catch(_){return false;}
   }
   function flushPendingState(force=false,stamp=performance.now()){
@@ -3170,9 +3174,9 @@
     // movimiento/disparo continuo para evitar duplicados por paquetes reordenados.
     const actions={directFire:!!(pad.active&&pad.fire&&!legacyFire)};
     const joystickActions=JSON.stringify(actions);
-    if(Math.abs(rawTurn-lastControlTurn)>0.001){
+    if(turn!==lastControlTurn){
       lastControlTurnChangedAt=now;
-      lastControlTurn=rawTurn;
+      lastControlTurn=turn;
     }
     lastControlThrust=thrust;
     const changed=!Number.isFinite(lastSentControlTurn)||turn!==lastSentControlTurn||thrust!==lastSentControlThrust||fire!==lastSentControlFire||joystickActions!==lastSentJoystickActions;
@@ -5144,7 +5148,13 @@
         const rotationGrace=(now-lastControlTurnChangedAt)<rotationGraceMs;
         const deferRotationCorrection=(!isMobile||mobileOnline)&&
           (Math.abs(lastControlTurn)>0.001||rotationGrace);
-        if(!deferRotationCorrection){
+        // Un temporizador fijo no demuestra que el host haya aplicado el giro.
+        // El invitado espera el ACK del ultimo cambio, no de cada heartbeat.
+        const guestOnline=!isHost&&!localCpuActive&&roomCode&&roomCode!=='LOCAL';
+        const hasControlAck=Number.isInteger(p.appliedControlSeq)&&p.appliedControlSeq>=0;
+        const pendingTurn=lastControlTurn!==lastSubmittedTurn||p.appliedControlSeq<lastTurnControlSeq;
+        const deferGuestRotation=hasControlAck?(Math.abs(lastControlTurn)>0.001||pendingTurn):deferRotationCorrection;
+        if(!(guestOnline?deferGuestRotation:deferRotationCorrection)){
           // Una vez que el estado autoritativo ha tenido tiempo de alcanzar al
           // input local, corregimos con suavidad. En movil online usamos la misma
           // respuesta tranquila que en PC en lugar de la correccion agresiva.

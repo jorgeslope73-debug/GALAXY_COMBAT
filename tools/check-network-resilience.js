@@ -210,5 +210,45 @@ vm.runInContext(game.slice(clearStart,game.indexOf('  function recoverForeground
 released.clearHeldKeys();
 assert.equal(released.keys.size,0);assert.equal(released.lastControlSentAt,0);
 assert.equal(released.joystickVoiceHeld,false);assert.equal(micOff,1);assert.equal(neutral,1);
-console.log('Red OK: orden, reconexion progresiva, fallback, congestion, heartbeat y segundo plano.');
+require('./diagnose-local-prediction.cjs');
+// El ACK se publica despues del tick, no al recibir la orden.
+const {engineContext}=require('./check-session-regressions.js');
+const movementClock={now:1000000},movementContext=engineContext(movementClock);
+const movementHost=new movementContext.window.GalaxyHostPhysics({});
+movementHost.start([{i:0,n:'Host'},{i:1,n:'Guest'}]);
+const guest=movementHost.players.find(p=>p.index===1);
+guest.spawnFx=0;guest.protection=10;
+movementHost.setControl(1,1,true,false,{controlSeq:1});
+assert.equal(movementHost.publicState().players.find(p=>p.i===1).appliedControlSeq,0);
+movementHost.update(1/60);
+assert.equal(movementHost.publicState().players.find(p=>p.i===1).appliedControlSeq,1);
+movementHost.setControl(1,0,false,false,{controlSeq:2});
+assert.equal(movementHost.publicState().players.find(p=>p.i===1).appliedControlSeq,1);
+movementHost.update(1/60);
+assert.equal(movementHost.publicState().players.find(p=>p.i===1).appliedControlSeq,2);
+// Host e invitado usan exactamente la misma aceleracion, giro y rozamiento.
+const hostPilot=movementHost.players.find(p=>p.index===0);
+Object.assign(hostPilot,{spawnFx:0,protection:10,x:300,y:300,rot:0,vx:0,vy:0});
+Object.assign(guest,{x:1300,y:700,rot:0,vx:0,vy:0});
+for(let tick=0;tick<12;tick++){
+  const turn=tick<6?1:-1;
+  movementHost.setControl(0,turn,true,false,{controlSeq:tick+3});
+  movementHost.setControl(1,turn,true,false,{controlSeq:tick+3});
+  movementHost.update(1/60);
+  assert.equal(guest.rot,hostPilot.rot);assert.equal(guest.vx,hostPilot.vx);assert.equal(guest.vy,hostPilot.vy);
+}
+// El heartbeat no retrasa el ACK pendiente y un envio fallido no lo adelanta.
+let deliver=true;
+const controlSender=vm.createContext({localCpuActive:false,controlSeq:0,lastTurnControlSeq:0,lastSubmittedTurn:NaN,
+  inGame:true,isHost:false,performance:{now:()=>0},fallbackActive:false,clientNeedsFallback:()=>false,
+  p2p:{sendControl:()=>deliver}});
+const controlStart=game.indexOf('  function sendControl(');
+vm.runInContext(game.slice(controlStart,game.indexOf('  function flushPendingState(',controlStart)),controlSender);
+controlSender.sendControl(1,true,false);assert.equal(controlSender.lastTurnControlSeq,1);
+controlSender.sendControl(1,true,false);assert.equal(controlSender.lastTurnControlSeq,1);
+deliver=false;assert.equal(controlSender.sendControl(0,false,false),false);
+assert.equal(controlSender.lastTurnControlSeq,1);assert.equal(controlSender.lastSubmittedTurn,1);
+deliver=true;controlSender.sendControl(0,false,false);assert.equal(controlSender.lastTurnControlSeq,3);
+controlSender.sendControl(0,false,false);assert.equal(controlSender.lastTurnControlSeq,3);
+console.log('Red OK: reconexion, fallback, colas, heartbeat y confirmacion del giro local.');
 
