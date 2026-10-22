@@ -1179,6 +1179,10 @@ const server=http.createServer(async(req,res)=>{
 const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false,maxPayload:WS_MAX_PAYLOAD_BYTES});
 
 wss.on('connection',(ws,req)=>{
+  ws.on('error',()=>{
+    // Retirar solo este transporte; conservar la ventana habitual de recuperacion.
+    try{ws.terminate();}finally{disconnect(ws,wss);}
+  });
   const detectedIp=requestIp(req);
   connectionMeta.set(ws,{
     ip:detectedIp==='unknown'?('unknown-'+randomBytes(8).toString('hex')):detectedIp,
@@ -1198,6 +1202,8 @@ wss.on('connection',(ws,req)=>{
     if(m.t==='create'){
       if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
       const identity=await resolvePlayerIdentity(m);
+      if(ws.readyState!==1)return;
+      if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
       const creator=roomCreationIdentity(identity,m,ws);
       if(creator.testMode){
@@ -1225,11 +1231,18 @@ wss.on('connection',(ws,req)=>{
 
     if(m.t==='join'){
       const r=rooms.get(String(m.code||'').trim().toUpperCase());
-      const liveHost=r&&currentHost(r);
-      const liveJoin=!!(r&&r.started&&!r.seriesComplete&&r.cpuFill&&r.players.length<MAX_PLAYERS&&liveHost&&liveHost.ws);
+      let liveHost=r&&currentHost(r);
+      let liveJoin=!!(r&&r.started&&!r.seriesComplete&&r.cpuFill&&r.players.length<MAX_PLAYERS&&liveHost&&liveHost.ws);
       if(!r||r.players.length>=MAX_PLAYERS||(r.started&&!liveJoin)){send(ws,{t:'error',message:'Sala no disponible.'});return;}
       if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
       const identity=await resolvePlayerIdentity(m);
+      if(ws.readyState!==1)return;
+      if(info.get(ws)){send(ws,{t:'error',message:'YA ESTAS EN UNA SALA ACTIVA.'});return;}
+      liveHost=currentHost(r);
+      liveJoin=!!(r.started&&!r.seriesComplete&&r.cpuFill&&r.players.length<MAX_PLAYERS&&liveHost&&liveHost.ws&&liveHost.ws.readyState===1);
+      if(rooms.get(r.code)!==r||r.players.length>=MAX_PLAYERS||(r.started&&!liveJoin)){
+        send(ws,{t:'error',message:'Sala no disponible.'});return;
+      }
       if(identity.error){send(ws,{t:'error',message:identity.error});return;}
       const participant=roomCreationIdentity(identity,m,ws);
       if(participant.testMode){
