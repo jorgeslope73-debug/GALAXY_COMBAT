@@ -310,3 +310,23 @@ vm.runInContext(game.slice(fallbackStart,game.indexOf('  function sendHostFallba
 fallbackRate.sendHostFallbackState({});assert.equal(fallbackSent,1);
 console.log('Flujo OK: estado antes del dibujo, colas acotadas y controles activos a 30 Hz.');
 
+// Un disparo humano real debe verse en el mismo advance que lo simula.
+const shotContext=require('./check-session-regressions.js').engineContext();
+const shotStates=[];
+const shotHost=new shotContext.window.GalaxyHostPhysics({onState:s=>shotStates.push(s)});
+shotHost.start([{i:0,n:'Host'},{i:1,n:'Guest'}]);
+shotHost.asteroids=[];
+for(const p of shotHost.players){p.spawnFx=0;p.protection=10;p.flare=0;p.shockwave=false;}
+shotHost.players[0].bullets=5;shotHost.players[0].reload=0;
+shotStates.length=0;shotHost.advance(1000);
+shotHost.setControl(0,0,false,true,{controlSeq:1});
+shotHost.advance(1017);
+assert.equal(shotStates.length,1,'no esperar al tercer tick para mostrar el disparo');
+assert.equal(shotStates[0].bullets.length,1,'snapshot incluye el proyectil autorizado');
+shotHost.advance(1034);
+assert.equal(shotStates.length,1,'mantener fuego en recarga no fuerza otro snapshot');
+shotHost.advance(1051);
+assert.equal(shotStates.length,2,'conservar el snapshot regular del tercer tick');
+assert.equal(shotHost.players[0].bullets,4,'sin duplicar consumo ni saltarse la recarga');
+console.log('Disparo OK: visible en el primer tick, con cadencia y municion conservadas.');
+
