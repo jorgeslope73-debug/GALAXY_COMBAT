@@ -369,6 +369,20 @@
         this.flushBroadcastState();
       },0);
     }
+    sendReliable(rec,raw){
+      const dc=rec&&rec.reliableDc;
+      if(this.closed||!dc||dc.readyState!=='open')return false;
+      // Cota conservadora UTF-8. Cerrar el enlace atascado activa el respaldo;
+      // las acciones sin ACK permanecen en la cola de reintento del cliente.
+      if(Number(dc.bufferedAmount||0)+raw.length*3>256*1024){
+        for(const [index,current] of this.peers){
+          if(current!==rec)continue;
+          this.closePeer(index);this.onPeerState(index,'closed');break;
+        }
+        return false;
+      }
+      try{dc.send(raw);return true;}catch(_){return false;}
+    }
     broadcastEvent(event){
       if(!this.isHost)return;
       if(!PROTOCOL.matches(event,this,{futureRound:event.t==='restarted'}))return;
@@ -379,7 +393,7 @@
       const raw=JSON.stringify({t:'event',event});
       for(const rec of this.peers.values()){
         const dc=rec&&rec.reliableDc;
-        if(rec.open&&dc&&dc.readyState==='open'){try{dc.send(raw);}catch(_){}}
+        if(rec.open&&dc&&dc.readyState==='open')this.sendReliable(rec,raw);
       }
     }
     sendInputAction(kind,actionId,context=this){
@@ -395,14 +409,14 @@
       const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.reliableDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
-      try{dc.send(JSON.stringify(packet));return true;}catch(_){return false;}
+      return this.sendReliable(rec,JSON.stringify(packet));
     }
     sendInputAck(peerIndex,action){
       const packet=PROTOCOL.stamp(this,{t:'input-ack',kind:action.kind,actionId:action.actionId,inputSessionId:action.inputSessionId});
       if(Number(peerIndex)===this.myIndex){this.onEvent(packet);return true;}
       const rec=this.peers.get(Number(peerIndex)),dc=rec&&rec.reliableDc;
       if(!dc||dc.readyState!=='open')return false;
-      try{dc.send(JSON.stringify(packet));return true;}catch(_){return false;}
+      return this.sendReliable(rec,JSON.stringify(packet));
     }
     sendAction(action,rankRound=0){
       const round=Math.max(0,Number(rankRound)||0);
@@ -411,7 +425,7 @@
       const rec=this.peers.get(this.hostIndex)||this.firstOpenPeer();
       const dc=rec&&rec.reliableDc;
       if(!rec||!rec.open||!dc||dc.readyState!=='open')return false;
-      try{dc.send(JSON.stringify(packet));return true;}catch(_){return false;}
+      return this.sendReliable(rec,JSON.stringify(packet));
     }
     close(){
       this.closed=true;
@@ -432,3 +446,4 @@
   }
   window.GalaxyP2P=GalaxyP2P;
 })();
+

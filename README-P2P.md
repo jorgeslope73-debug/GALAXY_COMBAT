@@ -1,4 +1,4 @@
-# Galaxy Combat online — V22.48
+# Galaxy Combat online — V22.50
 
 GitHub Pages publica `docs/`. El navegador anfitrion simula a 60 Hz y publica estados a 20 Hz. Render ejecuta `server/p2p-server.js`: salas, senalizacion WebRTC, respaldo WebSocket, cuentas y ranking. Los invitados envian controles y acciones; la fisica permanece en el anfitrion.
 
@@ -32,6 +32,12 @@ El servidor publica `seriesPhase`: `lobby`, `playing`, `round-finished` o `serie
 
 Una reconexion con fisica viva conserva la partida. Si el anfitrion recarga, la ronda aun en juego se reinicia coordinadamente bajo una nueva autoridad; las victorias confirmadas se conservan. Una ronda terminada se recupera en su pantalla de resultado y no vuelve a puntuarse. Los invitados preparan los recursos antes de recuperar la vista de una partida en curso.
 
+## Conexiones bloqueadas y colas
+
+El servidor envia un ping WebSocket nativo cada 15 segundos y retira la conexion si no recibe pong antes del siguiente ciclo. El navegador responde automaticamente. El cliente tambien comprueba la recepcion: con un servidor que anuncia `websocketHeartbeat`, envia ping de aplicacion cada 5 segundos y recupera el transporte tras mas de 25 segundos sin mensajes. La comprobacion se ejecuta cada 5 segundos y puede retrasarse si el navegador suspende la pestaña. Una negociacion WebSocket sin completar tiene 60 segundos de margen. Los servidores anteriores que no anuncian heartbeat siguen siendo compatibles.
+
+Las colas WebSocket admiten hasta 512 KiB; el canal P2P fiable, hasta 256 KiB. Antes de enviar se incluye el tamaño del siguiente mensaje (estimacion conservadora UTF-8 en navegador). Superar el limite retira solo el transporte afectado y utiliza la recuperacion existente. Los snapshots conservan sus limites inferiores. No se añaden colas ilimitadas ni se cambia la autoridad del anfitrion: las acciones y resultados pendientes conservan sus IDs y reintentos. Los eventos transitorios no tienen una nueva garantia de repeticion tras cerrar un canal; las fases se recuperan mediante el protocolo de sesiones existente.
+
 ## Validacion y despliegue
 
 Ejecutar desde la raiz:
@@ -48,3 +54,4 @@ node tools/stress-game.js
 Las pruebas de protocolo usan los handlers reales y transportes simulados: ACK perdido, duplicados, expiracion, cambio de ronda/serie, nueva sesion de entrada, reconexion y fases confirmadas. No sustituyen una partida real en dos dispositivos.
 
 Actualizar backend y cliente conjuntamente, con el backend primero; Pages sirve `main/docs` y Render ejecuta `server/`. Un cliente o servidor de otro contrato recibe un aviso de actualizacion en lugar de entrar en una partida incompatible. TURN sigue siendo configurable mediante `/rtc-config`; no se exige para usar el respaldo WebSocket. El anfitrion sigue siendo autoritativo, por lo que este protocolo no impide las trampas de un anfitrion modificado.
+

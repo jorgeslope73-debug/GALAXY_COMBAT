@@ -73,7 +73,7 @@ assert.equal(applied.length,3,'mantener respaldo hasta completar recuperacion es
 
 const server=read('server/p2p-server.js');
 const sendSource=server.slice(server.indexOf('function send(ws,o)'),server.indexOf('\n}',server.indexOf('function sendLatestState'))+2);
-const relay=vm.createContext({info:new WeakMap(),rooms:new Map(),PROTOCOL});
+const relay=vm.createContext({info:new WeakMap(),rooms:new Map(),PROTOCOL,Buffer,WS_MAX_BUFFER_BYTES:512*1024});
 vm.runInContext(sendSource,relay);
 const sent=[];
 const slow={readyState:1,bufferedAmount:65536,send:s=>sent.push(JSON.parse(s))};
@@ -88,4 +88,71 @@ assert.equal(sent.at(-1).t,'event','los eventos fiables no se descartan');
 slow.bufferedAmount=0;
 relay.sendLatestState(slow,{seq:101});
 assert.equal(sent.at(-1).seq,101,'al recuperarse se envia el estado actual');
-console.log('Red OK: orden, reconexion, cambio de host, fallback y congestion.');
+// La cola fiable se permite hasta el limite; el exceso retira solo el socket lento.
+let terminated=0;
+const blocked={readyState:1,bufferedAmount:512*1024,send:()=>assert.fail('cola bloqueada'),terminate(){terminated++;this.readyState=3;}};
+relay.send(blocked,{t:'event'});
+assert.equal(terminated,1);
+relay.send(healthy,{t:'event'});
+assert.equal(sent.at(-1).t,'event');
+
+const {serverFixture}=require('./check-session-regressions.js');
+const service=serverFixture(),silent=service.connect(),responsive=service.connect();
+service.checkSocketHealth();
+assert.equal(silent.pings,1);assert.equal(responsive.pings,1);
+responsive.emit('pong');service.checkSocketHealth();
+assert.equal(silent.readyState,3,'cerrar transporte sin pong');
+assert.equal(responsive.readyState,1,'conservar transporte que responde');
+
+// Canales fiables P2P: aislar al peer congestionado sin bloquear a los demas.
+const transport=new context.window.GalaxyP2P();
+transport.isHost=true;transport.seriesId='a'.repeat(32);transport.rankRound=1;
+let fastClosed=0,reliableClosed=0,peerClosed=0,reliableSends=0;
+const stuck={open:true,pc:{close(){peerClosed++;}},fastDc:{close(){fastClosed++;}},reliableDc:{readyState:'open',bufferedAmount:256*1024,close(){reliableClosed++;},send(){assert.fail('canal bloqueado');}}};
+const good={open:true,pc:{},reliableDc:{readyState:'open',bufferedAmount:0,send(){reliableSends++;}}};
+transport.peers.set(1,stuck);transport.peers.set(2,good);
+transport.broadcastEvent(PROTOCOL.stamp(transport,{t:'victory',eventId:1,winner:0}));
+assert.equal(transport.peers.has(1),false);assert.equal(transport.peers.has(2),true);
+assert.equal(fastClosed,1);assert.equal(reliableClosed,1);assert.equal(peerClosed,1);assert.equal(reliableSends,1);
+
+// Reloj simulado: la recuperacion no depende de esperar a close del TCP roto.
+const browser=vm.createContext({WebSocket:{OPEN:1,CONNECTING:0},performance:{now:()=>0},ws:null});
+vm.runInContext(game.slice(game.indexOf('  function retireSocket('),game.indexOf('  function scheduleReconnect(')),browser);
+let closed=0,recovered=0;
+const connection={readyState:1,bufferedAmount:0,lastReceiveAt:0,helloReceived:true,heartbeatEnabled:true,send(){},close(){closed++;},onclose(){recovered++;browser.ws=null;}};
+browser.ws=connection;browser.checkClientSocketHealth(connection,20000);
+assert.equal(recovered,0);
+browser.checkClientSocketHealth(connection,26000);
+assert.equal(closed,1);assert.equal(recovered,1);
+const newSocket={...connection,lastReceiveAt:26000};browser.ws=newSocket;
+browser.checkClientSocketHealth(connection,60000);
+assert.equal(browser.ws,newSocket,'el watchdog antiguo no retira el socket nuevo');
+assert.equal(browser.sendSocketRaw(newSocket,'{}'),true);
+newSocket.bufferedAmount=512*1024;
+assert.equal(browser.sendSocketRaw(newSocket,'{}'),false);
+assert.equal(recovered,2,'la cola llena entra en recuperacion');
+const legacy={...connection,heartbeatEnabled:false};browser.ws=legacy;
+browser.checkClientSocketHealth(legacy,60000);
+assert.equal(browser.ws,legacy,'compatibilidad con servidor anterior sin heartbeat');
+
+// Una accion que no cabe conserva el ID y se reenvia por el respaldo existente.
+const {clientFixture}=require('./check-session-regressions.js');
+const actionClient=clientFixture().ctx;
+actionClient.isHost=false;actionClient.inGame=true;
+const actionTransport=new context.window.GalaxyP2P();
+Object.assign(actionTransport,{hostIndex:0,hostEpoch:actionClient.hostEpoch,seriesId:actionClient.onlineSeriesId,rankRound:1,inputSessionId:actionClient.inputSessionId});
+actionTransport.peers.set(0,{open:true,pc:{close(){}},reliableDc:{readyState:'open',bufferedAmount:256*1024,close(){},send(){assert.fail('accion en cola saturada');}}});
+actionClient.p2p=actionTransport;
+actionClient.queueInputAction('rocket');
+assert.equal(actionClient.pendingInputActions.length,1);
+assert.equal(actionClient.pendingInputActions[0].sentAt,null);
+const actionId=actionClient.pendingInputActions[0].actionId,forwarded=[];
+actionClient.clientNeedsFallback=()=>true;
+actionClient.ws={readyState:1,bufferedAmount:0,send:raw=>forwarded.push(JSON.parse(raw))};
+actionClient.flushPendingInputActions();
+assert.equal(forwarded.length,1);assert.equal(forwarded[0].actionId,actionId);
+assert.equal(forwarded[0].t,'fallback-input-action');
+actionClient.acknowledgeInputAction(forwarded[0]);
+assert.equal(actionClient.pendingInputActions.length,0);
+console.log('Red OK: orden, reconexion, fallback, congestion y heartbeat en ambos extremos.');
+

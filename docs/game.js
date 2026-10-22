@@ -2524,13 +2524,13 @@
     const accepted=!duplicate&&!expired&&hostPhysics.applyInputAction(Number(index),m.kind,m.actionId,m.inputSessionId);
     if(!accepted&&!duplicate&&!expired)return false;
     if(p2p)p2p.sendInputAck(Number(index),m);
-    if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(onlinePacket({t:'fallback-input-ack',to:Number(index),kind:m.kind,actionId:m.actionId,inputSessionId:m.inputSessionId})));
+    if(ws&&ws.readyState===WebSocket.OPEN)sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-input-ack',to:Number(index),kind:m.kind,actionId:m.actionId,inputSessionId:m.inputSessionId})));
     return !!(accepted||duplicate);
   }
   function ensureP2P(){
     if(p2p||typeof window.GalaxyP2P!=='function')return p2p;
     p2p=new window.GalaxyP2P({
-      sendSignal:o=>{if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}return false;},
+      sendSignal:o=>sendSocketRaw(ws,JSON.stringify(o)),
       onControl:(i,m)=>{if(hostPhysics&&isCurrentOnlinePacket(m))hostPhysics.setControl(i,m.turn,m.thrust,m.fire,m);},
       onState:m=>{
         const now=performance.now();
@@ -2540,7 +2540,7 @@
           if(gap<=180)p2pStableCount++;else p2pStableCount=1;
           if(p2pStableCount>=P2P_STABLE_STATES){
             fallbackActive=false;p2pStableCount=0;
-            if(ws&&ws.readyState===WebSocket.OPEN){try{ws.send(JSON.stringify(onlinePacket({t:'fallback-clear'})));}catch(_){}}
+            sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-clear'})));
             handle(m);
           }
           return;
@@ -2586,7 +2586,7 @@
     fallbackActive=true;
     if(now-lastFallbackRequestAt<FALLBACK_RETRY_MS)return true;
     lastFallbackRequestAt=now;p2pStableCount=0;
-    try{ws.send(JSON.stringify(onlinePacket({t:'fallback-request'})));return true;}catch(_){return false;}
+    return sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-request'})));
   }
   function sendHostFallbackState(m){
     if(!fallbackPeers.size||!ws||ws.readyState!==WebSocket.OPEN)return false;
@@ -2594,7 +2594,7 @@
     const now=performance.now();
     if(now-lastFallbackStateSentAt<FALLBACK_STATE_MS)return false;
     lastFallbackStateSentAt=now;
-    try{ws.send(JSON.stringify(onlinePacket({t:'fallback-state',to:[...fallbackPeers],state:m})));return true;}catch(_){return false;}
+    return sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-state',to:[...fallbackPeers],state:m})));
   }
   function sendHostFallbackEvent(m,forceReliable=false){
     // V19.79: los estados continuos siguen usando el camino P2P descartable,
@@ -2603,7 +2603,7 @@
     // todos los clientes de la sala; el resto de eventos solo va a peers fallback.
     if((!forceReliable&&!fallbackPeers.size)||!ws||ws.readyState!==WebSocket.OPEN)return false;
     const to=forceReliable?[]:[...fallbackPeers];
-    try{ws.send(JSON.stringify(onlinePacket({t:'fallback-event',to,event:m})));return true;}catch(_){return false;}
+    return sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-event',to,event:m})));
   }
   function startHostPhysics(players,rankRound=1){
     if(!isHost||typeof window.GalaxyHostPhysics!=='function')return false;
@@ -2716,6 +2716,33 @@
     statusEl.textContent=msg;
     if(serverWaitText)serverWaitText.textContent=msg;
   }
+  function retireSocket(connection){
+    if(!connection||ws!==connection)return;
+    // No esperar a vaciar una cola TCP bloqueada para iniciar la recuperacion.
+    try{connection.close(4002,'Transport recovery');}catch(_){}
+    if(ws===connection&&connection.onclose)connection.onclose();
+  }
+  function sendSocketRaw(connection,raw){
+    if(!connection||connection.readyState!==WebSocket.OPEN)return false;
+    if(Number(connection.bufferedAmount||0)+raw.length*3>512*1024){
+      retireSocket(connection);return false;
+    }
+    try{connection.send(raw);return true;}catch(_){retireSocket(connection);return false;}
+  }
+  function checkClientSocketHealth(connection,now=performance.now()){
+    if(ws!==connection)return;
+    const age=now-connection.lastReceiveAt;
+    if(connection.readyState===WebSocket.CONNECTING){
+      if(age>60000)retireSocket(connection);
+      return;
+    }
+    if(connection.readyState!==WebSocket.OPEN)return;
+    // Activar el watchdog solo con servidores que anuncian soporte del ping.
+    if(!connection.helloReceived||connection.heartbeatEnabled){
+      if(age>25000){retireSocket(connection);return;}
+    }
+    if(connection.heartbeatEnabled)sendSocketRaw(connection,JSON.stringify({t:'ping'}));
+  }
   function scheduleReconnect(delay=2200){
     clearTimeout(reconnectTimer);
     reconnectTimer=setTimeout(connect,delay);
@@ -2752,14 +2779,23 @@
     wakeStatus();
     try{ws=new WebSocket(url);}catch(_){scheduleReconnect();return;}
     const connection=ws;
+    connection.lastReceiveAt=performance.now();
+    connection.helloReceived=false;connection.heartbeatEnabled=false;
+    const healthTimer=setInterval(()=>{
+      if(ws!==connection){clearInterval(healthTimer);return;}
+      checkClientSocketHealth(connection);
+    },5000);
     ws.onopen=()=>{
       if(ws!==connection)return;
+      connection.lastReceiveAt=performance.now();
       clearTimeout(reconnectTimer);
       connectAttempt=0;wakeStartedAt=0;
       serverProtocolReady=false;
     };
     ws.onclose=()=>{
+      clearInterval(healthTimer);
       if(ws!==connection)return;
+      ws=null;
       pendingStateRaw=null;
       serverProtocolReady=false;
       setServerReady(false);
@@ -2802,6 +2838,7 @@
     };
     ws.onmessage=e=>{
       if(ws!==connection)return;
+      connection.lastReceiveAt=performance.now();
       // V20.63: una partida Contra la maquina es totalmente local. Mientras
       // esta activa, ningun mensaje tardio del servidor puede pisar su estado,
       // cerrar la partida ni inyectar snapshots de una sala online anterior.
@@ -2817,7 +2854,11 @@
       // parseo de un snapshot pendiente. Solo los cambios de fase de partida
       // requieren orden estricto con el ultimo estado recibido.
       let m;try{m=JSON.parse(raw);}catch(_){return;}
-      if(m&&m.t==='hello'){serverHello(m);return;}
+      if(m&&m.t==='hello'){
+        connection.helloReceived=true;connection.heartbeatEnabled=m.websocketHeartbeat===true;
+        serverHello(m);return;
+      }
+      if(m&&m.t==='pong')return;
       if(!serverProtocolReady)return;
       if(m&&['p2p-offer','p2p-answer','p2p-ice','p2p-reconnect'].includes(m.t)){
         ensureP2P()?.handleSignal(m);return;
@@ -2883,7 +2924,7 @@
     if(localCpuActive&&localCpu&&typeof localCpu.handleMessage==='function')return localCpu.handleMessage(o);
     if(['create','join','resume'].includes(o.t))o={...o,protocolVersion:PROTOCOL.VERSION,inputSessionId};
     else if(PROTOCOL.validId(onlineSeriesId))o=onlinePacket(o);
-    if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}
+    if(ws&&ws.readyState===WebSocket.OPEN)return sendSocketRaw(ws,JSON.stringify(o));
     if(!inGame){setServerReady(false);if(!wakeStartedAt)wakeStartedAt=Date.now();wakeStatus();connect();}
     return false;
   }
@@ -2918,7 +2959,8 @@
     let sent=false;
     for(const op of [...pendingCriticalServerOps]){
       if(!isCurrentOnlinePacket(op,{ignoreRound:true})){acknowledgeCriticalServerOp(op.requestId);continue;}
-      try{ws.send(JSON.stringify(op));sent=true;}catch(_){break;}
+      if(!sendSocketRaw(ws,JSON.stringify(op)))break;
+      sent=true;
     }
     return sent;
   }
@@ -2999,14 +3041,14 @@
       if(!isHost&&(fallbackActive||clientNeedsFallback(now))){
         requestFallback(now);
         if(ws&&ws.readyState===WebSocket.OPEN){
-          try{ws.send(JSON.stringify(PROTOCOL.stamp(context,{t:'fallback-input-action',kind:action,actionId:id,inputSessionId,simTime:context.simTime})));return true;}catch(_){return false;}
+          return sendSocketRaw(ws,JSON.stringify(PROTOCOL.stamp(context,{t:'fallback-input-action',kind:action,actionId:id,inputSessionId,simTime:context.simTime})));
         }
         return false;
       }
       return p2p.sendInputAction(action,id,context);
     }
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
-    try{ws.send(JSON.stringify(PROTOCOL.stamp(context,{t:'fallback-input-action',kind:action,actionId:id,inputSessionId,simTime:context.simTime})));return true;}catch(_){return false;}
+    return sendSocketRaw(ws,JSON.stringify(PROTOCOL.stamp(context,{t:'fallback-input-action',kind:action,actionId:id,inputSessionId,simTime:context.simTime})));
   }
   function flushPendingInputActions(){
     const now=performance.now();
@@ -3038,7 +3080,7 @@
         if(ws&&ws.readyState===WebSocket.OPEN){
           if(Number(ws.bufferedAmount||0)>32*1024)return false;
           try{
-            ws.send(JSON.stringify(onlinePacket({t:'fallback-ctrl',controlSeq:seq,turn,thrust:!!thrust,fire:!!fire,...actions,inputSessionId})));
+            if(!sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-ctrl',controlSeq:seq,turn,thrust:!!thrust,fire:!!fire,...actions,inputSessionId}))))return false;
             controlSeq=seq;return true;
           }catch(_){return false;}
         }
@@ -3050,7 +3092,7 @@
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     if(Number(ws.bufferedAmount||0)>32*1024)return false;
     try{
-      ws.send(JSON.stringify(onlinePacket({t:'ctrl',controlSeq:seq,turn,thrust,fire,...actions,inputSessionId})));
+      if(!sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'ctrl',controlSeq:seq,turn,thrust,fire,...actions,inputSessionId}))))return false;
       controlSeq=seq;return true;
     }catch(_){return false;}
   }
@@ -4648,7 +4690,7 @@
       // no fiable (maxRetransmits:0). Preferimos el WebSocket fiable; P2P queda
       // solo como respaldo si en ese instante no hay servidor de senalizacion.
       if(ws&&ws.readyState===WebSocket.OPEN){
-        try{ws.send(JSON.stringify(onlinePacket({t:'fallback-action',action:'restart',inputSessionId})));ok=true;}catch(_){}
+        ok=sendSocketRaw(ws,JSON.stringify(onlinePacket({t:'fallback-action',action:'restart',inputSessionId})));
       }
       if(!ok&&p2p&&!fallbackActive)ok=p2p.sendAction('restart',currentOnlineSeriesRound());
     }
@@ -6523,3 +6565,4 @@
   if(window.GalaxyGraphicsLoader)window.GalaxyGraphicsLoader.track(startupGraphics);
   connect();render();
 })();
+
