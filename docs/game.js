@@ -5050,6 +5050,50 @@
     return d;
   }
   function angleDelta(from,to){return ((to-from+540)%360)-180;}
+  function stepRemoteVisual(visual,p,previous,now,snapshotAt,sampleSeconds,width,height){
+    // Solo modifica la pose de dibujo. Nunca escribe en los estados del host.
+    const rawAge=Math.max(0,(now-snapshotAt)/1000);
+    const predictionAge=Math.min(.12,rawAge);
+    const wrap=(value,size)=>(value%size+size)%size;
+    const targetX=wrap(p.x+p.vx*predictionAge,width);
+    const targetY=wrap(p.y+p.vy*predictionAge,height);
+    const newSnapshot=visual.snapshotAt!==snapshotAt;
+    const respawn=previous&&
+      (previous.dead&&!p.dead||Number(p.d)>Number(previous.d)||Number(p.spawnFx)>Number(previous.spawnFx)+.1);
+    let angularVelocity=0;
+    if(previous&&!previous.dead&&!p.dead&&!respawn&&Number.isFinite(sampleSeconds)&&sampleSeconds>0&&sampleSeconds<=.5){
+      angularVelocity=clamp(angleDelta(previous.r,p.r)/sampleSeconds,-240,240);
+    }
+    const targetR=wrap(p.r+angularVelocity*predictionAge,360);
+    const reset=!visual.ready||(newSnapshot&&respawn)||now-visual.lastAt>250||p.dead;
+    visual.snapshotAt=snapshotAt;
+    if(reset){
+      Object.assign(visual,{ready:!p.dead,x:targetX,y:targetY,r:targetR,vx:p.vx,vy:p.vy,lastAt:now});
+      return visual;
+    }
+    const dt=Math.min(.05,Math.max(0,(now-visual.lastAt)/1000));
+    // No integrar todo el frame si cruza el limite de prediccion de 120 ms.
+    const moveDt=Math.min(dt,Math.max(0,(snapshotAt+120-visual.lastAt)/1000));
+    visual.lastAt=now;
+    const velocityFollow=1-Math.exp(-14*dt);
+    visual.vx+=(p.vx-visual.vx)*velocityFollow;
+    visual.vy+=(p.vy-visual.vy)*velocityFollow;
+    visual.x=wrap(visual.x+visual.vx*moveDt,width);
+    visual.y=wrap(visual.y+visual.vy*moveDt,height);
+    const dx=wrappedDelta(visual.x,targetX,width),dy=wrappedDelta(visual.y,targetY,height);
+    // Una correccion de red moderada se absorbe; solo una discontinuidad grande
+    // requiere un salto. El camino corto respeta los bordes del mapa toroidal.
+    if(Math.hypot(dx,dy)>Math.max(240,Math.min(width,height)*.4)){
+      visual.x=targetX;visual.y=targetY;visual.r=targetR;
+      visual.vx=p.vx;visual.vy=p.vy;
+    }else{
+      const follow=1-Math.exp(-11*dt);
+      visual.x=wrap(visual.x+dx*follow,width);
+      visual.y=wrap(visual.y+dy*follow,height);
+      visual.r=wrap(visual.r+angleDelta(visual.r,targetR)*(1-Math.exp(-15*dt)),360);
+    }
+    return visual;
+  }
   function ghostRevealAlpha(p,now){
     const camo=Number(p&&p.camo)||0;
     if(camo<=0)return 0;
@@ -5167,65 +5211,9 @@
       const visual=onlineRemote?remoteVisuals[remoteIndex]:null;
 
       if(visual){
-        // V20.18: las naves remotas ya no esperan quietas entre snapshots.
-        // Extrapolamos SOLO el dibujo con la velocidad autoritativa recibida y
-        // reconciliamos suavemente al llegar el siguiente estado. Fisica,
-        // colisiones y puntuacion siguen exclusivamente en el host.
-        const rawAge=Math.max(0,(now-lastStateTime)/1000);
-        const predictionAge=Math.min(.12,rawAge);
-        const targetX=(p.x+p.vx*predictionAge+W)%W;
-        const targetY=(p.y+p.vy*predictionAge+H)%H;
-
-        let angularVelocity=0;
-        if(previous&&!previous.dead){
-          const sampleDt=Math.max(.03,Math.min(.12,smoothedStateInterval/1000));
-          angularVelocity=clamp(angleDelta(previous.r,p.r)/sampleDt,-240,240);
-        }
-        const targetR=(p.r+angularVelocity*predictionAge+360)%360;
-
-        const needsReset=!visual.ready||(previous&&previous.dead)||now-visual.lastAt>250;
-        if(needsReset){
-          visual.ready=true;
-          visual.x=targetX;visual.y=targetY;visual.r=targetR;
-          visual.vx=p.vx;visual.vy=p.vy;visual.lastAt=now;
-        }else{
-          const dt=Math.min(.05,Math.max(0,(now-visual.lastAt)/1000));
-          visual.lastAt=now;
-
-          // Seguir la velocidad del host sin cambios bruscos al recibir paquete.
-          const velocityFollow=1-Math.exp(-14*dt);
-          visual.vx+=(p.vx-visual.vx)*velocityFollow;
-          visual.vy+=(p.vy-visual.vy)*velocityFollow;
-
-          // Solo predecimos hasta 120 ms. Si hay un corte mayor, dejamos que la
-          // nave se asiente en la ultima posicion predicha en vez de inventar
-          // movimiento indefinidamente.
-          if(rawAge<.12){
-            visual.x=(visual.x+visual.vx*dt+W)%W;
-            visual.y=(visual.y+visual.vy*dt+H)%H;
-          }
-
-          const dx=wrappedDelta(visual.x,targetX,W);
-          const dy=wrappedDelta(visual.y,targetY,H);
-          const error=Math.hypot(dx,dy);
-          if(error>120){
-            // Respawn/teletransporte/impacto fuerte: manda el estado del host.
-            visual.x=targetX;visual.y=targetY;
-            visual.vx=p.vx;visual.vy=p.vy;
-          }else{
-            const positionFollow=1-Math.exp(-11*dt);
-            visual.x=(visual.x+dx*positionFollow+W)%W;
-            visual.y=(visual.y+dy*positionFollow+H)%H;
-          }
-
-          const dr=angleDelta(visual.r,targetR);
-          if(Math.abs(dr)>75){
-            visual.r=targetR;
-          }else{
-            const rotationFollow=1-Math.exp(-15*dt);
-            visual.r=(visual.r+dr*rotationFollow+360)%360;
-          }
-        }
+        // El giro usa tiempo del host: el jitter de llegada no altera su velocidad.
+        const sampleSeconds=Number(state?.simTime)-Number(previousState?.simTime);
+        stepRemoteVisual(visual,p,previous,now,lastStateTime,sampleSeconds,W,H);
         x=visual.x;y=visual.y;r=visual.r;
       }else if(previous&&!previous.dead){
         // En CPU local conservamos la interpolacion existente.

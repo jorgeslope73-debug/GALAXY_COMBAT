@@ -40,6 +40,8 @@ Las colas WebSocket admiten hasta 512 KiB; el canal P2P fiable, hasta 256 KiB. A
 
 ## Validacion y despliegue
 
+V22.52 suaviza las correcciones visuales moderadas de posicion y giro de las naves remotas. El giro predictivo usa `simTime` del anfitrion, en lugar del intervalo variable de llegada. La extrapolacion sigue limitada a 120 ms y respeta el cruce de bordes. Reapariciones, muertes omitidas entre snapshots, discontinuidades grandes y reanudaciones largas se reposicionan inmediatamente. No cambia los snapshots, las fisicas, las colisiones, los controles locales ni el protocolo P2P. Las pruebas simulan jitter y paquetes omitidos a 30/60/120 FPS.
+
 V22.51: los reintentos de señalizacion aumentan exponencialmente, con variacion aleatoria del 20 %, hasta una base de 4 s durante la partida y 15 s en el menu. Tras una conexion compatible estable durante 10 s, el siguiente corte vuelve al intervalo inicial. Volver a primer plano o recuperar la red permite reintentar inmediatamente si no hay una conexion en curso. El flujo P2P y la ventana de recuperacion de sala se conservan.
 
 Al perder foco o quedar oculta la pestaña se envian controles neutros y se suspende la lectura de teclado, mando y sensores. Al volver se limpian entradas antiguas y se comprueba el WebSocket, dando margen para responder despues de una suspension del navegador. Esto no permite que el anfitrion simule mientras el sistema operativo congela su pestaña.
