@@ -1,5 +1,15 @@
 # Galaxy Combat Web
 
+## Acceso temporal a GALAXY3D
+
+La entrada https://jorgeslope73-debug.github.io/GALAXY_COMBAT/ redirige a
+https://jorgeslope73-debug.github.io/GALAXY3D/ desde el principio de `docs/index.html`.
+El codigo, los recursos y las paginas auxiliares del juego 2D se conservan.
+
+Para reactivar el 2D, elimina en `docs/index.html` solamente el bloque delimitado por
+`GALAXY3D_REDIRECT_START` y `GALAXY3D_REDIRECT_END`, ambos comentarios incluidos,
+y publica el cambio en Pages. No es necesario modificar Render ni la base de datos.
+
 **Versión actual: V20.80**
 
 Galaxy Combat es un juego de combate espacial para navegador, gratuito y sin instalación obligatoria. Permite jugar contra CPU o en partidas online de hasta 4 jugadores.
